@@ -454,7 +454,7 @@ static boolean hashTableIteratorNext(HashTableIterator *hashTableIterator)
   
   i = hashTableIterator->index + 1;
   
-  if(i > tableSize)
+  if(i >= tableSize)
     {
       hashTableIterator->index = i;
       return FALSE;
@@ -1344,6 +1344,8 @@ static unsigned int* determineGreedyDropset(hashtable *profile, tree *tree, Arra
     
       numberBipartitions = allBipartitions->length;
     
+      printBothOpen("divided bips: %d = %d infreq + %d consensus\n", allBipartitions->length, infrequentBipartitions->length, getLengthOfList(consensusBipartitions));
+
       free((ProfileElem**)allBipartitions->arrayTable);
       free(allBipartitions->commonAttributes);
       free(allBipartitions);
@@ -1371,7 +1373,7 @@ static unsigned int* determineGreedyDropset(hashtable *profile, tree *tree, Arra
       */
 
        
-      printBothOpen("divided bips: %d = %d infreq + %d consensus\n", allBipartitions->length, infrequentBipartitions->length, getLengthOfList(consensusBipartitions));
+      
 
      
       dropsets =  potentialProfileDropsets(infrequentBipartitions, frequencyThreshold, droppedTaxa);
