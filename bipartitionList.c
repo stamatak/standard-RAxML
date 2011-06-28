@@ -2307,7 +2307,7 @@ static void printSortedBips(entry **consensusBips, const int consensusBipLen, co
   
   boolean 
     *hasAncestor = (boolean*) calloc(consensusBipLen, sizeof(boolean)),
-    *printed = (boolean*)malloc(sizeof(boolean));
+    *printed = (boolean*)calloc(1, sizeof(boolean));
   
   entry 
     *topBip; 
@@ -2578,7 +2578,7 @@ void computeConsensusOnly(tree *tr, char *treeSetFileName, analdef *adef)
 
   outf = myfopen(consensusFileName, "wb");
 
-  fprintf(outf, "(%s", tr->nameList[1]);
+  fprintf(outf, "(%s,", tr->nameList[1]);
   printSortedBips(consensusBips, consensusBipsLen, tr->mxtips, vectorLength, numberOfTrees, outf, tr->nameList, tr, &printCounter);
 
   assert(printCounter ==  (unsigned int)consensusBipsLen);
