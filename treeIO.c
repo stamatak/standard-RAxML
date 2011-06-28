@@ -998,6 +998,8 @@ static nodeptr uprootTree (tree *tr, nodeptr p, boolean readBranchLengths, boole
     assert(i == tr->nodep[i]->number);
 
   
+ 
+
   if(isTip(p->number, tr->mxtips) || p->back) 
     {
       printf("ERROR: Unable to uproot tree.\n");
@@ -1031,7 +1033,9 @@ static nodeptr uprootTree (tree *tr, nodeptr p, boolean readBranchLengths, boole
       double b[NUM_BRANCHES];
       int i;
       for(i = 0; i < tr->numBranches; i++)
-	b[i] = (r->z[i] + q->z[i]);
+	{
+	  b[i] = (r->z[i] + q->z[i]);	  
+	}
       hookup (q, r, b, tr->numBranches);
     }
   else    
@@ -1184,7 +1188,7 @@ int treeReadLen (FILE *fp, tree *tr, boolean readBranches, boolean readNodeLabel
       assert(!readNodeLabels);
 
       p->next->next->back = (nodeptr) NULL;      
-      tr->start = uprootTree(tr, p->next->next, FALSE, FALSE);      
+      tr->start = uprootTree(tr, p->next->next, readBranches, FALSE);      
       if (! tr->start)                              
 	{
 	  printf("FATAL ERROR UPROOTING TREE\n");
