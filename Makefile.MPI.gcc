@@ -1,0 +1,46 @@
+# Makefile November 2009 by Alexandros Stamatakis
+
+CC = mpicc 
+
+
+CFLAGS = -D_WAYNE_MPI -D_GNU_SOURCE -fomit-frame-pointer -funroll-loops -O2  -msse
+
+
+LIBRARIES = -lm
+
+RM = rm -f
+
+objs    = axml.o raxmlParsimony.o optimizeModel.o multiple.o searchAlgo.o topologies.o parsePartitions.o treeIO.o models.o bipartitionList.o rapidBootstrap.o evaluatePartialGenericSpecial.o evaluateGenericSpecial.o newviewGenericSpecial.o makenewzGenericSpecial.o   classify.o mesh.o fastDNAparsimony.o fastSearch.o leaveDropping.o rogueEPA.o
+
+all : raxmlHPC-MPI
+
+GLOBAL_DEPS = axml.h globalVariables.h
+
+raxmlHPC-MPI : $(objs)
+	$(CC) -o raxmlHPC-MPI $(objs) $(LIBRARIES) 
+
+classify.o : classify.c $(GLOBAL_DEPS)
+evaluatePartialSpecialGeneric.o : evaluatePartialSpecialGeneric.c $(GLOBAL_DEPS)
+bipartitionList.o : bipartitionList.c $(GLOBAL_DEPS)
+optimizeModel.o : optimizeModel.c $(GLOBAL_DEPS)
+multiple.o : multiple.c $(GLOBAL_DEPS)
+axml.o : axml.c $(GLOBAL_DEPS)
+raxmlParsimony.o : raxmlParsimony.c $(GLOBAL_DEPS)
+searchAlgo.o : searchAlgo.c $(GLOBAL_DEPS)
+topologies.o : topologies.c $(GLOBAL_DEPS)
+parsePartitions.o : parsePartitions.c $(GLOBAL_DEPS)
+treeIO.o : treeIO.c $(GLOBAL_DEPS)
+models.o : models.c $(GLOBAL_DEPS)
+rapidBootstrap.o : rapidBootstrap.c $(GLOBAL_DEPS) 
+evaluatePartialGenericSpecial.o : evaluatePartialGenericSpecial.c $(GLOBAL_DEPS)
+evaluateGenericSpecial.o : evaluateGenericSpecial.c $(GLOBAL_DEPS)
+newviewGenericSpecial.o : newviewGenericSpecial.c $(GLOBAL_DEPS)
+makenewzGenericSpecial.o : makenewzGenericSpecial.c $(GLOBAL_DEPS)
+mesh.o : mesh.c $(GLOBAL_DEPS)
+fastDNAparsimony.o : fastDNAparsimony.c  $(GLOBAL_DEPS)
+fastSearch.o : fastSearch.c $(GLOBAL_DEPS)
+leaveDropping.o : leaveDropping.c $(GLOBAL_DEPS)
+rogueEPA.o : rogueEPA.c $(GLOBAL_DEPS)
+
+clean : 
+	$(RM) *.o raxmlHPC-MPI

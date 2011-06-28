@@ -1,0 +1,50 @@
+# Makefile August 2006 by Alexandros Stamatakis
+# Makefile cleanup October 2006, Courtesy of Peter Cordes <peter@cordes.ca>
+
+CC = gcc 
+
+CFLAGS = -D_USE_PTHREADS -D_IPTOL -D__SIM_SSE3 -O2 -D_GNU_SOURCE -msse3 -fomit-frame-pointer -funroll-loops  
+
+LIBRARIES = -lm -pthread 
+
+#### ADAPT the line below to your local installation path !!!! #######
+
+DMTCPAWARELIB=/usr/lib/dmtcp/libdmtcpaware.a
+
+RM = rm -f
+
+objs    = axml.o raxmlParsimony.o optimizeModel.o multiple.o searchAlgo.o topologies.o parsePartitions.o treeIO.o models.o bipartitionList.o rapidBootstrap.o evaluatePartialGenericSpecial.o evaluateGenericSpecial.o newviewGenericSpecial.o makenewzGenericSpecial.o   classify.o mesh.o fastDNAparsimony.o fastSearch.o leaveDropping.o rogueEPA.o
+
+all : raxmlHPC
+
+GLOBAL_DEPS = axml.h globalVariables.h dmtcpaware.h
+
+raxmlHPC : $(objs)
+	$(CC) -o raxmlHPC-PTHREADS-SSE3 $(objs) $(LIBRARIES) $(DMTCPAWARELIB)
+
+#rev_functions.o : rev_functions.c $(GLOBAL_DEPS)
+classify.o : classify.c $(GLOBAL_DEPS)
+evaluatePartialSpecialGeneric.o : evaluatePartialSpecialGeneric.c $(GLOBAL_DEPS)
+bipartitionList.o : bipartitionList.c $(GLOBAL_DEPS)
+optimizeModel.o : optimizeModel.c $(GLOBAL_DEPS)
+multiple.o : multiple.c $(GLOBAL_DEPS)
+axml.o : axml.c $(GLOBAL_DEPS)
+raxmlParsimony.o : raxmlParsimony.c $(GLOBAL_DEPS)
+searchAlgo.o : searchAlgo.c $(GLOBAL_DEPS)
+topologies.o : topologies.c $(GLOBAL_DEPS)
+parsePartitions.o : parsePartitions.c $(GLOBAL_DEPS)
+treeIO.o : treeIO.c $(GLOBAL_DEPS)
+models.o : models.c $(GLOBAL_DEPS)
+rapidBootstrap.o : rapidBootstrap.c $(GLOBAL_DEPS) 
+evaluatePartialGenericSpecial.o : evaluatePartialGenericSpecial.c $(GLOBAL_DEPS)
+evaluateGenericSpecial.o : evaluateGenericSpecial.c $(GLOBAL_DEPS)
+newviewGenericSpecial.o : newviewGenericSpecial.c $(GLOBAL_DEPS)
+makenewzGenericSpecial.o : makenewzGenericSpecial.c $(GLOBAL_DEPS)
+mesh.o : mesh.c $(GLOBAL_DEPS)
+fastDNAparsimony.o : fastDNAparsimony.c  $(GLOBAL_DEPS)
+fastSearch.o : fastSearch.c $(GLOBAL_DEPS)
+leaveDropping.o : leaveDropping.c $(GLOBAL_DEPS)
+rogueEPA.o : rogueEPA.c $(GLOBAL_DEPS)
+
+clean : 
+	$(RM) *.o raxmlHPC-PTHREADS-SSE3
