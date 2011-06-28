@@ -1034,196 +1034,6 @@ static double localSmoothClassify (tree *tr, int maxtimes, int leftNodeNumber, i
   return result;
 }
 
-/**
-   void testInsertThoroughIterativeOld(tree *tr, int branchNumber, boolean bootstrap)
-   {
-   int 
-   i;
-   
-   double 
-   defaultArray[NUM_BRANCHES];
-   
-   boolean 
-   executeAll[NUM_BRANCHES];
-   
-   for(i = 0; i < tr->numBranches; i++)
-   {
-   defaultArray[i] = defaultz;
-   executeAll[i] = TRUE;
-   }
-   
-   {
-   double	    
-   result, 
-   lzqr, 
-   lzqs, 
-   lzrs, 
-   lzsum, 
-   lzq, 
-   lzr, 
-   lzs, 
-   lzmax, 
-   zqs[NUM_BRANCHES],
-   zrs[NUM_BRANCHES],
-   *qz,
-   e1[NUM_BRANCHES], 
-   e2[NUM_BRANCHES], 
-   e3[NUM_BRANCHES];  
-   
-   int
-   tipCase,	   
-   insertions,
-   leftNodeNumber,
-   rightNodeNumber;
-   
-   
-   branchInfo 
-   *b = &(tr->bInf[branchNumber]);
-   
-   leftNodeNumber  = b->epa->leftNodeNumber;
-   rightNodeNumber = b->epa->rightNodeNumber;
-   
-   for(insertions = 0; insertions < tr->numberOfTipsForInsertion; insertions++)
-   { 
-   if(b->epa->executeThem[insertions])
-   {	     
-   double 
-   *x1 = (double*)NULL,
-   *x2 = (double*)NULL,
-   *x3 = (double*)NULL;
-   
-   int
-   model = 0,
-   *ex1 = (int*)NULL,
-   *ex2 = (int*)NULL,
-   *ex3 = (int*)NULL; 
-   
-   unsigned char 
-   *tipX1 = (unsigned char *)NULL,
-   *tipX2 = (unsigned char *)NULL;	  	  
-   
-   qz = b->epa->branchLengths;      
-   
-   tipX1 = tr->contiguousTips[tr->inserts[insertions]];
-   
-   if(isTip(leftNodeNumber, tr->mxtips))
-   {
-   tipX2 = tr->contiguousTips[leftNodeNumber];
-   x2 = (double*)NULL;
-   tipCase = TIP_TIP;
-   }
-   else
-   {
-   tipX2 = (unsigned char*)NULL;
-   x2 = b->epa->left;
-   tipCase = TIP_INNER;
-   }
-   
-   makenewzClassify(tr, iterations, zqs, defaultArray, (double*)NULL, x2, tipX1, tipX2, tipCase, executeAll);  
-   
-   
-   if(isTip(rightNodeNumber, tr->mxtips))
-   { 
-   x2 = (double*)NULL;
-   
-   tipX2 = tr->contiguousTips[rightNodeNumber];
-   
-   tipCase = TIP_TIP;
-   }
-   else
-   {
-   tipX2 = (unsigned char*)NULL;
-   x2 = b->epa->right;
-   tipCase = TIP_INNER;
-   }
-   
-   makenewzClassify(tr, iterations, zrs, defaultArray, (double*)NULL, x2, tipX1, tipX2, tipCase, executeAll);      
-   
-   
-   for(model = 0; model < tr->numBranches; model++)
-   {
-   lzqr = (qz[model] > zmin) ? log(qz[model]) : log(zmin);		  
-   lzqs = (zqs[model] > zmin) ? log(zqs[model]) : log(zmin);
-   lzrs = (zrs[model] > zmin) ? log(zrs[model]) : log(zmin);
-   lzsum = 0.5 * (lzqr + lzqs + lzrs);
-   
-   lzq = lzsum - lzrs;
-   lzr = lzsum - lzqs;
-   lzs = lzsum - lzqr;
-   lzmax = log(zmax);
-   
-   if      (lzq > lzmax) {lzq = lzmax; lzr = lzqr; lzs = lzqs;} 
-   else if (lzr > lzmax) {lzr = lzmax; lzq = lzqr; lzs = lzrs;}
-   else if (lzs > lzmax) {lzs = lzmax; lzq = lzqs; lzr = lzrs;}          
-   
-   e1[model] = exp(lzq);
-   e2[model] = exp(lzr);
-   e3[model] = exp(lzs);
-   }
-   
-   x3  = tr->temporaryVector;
-   ex3 = tr->temporaryScaling;
-   
-   if(isTip(leftNodeNumber, tr->mxtips) && isTip(rightNodeNumber, tr->mxtips))
-   {
-   tipCase = TIP_TIP;
-   
-   tipX1 = tr->contiguousTips[leftNodeNumber];
-   tipX2 = tr->contiguousTips[rightNodeNumber];
-   
-   newviewClassifySpecial(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e1, e2);	
-   }
-   else
-   {
-   if (isTip(leftNodeNumber, tr->mxtips))
-   {
-   tipCase = TIP_INNER;
-   
-   tipX1 = tr->contiguousTips[leftNodeNumber];
-   
-   x2  = b->epa->right;	     
-   ex2 = b->epa->rightScaling; 
-   newviewClassifySpecial(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e1, e2);	
-   }
-   else 
-   {
-   if(isTip(rightNodeNumber, tr->mxtips))
-   {
-   tipCase = TIP_INNER;
-   
-   tipX1 = tr->contiguousTips[rightNodeNumber];
-   
-   x2  = b->epa->left;	 
-   ex2 = b->epa->leftScaling;
-   newviewClassifySpecial(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e2, e1);	
-   }       
-   else
-   {
-   tipCase = INNER_INNER;
-   
-   x1  = b->epa->left;
-   ex1 = b->epa->leftScaling;
-   
-   x2  = b->epa->right;
-   ex2 = b->epa->rightScaling;
-   newviewClassifySpecial(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e1, e2);	
-   }
-   }	      
-   }
-   
-   result = localSmoothClassify(tr, smoothings, leftNodeNumber, rightNodeNumber, tr->inserts[insertions], e1, e2, e3, b);
-   
-   b->epa->likelihoods[insertions] = result;	      			      
-   
-   if(bootstrap)
-   b->epa->bootstrapBranches[insertions] = getBranch(tr, e3, e3);
-   else
-   b->epa->branches[insertions] = getBranch(tr, e3, e3);
-   }	  
-   }
-   }
-   }
-*/
 
 
 
@@ -2066,7 +1876,14 @@ void classifyML(tree *tr, analdef *adef)
   fprintf(treeFile, "%s\n", tr->tree_string);    
   fclose(treeFile);
 
-  /* JSON format */
+  /* 
+     JSON format only works for sequential version 
+     porting this to9 Pthreads will be a pain in the ass
+     
+  */
+
+
+#ifndef _USE_PTHREADS 
 
   treeFile = myfopen(jointFormatTreeFileName, "wb");
   Tree2StringClassify(tr->tree_string, tr, tr->inserts, FALSE, -1, (branchInfo*)NULL, -1, TRUE, TRUE);
@@ -2204,6 +2021,10 @@ void classifyML(tree *tr, analdef *adef)
 
   
   fclose(treeFile);
+
+  /* JSON format end */
+
+#endif
     
   if(adef->rapidBoot)
     {
@@ -2322,6 +2143,8 @@ void classifyML(tree *tr, analdef *adef)
 	      acc += (prob = (exp(inf[j].lh - lmax) / all));
 	      
 	      fprintf(likelihoodWeightsFile, "%s I%d %f %f\n", tr->nameList[tr->inserts[i]], inf[j].number, prob, acc);
+
+#ifndef _USE_PTHREADS
 	      
 	      /* Species test */
 
@@ -2360,6 +2183,8 @@ void classifyML(tree *tr, analdef *adef)
 		      
 		    }
 		}
+#endif 
+
 	      j++;
 	    }
 
