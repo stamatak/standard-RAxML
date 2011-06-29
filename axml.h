@@ -424,8 +424,7 @@ typedef struct epBrData
   int    *executeThem;
   unsigned int *parsimonyScores;
   double *branches;
-  double *distalBranches;
-  double *bootstrapBranches;
+  double *distalBranches; 
   double *likelihoods;
   double originalBranchLength;
   char branchLabel[64];
@@ -1330,7 +1329,7 @@ extern void newviewClassifySpecial(tree *tr, double *x1_start, double *x2_start,
 				   unsigned char *tipX1,  unsigned char *tipX2, int tipCase, double *pz, double *qz);
 extern double evalCL(tree *tr, double *x2, int *ex2, unsigned char *tip, double *pz);
 
-extern void testInsertThoroughIterative(tree *tr, int branchNumber, boolean bootstrap);
+extern void testInsertThoroughIterative(tree *tr, int branchNumber);
 
 
 /* parallel MRE stuff */
@@ -1374,11 +1373,9 @@ extern void testInsertThoroughIterative(tree *tr, int branchNumber, boolean boot
 #define THREAD_INSERT_CLASSIFY              30
 #define THREAD_INSERT_CLASSIFY_THOROUGH     31
 #define THREAD_GATHER_PARSIMONY             32
-#define THREAD_INSERT_CLASSIFY_THOROUGH_BS  33
 #define THREAD_PARSIMONY_INSERTIONS         34
 #define THREAD_PREPARE_EPA_PARSIMONY        35
 #define THREAD_CLEANUP_EPA_PARSIMONY        36
-#define THREAD_CONTIGUOUS_REPLICATE         37
 #define THREAD_USE_GAPPED                   38
 #define THREAD_PREPARE_BIPS_FOR_PRINT       39
 #define THREAD_MRE_COMPUTE                  40
