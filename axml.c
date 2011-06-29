@@ -6818,23 +6818,10 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
       break;
     case THREAD_CLEANUP_EPA_PARSIMONY:
       memcpy(localTree->contiguousWgt         , tr->cdta->aliaswgt,     sizeof(int) * localTree->contiguousScalingLength);                            	  	           
-      break;
-    case THREAD_CONTIGUOUS_REPLICATE:      	             
-      memcpy(localTree->contiguousWgt         , tr->cdta->aliaswgt,     sizeof(int) * localTree->contiguousScalingLength);
-      memcpy(localTree->contiguousInvariant   , tr->invariant,          sizeof(int) * localTree->contiguousScalingLength);            
-      
-      if(tid > 0)
-	broadcastPerSiteRates(tr, localTree);
-
-      memcpy(localTree->contiguousRateCategory, tr->cdta->rateCategory, sizeof(int) * localTree->contiguousScalingLength);
-      memcpy(localTree->contiguousWR, tr->wr, sizeof(double) * localTree->contiguousScalingLength);
-      memcpy(localTree->contiguousWR2, tr->wr2, sizeof(double) * localTree->contiguousScalingLength);  
-               
-      break;        
+      break;            
     case THREAD_INSERT_CLASSIFY:          
     case THREAD_INSERT_CLASSIFY_THOROUGH:     
-    case THREAD_PARSIMONY_INSERTIONS:    
-    case THREAD_INSERT_CLASSIFY_THOROUGH_BS:
+    case THREAD_PARSIMONY_INSERTIONS:       
       { 
 	int
 	  branchNumber;
@@ -6864,14 +6851,11 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 		    addTraverseRobIterative(localTree, branchNumber);
 		    break;		  
 		  case  THREAD_INSERT_CLASSIFY_THOROUGH:		    
-		    testInsertThoroughIterative(localTree, branchNumber, FALSE);		   
+		    testInsertThoroughIterative(localTree, branchNumber);		   
 		    break;   
 		  case THREAD_PARSIMONY_INSERTIONS:
 		    insertionsParsimonyIterative(localTree, branchNumber);
-		    break; 
-		  case THREAD_INSERT_CLASSIFY_THOROUGH_BS:
-		    testInsertThoroughIterative(localTree, branchNumber, TRUE);
-		    break;
+		    break; 		 
 		  default:
 		    assert(0);
 		  }
