@@ -1290,6 +1290,12 @@ void computeBIGRAPID (tree *tr, analdef *adef, boolean estimateModel)
 	
     }
 
+  if(tr->searchConvergenceCriterion)
+    {
+      cleanupHashTable(h, 0);
+      cleanupHashTable(h, 1);
+    }
+
  cleanup_fast:
 
   Thorough = 1;
