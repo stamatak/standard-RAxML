@@ -100,14 +100,14 @@ static double getBranch(tree *tr, double *b, double *bb)
 
 
 static char *Tree2StringClassifyRec(char *treestr, tree *tr, nodeptr p, int *countBranches, 
-				    int *inserts, boolean subtreeSummary, boolean *foundTheSubtree, int CUTOFF, boolean originalTree, boolean jointLabels)
+				    int *inserts, boolean originalTree, boolean jointLabels)
 {        
   branchInfo *bInf = p->bInf;
   int        i, countQuery = 0;   
 
   *countBranches = *countBranches + 1;
 
-  if(!subtreeSummary && !originalTree)
+  if(!originalTree)
     {
       for(i = 0; i < tr->numberOfTipsForInsertion; i++)
 	if(bInf->epa->countThem[i] > 0)
@@ -132,16 +132,7 @@ static char *Tree2StringClassifyRec(char *treestr, tree *tr, nodeptr p, int *cou
     {
       char *nameptr = tr->nameList[p->number];  
 
-      if(subtreeSummary)
-	{
-	  for(i = 0; i <  tr->numberOfTipsForInsertion; i++)
-	    {
-	      if(p->bInf->epa->executeThem[i] >= CUTOFF)
-		foundTheSubtree[i] = TRUE;
-	      else
-		foundTheSubtree[i] = FALSE;
-	    }	  
-	}
+      
 
         
       sprintf(treestr, "%s", nameptr);    
@@ -151,27 +142,16 @@ static char *Tree2StringClassifyRec(char *treestr, tree *tr, nodeptr p, int *cou
     {                    
       *treestr++ = '(';     
       treestr = Tree2StringClassifyRec(treestr, tr, p->next->back, 
-				       countBranches, inserts,subtreeSummary,foundTheSubtree, CUTOFF, originalTree, jointLabels);     
+				       countBranches, inserts, originalTree, jointLabels);     
       *treestr++ = ',';
       treestr = Tree2StringClassifyRec(treestr, tr, p->next->next->back, 
-				       countBranches, inserts, subtreeSummary,foundTheSubtree, CUTOFF, originalTree, jointLabels);          
+				       countBranches, inserts, originalTree, jointLabels);          
       *treestr++ = ')';                    
 
-      if(subtreeSummary)
-	{  
-	  for(i = 0; i < tr->numberOfTipsForInsertion; i++)
-	    {
-	      if(p->bInf->epa->executeThem[i] >= CUTOFF && 
-		 p->next->back->bInf->epa->executeThem[i] < CUTOFF && 
-		 p->next->next->back->bInf->epa->executeThem[i] < CUTOFF)
-		foundTheSubtree[i] = TRUE;
-	      else
-		foundTheSubtree[i] = FALSE;
-	    }
-	}
+     
     }
    
-  if(!subtreeSummary && countQuery > 0)
+  if(countQuery > 0)
     {
       sprintf(treestr, ":1.0[%s]", p->bInf->epa->branchLabel);
       while (*treestr) treestr++;
@@ -211,20 +191,10 @@ static char *Tree2StringClassifyRec(char *treestr, tree *tr, nodeptr p, int *cou
      
   while (*treestr) treestr++;
 
-  assert(!(subtreeSummary == TRUE && originalTree == TRUE));
+  
   assert(!(countQuery > 0 &&  originalTree == TRUE));
 
-  if(subtreeSummary)
-    {
-      for(i = 0; i < tr->numberOfTipsForInsertion; i++)
-	{
-	  if(foundTheSubtree[i])
-	    {
-	      sprintf(treestr," %s", tr->nameList[inserts[i]]);
-	      while (*treestr) treestr++;
-	    }
-	}
-    }
+  
 
   sprintf(treestr, "]");            	 	        
   while (*treestr) treestr++;
@@ -233,159 +203,63 @@ static char *Tree2StringClassifyRec(char *treestr, tree *tr, nodeptr p, int *cou
 }
 
 
-static int findRoot(nodeptr p,  int numberOfTipsForInsertion, int ntips)
-{
-  if(isTip(p->number, ntips))
-    {
-      int i;
-      for(i = 0; i < numberOfTipsForInsertion; i++)
-	if(p->bInf->epa->countThem[i] > 0)
-	  return 0;
-
-      return p->number;
-    }
-  else
-    {
-      int left;
-      assert(p == p->next->next->next);
-
-      left = findRoot(p->next->back, numberOfTipsForInsertion, ntips);
-
-      if(left > 0)
-	return left;
-      else
-	return findRoot(p->next->next->back, numberOfTipsForInsertion, ntips);
-    }
-}
-
-static void calcSubtree(nodeptr p, int nTips, int numberOfTipsForInsertion)
-{
-  int i;
-
-  if(isTip(p->number, nTips))    
-    {
-      for(i = 0; i < numberOfTipsForInsertion; i++)
-	p->bInf->epa->executeThem[i] = p->bInf->epa->countThem[i];
-    
-      return;
-    }
-  else
-    {
-      nodeptr q;
-      assert(p == p->next->next->next);
-      
-      q = p->next;
-
-      while(q != p)
-	{
-	  calcSubtree(q->back, nTips, numberOfTipsForInsertion);	
-	  q = q->next;
-	}
-
-     
-      for(i = 0; i < numberOfTipsForInsertion; i++)
-	p->bInf->epa->executeThem[i] = p->next->back->bInf->epa->executeThem[i] + 
-	  p->next->next->back->bInf->epa->executeThem[i] + p->bInf->epa->countThem[i];
-          
-      return;
-    }
-}
 
 
 static char *Tree2StringClassify(char *treestr, tree *tr, int *inserts, 
-				 boolean subtreeSummary, int CUTOFF, branchInfo *bInf, int root, 
 				 boolean  originalTree, boolean jointLabels)
 {
-  nodeptr p;
-  int countBranches = 0; 
+  nodeptr 
+    p;
+  
+  int 
+    countBranches = 0; 
 
-  if(!subtreeSummary)
-    {       
-      if(jointLabels && tr->wasRooted)
-	{ 
-	  *treestr++ = '(';
-	  treestr = Tree2StringClassifyRec(treestr, tr, tr->leftRootNode, &countBranches, 
-					   inserts, FALSE, (boolean *)NULL, -1, originalTree, jointLabels);
-	  *treestr++ = ',';
-	  treestr = Tree2StringClassifyRec(treestr, tr, tr->rightRootNode, &countBranches, 
-					   inserts, FALSE, (boolean *)NULL, -1, originalTree, jointLabels);	 
-	  *treestr++ = ')';
-	  *treestr++ = ';';
-	  	 
-	  assert(countBranches == 2 * tr->ntips - 2);
       
-	  *treestr++ = '\0';
-	  while (*treestr) treestr++;     
-	  return  treestr;
-	}
-      else
-	{
-	  if(jointLabels)
-	    p = tr->nodep[tr->mxtips + 1];
-	  else
-	    p = tr->start->back;
-	  
-	  assert(!isTip(p->number, tr->mxtips));
-	  
-	  *treestr++ = '(';
-	  treestr = Tree2StringClassifyRec(treestr, tr, p->back, &countBranches, 
-					   inserts, FALSE, (boolean *)NULL, -1, originalTree, jointLabels);
-	  *treestr++ = ',';
-	  treestr = Tree2StringClassifyRec(treestr, tr, p->next->back, &countBranches, 
-					   inserts, FALSE, (boolean *)NULL, -1, originalTree, jointLabels);
-	  *treestr++ = ',';
-	  treestr = Tree2StringClassifyRec(treestr, tr, p->next->next->back, &countBranches, 
-					   inserts, FALSE, (boolean *)NULL, -1, originalTree, jointLabels);
-	  *treestr++ = ')';
-	  *treestr++ = ';';
-	  
-	  assert(countBranches == 2 * tr->ntips - 3);
+  if(jointLabels && tr->wasRooted)
+    { 
+      assert(originalTree);
       
-	  *treestr++ = '\0';
-	  while (*treestr) treestr++;     
-	  return  treestr;
-	}
+      *treestr++ = '(';
+      treestr = Tree2StringClassifyRec(treestr, tr, tr->leftRootNode, &countBranches, 
+				       inserts, originalTree, jointLabels);
+      *treestr++ = ',';
+      treestr = Tree2StringClassifyRec(treestr, tr, tr->rightRootNode, &countBranches, 
+				       inserts, originalTree, jointLabels);	 
+      *treestr++ = ')';
+      *treestr++ = ';';
+      
+      assert(countBranches == 2 * tr->ntips - 2);
+      
+      *treestr++ = '\0';
+      while (*treestr) treestr++;     
+      return  treestr;
     }
   else
     {
-      int i, j;
-      boolean *foundTheSubtree = (boolean*)malloc(sizeof(boolean) * tr->numberOfTipsForInsertion);
-
-      assert(root > 0);
-      assert(originalTree == FALSE);
+      if(jointLabels)
+	p = tr->nodep[tr->mxtips + 1];
+      else
+	p = tr->start->back;
       
-     
-      for(i = 0; i < tr->numberOfBranches; i++)
-	for(j = 0; j < tr->numberOfTipsForInsertion; j++)
-	  bInf[i].epa->executeThem[j] = 0;
-           
-      p = tr->nodep[root];
-	  
-      calcSubtree(p, tr->mxtips, tr->numberOfTipsForInsertion);
-      calcSubtree(p->back, tr->mxtips, tr->numberOfTipsForInsertion);     	      
-
-      assert(isTip(p->number, tr->mxtips));           
-      assert(!isTip(p->back->number, tr->mxtips));
-	  
+      assert(!isTip(p->number, tr->mxtips));
+      
       *treestr++ = '(';
-      *treestr++ = '(';	          
-      sprintf(treestr, "%s", tr->nameList[p->number]);
-      countBranches++;
-      while (*treestr) treestr++;
-      *treestr++ = ',';
       treestr = Tree2StringClassifyRec(treestr, tr, p->back, &countBranches, 
-				       inserts, TRUE, foundTheSubtree, CUTOFF, originalTree, jointLabels);      
-      *treestr++ = ')';
-      sprintf(treestr,"[ROOT]");
-      while (*treestr) treestr++;
+				       inserts, originalTree, jointLabels);
+      *treestr++ = ',';
+      treestr = Tree2StringClassifyRec(treestr, tr, p->next->back, &countBranches, 
+				       inserts, originalTree, jointLabels);
+      *treestr++ = ',';
+      treestr = Tree2StringClassifyRec(treestr, tr, p->next->next->back, &countBranches, 
+				       inserts, originalTree, jointLabels);
       *treestr++ = ')';
       *treestr++ = ';';
-	  
-      assert(countBranches == 2 * tr->ntips - 2);
+      
+      assert(countBranches == 2 * tr->ntips - 3);
+      
       *treestr++ = '\0';
-      while (*treestr) treestr++;
-      free(foundTheSubtree);
-      return  treestr;   
+      while (*treestr) treestr++;     
+      return  treestr;
     }
 }
 
@@ -455,7 +329,7 @@ static nodeptr findRootDirection(nodeptr p, tree *tr, int rootNumber)
 }
 
 
-static void testInsertThorough(tree *tr, nodeptr r, nodeptr q, boolean bootstrap)
+static void testInsertThorough(tree *tr, nodeptr r, nodeptr q)
 {
   double 
     originalBranchLength = getBranch(tr, q->z, q->back->z),
@@ -478,8 +352,8 @@ static void testInsertThorough(tree *tr, nodeptr r, nodeptr q, boolean bootstrap
     root = findRootDirection(q, tr, tr->mxtips + 1);
   else
     {
-      if(q == tr->leftRootNode && x == tr->rightRootNode ||
-	 x == tr->leftRootNode && q == tr->rightRootNode)
+      if((q == tr->leftRootNode && x == tr->rightRootNode) ||
+	 (x == tr->leftRootNode && q == tr->rightRootNode))
 	atRoot = TRUE;
       else
 	{
@@ -529,10 +403,8 @@ static void testInsertThorough(tree *tr, nodeptr r, nodeptr q, boolean bootstrap
 	  
 	  result = evaluateGeneric(tr, r);	 	       
 	  	  
-	  if(bootstrap)
-	    tr->bInf[q->bInf->epa->branchNumber].epa->bootstrapBranches[j] = getBranch(tr, r->z, r->back->z);
-	  else
-	    tr->bInf[q->bInf->epa->branchNumber].epa->branches[j] = getBranch(tr, r->z, r->back->z);
+	 
+	  tr->bInf[q->bInf->epa->branchNumber].epa->branches[j] = getBranch(tr, r->z, r->back->z);
 	 
 	  tr->bInf[q->bInf->epa->branchNumber].epa->likelihoods[j] = result;	 
 
@@ -631,6 +503,8 @@ static void testInsertFast(tree *tr, nodeptr r, nodeptr q)
 }
 
 
+#ifndef _USE_PTHREADS
+
 static double testInsertSpecies(tree *tr, nodeptr r, nodeptr attachmentBranch, int insertNumber, boolean optimizeOtherBranch)
 {
   double
@@ -691,12 +565,13 @@ static double testInsertSpecies(tree *tr, nodeptr r, nodeptr attachmentBranch, i
   return result;
 }
 
+#endif
 
 static void addTraverseRob(tree *tr, nodeptr r, nodeptr q,
-			   boolean thorough, boolean bootstrap)
+			   boolean thorough)
 {       
   if(thorough)
-    testInsertThorough(tr, r, q, bootstrap);
+    testInsertThorough(tr, r, q);
   else
     testInsertFast(tr, r, q);
 
@@ -706,7 +581,7 @@ static void addTraverseRob(tree *tr, nodeptr r, nodeptr q,
 
       while(a != q)
 	{
-	  addTraverseRob(tr, r, a->back, thorough, bootstrap);
+	  addTraverseRob(tr, r, a->back, thorough);
 	  a = a->next;
 	}      
     }
@@ -1038,7 +913,7 @@ static double localSmoothClassify (tree *tr, int maxtimes, int leftNodeNumber, i
 
 
 
-void testInsertThoroughIterative(tree *tr, int branchNumber, boolean bootstrap)
+void testInsertThoroughIterative(tree *tr, int branchNumber)
 {    
   double	    
     result, 
@@ -1138,11 +1013,8 @@ void testInsertThoroughIterative(tree *tr, int branchNumber, boolean bootstrap)
 	  result = localSmoothClassify(tr, smoothings, leftNodeNumber, rightNodeNumber, tr->inserts[insertions], e1, e2, e3, b);
 	      	    
 	  b->epa->likelihoods[insertions] = result;	      			      
-	  
-	  if(bootstrap)
-	    b->epa->bootstrapBranches[insertions] = getBranch(tr, e3, e3);
-	  else
-	    b->epa->branches[insertions] = getBranch(tr, e3, e3);
+	  	
+	  b->epa->branches[insertions] = getBranch(tr, e3, e3);
 	}	  
     }
 }
@@ -1510,33 +1382,7 @@ static void consolidateInfo(tree *tr)
     }
 }
 
-static void consolidateInfoBootstrap(tree *tr)
-{
-  int i, j;
 
-  for(j = 0; j < tr->numberOfTipsForInsertion; j++)
-    {
-      double
-	max = unlikely;
-
-      int 
-	max_index = -1;
-
-      for(i = 0; i < tr->numberOfBranches; i++)
-	{      
-	  if(tr->bInf[i].epa->likelihoods[j] > max)
-	    {
-	      max = tr->bInf[i].epa->likelihoods[j];
-	      max_index = i;
-	    }
-	}
-
-      assert(max_index >= 0);
-
-      tr->bInf[max_index].epa->countThem[j] = tr->bInf[max_index].epa->countThem[j] + 1;
-      tr->bInf[max_index].epa->branches[j] += tr->bInf[max_index].epa->bootstrapBranches[j];
-    }
-}
 
 
 
@@ -1610,8 +1456,7 @@ static void printPerBranchReadAlignments(tree *tr)
 
 void classifyML(tree *tr, analdef *adef)
 {
-  int
-    root = -1,
+  int  
     i, 
     j,  
     *perm;    
@@ -1674,10 +1519,7 @@ void classifyML(tree *tr, analdef *adef)
 
   free(perm);
   
-  printBothOpen("RAxML will place %d Query Sequences into the %d branches of the reference tree with %d taxa\n\n",  tr->numberOfTipsForInsertion, (2 * tr->ntips - 3), tr->ntips);
-
-  if(adef->rapidBoot)
-    printBothOpen("RAxML will execute %d Bootstrap replicates to infer classification support\n\n",  adef->multipleRuns);
+  printBothOpen("RAxML will place %d Query Sequences into the %d branches of the reference tree with %d taxa\n\n",  tr->numberOfTipsForInsertion, (2 * tr->ntips - 3), tr->ntips);  
 
   assert(tr->numberOfTipsForInsertion == (tr->mxtips - tr->ntips));      
 
@@ -1697,7 +1539,7 @@ void classifyML(tree *tr, analdef *adef)
 
       tr->bInf[i].epa->branches          = (double*)calloc(tr->numberOfTipsForInsertion, sizeof(double));   
       tr->bInf[i].epa->distalBranches    = (double*)calloc(tr->numberOfTipsForInsertion, sizeof(double)); 
-      tr->bInf[i].epa->bootstrapBranches = (double*)calloc(tr->numberOfTipsForInsertion, sizeof(double));     
+         
       
       tr->bInf[i].epa->likelihoods = (double*)calloc(tr->numberOfTipsForInsertion, sizeof(double));      
       tr->bInf[i].epa->branchNumber = i;     
@@ -1756,7 +1598,7 @@ void classifyML(tree *tr, analdef *adef)
 	  NumberOfJobs = tr->numberOfBranches;
 	  masterBarrier(THREAD_INSERT_CLASSIFY, tr);               			 
 #else  		
-	  addTraverseRob(tr, r, q, thorough, FALSE);
+	  addTraverseRob(tr, r, q, thorough);
 #endif
 
 	  consolidateInfoMLHeuristics(tr, TRUE);
@@ -1772,7 +1614,7 @@ void classifyML(tree *tr, analdef *adef)
       NumberOfJobs = tr->numberOfBranches;
       masterBarrier(THREAD_INSERT_CLASSIFY_THOROUGH, tr);	      
 #else     
-      addTraverseRob(tr, r, q, thorough, FALSE);
+      addTraverseRob(tr, r, q, thorough);
 #endif
       consolidateInfo(tr);              
     }
@@ -1786,50 +1628,10 @@ void classifyML(tree *tr, analdef *adef)
       else
 	masterBarrier(THREAD_INSERT_CLASSIFY, tr);
 #else                
-      addTraverseRob(tr, r, q, thorough, FALSE);	         	       
+      addTraverseRob(tr, r, q, thorough);	         	       
 #endif
-      
-      if(adef->rapidBoot)
-	{
-	  int 
-	    replicates,
-	    *originalRateCategories = (int*)malloc(tr->cdta->endsite * sizeof(int)),
-	    *originalInvariant      = (int*)malloc(tr->cdta->endsite * sizeof(int));
-       	 
-	  memcpy(originalRateCategories, tr->cdta->rateCategory, sizeof(int) * tr->cdta->endsite);
-	  memcpy(originalInvariant,      tr->invariant,          sizeof(int) * tr->cdta->endsite); 	 	  	  	 		  	 
-
-	  consolidateInfoMLHeuristics(tr, FALSE);
-	  
-	  for(i = 0; i < tr->numberOfBranches; i++)
-	    for(j = 0; j < tr->numberOfTipsForInsertion; j++)         
-	      tr->bInf[i].epa->branches[j] = 0.0;   
-	  
-	  for(replicates = 0; replicates < adef->multipleRuns; replicates++)
-	    {	     	      	      
-	      computeNextReplicate(tr, &adef->rapidBoot, originalRateCategories, originalInvariant, TRUE, TRUE);
-	      	 
-	      resetBranches(tr);
-	      evaluateGenericInitrav(tr, q->back);	  
-	      treeEvaluate(tr, 1);
-	      
-#ifdef _USE_PTHREADS
-	      NumberOfJobs = tr->numberOfBranches;
-	      masterBarrier(THREAD_CONTIGUOUS_REPLICATE, tr); 
-	      setupBranchInfo(tr, q); 
-	      if(thorough)	   	    
-		masterBarrier(THREAD_INSERT_CLASSIFY_THOROUGH_BS, tr);	    
-	      else
-		masterBarrier(THREAD_INSERT_CLASSIFY, tr);	     	     	  
-#else
-	      addTraverseRob(tr, r, q, thorough, TRUE); 
-#endif  
-	     	      
-	      consolidateInfoBootstrap(tr);	      
-	    }	  
-	}
-      else
-	consolidateInfo(tr);	
+           
+      consolidateInfo(tr);	
     }
       
   printBothOpen("Overall Classification time: %f\n\n", gettime() - masterTime);			               	
@@ -1865,20 +1667,20 @@ void classifyML(tree *tr, analdef *adef)
  
  
   treeFile = myfopen(labelledTreeFileName, "wb");
-  Tree2StringClassify(tr->tree_string, tr, tr->inserts, FALSE, -1, (branchInfo*)NULL, -1, FALSE, FALSE);
+  Tree2StringClassify(tr->tree_string, tr, tr->inserts, FALSE, FALSE);
   fprintf(treeFile, "%s\n", tr->tree_string);    
   fclose(treeFile);
   
  
 
   treeFile = myfopen(originalLabelledTreeFileName, "wb");
-  Tree2StringClassify(tr->tree_string, tr, tr->inserts, FALSE, -1, (branchInfo*)NULL, -1, TRUE, FALSE);
+  Tree2StringClassify(tr->tree_string, tr, tr->inserts, TRUE, FALSE);
   fprintf(treeFile, "%s\n", tr->tree_string);    
   fclose(treeFile);
 
   /* 
      JSON format only works for sequential version 
-     porting this to9 Pthreads will be a pain in the ass
+     porting this to Pthreads will be a pain in the ass
      
   */
 
@@ -1886,7 +1688,7 @@ void classifyML(tree *tr, analdef *adef)
 #ifndef _USE_PTHREADS 
 
   treeFile = myfopen(jointFormatTreeFileName, "wb");
-  Tree2StringClassify(tr->tree_string, tr, tr->inserts, FALSE, -1, (branchInfo*)NULL, -1, TRUE, TRUE);
+  Tree2StringClassify(tr->tree_string, tr, tr->inserts, TRUE, TRUE);
   
   fprintf(treeFile, "{\n");
   fprintf(treeFile, "\t\"tree\": \"%s\", \n", tr->tree_string);
@@ -1895,7 +1697,7 @@ void classifyML(tree *tr, analdef *adef)
  
 
 
-  if(!adef->rapidBoot)
+  
     {
       info 
 	*inf = (info*)malloc(sizeof(info) * tr->numberOfBranches);
@@ -2025,35 +1827,6 @@ void classifyML(tree *tr, analdef *adef)
   /* JSON format end */
 
 #endif
-    
-  if(adef->rapidBoot)
-    {
-      root = findRoot(tr->start,  tr->numberOfTipsForInsertion, tr->mxtips);           
-      
-      if(root == 0)
-	root = findRoot(tr->start->back,  tr->numberOfTipsForInsertion, tr->mxtips);
-      
-      if(root == 0)    
-	printf("We are in deep shit, the tree can't be rooted\n");	      
-      else
-	{
-	  char extendedTreeFileName[1024];
-	  int cutoff, k;	     
-	  
-	  for(k = 20; k < 100; k += 5)
-	    {
-	      cutoff = (int)(((double)adef->multipleRuns * (double)k / 100.0) + 0.5);
-	      sprintf(extendedTreeFileName, "%s.%d", labelledTreeFileName, k);	     
-	      
-	      treeFile = myfopen(extendedTreeFileName, "wb");	  
-	      Tree2StringClassify(tr->tree_string, tr, tr->inserts, TRUE, cutoff, tr->bInf, root, FALSE, FALSE);	     
-	      fprintf(treeFile, "%s\n", tr->tree_string);
-	      fclose(treeFile);
-	      
-	      printBothOpen("Least common ancestor file for cutoff %d (%d) written to file %s\n", cutoff, k, extendedTreeFileName);	      
-	    }
-	}
-    }
 
   classificationFile = myfopen(classificationFileName, "wb");
   
@@ -2079,153 +1852,149 @@ void classifyML(tree *tr, analdef *adef)
   printBothOpen("Classification result file written to file: %s\n\n", classificationFileName);
    
 
-  if(!adef->rapidBoot)
-    {
-      info 
-	*inf = (info*)malloc(sizeof(info) * tr->numberOfBranches);
-
-      FILE 
-	*likelihoodWeightsFile;
-
-      char 
-	likelihoodWeightsFileName[1024];
-
-      strcpy(likelihoodWeightsFileName,       workdir);
-      strcat(likelihoodWeightsFileName,       "RAxML_classificationLikelihoodWeights.");
-      strcat(likelihoodWeightsFileName,       run_id);
-
-      likelihoodWeightsFile = myfopen(likelihoodWeightsFileName, "wb");
-      entropyFile           = myfopen(entropyFileName, "wb");
-      
-
-      for(i = 0; i < tr->numberOfTipsForInsertion; i++)    
-	{
-	  double
-	    entropy = 0.0,
-	    lmax = 0.0,
-	    acc = 0.0;
-
-	  int 
-	    validEntries = 0;
-
-	  for(j =  0; j < tr->numberOfBranches; j++) 
-	    {
-	      inf[j].lh = tr->bInf[j].epa->likelihoods[i];
-	      inf[j].number = j;
-	    }
-
-	  qsort(inf, tr->numberOfBranches, sizeof(info), infoCompare);	 
-
-	  for(j =  0; j < tr->numberOfBranches; j++) 
-	    if(inf[j].lh == unlikely)	     
-	      break;
-	    else	     
-	      validEntries++;	     	      
-
-	  assert(validEntries > 0);
-
-	  j = 0;
-	  
-	  lmax = inf[0].lh;
-
-	  while(acc <= 0.95 && j < validEntries)	  
-	    { 
-	      int 
-		k;
-	      
-	      double 
-		all = 0.0,
-		prob = 0.0;
-
-	      for(k =  0; k < validEntries; k++) 	   
-		all += exp(inf[k].lh - lmax);	     
-	      
-	      acc += (prob = (exp(inf[j].lh - lmax) / all));
-	      
-	      fprintf(likelihoodWeightsFile, "%s I%d %f %f\n", tr->nameList[tr->inserts[i]], inf[j].number, prob, acc);
-
+  
+  {
+    info 
+      *inf = (info*)malloc(sizeof(info) * tr->numberOfBranches);
+    
+    FILE 
+      *likelihoodWeightsFile;
+    
+    char 
+      likelihoodWeightsFileName[1024];
+    
+    strcpy(likelihoodWeightsFileName,       workdir);
+    strcat(likelihoodWeightsFileName,       "RAxML_classificationLikelihoodWeights.");
+    strcat(likelihoodWeightsFileName,       run_id);
+    
+    likelihoodWeightsFile = myfopen(likelihoodWeightsFileName, "wb");
+    entropyFile           = myfopen(entropyFileName, "wb");
+        
+    for(i = 0; i < tr->numberOfTipsForInsertion; i++)    
+      {
+	double
+	  entropy = 0.0,
+	  lmax = 0.0,
+	  acc = 0.0;
+	
+	int 
+	  validEntries = 0;
+	
+	for(j =  0; j < tr->numberOfBranches; j++) 
+	  {
+	    inf[j].lh = tr->bInf[j].epa->likelihoods[i];
+	    inf[j].number = j;
+	  }
+	
+	qsort(inf, tr->numberOfBranches, sizeof(info), infoCompare);	 
+	
+	for(j =  0; j < tr->numberOfBranches; j++) 
+	  if(inf[j].lh == unlikely)	     
+	    break;
+	  else	     
+	    validEntries++;	     	      
+	
+	assert(validEntries > 0);
+	
+	j = 0;
+	
+	lmax = inf[0].lh;
+	
+	while(acc <= 0.95 && j < validEntries)	  
+	  { 
+	    int 
+	      k;
+	    
+	    double 
+	      all = 0.0,
+	      prob = 0.0;
+	    
+	    for(k =  0; k < validEntries; k++) 	   
+	      all += exp(inf[k].lh - lmax);	     
+	    
+	    acc += (prob = (exp(inf[j].lh - lmax) / all));
+	    
+	    fprintf(likelihoodWeightsFile, "%s I%d %f %f\n", tr->nameList[tr->inserts[i]], inf[j].number, prob, acc);
+	    
 #ifndef _USE_PTHREADS
-	      
-	      /* Species test */
-
-	      if(j == 0)
-		{
-		  boolean 
-		    tipBranch;
-
-		  nodeptr 
-		    attachmentBranch = tr->bInf[inf[j].number].oP,
-		    check =  tr->bInf[inf[j].number].oQ;
-
-		  double 
-		    speciesLikelihood;
-
-		  assert(attachmentBranch == check->back);
-
-		  tipBranch = (isTip(attachmentBranch->number, tr->mxtips) || isTip(check->number, tr->mxtips));
-
-		  if(tipBranch)
-		    {
-		      evaluateGeneric(tr, q);
-		      printf("Tree likelihood: %f\n", tr->likelihood);
-
-		      printf("Best placement for read: %s lh: %f \n", tr->nameList[tr->inserts[i]], inf[j].lh);		     
-		  
-		      speciesLikelihood = testInsertSpecies(tr, r, attachmentBranch, tr->inserts[i], FALSE);
-		  
-		      printf("species likelihood: %f\n", speciesLikelihood);
-
-		      speciesLikelihood = testInsertSpecies(tr, r, attachmentBranch, tr->inserts[i], TRUE);
-		  
-		      printf("species likelihood with re-opt: %f\n", speciesLikelihood);
-		      
-		      printf("Like ratio: %f\n\n", -2.0 * inf[j].lh + 2.0 * speciesLikelihood);
-		      
-		    }
-		}
+	    
+	    /* Species test */
+	    
+	    if(j == 0)
+	      {
+		boolean 
+		  tipBranch;
+		
+		nodeptr 
+		  attachmentBranch = tr->bInf[inf[j].number].oP,
+		  check =  tr->bInf[inf[j].number].oQ;
+		
+		double 
+		  speciesLikelihood;
+		
+		assert(attachmentBranch == check->back);
+		
+		tipBranch = (isTip(attachmentBranch->number, tr->mxtips) || isTip(check->number, tr->mxtips));
+		
+		if(tipBranch)
+		  {
+		    evaluateGeneric(tr, q);
+		    printf("Tree likelihood: %f\n", tr->likelihood);
+		    
+		    printf("Best placement for read: %s lh: %f \n", tr->nameList[tr->inserts[i]], inf[j].lh);		     
+		    
+		    speciesLikelihood = testInsertSpecies(tr, r, attachmentBranch, tr->inserts[i], FALSE);
+		    
+		    printf("species likelihood: %f\n", speciesLikelihood);
+		    
+		    speciesLikelihood = testInsertSpecies(tr, r, attachmentBranch, tr->inserts[i], TRUE);
+		    
+		    printf("species likelihood with re-opt: %f\n", speciesLikelihood);
+		    
+		    printf("Like ratio: %f\n\n", -2.0 * inf[j].lh + 2.0 * speciesLikelihood);		    
+		  }
+	      }
 #endif 
 
-	      j++;
-	    }
-
-	  j = 0;
-	  
-	  while(j < validEntries)
-	    { 
-	      int 
-		k;
-	      
-	      double 
-		all = 0.0,
-		prob = 0.0;
-
-	      for(k =  0; k < validEntries; k++) 	   
-		all += exp(inf[k].lh - lmax);	     
-	      
-	      prob = exp(inf[j].lh - lmax) / all;	      	    
-
-	      if(prob > 0)
-		entropy -= ( prob * log(prob) ); /*pp 20110531 */	      			     
-	      
-	      j++;
-	    }
-	  
-	  /* normalize entropy by dividing with the log(validEntries) which is the maximum Entropy possible */
-	  
-	  fprintf(entropyFile, "%s\t%f\n", tr->nameList[tr->inserts[i]], entropy / log((double)validEntries));	      	   
-	}     
+	    j++;
+	  }
+	
+	j = 0;
+	
+	while(j < validEntries)
+	  { 
+	    int 
+	      k;
+	    
+	    double 
+	      all = 0.0,
+	      prob = 0.0;
+	    
+	    for(k =  0; k < validEntries; k++) 	   
+	      all += exp(inf[k].lh - lmax);	     
+	    
+	    prob = exp(inf[j].lh - lmax) / all;	      	    
+	    
+	    if(prob > 0)
+	      entropy -= ( prob * log(prob) ); /*pp 20110531 */	      			     
+	    
+	    j++;
+	  }
+	
+	/* normalize entropy by dividing with the log(validEntries) which is the maximum Entropy possible */
+	
+	fprintf(entropyFile, "%s\t%f\n", tr->nameList[tr->inserts[i]], entropy / log((double)validEntries));	      	   
+      }     
       
-      free(inf);
+    free(inf);
 
-      fclose(entropyFile);
-      fclose(likelihoodWeightsFile); 
-
-      printBothOpen("Classification result file using likelihood wieghts written to file: %s\n\n", likelihoodWeightsFileName);
-      printBothOpen("Classification entropy result file using likelihood wieghts written to file: %s\n\n", entropyFileName);
-    }          
-
- 
+    fclose(entropyFile);
+    fclose(likelihoodWeightsFile); 
     
+    printBothOpen("Classification result file using likelihood wieghts written to file: %s\n\n", likelihoodWeightsFileName);
+    printBothOpen("Classification entropy result file using likelihood wieghts written to file: %s\n\n", entropyFileName);
+  }          
+     
   exit(0);
 }
 
