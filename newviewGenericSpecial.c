@@ -1940,10 +1940,7 @@ static void newviewGTRCAT( int tipCase,  double *EV,  int *cptr,
 #endif
 
 
-#ifdef _SECURE_SCALING
 
-
-#else
 
 
 #ifdef __SIM_SSE3
@@ -4798,7 +4795,7 @@ static void newviewGTRGAMMA(int tipCase,
 
 #endif
 
-#endif
+
 
 
 
@@ -5106,12 +5103,7 @@ static void newviewGTRCATPROT(int tipCase, double *extEV,
 
 
 
-#ifdef _SECURE_SCALING_SECONDARY
 
-
-
-
-#else
 
 static void newviewGTRCATSECONDARY(int tipCase, double *extEV,
 				   int *cptr,
@@ -5264,7 +5256,6 @@ static void newviewGTRCATSECONDARY(int tipCase, double *extEV,
 }
 
 
-#endif
 
 static void newviewGTRCATSECONDARY_6(int tipCase, double *extEV,
 				   int *cptr,

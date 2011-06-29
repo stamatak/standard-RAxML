@@ -918,6 +918,13 @@ static boolean addElementLen (FILE *fp, tree *tr, nodeptr p, boolean readBranchL
 	    }
 	  else 
 	    {
+	      if(readNodeLabels)
+		{
+		  printf("The program will exit with an error in the next source code line\n");
+		  printf("You are probably trying to read in rooted trees with a RAxML option \n");
+		  printf("that for some reason expects unrooted binary trees\n\n");
+		}
+
 	      assert(!readNodeLabels);
 	      tr->rooted = TRUE;
 	    }
