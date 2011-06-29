@@ -505,6 +505,8 @@ static void testInsertFast(tree *tr, nodeptr r, nodeptr q)
 
 #ifndef _USE_PTHREADS
 
+#ifdef _SPECIES_STUFF
+
 static double testInsertSpecies(tree *tr, nodeptr r, nodeptr attachmentBranch, int insertNumber, boolean optimizeOtherBranch)
 {
   double
@@ -564,6 +566,8 @@ static double testInsertSpecies(tree *tr, nodeptr r, nodeptr attachmentBranch, i
 
   return result;
 }
+
+#endif
 
 #endif
 
@@ -1918,6 +1922,8 @@ void classifyML(tree *tr, analdef *adef)
 	    
 #ifndef _USE_PTHREADS
 	    
+
+#ifdef _SPECIES_STUFF	    
 	    /* Species test */
 	    
 	    if(j == 0)
@@ -1954,6 +1960,8 @@ void classifyML(tree *tr, analdef *adef)
 		    printf("Like ratio: %f\n\n", -2.0 * inf[j].lh + 2.0 * speciesLikelihood);		    
 		  }
 	      }
+
+#endif
 #endif 
 
 	    j++;
