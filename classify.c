@@ -634,8 +634,7 @@ static void allocBranchX(tree *tr)
       b->epa->right = (double*)malloc_aligned(sizeof(double)  * tr->contiguousVectorLength);
       b->epa->rightScaling = (int*)malloc(sizeof(int) * tr->contiguousScalingLength);
 
-      b->epa->leftParsimony = (parsimonyVector *)b->epa->left;
-      b->epa->rightParsimony = (parsimonyVector *)b->epa->right;
+     
     }
 
 }
@@ -1325,39 +1324,7 @@ static int infoCompareMP(const void *p1, const void *p2)
   return (0);
 }
 
-static void consolidateInfoMPHeuristics(tree *tr)
-{
-  int 
-    throwAwayStart,
-    i, 
-    j;
 
-  infoMP
-    *inf = (infoMP*)malloc(sizeof(infoMP) * tr->numberOfBranches);
- 
-  throwAwayStart = MAX(5, (int)(0.5 + (double)(tr->numberOfBranches) * tr->fastEPAthreshold));
-   
-
-  for(j = 0; j < tr->numberOfTipsForInsertion; j++)
-    {     
-      for(i = 0; i < tr->numberOfBranches; i++)
-	{      
-	  inf[i].score = tr->bInf[i].epa->parsimonyScores[j];
-	  inf[i].number = i;
-	}
-      
-      qsort(inf, tr->numberOfBranches, sizeof(infoMP), infoCompareMP);
-
-      for(i = throwAwayStart; i < tr->numberOfBranches; i++)       
-	tr->bInf[inf[i].number].epa->executeThem[j] = 0;	   	
-    }
-  
-   for(i = 0; i < tr->numberOfBranches; i++)
-     for(j = 0; j < tr->numberOfTipsForInsertion; j++)    
-       tr->bInf[i].epa->likelihoods[j] = unlikely;     
-   
-  free(inf);
-}
 
 static void consolidateInfo(tree *tr)
 {
@@ -1539,7 +1506,7 @@ void classifyML(tree *tr, analdef *adef)
       for(j = 0; j < tr->numberOfTipsForInsertion; j++)
 	tr->bInf[i].epa->executeThem[j] = 1;
 
-      tr->bInf[i].epa->parsimonyScores = (unsigned int*)calloc(tr->numberOfTipsForInsertion, sizeof(unsigned int));
+      
 
       tr->bInf[i].epa->branches          = (double*)calloc(tr->numberOfTipsForInsertion, sizeof(double));   
       tr->bInf[i].epa->distalBranches    = (double*)calloc(tr->numberOfTipsForInsertion, sizeof(double)); 
@@ -1573,26 +1540,11 @@ void classifyML(tree *tr, analdef *adef)
 
  
   
-  if(tr->fastEPA_MP || tr->fastEPA_ML)
+  if(tr->fastEPA_ML)
     {	 
       int heuristicInsertions =  MAX(5, (int)(0.5 + (double)(tr->numberOfBranches) * tr->fastEPAthreshold));	  	 
       
-      thorough = FALSE;   	         	 
-	        
-      if(tr->fastEPA_MP)
-	{ 
-	  printBothOpen("Searching for %d out of %d most promising branches with MP heuristics\n", heuristicInsertions, tr->numberOfBranches);	 
-   
-	  makeParsimonyInsertions(tr, q, r);
-	  
-	  evaluateGenericInitrav(tr, q->back);
-
-#ifdef _USE_PTHREADS
-	  setupBranchInfo(tr, q);    	
-#endif	  
-
-	  consolidateInfoMPHeuristics(tr);
-	}     
+      thorough = FALSE;   	         	 	             
 	  
       if(tr->fastEPA_ML)
 	{

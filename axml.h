@@ -422,7 +422,6 @@ typedef struct epBrData
 {
   int    *countThem;
   int    *executeThem;
-  unsigned int *parsimonyScores;
   double *branches;
   double *distalBranches; 
   double *likelihoods;
@@ -432,8 +431,6 @@ typedef struct epBrData
   int rightNodeNumber;
   int *leftScaling;
   int *rightScaling;
-  parsimonyVector *leftParsimony;
-  parsimonyVector *rightParsimony;
   double branchLengths[NUM_BRANCHES];
   double *left;
   double *right;
@@ -817,7 +814,6 @@ typedef  struct  {
   int             *outgroupNums;
   char           **outgroups;
   boolean          fastEPA_ML;
-  boolean          fastEPA_MP;
   double           fastEPAthreshold;
   boolean          bigCutoff;
   boolean          partitionSmoothed[NUM_BRANCHES];

@@ -3424,7 +3424,7 @@ static void printREADME(void)
   printf("      [-c numberOfCategories] [-C] [-d] [-D]\n");
   printf("      [-e likelihoodEpsilon] [-E excludeFileName]\n");
   printf("      [-f a|b|c|d|e|E|F|g|h|i|I|j|J|m|n|o|p|r|R|s|S|t|u|U|v|w|x|y] [-F]\n");
-  printf("      [-g groupingFileName] [-G placementThreshold] [-h] [-H placementThreshold]\n");
+  printf("      [-g groupingFileName] [-G placementThreshold] [-h]\n");
   printf("      [-i initialRearrangementSetting] [-I autoFC|autoMR|autoMRE|autoMRE_IGN]\n");
   printf("      [-j] [-J MR|MR_DROP|MRE|STRICT|STRICT_DROP] [-k] [-K] [-M]\n");
   printf("      [-o outGroupName1[,outGroupName2[,...]]] [-O checkPointInterval]\n");
@@ -3509,10 +3509,6 @@ static void printREADME(void)
   printf("              using slow insertions under ML).\n");
   printf("\n");
   printf("      -h      Display this help message.\n");
-  printf("\n");
-  printf("      -H      enable the MP-based evolutionary placement algorithm heuristics\n");
-  printf("              by specifiyng a threshold value (fraction of insertion branches to be evaluated\n");
-  printf("              using slow insertions under ML).\n");
   printf("\n");
   printf("      -i      Initial rearrangement setting for the subsequent application of topological \n");
   printf("              changes phase\n");
@@ -3803,7 +3799,6 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
   tr->catOnly = FALSE;
   tr->multiGene = 0;
   tr->fastEPA_ML = FALSE;
-  tr->fastEPA_MP = FALSE;
   tr->fastEPAthreshold = -1.0;
   tr->multiStateModel  = GTR_MULTI_STATE;
   tr->useGappedImplementation = FALSE;
@@ -3936,24 +3931,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	tr->useFastScaling = FALSE;
 #endif	
 	break;	
-      case 'H':
-	tr->fastEPA_MP = TRUE;
-	sscanf(optarg,"%lf", &fastEPAthreshold);
-	tr->fastEPAthreshold = fastEPAthreshold;	
-	if(fastEPAthreshold <= 0.0 || fastEPAthreshold >= 1.0)
-	  {
-	    printf("\nHeuristic EPA threshold must be set to values between 0.0 and 1.0, you just set it to %f\n", fastEPAthreshold);
-	    exit(-1);
-	  }
-	if(fastEPAthreshold < 0.015625 || fastEPAthreshold > 0.5)
-	  {
-	    printf("\n\nWARNING, reasonable settings for heuristic EPA threshold range between 0.015625 (1/64) and 0.5 (1/2).\n");
-	    printf("You are just setting it to %f\n\n", fastEPAthreshold);
-	  }
-#ifdef _USE_PTHREADS
-	tr->useFastScaling = FALSE;
-#endif		
-	break;	
+     
       case 'I':     
 	adef->readTaxaOnly = TRUE;
 	adef->mode = BOOTSTOP_ONLY;
@@ -4387,7 +4365,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	  printf("Are you really sure that this is what you want to do?\n");
 	}
 
-      if(tr->fastEPA_MP || tr->fastEPA_ML)
+      if(tr->fastEPA_ML)
 	{
 	  printf("Error, you can's use the additional MP and ML heuristics for rapid evolutionary placement in\n");
 	  printf("combination with bootstrapping\n");
@@ -6680,58 +6658,7 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
      
       localTree->contiguousTips = tr->yVector;	  	
 	 
-      break;       
-    case THREAD_GATHER_PARSIMONY:
-      {	
-	int 
-	  branchCounter = tr->branchCounter;
-
-	parsimonyVector
-	  *leftContigousVector = localTree->bInf[branchCounter].epa->leftParsimony,
-	  *rightContigousVector = localTree->bInf[branchCounter].epa->rightParsimony;
-      
-	int	 		  
-	  globalCount       = 0,
-	  rightNumber = localTree->bInf[branchCounter].epa->rightNodeNumber,
-	  leftNumber  = localTree->bInf[branchCounter].epa->leftNodeNumber;	
-
-	for(model = 0; model < localTree->NumberOfModels; model++)
-	  {	    
-	    parsimonyVector
-	      *leftStridedVector  =  (parsimonyVector *)NULL,
-	      *rightStridedVector =  (parsimonyVector *)NULL;
-
-	    int	      	     	      
-	      localCount = 0;	   	    	   
-
-	    if(!isTip(leftNumber, localTree->mxtips))	      
-	      leftStridedVector        = localTree->partitionData[model].pVector[leftNumber - localTree->mxtips - 1];	       	    
-	   
-	    if(!isTip(rightNumber, localTree->mxtips))	      
-	      rightStridedVector        = localTree->partitionData[model].pVector[rightNumber - localTree->mxtips - 1];	   
-	   
-	    assert(!(isTip(leftNumber, localTree->mxtips) && isTip(rightNumber, localTree->mxtips)));	   	    	    
-
-	    for(globalCount = localTree->partitionData[model].lower; globalCount < localTree->partitionData[model].upper; globalCount++)
-	      {	
-	
-		if(globalCount % n == tid)
-		  {		    		   
-		    if(leftStridedVector)
-		      memcpy(&leftContigousVector[globalCount], 
-			     &leftStridedVector[localCount], sizeof(parsimonyVector));		      		    
-		    
-		    if(rightStridedVector)		      
-		      memcpy(&rightContigousVector[globalCount], 
-			     &rightStridedVector[localCount], sizeof(parsimonyVector));		  
-		   
-		    localCount++;		    
-		  }	       
-	      }	    	    
-	    
-	  }
-      }
-      break;       
+      break;         
     case THREAD_GATHER_LIKELIHOOD:
       {	
 	int 
@@ -6812,16 +6739,9 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 
 	  }
       }
-      break;    
-    case THREAD_PREPARE_EPA_PARSIMONY:              	             
-      memcpy(localTree->contiguousWgt         , tr->cdta->aliaswgt,     sizeof(int) * localTree->contiguousScalingLength);                                 	  	           
-      break;
-    case THREAD_CLEANUP_EPA_PARSIMONY:
-      memcpy(localTree->contiguousWgt         , tr->cdta->aliaswgt,     sizeof(int) * localTree->contiguousScalingLength);                            	  	           
-      break;            
+      break;                 
     case THREAD_INSERT_CLASSIFY:          
-    case THREAD_INSERT_CLASSIFY_THOROUGH:     
-    case THREAD_PARSIMONY_INSERTIONS:       
+    case THREAD_INSERT_CLASSIFY_THOROUGH:       
       { 
 	int
 	  branchNumber;
@@ -6852,10 +6772,7 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 		    break;		  
 		  case  THREAD_INSERT_CLASSIFY_THOROUGH:		    
 		    testInsertThoroughIterative(localTree, branchNumber);		   
-		    break;   
-		  case THREAD_PARSIMONY_INSERTIONS:
-		    insertionsParsimonyIterative(localTree, branchNumber);
-		    break; 		 
+		    break;   		 		 
 		  default:
 		    assert(0);
 		  }

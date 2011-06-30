@@ -867,8 +867,12 @@ void doAllInOne(tree *tr, analdef *adef)
 
   resetBranches(tr);
 
-  evaluateGenericInitrav(tr, tr->start);   
   
+
+  evaluateGenericInitrav(tr, tr->start);   
+
+  
+
   modOpt(tr, adef, TRUE, adef->likelihoodEpsilon, FALSE);  
 
 #ifdef _WAYNE_MPI
@@ -906,7 +910,9 @@ void doAllInOne(tree *tr, analdef *adef)
       rl->t[i]->likelihood = unlikely;
     
       if(i % fastEvery == 0)
-	{	  	 
+	{
+	 
+	  
 	  restoreTL(rl, tr, i); 	 	    	   	
 	  
 	  resetBranches(tr);	 
@@ -917,6 +923,8 @@ void doAllInOne(tree *tr, analdef *adef)
 	  	  
 	  optimizeRAPID(tr, adef);	  			         	  
 	  
+	 
+
 	  saveTL(rl, tr, i); 	 
 	}    
     }     
