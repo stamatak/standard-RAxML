@@ -813,7 +813,7 @@ typedef  struct  {
   int              numberOfOutgroups;
   int             *outgroupNums;
   char           **outgroups;
-  boolean          fastEPA_ML;
+  boolean          useEpaHeuristics;
   double           fastEPAthreshold;
   boolean          bigCutoff;
   boolean          partitionSmoothed[NUM_BRANCHES];
@@ -994,7 +994,6 @@ typedef  struct {
   boolean        userProteinModel;
   boolean        computeELW;
   boolean        computeDistance;
-  boolean        thoroughInsertion;
   boolean        compressPatterns;
   boolean        useSecondaryStructure; 
   double         likelihoodEpsilon;

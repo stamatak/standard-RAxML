@@ -2845,7 +2845,6 @@ static void initAdef(analdef *adef)
   adef->externalAAMatrix       = (double*)NULL;
   adef->computeELW             = FALSE;
   adef->computeDistance        = FALSE;
-  adef->thoroughInsertion      = FALSE;
   adef->compressPatterns       = TRUE; 
   adef->readTaxaOnly           = FALSE;
   adef->meshSearch             = 0;
@@ -3389,7 +3388,7 @@ static void printMinusFUsage(void)
   printf("              \"-f U\": execute morphological wieght calibration using parsimony, this will return a weight vector.\n");
   printf("                      you need to provide a morphological alignment and a reference tree via \"-t\" \n");
 
-  printf("              \"-f v\": classify a bunch of environmental sequences into a reference tree using the slow heuristics without dynamic alignment\n");
+  printf("              \"-f v\": classify a bunch of environmental sequences into a reference tree using thorough read insertions\n");
   printf("                      you will need to start RAxML with a non-comprehensive reference tree and an alignment containing all sequences (reference + query)\n");
 
   printf("              \"-f w\": compute ELW test on a bunch of trees passed via \"-z\" \n");
@@ -3398,8 +3397,7 @@ static void printMinusFUsage(void)
   printf("                      starting tree or a user-defined tree passed via \"-t\", only allowed for GAMMA-based\n");
   printf("                      models of rate heterogeneity\n");
 
-  printf("              \"-f y\": classify a bunch of environmental sequences into a reference tree using the fast heuristics without dynamic alignment\n");
-  printf("                      you will need to start RAxML with a non-comprehensive reference tree and an alignment containing all sequences (reference + query)\n");
+ 
   
   printf("\n");
   printf("              DEFAULT for \"-f\": new rapid hill climbing\n");
@@ -3423,7 +3421,7 @@ static void printREADME(void)
   printf("      [-b bootstrapRandomNumberSeed] [-B wcCriterionThreshold]\n");
   printf("      [-c numberOfCategories] [-C] [-d] [-D]\n");
   printf("      [-e likelihoodEpsilon] [-E excludeFileName]\n");
-  printf("      [-f a|b|c|d|e|E|F|g|h|i|I|j|J|m|n|o|p|r|R|s|S|t|u|U|v|w|x|y] [-F]\n");
+  printf("      [-f a|b|c|d|e|E|F|g|h|i|I|j|J|m|n|o|p|r|R|s|S|t|u|U|v|w|x] [-F]\n");
   printf("      [-g groupingFileName] [-G placementThreshold] [-h]\n");
   printf("      [-i initialRearrangementSetting] [-I autoFC|autoMR|autoMRE|autoMRE_IGN]\n");
   printf("      [-j] [-J MR|MR_DROP|MRE|STRICT|STRICT_DROP] [-k] [-K] [-M]\n");
@@ -3798,7 +3796,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
   tr->searchConvergenceCriterion = FALSE;
   tr->catOnly = FALSE;
   tr->multiGene = 0;
-  tr->fastEPA_ML = FALSE;
+  tr->useEpaHeuristics = FALSE;
   tr->fastEPAthreshold = -1.0;
   tr->multiStateModel  = GTR_MULTI_STATE;
   tr->useGappedImplementation = FALSE;
@@ -3913,7 +3911,8 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	tr->catOnly = TRUE;
 	break;
       case 'G':
-	tr->fastEPA_ML = TRUE;
+	tr->useEpaHeuristics = TRUE;
+	
 	sscanf(optarg,"%lf", &fastEPAthreshold);
 	tr->fastEPAthreshold = fastEPAthreshold;
 	
@@ -4240,7 +4239,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	    break;
 	  case 'v':	    
 	    adef->mode = CLASSIFY_ML;	   
-	    adef->thoroughInsertion = TRUE;	   
+	   	   
 #ifdef _PAVLOS
 	    adef->compressPatterns  = FALSE; 
 #endif
@@ -4255,17 +4254,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	  case 'x':
 	    adef->mode = DISTANCE_MODE;
 	    adef->computeDistance = TRUE;
-	    break;	  	  
-	  case 'y':
-	    adef->mode = CLASSIFY_ML;	    
-	    adef->thoroughInsertion = FALSE;
-#ifdef _PAVLOS
-	    adef->compressPatterns  = FALSE; 
-#endif	   
-#ifdef _USE_PTHREADS
-	    tr->useFastScaling = FALSE;
-#endif
-	    break;	  	  	  	     
+	    break;	  	  	  	  	  	  	     
 	  default:
 	    {
 	      if(processID == 0)
@@ -4365,12 +4354,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	  printf("Are you really sure that this is what you want to do?\n");
 	}
 
-      if(tr->fastEPA_ML)
-	{
-	  printf("Error, you can's use the additional MP and ML heuristics for rapid evolutionary placement in\n");
-	  printf("combination with bootstrapping\n");
-	  errorExit(-1);
-	}
+     
     }
 
 

@@ -417,7 +417,7 @@ static void testInsertThorough(tree *tr, nodeptr r, nodeptr q)
 	      /* always take distal length from left root node and then fix this later */
 
 	      if(x == tr->leftRootNode)
-		distalLength = ratio * getBranch(tr, x->z, x->back->z);
+		distalLength = getBranch(tr, x->z, x->back->z);
 	      else
 		{
 		  assert(x == tr->rightRootNode);
@@ -427,7 +427,7 @@ static void testInsertThorough(tree *tr, nodeptr r, nodeptr q)
 	  else
 	    {
 	      if(root == x)
-		distalLength = ratio * getBranch(tr, x->z, x->back->z);
+		distalLength = getBranch(tr, x->z, x->back->z);
 	      else
 		{
 		  assert(root == q);
@@ -435,6 +435,8 @@ static void testInsertThorough(tree *tr, nodeptr r, nodeptr q)
 		}	      	      
 	    }
 
+	  distalLength *= ratio;
+          
 	  assert(distalLength <= originalBranchLength);
 	     
 	  tr->bInf[q->bInf->epa->branchNumber].epa->distalBranches[j] = distalLength;	  
@@ -1265,20 +1267,16 @@ static int infoCompare(const void *p1, const void *p2)
   return (0);
 }
 
-static void consolidateInfoMLHeuristics(tree *tr, boolean EPA)
+static void consolidateInfoMLHeuristics(tree *tr, int throwAwayStart)
 {
   int 
-    throwAwayStart,
     i, 
     j;
 
   info 
     *inf = (info*)malloc(sizeof(info) * tr->numberOfBranches);
 
-  if(EPA)
-    throwAwayStart = MAX(5, (int)(0.5 + (double)(tr->numberOfBranches) * tr->fastEPAthreshold));
-  else
-    throwAwayStart = MAX(5, (int)(tr->numberOfBranches/10));  
+  assert(tr->useEpaHeuristics);
 
   for(j = 0; j < tr->numberOfTipsForInsertion; j++)
     {     
@@ -1303,26 +1301,6 @@ static void consolidateInfoMLHeuristics(tree *tr, boolean EPA)
 }
 
 
-typedef struct
-{
-  int number;
-  unsigned int score;
-} infoMP;
-
-static int infoCompareMP(const void *p1, const void *p2)
-{
-  infoMP *rc1 = (infoMP *)p1;
-  infoMP *rc2 = (infoMP *)p2;
-
-  double i = rc1->score;
-  double j = rc2->score;
-
-  if (i > j)
-    return (1);
-  if (i < j)
-    return (-1);
-  return (0);
-}
 
 
 
@@ -1436,9 +1414,6 @@ void classifyML(tree *tr, analdef *adef)
   nodeptr     
     r, 
     q;    
-     
-  boolean     
-    thorough = adef->thoroughInsertion;
 
   char
     entropyFileName[1024],
@@ -1459,9 +1434,7 @@ void classifyML(tree *tr, analdef *adef)
   
   tr->numberOfBranches = 2 * tr->ntips - 3;
 
-  printBothOpen("\nRAxML Evolutionary Placement Algorithm\n");
-
-  printBothOpen("Thorough  Insertion Method with branch length optimization: %s\n", thorough?"YES":"NO");  
+  printBothOpen("\nRAxML Evolutionary Placement Algorithm\n"); 
 
   evaluateGenericInitrav(tr, tr->start); 
   
@@ -1486,8 +1459,6 @@ void classifyML(tree *tr, analdef *adef)
 	}
     }    
 
-
-
   free(perm);
   
   printBothOpen("RAxML will place %d Query Sequences into the %d branches of the reference tree with %d taxa\n\n",  tr->numberOfTipsForInsertion, (2 * tr->ntips - 3), tr->ntips);  
@@ -1503,17 +1474,16 @@ void classifyML(tree *tr, analdef *adef)
       tr->bInf[i].epa->countThem   = (int*)calloc(tr->numberOfTipsForInsertion, sizeof(int));      
       
       tr->bInf[i].epa->executeThem = (int*)calloc(tr->numberOfTipsForInsertion, sizeof(int));
+      
       for(j = 0; j < tr->numberOfTipsForInsertion; j++)
 	tr->bInf[i].epa->executeThem[j] = 1;
-
-      
 
       tr->bInf[i].epa->branches          = (double*)calloc(tr->numberOfTipsForInsertion, sizeof(double));   
       tr->bInf[i].epa->distalBranches    = (double*)calloc(tr->numberOfTipsForInsertion, sizeof(double)); 
          
-      
       tr->bInf[i].epa->likelihoods = (double*)calloc(tr->numberOfTipsForInsertion, sizeof(double));      
-      tr->bInf[i].epa->branchNumber = i;     
+      tr->bInf[i].epa->branchNumber = i;
+      
       sprintf(tr->bInf[i].epa->branchLabel, "I%d", i);     
     } 
 
@@ -1525,9 +1495,7 @@ void classifyML(tree *tr, analdef *adef)
   assert(isTip(q->number, tr->rdta->numsp));
   assert(!isTip(q->back->number, tr->rdta->numsp));
 	 
-  q = q->back;   
-     
-         
+  q = q->back;       
   
 #ifdef _USE_PTHREADS 
   tr->contiguousVectorLength = getContiguousVectorLength(tr);
@@ -1537,58 +1505,31 @@ void classifyML(tree *tr, analdef *adef)
 #endif 
   
   setupBranchInfo(tr, q);   
-
- 
   
-  if(tr->fastEPA_ML)
+  if(tr->useEpaHeuristics)
     {	 
-      int heuristicInsertions =  MAX(5, (int)(0.5 + (double)(tr->numberOfBranches) * tr->fastEPAthreshold));	  	 
-      
-      thorough = FALSE;   	         	 	             
-	  
-      if(tr->fastEPA_ML)
-	{
-	  printBothOpen("Searching for %d out of %d most promising branches with ML heuristics\n", heuristicInsertions, tr->numberOfBranches);	      
+      int 
+	heuristicInsertions =  MAX(5, (int)(0.5 + (double)(tr->numberOfBranches) * tr->fastEPAthreshold));	  	    	         	 	             
+	        
+      printBothOpen("EPA heuristics: determining %d out of %d most promising insertion branches\n", heuristicInsertions, tr->numberOfBranches);	      
 
 #ifdef _USE_PTHREADS	 
-	  NumberOfJobs = tr->numberOfBranches;
-	  masterBarrier(THREAD_INSERT_CLASSIFY, tr);               			 
+      NumberOfJobs = tr->numberOfBranches;
+      masterBarrier(THREAD_INSERT_CLASSIFY, tr);               			 
 #else  		
-	  addTraverseRob(tr, r, q, thorough);
+      addTraverseRob(tr, r, q, FALSE);
 #endif
-
-	  consolidateInfoMLHeuristics(tr, TRUE);
-	}           
-
-     
       
-      thorough = TRUE;
-            
-      
-
-#ifdef _USE_PTHREADS
-      NumberOfJobs = tr->numberOfBranches;
-      masterBarrier(THREAD_INSERT_CLASSIFY_THOROUGH, tr);	      
-#else     
-      addTraverseRob(tr, r, q, thorough);
-#endif
-      consolidateInfo(tr);              
-    }
-  else
-    {            
-	               	                 
-#ifdef _USE_PTHREADS
-      NumberOfJobs = tr->numberOfBranches;
-      if(thorough)   
-	masterBarrier(THREAD_INSERT_CLASSIFY_THOROUGH, tr);	           
-      else
-	masterBarrier(THREAD_INSERT_CLASSIFY, tr);
-#else                
-      addTraverseRob(tr, r, q, thorough);	         	       
-#endif
+      consolidateInfoMLHeuristics(tr, heuristicInsertions);
+    }           
            
-      consolidateInfo(tr);	
-    }
+#ifdef _USE_PTHREADS
+  NumberOfJobs = tr->numberOfBranches;
+  masterBarrier(THREAD_INSERT_CLASSIFY_THOROUGH, tr);	      
+#else     
+  addTraverseRob(tr, r, q, TRUE);
+#endif
+  consolidateInfo(tr);                
       
   printBothOpen("Overall Classification time: %f\n\n", gettime() - masterTime);			               	
 
@@ -1789,14 +1730,9 @@ void classifyML(tree *tr, analdef *adef)
   for(i = 0; i < tr->numberOfTipsForInsertion; i++)    
     for(j = 0; j < tr->numberOfBranches; j++) 
       {       
-	if(tr->bInf[j].epa->countThem[i] > 0)	    
-	  {
-	    if(thorough)
-	      fprintf(classificationFile, "%s I%d %d %8.20f\n", tr->nameList[tr->inserts[i]], j, tr->bInf[j].epa->countThem[i], 
-		      tr->bInf[j].epa->branches[i] / (double)(tr->bInf[j].epa->countThem[i]));
-	    else
-	      fprintf(classificationFile, "%s I%d %d\n", tr->nameList[tr->inserts[i]], j, tr->bInf[j].epa->countThem[i]);
-	  }
+	if(tr->bInf[j].epa->countThem[i] > 0)	    	  
+	  fprintf(classificationFile, "%s I%d %d %8.20f\n", tr->nameList[tr->inserts[i]], j, tr->bInf[j].epa->countThem[i], 
+		  tr->bInf[j].epa->branches[i] / (double)(tr->bInf[j].epa->countThem[i]));	    
       }
   
   fclose(classificationFile);  
