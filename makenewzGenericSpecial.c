@@ -3441,7 +3441,7 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 	      switch(tr->rateHetModel)
 		{
 		case CAT:
-		  coreGTRCAT_BINARY(width, tr->NumberOfCategories, sumBuffer,
+		  coreGTRCAT_BINARY(width, tr->partitionData[model].numberOfCategories, sumBuffer,
 				    &dlnLdlz, &d2lnLdlz2, tr->partitionData[model].wr, tr->partitionData[model].wr2,
 				    tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN,  tr->partitionData[model].rateCategory, lz);
 		  break;
@@ -3467,7 +3467,7 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 		  switch(tr->rateHetModel)
 		    {
 		    case CAT:
-		      coreGTRCAT(width, tr->NumberOfCategories, sumBuffer,
+		      coreGTRCAT(width, tr->partitionData[model].numberOfCategories, sumBuffer,
 				 &dlnLdlz, &d2lnLdlz2, tr->partitionData[model].wr, tr->partitionData[model].wr2,
 				 tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN,  tr->partitionData[model].rateCategory, lz);
 		      break;
@@ -3494,7 +3494,7 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 		  switch(tr->rateHetModel)
 		    {
 		    case CAT:
-		      coreGTRCATPROT(tr->partitionData[model].EIGN, lz, tr->NumberOfCategories,  tr->partitionData[model].perSiteRates,
+		      coreGTRCATPROT(tr->partitionData[model].EIGN, lz, tr->partitionData[model].numberOfCategories,  tr->partitionData[model].perSiteRates,
 				     tr->partitionData[model].rateCategory, width,
 				     tr->partitionData[model].wr, tr->partitionData[model].wr2,
 				     &dlnLdlz, &d2lnLdlz2,
@@ -3520,7 +3520,7 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 	      switch(tr->rateHetModel)
 		{
 		case CAT:
-		  coreGTRCATSECONDARY(tr->partitionData[model].EIGN, lz, tr->NumberOfCategories,  tr->partitionData[model].perSiteRates,
+		  coreGTRCATSECONDARY(tr->partitionData[model].EIGN, lz, tr->partitionData[model].numberOfCategories,  tr->partitionData[model].perSiteRates,
 				      tr->partitionData[model].rateCategory, width,
 				      tr->partitionData[model].wr, tr->partitionData[model].wr2,
 				      &dlnLdlz, &d2lnLdlz2,
@@ -3545,7 +3545,7 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 	      switch(tr->rateHetModel)
 		{
 		case CAT:
-		  coreGTRCATSECONDARY_6(tr->partitionData[model].EIGN, lz, tr->NumberOfCategories,  tr->partitionData[model].perSiteRates,
+		  coreGTRCATSECONDARY_6(tr->partitionData[model].EIGN, lz, tr->partitionData[model].numberOfCategories,  tr->partitionData[model].perSiteRates,
 					tr->partitionData[model].rateCategory, width,
 					tr->partitionData[model].wr, tr->partitionData[model].wr2,
 					&dlnLdlz, &d2lnLdlz2,
@@ -3570,7 +3570,7 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 	      switch(tr->rateHetModel)
 		{
 		case CAT:
-		  coreGTRCATSECONDARY_7(tr->partitionData[model].EIGN, lz, tr->NumberOfCategories,  tr->partitionData[model].perSiteRates,
+		  coreGTRCATSECONDARY_7(tr->partitionData[model].EIGN, lz, tr->partitionData[model].numberOfCategories,  tr->partitionData[model].perSiteRates,
 					tr->partitionData[model].rateCategory, width,
 					tr->partitionData[model].wr, tr->partitionData[model].wr2,
 					&dlnLdlz, &d2lnLdlz2,
@@ -3595,7 +3595,7 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 	      switch(tr->rateHetModel)
 		{
 		case CAT:
-		  coreCatFlex(tr->partitionData[model].EIGN, lz, tr->NumberOfCategories,  tr->partitionData[model].perSiteRates,
+		  coreCatFlex(tr->partitionData[model].EIGN, lz, tr->partitionData[model].numberOfCategories,  tr->partitionData[model].perSiteRates,
 			      tr->partitionData[model].rateCategory, width,
 			      tr->partitionData[model].wr, tr->partitionData[model].wr2,
 			      &dlnLdlz, &d2lnLdlz2,
@@ -4013,7 +4013,7 @@ static void coreClassify(tree *tr, volatile double *_dlnLdlz, volatile double *_
 	      switch(tr->rateHetModel)
 		{
 		case CAT:
-		  coreGTRCAT_BINARY(width, tr->NumberOfCategories, sumBuffer,
+		  coreGTRCAT_BINARY(width, tr->partitionData[model].numberOfCategories, sumBuffer,
 				    &dlnLdlz, &d2lnLdlz2, wr, wr2,
 				    patrat, tr->partitionData[model].EIGN,  rateCategory, lz);
 		  break;
@@ -4037,7 +4037,7 @@ static void coreClassify(tree *tr, volatile double *_dlnLdlz, volatile double *_
 	      switch(tr->rateHetModel)
 		{
 		case CAT:
-		  coreGTRCAT(width, tr->NumberOfCategories, sumBuffer,
+		  coreGTRCAT(width, tr->partitionData[model].numberOfCategories, sumBuffer,
 			     &dlnLdlz, &d2lnLdlz2, wr, wr2,
 			     patrat, tr->partitionData[model].EIGN,  rateCategory, lz);
 		  break;
@@ -4061,7 +4061,7 @@ static void coreClassify(tree *tr, volatile double *_dlnLdlz, volatile double *_
 	      switch(tr->rateHetModel)
 		{
 		case CAT:
-		  coreGTRCATPROT(tr->partitionData[model].EIGN, lz, tr->NumberOfCategories,  patrat,
+		  coreGTRCATPROT(tr->partitionData[model].EIGN, lz, tr->partitionData[model].numberOfCategories,  patrat,
 				 rateCategory, width,
 				 wr, wr2,
 				 &dlnLdlz, &d2lnLdlz2,
@@ -4086,7 +4086,7 @@ static void coreClassify(tree *tr, volatile double *_dlnLdlz, volatile double *_
 	      switch(tr->rateHetModel)
 		{
 		case CAT:
-		  coreGTRCATSECONDARY(tr->partitionData[model].EIGN, lz, tr->NumberOfCategories,  patrat,
+		  coreGTRCATSECONDARY(tr->partitionData[model].EIGN, lz, tr->partitionData[model].numberOfCategories,  patrat,
 				      rateCategory, width,
 				      wr, wr2,
 				      &dlnLdlz, &d2lnLdlz2,
@@ -4111,7 +4111,7 @@ static void coreClassify(tree *tr, volatile double *_dlnLdlz, volatile double *_
 	      switch(tr->rateHetModel)
 		{
 		case CAT:
-		  coreGTRCATSECONDARY_6(tr->partitionData[model].EIGN, lz, tr->NumberOfCategories, patrat,
+		  coreGTRCATSECONDARY_6(tr->partitionData[model].EIGN, lz, tr->partitionData[model].numberOfCategories, patrat,
 					rateCategory, width,
 					wr, wr2,
 					&dlnLdlz, &d2lnLdlz2,
@@ -4136,7 +4136,7 @@ static void coreClassify(tree *tr, volatile double *_dlnLdlz, volatile double *_
 	      switch(tr->rateHetModel)
 		{
 		case CAT:
-		  coreGTRCATSECONDARY_7(tr->partitionData[model].EIGN, lz, tr->NumberOfCategories,  patrat,
+		  coreGTRCATSECONDARY_7(tr->partitionData[model].EIGN, lz, tr->partitionData[model].numberOfCategories,  patrat,
 					rateCategory, width,
 					wr, wr2,
 					&dlnLdlz, &d2lnLdlz2,

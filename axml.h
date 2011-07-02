@@ -164,8 +164,8 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "RAxML"
-#define programVersion     "7.2.9"
-#define programDate        "October 2010"
+#define programVersion     "7.3.0"
+#define programDate        "June 2011"
 
 
 #define  TREE_EVALUATION            0
@@ -542,6 +542,7 @@ typedef struct {
   int     protModels;
   int     protFreqs;
   int     mxtips;
+  int     numberOfCategories;
   int             **expVector;
   double          **xVector;
   int             *xSpaceVector;
@@ -804,7 +805,6 @@ typedef  struct  {
   boolean          searchConvergenceCriterion;
   int              ntips;
   int              nextnode;
-  int              NumberOfCategories;
   int              NumberOfModels;
   int              parsimonyLength;
   
@@ -1299,7 +1299,7 @@ extern void computeRogueTaxaEPA(tree *tr);
 
 extern int *permutationSH(tree *tr, int nBootstrap, long _randomSeed);
 
-extern void updatePerSiteRates(tree *tr);
+extern void updatePerSiteRates(tree *tr, boolean scaleRates);
 
 
 

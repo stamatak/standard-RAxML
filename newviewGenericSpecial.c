@@ -8259,7 +8259,7 @@ void newviewIterative (tree *tr)
 		    case CAT:
 		      {			
 			makeP(qz, rz, tr->partitionData[model].perSiteRates,   tr->partitionData[model].EI,
-			      tr->partitionData[model].EIGN, tr->NumberOfCategories,
+			      tr->partitionData[model].EIGN, tr->partitionData[model].numberOfCategories,
 			      left, right, BINARY_DATA);
 
 			newviewGTRCAT_BINARY(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
@@ -8293,7 +8293,7 @@ void newviewIterative (tree *tr)
 		     
 			{			  
 			  makeP(qz, rz, tr->partitionData[model].perSiteRates,   tr->partitionData[model].EI,
-				tr->partitionData[model].EIGN, tr->NumberOfCategories,
+				tr->partitionData[model].EIGN, tr->partitionData[model].numberOfCategories,
 				left, right, DNA_DATA);
 
 			  newviewGTRCAT(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
@@ -8354,7 +8354,7 @@ void newviewIterative (tree *tr)
 			  makeP(qz, rz, tr->partitionData[model].perSiteRates,
 				tr->partitionData[model].EI,
 				tr->partitionData[model].EIGN,
-				tr->NumberOfCategories, left, right, AA_DATA);
+				tr->partitionData[model].numberOfCategories, left, right, AA_DATA);
 			  
 			  newviewGTRCATPROT(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
 					    x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
@@ -8412,7 +8412,7 @@ void newviewIterative (tree *tr)
 			makeP(qz, rz, tr->partitionData[model].perSiteRates,
 			      tr->partitionData[model].EI,
 			      tr->partitionData[model].EIGN,
-			      tr->NumberOfCategories, left, right, SECONDARY_DATA_6);
+			      tr->partitionData[model].numberOfCategories, left, right, SECONDARY_DATA_6);
 
 			newviewGTRCATSECONDARY_6(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
 						 x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
@@ -8447,7 +8447,7 @@ void newviewIterative (tree *tr)
 			makeP(qz, rz, tr->partitionData[model].perSiteRates,
 			      tr->partitionData[model].EI,
 			      tr->partitionData[model].EIGN,
-			      tr->NumberOfCategories, left, right, SECONDARY_DATA_7);
+			      tr->partitionData[model].numberOfCategories, left, right, SECONDARY_DATA_7);
 
 			newviewGTRCATSECONDARY_7(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
 						 x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
@@ -8482,7 +8482,7 @@ void newviewIterative (tree *tr)
 			makeP(qz, rz, tr->partitionData[model].perSiteRates,
 			      tr->partitionData[model].EI,
 			      tr->partitionData[model].EIGN,
-			      tr->NumberOfCategories, left, right, SECONDARY_DATA);
+			      tr->partitionData[model].numberOfCategories, left, right, SECONDARY_DATA);
 
 			newviewGTRCATSECONDARY(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
 					       x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
@@ -8517,7 +8517,7 @@ void newviewIterative (tree *tr)
 			makeP_Flex(qz, rz, tr->partitionData[model].perSiteRates,
 				   tr->partitionData[model].EI,
 				   tr->partitionData[model].EIGN,
-				   tr->NumberOfCategories, left, right, states);
+				   tr->partitionData[model].numberOfCategories, left, right, states);
 			
 			newviewFlexCat(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
 				       x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
@@ -8698,7 +8698,7 @@ void newviewIterativeMulti (tree *tr)
 		    case CAT:
 		      {			
 			makeP(qz, rz, tr->partitionData[model].perSiteRates,   tr->partitionData[model].EI,
-			      tr->partitionData[model].EIGN, tr->NumberOfCategories,
+			      tr->partitionData[model].EIGN, tr->partitionData[model].numberOfCategories,
 			      left, right, BINARY_DATA);
 
 			newviewGTRCAT_BINARY(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
@@ -8732,7 +8732,7 @@ void newviewIterativeMulti (tree *tr)
 		     
 			{			  
 			  makeP(qz, rz, tr->partitionData[model].perSiteRates,   tr->partitionData[model].EI,
-				tr->partitionData[model].EIGN, tr->NumberOfCategories,
+				tr->partitionData[model].EIGN, tr->partitionData[model].numberOfCategories,
 				left, right, DNA_DATA);
 
 			  newviewGTRCAT(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
@@ -8781,7 +8781,7 @@ void newviewIterativeMulti (tree *tr)
 			  makeP(qz, rz, tr->partitionData[model].perSiteRates,
 				tr->partitionData[model].EI,
 				tr->partitionData[model].EIGN,
-				tr->NumberOfCategories, left, right, AA_DATA);
+				tr->partitionData[model].numberOfCategories, left, right, AA_DATA);
 			  
 			  newviewGTRCATPROT(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
 					    x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
@@ -8818,7 +8818,7 @@ void newviewIterativeMulti (tree *tr)
 			makeP(qz, rz, tr->partitionData[model].perSiteRates,
 			      tr->partitionData[model].EI,
 			      tr->partitionData[model].EIGN,
-			      tr->NumberOfCategories, left, right, SECONDARY_DATA_6);
+			      tr->partitionData[model].numberOfCategories, left, right, SECONDARY_DATA_6);
 
 			newviewGTRCATSECONDARY_6(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
 						 x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
@@ -8853,7 +8853,7 @@ void newviewIterativeMulti (tree *tr)
 			makeP(qz, rz, tr->partitionData[model].perSiteRates,
 			      tr->partitionData[model].EI,
 			      tr->partitionData[model].EIGN,
-			      tr->NumberOfCategories, left, right, SECONDARY_DATA_7);
+			      tr->partitionData[model].numberOfCategories, left, right, SECONDARY_DATA_7);
 
 			newviewGTRCATSECONDARY_7(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
 						 x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
@@ -8888,7 +8888,7 @@ void newviewIterativeMulti (tree *tr)
 			makeP(qz, rz, tr->partitionData[model].perSiteRates,
 			      tr->partitionData[model].EI,
 			      tr->partitionData[model].EIGN,
-			      tr->NumberOfCategories, left, right, SECONDARY_DATA);
+			      tr->partitionData[model].numberOfCategories, left, right, SECONDARY_DATA);
 
 			newviewGTRCATSECONDARY(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
 					       x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
@@ -9163,7 +9163,7 @@ static void newviewMultiGrain(tree *tr,  double *x1, double *x2, double *x3, int
 	    {
 	    case CAT:	      
 	      makeP(pz, qz, tr->partitionData[model].perSiteRates,   tr->partitionData[model].EI,
-		    tr->partitionData[model].EIGN, tr->NumberOfCategories,
+		    tr->partitionData[model].EIGN, tr->partitionData[model].numberOfCategories,
 		    left, right, BINARY_DATA);
 	      
 	      newviewGTRCAT_BINARY(tipCase,  tr->partitionData[model].EV, rateCategory,
@@ -9192,7 +9192,7 @@ static void newviewMultiGrain(tree *tr,  double *x1, double *x2, double *x3, int
 	    {
 	    case CAT:	      			
 	      makeP(pz, qz, tr->partitionData[model].perSiteRates,   tr->partitionData[model].EI,
-		    tr->partitionData[model].EIGN, tr->NumberOfCategories,
+		    tr->partitionData[model].EIGN, tr->partitionData[model].numberOfCategories,
 		    left, right, DNA_DATA);
 	      
 	      newviewGTRCAT(tipCase,  tr->partitionData[model].EV, rateCategory,
@@ -9225,7 +9225,7 @@ static void newviewMultiGrain(tree *tr,  double *x1, double *x2, double *x3, int
 	      makeP(pz, qz, tr->partitionData[model].perSiteRates,
 		    tr->partitionData[model].EI,
 		    tr->partitionData[model].EIGN,
-		    tr->NumberOfCategories, left, right, AA_DATA);
+		    tr->partitionData[model].numberOfCategories, left, right, AA_DATA);
 	      
 	      newviewGTRCATPROT(tipCase,  tr->partitionData[model].EV, rateCategory,
 				x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
@@ -9257,7 +9257,7 @@ static void newviewMultiGrain(tree *tr,  double *x1, double *x2, double *x3, int
 	      makeP(pz, qz, tr->partitionData[model].perSiteRates,
 		    tr->partitionData[model].EI,
 		    tr->partitionData[model].EIGN,
-		    tr->NumberOfCategories, left, right, SECONDARY_DATA);
+		    tr->partitionData[model].numberOfCategories, left, right, SECONDARY_DATA);
 
 	      newviewGTRCATSECONDARY(tipCase,  tr->partitionData[model].EV, rateCategory,
 				     x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
@@ -9290,7 +9290,7 @@ static void newviewMultiGrain(tree *tr,  double *x1, double *x2, double *x3, int
 	      makeP(pz, qz, tr->partitionData[model].perSiteRates,
 		    tr->partitionData[model].EI,
 		    tr->partitionData[model].EIGN,
-		    tr->NumberOfCategories, left, right, SECONDARY_DATA_6);
+		    tr->partitionData[model].numberOfCategories, left, right, SECONDARY_DATA_6);
 	      
 	      newviewGTRCATSECONDARY_6(tipCase,  tr->partitionData[model].EV, rateCategory,
 				       x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
@@ -9321,7 +9321,7 @@ static void newviewMultiGrain(tree *tr,  double *x1, double *x2, double *x3, int
 	      makeP(pz, qz, tr->partitionData[model].perSiteRates,
 		    tr->partitionData[model].EI,
 		    tr->partitionData[model].EIGN,
-		    tr->NumberOfCategories, left, right, SECONDARY_DATA_7);
+		    tr->partitionData[model].numberOfCategories, left, right, SECONDARY_DATA_7);
 	      
 	      newviewGTRCATSECONDARY_7(tipCase,  tr->partitionData[model].EV, rateCategory,
 				       x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,

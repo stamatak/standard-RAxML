@@ -1165,6 +1165,7 @@ void fastSearch(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
     *f;
 
   int
+    model,
     interchanges;
 
  
@@ -1207,7 +1208,8 @@ void fastSearch(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
   /* print out the number of rate categories used for the CAT model, one should 
      use less then the default, e.g., -c 16 works quite well */
 
-  printBothOpen("Cats: %d\n", tr->NumberOfCategories);
+  for(model = 0; model < tr->NumberOfModels; model++)
+    printBothOpen("Partion %d number of Cats: %d\n", model, tr->partitionData[model].numberOfCategories);
 
   /* 
      means that we are going to do thorough insertions 

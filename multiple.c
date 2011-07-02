@@ -238,7 +238,7 @@ void fixModelIndices(tree *tr, int endsite, boolean fixRates)
 
   
   if(fixRates)
-    updatePerSiteRates(tr);
+    updatePerSiteRates(tr, TRUE);
 }
 
 void reductionCleanup(tree *tr, int *originalRateCategories, int *originalInvariant)
@@ -254,7 +254,7 @@ void reductionCleanup(tree *tr, int *originalRateCategories, int *originalInvari
   memcpy(tr->cdta->rateCategory, originalRateCategories, sizeof(int) * tr->cdta->endsite);
   memcpy(tr->invariant,          originalInvariant,      sizeof(int) * tr->cdta->endsite);                      
   
-  updatePerSiteRates(tr);
+  updatePerSiteRates(tr, TRUE);
 
   memcpy(tr->rdta->y0, tr->rdta->yBUF, ((size_t)tr->rdta->numsp) * ((size_t)tr->cdta->endsite) * sizeof(char));  
       

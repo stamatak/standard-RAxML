@@ -3312,10 +3312,8 @@ static void printVersionInfo(void)
 {
   printf("\n\nThis is %s version %s released by Alexandros Stamatakis in %s.\n\n",  programName, programVersion, programDate);
   printf("With greatly appreciated code contributions by:\n");
-  printf("Andre Aberer (TUM)\n");     
-  printf("Simon Berger (HITS)\n");
-  printf("John Cazes (TACC)\n");
-  printf("Michael Ott (CSIRO)\n"); 
+  printf("Andre Aberer (HITS)\n");     
+  printf("Simon Berger (HITS)\n"); 
   printf("Nick Pattengale (Sandia)\n"); 
   printf("Wayne Pfeiffer (SDSC)\n");
   printf("Akifumi S. Tanabe (Univ. Tsukuba)\n\n");
@@ -4838,10 +4836,8 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
      
       printBoth(infoFile, "\n\nThis is %s version %s released by Alexandros Stamatakis in %s.\n\n",  programName, programVersion, programDate);
       printBoth(infoFile, "With greatly appreciated code contributions by:\n");
-      printBoth(infoFile, "Andre Aberer (TUM)\n");     
-      printBoth(infoFile, "Simon Berger (HITS)\n");
-      printBoth(infoFile, "John Cazes (TACC)\n");
-      printBoth(infoFile, "Michael Ott (CSIRO)\n"); 
+      printBoth(infoFile, "Andre Aberer (HITS)\n");     
+      printBoth(infoFile, "Simon Berger (HITS)\n");     
       printBoth(infoFile, "Nick Pattengale (Sandia)\n"); 
       printBoth(infoFile, "Wayne Pfeiffer (SDSC)\n");
       printBoth(infoFile, "Akifumi S. Tanabe (Univ. Tsukuba)\n\n");
@@ -4906,7 +4902,7 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
 	  break;
 	case CONSENSUS_ONLY:
 	  if(adef->leaveDropMode)
-	    printBoth(infoFile, "\nRAxML rogue taxa computation by Andre Aberer (TUM)\n\n");
+	    printBoth(infoFile, "\nRAxML rogue taxa computation by Andre Aberer (HITS)\n\n");
 	  else
 	    printBoth(infoFile, "\nRAxML consensus tree computation\n\n");
 	  break;
@@ -6002,12 +5998,13 @@ static void initPartition(tree *tr, tree *localTree, int tid)
       localTree->cdta->patrat       = (double*)malloc(sizeof(double) * localTree->originalCrunchedLength);
       localTree->cdta->patratStored = (double*)malloc(sizeof(double) * localTree->originalCrunchedLength);
 
-      localTree->NumberOfCategories = tr->NumberOfCategories;
+      
 
       localTree->discreteRateCategories = tr->discreteRateCategories;     
 
       for(model = 0; model < localTree->NumberOfModels; model++)
 	{
+	  localTree->partitionData[model].numberOfCategories    = tr->partitionData[model].numberOfCategories;
 	  localTree->partitionData[model].states     = tr->partitionData[model].states;
 	  localTree->partitionData[model].maxTipStates    = tr->partitionData[model].maxTipStates;
 	  localTree->partitionData[model].dataType   = tr->partitionData[model].dataType;
@@ -6158,12 +6155,11 @@ static void broadcastPerSiteRates(tree *tr, tree *localTree)
     i = 0,
     model = 0;
 
-
-  assert(tr->NumberOfCategories == localTree->NumberOfCategories);
-
   for(model = 0; model < localTree->NumberOfModels; model++)
     {
-      for(i = 0; i < localTree->NumberOfCategories; i++)
+      localTree->partitionData[model].numberOfCategories = tr->partitionData[model].numberOfCategories;
+
+      for(i = 0; i < localTree->partitionData[model].numberOfCategories; i++)
 	localTree->partitionData[model].perSiteRates[i] = tr->partitionData[model].perSiteRates[i];
     }
 
@@ -6446,7 +6442,6 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
     case THREAD_COPY_INIT_MODEL:
       if(tid > 0)
 	{
-	  localTree->NumberOfCategories = tr->NumberOfCategories;
 	  localTree->rateHetModel       = tr->rateHetModel;
 
 	  for(model = 0; model < localTree->NumberOfModels; model++)
@@ -6467,6 +6462,8 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 	      localTree->partitionData[model].propInvariant = tr->partitionData[model].propInvariant;
 	      localTree->partitionData[model].lower      = tr->partitionData[model].lower;
 	      localTree->partitionData[model].upper      = tr->partitionData[model].upper;
+	      
+	      localTree->partitionData[model].numberOfCategories      = tr->partitionData[model].numberOfCategories;
 	    }
 
 	  memcpy(localTree->cdta->patrat,        tr->cdta->patrat,      localTree->originalCrunchedLength * sizeof(double));
@@ -6518,8 +6515,7 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
       break;
     case THREAD_COPY_RATE_CATS:
       if(tid > 0)
-	{
-	  localTree->NumberOfCategories = tr->NumberOfCategories;
+	{	
 	  memcpy(localTree->cdta->patrat,       tr->cdta->patrat,         localTree->originalCrunchedLength * sizeof(double));
 	  memcpy(localTree->cdta->patratStored, tr->cdta->patratStored,   localTree->originalCrunchedLength * sizeof(double));
 	  broadcastPerSiteRates(tr, localTree);
@@ -6527,6 +6523,8 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 
       for(model = 0; model < localTree->NumberOfModels; model++)
 	{
+	  localTree->partitionData[model].numberOfCategories = tr->partitionData[model].numberOfCategories;
+
 	  for(localCounter = 0, i = localTree->partitionData[model].lower;  i < localTree->partitionData[model].upper; i++)
 	    {
 	      if(i % n == tid)
@@ -7003,52 +7001,7 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 	      }
 	  }     
        }      
-      break;    
-     
-     
-      /*
-	not required any more, since parallel parsing has been abandoned!
-      
-	case THREAD_FILL_HASH_FOR_CONSENSUS:
-	assert(0);
-	break;
-
-	dropset parallelization temporarily abandoned ........
-
-	case THREAD_FIND_BEST_DROPSET:
-	assert(0);
-	break;          
-	case THREAD_CALC_DROPSETS:
-	assert(0);
-	break;
-      */
-
-
-      /*
-	Pthreads parallelization doesn't really scale with the new optimizations ....
-
-	case THREAD_INIT_FAST_PARSIMONY:
-	if(tid > 0)
-	{
-	localTree->ti = tr->ti;
-	localTree->parsimonyScore = (unsigned int*)malloc_aligned(sizeof(unsigned int) * 2 * localTree->mxtips);
-	
-	localTree->parsimonyState_A = tr->parsimonyState_A;
-	localTree->parsimonyState_C = tr->parsimonyState_C;
-	localTree->parsimonyState_G = tr->parsimonyState_G;
-	localTree->parsimonyState_T = tr->parsimonyState_T;
-	
-	localTree->compressedWidth = tr->compressedWidth;	  
-	}
-	break;
-	case  THREAD_FAST_NEWVIEW_PARSIMONY:
-	newviewParsimonyIterativeFast(localTree);
-	break;
-	case THREAD_FAST_EVALUATE_PARSIMONY: 
-	parsimonyResult = evaluateParsimonyIterativeFast(localTree);
-	reductionBufferParsimony[tid] = parsimonyResult;
-	break;
-      */
+      break;         
     default:
       printf("Job %d\n", currentJob);
       assert(0);

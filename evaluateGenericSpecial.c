@@ -2772,7 +2772,7 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 		{
 		case CAT:	    
 		  {
-		    calcDiagptableFlex(z, tr->NumberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable, states);
+		    calcDiagptableFlex(z, tr->partitionData[model].numberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable, states);
 		    
 		    partitionLikelihood = evaluateCatFlex(ex1, ex2, tr->partitionData[model].rateCategory, tr->partitionData[model].wgt,
 							  x1_start, x2_start, tr->partitionData[model].tipVector,
@@ -2818,7 +2818,7 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 		    {
 		    case CAT:	    
 		      {		   		    
-			calcDiagptable(z, BINARY_DATA, tr->NumberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
+			calcDiagptable(z, BINARY_DATA, tr->partitionData[model].numberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
 			
 			partitionLikelihood =  evaluateGTRCAT_BINARY(ex1, ex2, tr->partitionData[model].rateCategory, tr->partitionData[model].wgt,
 								     x1_start, x2_start, tr->partitionData[model].tipVector, 
@@ -2854,7 +2854,7 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 		    {
 		    case CAT:
 		     
-			  calcDiagptable(z, DNA_DATA, tr->NumberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
+			  calcDiagptable(z, DNA_DATA, tr->partitionData[model].numberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
 			  
 			  partitionLikelihood =  evaluateGTRCAT(ex1, ex2, tr->partitionData[model].rateCategory, tr->partitionData[model].wgt,
 								x1_start, x2_start, tr->partitionData[model].tipVector, 
@@ -2903,7 +2903,7 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 		    {
 		    case CAT:	    
 		     	   
-		      calcDiagptable(z, AA_DATA, tr->NumberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
+		      calcDiagptable(z, AA_DATA, tr->partitionData[model].numberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
 			  
 		      partitionLikelihood = evaluateGTRCATPROT(ex1, ex2, tr->partitionData[model].rateCategory, tr->partitionData[model].wgt,
 							       x1_start, x2_start, tr->partitionData[model].tipVector,
@@ -2955,7 +2955,7 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 		    {
 		    case CAT:	    
 		      {
-			calcDiagptableFlex(z, tr->NumberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable, states);
+			calcDiagptableFlex(z, tr->partitionData[model].numberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable, states);
 			
 			partitionLikelihood = evaluateCatFlex(ex1, ex2, tr->partitionData[model].rateCategory, tr->partitionData[model].wgt,
 							      x1_start, x2_start, tr->partitionData[model].tipVector,
@@ -2991,7 +2991,7 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 		    {
 		    case CAT:	    
 		      {
-			calcDiagptable(z, SECONDARY_DATA, tr->NumberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
+			calcDiagptable(z, SECONDARY_DATA, tr->partitionData[model].numberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
 			
 		    partitionLikelihood = evaluateGTRCATSECONDARY(ex1, ex2, tr->partitionData[model].rateCategory, tr->partitionData[model].wgt,
 								  x1_start, x2_start, tr->partitionData[model].tipVector,
@@ -3027,7 +3027,7 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 		    {
 		    case CAT:	    
 		      {
-			calcDiagptable(z, SECONDARY_DATA_6, tr->NumberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
+			calcDiagptable(z, SECONDARY_DATA_6, tr->partitionData[model].numberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
 			
 			partitionLikelihood = evaluateGTRCATSECONDARY_6(ex1, ex2, tr->partitionData[model].rateCategory, tr->partitionData[model].wgt,
 									x1_start, x2_start, tr->partitionData[model].tipVector,
@@ -3063,7 +3063,7 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 		    {
 		    case CAT:	    
 		      {
-			calcDiagptable(z, SECONDARY_DATA_7, tr->NumberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
+			calcDiagptable(z, SECONDARY_DATA_7, tr->partitionData[model].numberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
 			
 			partitionLikelihood = evaluateGTRCATSECONDARY_7(ex1, ex2, tr->partitionData[model].rateCategory, tr->partitionData[model].wgt,
 									x1_start, x2_start, tr->partitionData[model].tipVector,
@@ -3226,7 +3226,7 @@ double evaluateIterativeMulti(tree *tr,  boolean writeVector)
 		{
 		case CAT:	    
 		  {		   		    
-		    calcDiagptable(z, BINARY_DATA, tr->NumberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
+		    calcDiagptable(z, BINARY_DATA, tr->partitionData[model].numberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
 		    
 		    partitionLikelihood =  evaluateGTRCAT_BINARY(ex1, ex2, tr->partitionData[model].rateCategory, tr->partitionData[model].wgt,
 								 x1_start, x2_start, tr->partitionData[model].tipVector, 
@@ -3262,7 +3262,7 @@ double evaluateIterativeMulti(tree *tr,  boolean writeVector)
 		{
 		case CAT:		  
 		    {
-		      calcDiagptable(z, DNA_DATA, tr->NumberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
+		      calcDiagptable(z, DNA_DATA, tr->partitionData[model].numberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
 		      
 		      partitionLikelihood =  evaluateGTRCAT(ex1, ex2, tr->partitionData[model].rateCategory, tr->partitionData[model].wgt,
 							    x1_start, x2_start, tr->partitionData[model].tipVector, 
@@ -3301,7 +3301,7 @@ double evaluateIterativeMulti(tree *tr,  boolean writeVector)
 		{
 		case CAT:	    
 		  {		   
-		    calcDiagptable(z, AA_DATA, tr->NumberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
+		    calcDiagptable(z, AA_DATA, tr->partitionData[model].numberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
 
 		    partitionLikelihood = evaluateGTRCATPROT(ex1, ex2, tr->partitionData[model].rateCategory, tr->partitionData[model].wgt,
 							     x1_start, x2_start, tr->partitionData[model].tipVector,
@@ -3337,7 +3337,7 @@ double evaluateIterativeMulti(tree *tr,  boolean writeVector)
 		{
 		case CAT:	    
 		  {
-		    calcDiagptable(z, SECONDARY_DATA, tr->NumberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
+		    calcDiagptable(z, SECONDARY_DATA, tr->partitionData[model].numberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
 
 		    partitionLikelihood = evaluateGTRCATSECONDARY(ex1, ex2, tr->partitionData[model].rateCategory, tr->partitionData[model].wgt,
 								  x1_start, x2_start, tr->partitionData[model].tipVector,
@@ -3373,7 +3373,7 @@ double evaluateIterativeMulti(tree *tr,  boolean writeVector)
 		{
 		case CAT:	    
 		  {
-		    calcDiagptable(z, SECONDARY_DATA_6, tr->NumberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
+		    calcDiagptable(z, SECONDARY_DATA_6, tr->partitionData[model].numberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
 
 		    partitionLikelihood = evaluateGTRCATSECONDARY_6(ex1, ex2, tr->partitionData[model].rateCategory, tr->partitionData[model].wgt,
 								    x1_start, x2_start, tr->partitionData[model].tipVector,
@@ -3409,7 +3409,7 @@ double evaluateIterativeMulti(tree *tr,  boolean writeVector)
 		{
 		case CAT:	    
 		  {
-		    calcDiagptable(z, SECONDARY_DATA_7, tr->NumberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
+		    calcDiagptable(z, SECONDARY_DATA_7, tr->partitionData[model].numberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
 
 		    partitionLikelihood = evaluateGTRCATSECONDARY_7(ex1, ex2, tr->partitionData[model].rateCategory, tr->partitionData[model].wgt,
 								    x1_start, x2_start, tr->partitionData[model].tipVector,
@@ -3871,7 +3871,7 @@ double evalCL(tree *tr, double *x2, int *_ex2, unsigned char *_tip, double *pz)
 	  switch(tr->rateHetModel)
 	    {
 	    case CAT:	    	      	   		    
-	      calcDiagptable(z, BINARY_DATA, tr->NumberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
+	      calcDiagptable(z, BINARY_DATA, tr->partitionData[model].numberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
 		
 	      partitionLikelihood =  evaluateGTRCAT_BINARY(ex1, ex2, rateCategory, wgt,
 							   x1_start, x2_start, tr->partitionData[model].tipVector, 
@@ -3902,7 +3902,7 @@ double evalCL(tree *tr, double *x2, int *_ex2, unsigned char *_tip, double *pz)
 	  switch(tr->rateHetModel)
 	    {
 	    case CAT:	     
-	      calcDiagptable(z, DNA_DATA, tr->NumberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
+	      calcDiagptable(z, DNA_DATA, tr->partitionData[model].numberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
 	      
 	      partitionLikelihood =  evaluateGTRCAT(ex1, ex2, rateCategory,wgt,
 						    x1_start, x2_start, tr->partitionData[model].tipVector, 
@@ -3932,7 +3932,7 @@ double evalCL(tree *tr, double *x2, int *_ex2, unsigned char *_tip, double *pz)
 	  switch(tr->rateHetModel)
 	    {
 	    case CAT:	    		 		   
-	      calcDiagptable(z, AA_DATA, tr->NumberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
+	      calcDiagptable(z, AA_DATA, tr->partitionData[model].numberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
 	      
 	      partitionLikelihood = evaluateGTRCATPROT(ex1, ex2, rateCategory,wgt,
 						       x1_start, x2_start, tr->partitionData[model].tipVector,
@@ -3962,7 +3962,7 @@ double evalCL(tree *tr, double *x2, int *_ex2, unsigned char *_tip, double *pz)
 	  switch(tr->rateHetModel)
 	    {
 	    case CAT:	    	      
-	      calcDiagptable(z, SECONDARY_DATA, tr->NumberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
+	      calcDiagptable(z, SECONDARY_DATA, tr->partitionData[model].numberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
 
 	      partitionLikelihood = evaluateGTRCATSECONDARY(ex1, ex2, rateCategory,wgt,
 							    x1_start, x2_start, tr->partitionData[model].tipVector,
@@ -3992,7 +3992,7 @@ double evalCL(tree *tr, double *x2, int *_ex2, unsigned char *_tip, double *pz)
 	  switch(tr->rateHetModel)
 	    {
 	    case CAT:	    		 
-	      calcDiagptable(z, SECONDARY_DATA_6, tr->NumberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
+	      calcDiagptable(z, SECONDARY_DATA_6, tr->partitionData[model].numberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
 
 	      partitionLikelihood = evaluateGTRCATSECONDARY_6(ex1, ex2, rateCategory,wgt,
 							      x1_start, x2_start, tr->partitionData[model].tipVector,
@@ -4022,7 +4022,7 @@ double evalCL(tree *tr, double *x2, int *_ex2, unsigned char *_tip, double *pz)
 	  switch(tr->rateHetModel)
 	    {
 	    case CAT:	    		  
-	      calcDiagptable(z, SECONDARY_DATA_7, tr->NumberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
+	      calcDiagptable(z, SECONDARY_DATA_7, tr->partitionData[model].numberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
 	      
 	      partitionLikelihood = evaluateGTRCATSECONDARY_7(ex1, ex2, rateCategory,wgt,
 							      x1_start, x2_start, tr->partitionData[model].tipVector,

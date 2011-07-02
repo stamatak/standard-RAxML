@@ -338,7 +338,7 @@ static void testInsertThorough(tree *tr, nodeptr r, nodeptr q)
     z[NUM_BRANCHES];
   
   nodeptr      
-    root,
+    root = (nodeptr)NULL,
     x = q->back;      
   
   int 
@@ -1182,26 +1182,7 @@ static void setupJointFormat(tree *tr, nodeptr p, int ntips, branchInfo *bInf, i
 }
  
 
-static void setupRootedFormat(tree *tr, nodeptr p, int ntips, branchInfo *bInf, int *count)
-{  
-  if(isTip(p->number, tr->mxtips))    
-    {      
-      p->bInf->epa->jointLabel = *count;
-      *count = *count + 1;
-           
-      return;
-    }
-  else
-    {                           
-      setupRootedFormat(tr, p->next->back, ntips, bInf, count);            
-      setupRootedFormat(tr, p->next->next->back, ntips, bInf, count);     
-      
-      p->bInf->epa->jointLabel = *count;
-      *count = *count + 1; 
-      
-      return;
-    }
-}
+
 
 
 
@@ -1730,7 +1711,7 @@ void classifyML(tree *tr, analdef *adef)
   for(i = 0; i < tr->numberOfTipsForInsertion; i++)    
     for(j = 0; j < tr->numberOfBranches; j++) 
       {       
-	if(tr->bInf[j].epa->countThem[i] > 0)	    	  
+	if(tr->bInf[j].epa->countThem[i] > 0)    	  
 	  fprintf(classificationFile, "%s I%d %d %8.20f\n", tr->nameList[tr->inserts[i]], j, tr->bInf[j].epa->countThem[i], 
 		  tr->bInf[j].epa->branches[i] / (double)(tr->bInf[j].epa->countThem[i]));	    
       }
