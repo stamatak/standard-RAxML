@@ -6612,8 +6612,7 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 	}                                                
 
       localTree->temporarySumBuffer = (double *)malloc_aligned(sizeof(double) * localTree->contiguousVectorLength);
-      localTree->temporaryVector  = (double *)malloc_aligned(sizeof(double) * localTree->contiguousVectorLength);
-      localTree->temporaryParsimonyVector = (parsimonyVector*)localTree->temporaryVector;
+      localTree->temporaryVector  = (double *)malloc_aligned(sizeof(double) * localTree->contiguousVectorLength);      
 
       localTree->temporaryScaling = (int *)malloc(sizeof(int) * localTree->contiguousScalingLength);
                  
@@ -6634,9 +6633,7 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
       
       memcpy(localTree->contiguousWR, tr->wr, sizeof(double) * localTree->contiguousScalingLength);
       memcpy(localTree->contiguousWR2, tr->wr2, sizeof(double) * localTree->contiguousScalingLength);
-      memcpy(localTree->contiguousRateCategory, tr->cdta->rateCategory, sizeof(int) * localTree->contiguousScalingLength);
-     
-      
+      memcpy(localTree->contiguousRateCategory, tr->cdta->rateCategory, sizeof(int) * localTree->contiguousScalingLength);           
      
       localTree->contiguousTips = tr->yVector;	  	
 	 

@@ -68,21 +68,6 @@
 #define minlikelihood  (1.0/twotothe256)
 #define minusminlikelihood -minlikelihood
 
-
-
-
-/* 18446744073709551616.0 */
-
-/*4294967296.0*/
-
-/* 18446744073709551616.0 */
-
-/*  2**64 (exactly)  */
-/* 4294967296 2**32 */
-
-
-
-
 #define badRear         -1
 
 #define NUM_BRANCHES   128
@@ -637,57 +622,6 @@ typedef  struct  {
   int    *inserts;
   int    branchCounter;
 
-#ifdef _USE_PTHREADS    
-  /*
-    do we need this stuff ?
-  */
-  unsigned int **bitVectors;
-  hashtable *h;
- 
-    
-   
-
-  double *temporaryVector;
-  parsimonyVector *temporaryParsimonyVector;
-  int    *temporaryScaling;
-  double *temporarySumBuffer;
-  size_t contiguousVectorLength;
-  size_t contiguousScalingLength;  
- 
- 
-
-  int *contiguousRateCategory;
-  int *contiguousWgt;
-  int *contiguousInvariant;  
-
-  unsigned char **contiguousTips;
-
-  double *contiguousWR;
-  double *contiguousWR2;
-  
-  
-  int *expArray;
-  unsigned char *y_ptr;
-  double *likelihoodArray;
-  
-  double *wrPtr;
-  double *wr2Ptr;
-
-  
-
-  double *perSiteLLPtr;
-  int    *wgtPtr;
-  int    *invariantPtr;
-  int    *rateCategoryPtr;
-
-  int threadID;
-  double lower_spacing;
-  double upper_spacing;
-  double *lhs;
-#endif
-  
- 
-
   parsimonyNumber **parsimonyState_A;
   parsimonyNumber **parsimonyState_C;
   parsimonyNumber **parsimonyState_G;
@@ -855,6 +789,48 @@ typedef  struct  {
   int rootLabel;
 
 #ifdef _USE_PTHREADS
+
+  hashtable *h;
+ 
+    
+   
+
+  double *temporaryVector;  
+  int    *temporaryScaling;
+  double *temporarySumBuffer;
+  size_t contiguousVectorLength;
+  size_t contiguousScalingLength;  
+ 
+ 
+
+  int *contiguousRateCategory;
+  int *contiguousWgt;
+  int *contiguousInvariant;  
+
+  unsigned char **contiguousTips;
+
+  double *contiguousWR;
+  double *contiguousWR2;
+  
+  
+  int *expArray;
+  unsigned char *y_ptr;
+  double *likelihoodArray;
+  
+  double *wrPtr;
+  double *wr2Ptr;
+
+  
+
+  double *perSiteLLPtr;
+  int    *wgtPtr;
+  int    *invariantPtr;
+  int    *rateCategoryPtr;
+
+  int threadID;
+  double lower_spacing;
+  double upper_spacing;
+  double *lhs;
 
   /* stuff for parallel MRE */
 
