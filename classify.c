@@ -120,7 +120,12 @@ static char *Tree2StringClassifyRec(char *treestr, tree *tr, nodeptr p, int *cou
 	    {
 	      if(bInf->epa->countThem[i] > 0)
 		{	      
-		  sprintf(treestr,"QUERY___%s___%d", tr->nameList[inserts[i]], bInf->epa->countThem[i]);
+		  char 
+		    branchLength[128];
+
+		  sprintf(branchLength, "%f", bInf->epa->branches[i]);
+
+		  sprintf(treestr,"QUERY___%s:%s", tr->nameList[inserts[i]], branchLength);
 		  while (*treestr) treestr++;	
 		  *treestr++ = ',';
 		}
@@ -131,9 +136,6 @@ static char *Tree2StringClassifyRec(char *treestr, tree *tr, nodeptr p, int *cou
   if(isTip(p->number, tr->rdta->numsp)) 
     {
       char *nameptr = tr->nameList[p->number];  
-
-      
-
         
       sprintf(treestr, "%s", nameptr);    
       while (*treestr) treestr++;
