@@ -1540,6 +1540,8 @@ void classifyML(tree *tr, analdef *adef)
   strcat(originalLabelledTreeFileName, run_id);
   strcat(classificationFileName,       run_id);
  
+  strcat(jointFormatTreeFileName,      ".json");
+  
   free(tr->tree_string);
   tr->treeStringLength *= 16;
 
@@ -1684,8 +1686,11 @@ void classifyML(tree *tr, analdef *adef)
 	      
 	      j++;
 	    }
-
-	  fprintf(treeFile, "], \"n\":[\"%s\"]},\n", tr->nameList[tr->inserts[i]]);
+	  
+	  if(i == tr->numberOfTipsForInsertion - 1)
+	    fprintf(treeFile, "], \"n\":[\"%s\"]}\n", tr->nameList[tr->inserts[i]]);
+	  else
+	    fprintf(treeFile, "], \"n\":[\"%s\"]},\n", tr->nameList[tr->inserts[i]]);
 	}      
       
       free(inf);      
