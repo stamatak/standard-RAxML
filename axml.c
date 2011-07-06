@@ -3371,9 +3371,6 @@ static void printMinusFUsage(void)
   printf("                      if the trees have node labales represented as integer support values the program will also compute two flavors of\n");
   printf("                      the weighted Robinson-Foulds (WRF) distance\n");
 
-  printf("              \"-f R\": compute rogue taxa using new statistical method based on the evolutionary placement algorithm\n");
-  printf("                      WARNING: this is experimental code \n");
-
   printf("              \"-f s\": split up a multi-gene partitioned alignment into the respective subalignments \n");
 
   printf("              \"-f S\": compute site-specific placement bias using a leave one out test inspired by the evolutionary placement algorithm\n");
@@ -3419,7 +3416,7 @@ static void printREADME(void)
   printf("      [-b bootstrapRandomNumberSeed] [-B wcCriterionThreshold]\n");
   printf("      [-c numberOfCategories] [-C] [-d] [-D]\n");
   printf("      [-e likelihoodEpsilon] [-E excludeFileName]\n");
-  printf("      [-f a|b|c|d|e|E|F|g|h|i|I|j|J|m|n|o|p|r|R|s|S|t|u|U|v|w|x] [-F]\n");
+  printf("      [-f a|b|c|d|e|E|F|g|h|i|I|j|J|m|n|o|p|r|s|S|t|u|U|v|w|x] [-F]\n");
   printf("      [-g groupingFileName] [-G placementThreshold] [-h]\n");
   printf("      [-i initialRearrangementSetting] [-I autoFC|autoMR|autoMRE|autoMRE_IGN]\n");
   printf("      [-j] [-J MR|MR_DROP|MRE|STRICT|STRICT_DROP] [-k] [-K] [-M]\n");
@@ -4207,11 +4204,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	  case 'r':
 	    adef->readTaxaOnly = TRUE;
 	    adef->mode = COMPUTE_RF_DISTANCE;
-	    break;
-	  case 'R':
-	    adef->mode = EPA_ROGUE_TAXA;
-	    tr->useFastScaling = FALSE;
-	    break;
+	    break;	  
 	  case 's':
 	    adef->mode = SPLIT_MULTI_GENE;
 	    break;
@@ -4929,9 +4922,6 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
 	  break;
 	case SH_LIKE_SUPPORTS:
 	  printBoth(infoFile, "\nRAxML computation of SH-like support values on a given tree\n\n");
-	  break;
-	case EPA_ROGUE_TAXA:
-	  printBoth(infoFile, "\nRAxML experimental statistical rogue taxon identification algorithm\n\n");
 	  break;
 	case EPA_SITE_SPECIFIC_BIAS:
 	  printBoth(infoFile, "\nRAxML exprimental site-specfific phylogenetic placement bias analysis algorithm\n\n");
@@ -8561,13 +8551,7 @@ int main (int argc, char *argv[])
       exit(0);
     case SH_LIKE_SUPPORTS:
       shSupports(tr, adef, rdta, cdta);
-      break;
-    case EPA_ROGUE_TAXA:
-      initModel(tr, rdta, cdta, adef);
-      getStartingTree(tr, adef);
-      modOpt(tr, adef, TRUE, adef->likelihoodEpsilon, FALSE);
-      computeRogueTaxaEPA(tr);
-      break;
+      break;    
     case EPA_SITE_SPECIFIC_BIAS:
       initModel(tr, rdta, cdta, adef);
       getStartingTree(tr, adef);

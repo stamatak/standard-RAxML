@@ -173,8 +173,7 @@
 #define  CONSENSUS_ONLY             22
 #define  MESH_TREE_SEARCH           23
 #define  FAST_SEARCH                24
-#define  MORPH_CALIBRATOR_PARSIMONY 25
-#define  EPA_ROGUE_TAXA             26           
+#define  MORPH_CALIBRATOR_PARSIMONY 25          
 #define  EPA_SITE_SPECIFIC_BIAS     27
 #define  SH_LIKE_SUPPORTS           28
 
@@ -1271,7 +1270,7 @@ extern void testGapped(tree *tr);
 extern boolean issubset(unsigned int* bipA, unsigned int* bipB, unsigned int vectorLen);
 extern boolean compatible(entry* e1, entry* e2, unsigned int bvlen);
 
-extern void computeRogueTaxaEPA(tree *tr);
+
 
 extern int *permutationSH(tree *tr, int nBootstrap, long _randomSeed);
 
