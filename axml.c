@@ -6590,6 +6590,9 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
     case THREAD_INIT_EPA:     
       if(tid > 0)
 	{
+	  localTree->leftRootNode             = tr->leftRootNode;
+	  localTree->rightRootNode            = tr->rightRootNode;
+	  localTree->wasRooted                = tr->wasRooted;
 	  localTree->bInf                     = tr->bInf;	 
 	  localTree->numberOfBranches         = tr->numberOfBranches;
 	  localTree->contiguousVectorLength   = tr->contiguousVectorLength;

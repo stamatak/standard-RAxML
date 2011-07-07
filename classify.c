@@ -604,8 +604,11 @@ static size_t getContiguousVectorLength(tree *tr)
 
   for(model = 0; model < tr->NumberOfModels; model++)
     {     
-      size_t realWidth = tr->partitionData[model].upper - tr->partitionData[model].lower;
-      int states = tr->partitionData[model].states;
+      size_t 
+	realWidth = tr->partitionData[model].upper - tr->partitionData[model].lower;
+      
+      int 
+	states = tr->partitionData[model].states;
 
       length += (realWidth * (size_t)states * (size_t)(tr->discreteRateCategories));      	
     }
@@ -615,8 +618,11 @@ static size_t getContiguousVectorLength(tree *tr)
 
 static size_t getContiguousScalingLength(tree *tr)
 {
-  size_t length = 0;
-  int model;
+  size_t 
+    length = 0;
+  
+  int 
+    model;
 
   for(model = 0; model < tr->NumberOfModels; model++)    
     length += tr->partitionData[model].upper - tr->partitionData[model].lower;
@@ -626,21 +632,20 @@ static size_t getContiguousScalingLength(tree *tr)
 
 static void allocBranchX(tree *tr)
 {
-  int i;
+  int 
+    i = 0;
 
   for(i = 0; i < tr->numberOfBranches; i++)
     {
-      branchInfo *b = &(tr->bInf[i]);
+      branchInfo 
+	*b = &(tr->bInf[i]);
 
       b->epa->left  = (double*)malloc_aligned(sizeof(double) * tr->contiguousVectorLength);
       b->epa->leftScaling = (int*)malloc(sizeof(int) * tr->contiguousScalingLength);
 
       b->epa->right = (double*)malloc_aligned(sizeof(double)  * tr->contiguousVectorLength);
-      b->epa->rightScaling = (int*)malloc(sizeof(int) * tr->contiguousScalingLength);
-
-     
+      b->epa->rightScaling = (int*)malloc(sizeof(int) * tr->contiguousScalingLength);     
     }
-
 }
 
 static void updateClassify(tree *tr, double *z, boolean *partitionSmoothed, boolean *partitionConverged, double *x1, double *x2, unsigned char *tipX1, unsigned char *tipX2, int tipCase)
@@ -933,6 +938,14 @@ void testInsertThoroughIterative(tree *tr, int branchNumber)
   branchInfo 
     *b = &(tr->bInf[branchNumber]); 
   
+  nodeptr      
+    root = (nodeptr)NULL,
+    x = b->oP,
+    q = b->oQ;
+
+  boolean 
+    atRoot = FALSE;
+
   int   
     tipCase,
     model,
@@ -940,7 +953,29 @@ void testInsertThoroughIterative(tree *tr, int branchNumber)
     leftNodeNumber = b->epa->leftNodeNumber,
     rightNodeNumber = b->epa->rightNodeNumber,
     *ex3 = tr->temporaryScaling;	         
-   	     	  
+
+  assert(x->number == leftNodeNumber);
+  assert(q->number == rightNodeNumber);
+
+  if(!tr->wasRooted)
+    root = findRootDirection(q, tr, tr->mxtips + 1);
+  else
+    {
+      if((q == tr->leftRootNode && x == tr->rightRootNode) ||
+	 (x == tr->leftRootNode && q == tr->rightRootNode))
+	atRoot = TRUE;
+      else
+	{
+	  nodeptr 
+	    r1 = findRootDirection(q, tr, tr->leftRootNode->number),
+	    r2 = findRootDirection(q, tr, tr->rightRootNode->number);
+
+	  assert(r1 == r2);
+
+	  root = r1;
+	}
+    }
+	     	  
   for(insertions = 0; insertions < tr->numberOfTipsForInsertion; insertions++)
     { 
       if(b->epa->executeThem[insertions])
@@ -957,6 +992,11 @@ void testInsertThoroughIterative(tree *tr, int branchNumber)
 	    *tipX1 = (unsigned char *)NULL,
 	    *tipX2 = (unsigned char *)NULL;	     	    	  	  	    	  	  
 	  
+	   double 
+	    ratio,
+	    modifiedBranchLength,
+	    distalLength;
+
 	  for(model = 0; model < tr->numBranches; model++)
 	    {
 	      z = sqrt(b->epa->branchLengths[model]);
@@ -1021,7 +1061,40 @@ void testInsertThoroughIterative(tree *tr, int branchNumber)
 	      	    
 	  b->epa->likelihoods[insertions] = result;	      			      
 	  	
-	  b->epa->branches[insertions] = getBranch(tr, e3, e3);
+	  b->epa->branches[insertions] = getBranch(tr, e3, e3);	  
+
+	  modifiedBranchLength = getBranch(tr, e1, e1) + getBranch(tr, e2, e2);
+
+	  ratio = b->epa->originalBranchLength / modifiedBranchLength;
+
+	  if(tr->wasRooted && atRoot)
+	    {	     
+	      /* always take distal length from left root node and then fix this later */
+
+	      if(x == tr->leftRootNode)
+		distalLength = getBranch(tr, e1, e1);
+	      else
+		{
+		  assert(x == tr->rightRootNode);
+		  distalLength = getBranch(tr, e2, e2);
+		}
+	    }
+	  else
+	    {
+	      if(root == x)
+		distalLength = getBranch(tr, e1, e1);
+	      else
+		{
+		  assert(root == q);
+		  distalLength = getBranch(tr, e2, e2);
+		}	      	      
+	    }
+
+	  distalLength *= ratio;
+          
+	  assert(distalLength <= b->epa->originalBranchLength);
+	     
+	  b->epa->distalBranches[insertions] = distalLength;	  	
 	}	  
     }
 }
@@ -1221,9 +1294,7 @@ static void setupBranchInfo(tree *tr, nodeptr q)
 	 {
 	  setupJointFormat(tr,  tr->rightRootNode->next->back, tr->ntips, tr->bInf, &count);
 	  setupJointFormat(tr,  tr->rightRootNode->next->next->back, tr->ntips, tr->bInf, &count);
-	}	  
-
-     
+	}	       
     }
   else
     {
@@ -1554,7 +1625,6 @@ void classifyML(tree *tr, analdef *adef)
   fclose(treeFile);
   
  
-
   treeFile = myfopen(originalLabelledTreeFileName, "wb");
   Tree2StringClassify(tr->tree_string, tr, tr->inserts, TRUE, FALSE);
   fprintf(treeFile, "%s\n", tr->tree_string);    
@@ -1566,136 +1636,124 @@ void classifyML(tree *tr, analdef *adef)
      
   */
 
-
-#ifndef _USE_PTHREADS 
-
   treeFile = myfopen(jointFormatTreeFileName, "wb");
   Tree2StringClassify(tr->tree_string, tr, tr->inserts, TRUE, TRUE);
   
   fprintf(treeFile, "{\n");
   fprintf(treeFile, "\t\"tree\": \"%s\", \n", tr->tree_string);
   fprintf(treeFile, "\t\"placements\": [\n");
-    
- 
-
-
-  
-    {
-      info 
-	*inf = (info*)malloc(sizeof(info) * tr->numberOfBranches);
-
-                    
-
-      for(i = 0; i < tr->numberOfTipsForInsertion; i++)    
-	{
-	  double
-	    maxprob = 0.0,
-	    lmax = 0.0,
-	    acc = 0.0;
-
-	  int 	   
-	    validEntries = 0;
-
-	  for(j =  0; j < tr->numberOfBranches; j++) 
-	    {
-	      inf[j].lh            = tr->bInf[j].epa->likelihoods[i];
-	      inf[j].pendantBranch = tr->bInf[j].epa->branches[i];
-	      inf[j].distalBranch  = tr->bInf[j].epa->distalBranches[i];
-	      inf[j].number        = tr->bInf[j].epa->jointLabel;
-	    }
-
-	  qsort(inf, tr->numberOfBranches, sizeof(info), infoCompare);	 
-
-	  for(j =  0; j < tr->numberOfBranches; j++) 
-	    if(inf[j].lh == unlikely)	     
-	      break;
-	    else	     
-	      validEntries++;	     	      
-
-	  assert(validEntries > 0);
-
-	  j = 0;
-	  
-	  lmax = inf[0].lh;
-
-	  fprintf(treeFile, "\t{\"p\":[");
-
-	  /* 
-	     Erick's cutoff:
-	     
-	     I keep at most 7 placements and throw away anything that has less than
-	     0.01*best_ml_ratio.
-
-	     my old cutoff was at 0.95 accumulated likelihood weight:
-
-	     
-	     while(acc <= 0.95)
-	  */	  
-
-	  while(j < validEntries && j < 7)	  
-	    { 
-	      int 
-		k;
-	      
-	      double 
-		all = 0.0,
-		prob = 0.0;
-
-	      for(k =  0; k < validEntries; k++) 	   
-		all += exp(inf[k].lh - lmax);	     
-	      
-	      acc += (prob = (exp(inf[j].lh - lmax) / all));
-	      
-	      if(j == 0)
-		maxprob = prob;
-
-	      if(prob >= maxprob * 0.01)
-		{
-		  if(j > 0)
-		    {
-		      if(tr->wasRooted && inf[j].number == tr->rootLabel)
-			{
-			  double 
-			    b = getBranch(tr, tr->leftRootNode->z, tr->rightRootNode->z);
-
-			  if(inf[j].distalBranch > 0.5 * b)
-			    fprintf(treeFile, ",[%d, %f, %f, %f, %f]", tr->numberOfBranches, inf[j].lh, prob, inf[j].distalBranch - 0.5 * b, inf[j].pendantBranch);
-			  else
-			    fprintf(treeFile, ",[%d, %f, %f, %f, %f]", inf[j].number, inf[j].lh, prob, 0.5 * b - inf[j].distalBranch, inf[j].pendantBranch); 
-			}
-		      else
-			fprintf(treeFile, ",[%d, %f, %f, %f, %f]", inf[j].number, inf[j].lh, prob, inf[j].distalBranch, inf[j].pendantBranch);
-		    }
-		  else
-		    {
-		       if(tr->wasRooted && inf[j].number == tr->rootLabel)
-			{
-			  double 
-			    b = getBranch(tr, tr->leftRootNode->z, tr->rightRootNode->z);
-
-			  if(inf[j].distalBranch > 0.5 * b)
-			    fprintf(treeFile, "[%d, %f, %f, %f, %f]", tr->numberOfBranches, inf[j].lh, prob, inf[j].distalBranch - 0.5 * b, inf[j].pendantBranch);
-			  else
-			    fprintf(treeFile, "[%d, %f, %f, %f, %f]", inf[j].number, inf[j].lh, prob, 0.5 * b - inf[j].distalBranch, inf[j].pendantBranch); 
-			}
-		      else
-			fprintf(treeFile, "[%d, %f, %f, %f, %f]", inf[j].number, inf[j].lh, prob,  inf[j].distalBranch, inf[j].pendantBranch);
-		    }
-		}
-	      
-	      
-	      j++;
-	    }
-	  
-	  if(i == tr->numberOfTipsForInsertion - 1)
-	    fprintf(treeFile, "], \"n\":[\"%s\"]}\n", tr->nameList[tr->inserts[i]]);
-	  else
-	    fprintf(treeFile, "], \"n\":[\"%s\"]},\n", tr->nameList[tr->inserts[i]]);
-	}      
       
-      free(inf);      
-    }
+  {
+    info 
+      *inf = (info*)malloc(sizeof(info) * tr->numberOfBranches);
+        
+    for(i = 0; i < tr->numberOfTipsForInsertion; i++)    
+      {
+	double
+	  maxprob = 0.0,
+	  lmax = 0.0,
+	  acc = 0.0;
+	
+	int 	   
+	  validEntries = 0;
 
+	for(j =  0; j < tr->numberOfBranches; j++) 
+	  {
+	    inf[j].lh            = tr->bInf[j].epa->likelihoods[i];
+	    inf[j].pendantBranch = tr->bInf[j].epa->branches[i];
+	    inf[j].distalBranch  = tr->bInf[j].epa->distalBranches[i];
+	    inf[j].number        = tr->bInf[j].epa->jointLabel;
+	  }
+
+	qsort(inf, tr->numberOfBranches, sizeof(info), infoCompare);	 
+
+	for(j =  0; j < tr->numberOfBranches; j++) 
+	  if(inf[j].lh == unlikely)	     
+	    break;
+	  else	     
+	    validEntries++;	     	      
+
+	assert(validEntries > 0);
+
+	j = 0;
+	  
+	lmax = inf[0].lh;
+
+	fprintf(treeFile, "\t{\"p\":[");
+
+	/* 
+	   Erick's cutoff:
+	   
+	   I keep at most 7 placements and throw away anything that has less than
+	   0.01*best_ml_ratio.
+	   
+	   my old cutoff was at 0.95 accumulated likelihood weight:
+	   	     
+	   while(acc <= 0.95)
+	*/	  
+
+	while(j < validEntries && j < 7)	  
+	  { 
+	    int 
+	      k;
+	    
+	    double 
+	      all = 0.0,
+	      prob = 0.0;
+
+	    for(k =  0; k < validEntries; k++) 	   
+	      all += exp(inf[k].lh - lmax);	     
+	      
+	    acc += (prob = (exp(inf[j].lh - lmax) / all));
+	      
+	    if(j == 0)
+	      maxprob = prob;
+
+	    if(prob >= maxprob * 0.01)
+	      {
+		if(j > 0)
+		  {
+		    if(tr->wasRooted && inf[j].number == tr->rootLabel)
+		      {
+			double 
+			  b = getBranch(tr, tr->leftRootNode->z, tr->rightRootNode->z);
+			
+			if(inf[j].distalBranch > 0.5 * b)
+			  fprintf(treeFile, ",[%d, %f, %f, %f, %f]", tr->numberOfBranches, inf[j].lh, prob, inf[j].distalBranch - 0.5 * b, inf[j].pendantBranch);
+			else
+			  fprintf(treeFile, ",[%d, %f, %f, %f, %f]", inf[j].number, inf[j].lh, prob, 0.5 * b - inf[j].distalBranch, inf[j].pendantBranch); 
+		      }
+		    else
+		      fprintf(treeFile, ",[%d, %f, %f, %f, %f]", inf[j].number, inf[j].lh, prob, inf[j].distalBranch, inf[j].pendantBranch);
+		  }
+		else
+		  {
+		    if(tr->wasRooted && inf[j].number == tr->rootLabel)
+		      {
+			double 
+			  b = getBranch(tr, tr->leftRootNode->z, tr->rightRootNode->z);
+			
+			if(inf[j].distalBranch > 0.5 * b)
+			  fprintf(treeFile, "[%d, %f, %f, %f, %f]", tr->numberOfBranches, inf[j].lh, prob, inf[j].distalBranch - 0.5 * b, inf[j].pendantBranch);
+			else
+			  fprintf(treeFile, "[%d, %f, %f, %f, %f]", inf[j].number, inf[j].lh, prob, 0.5 * b - inf[j].distalBranch, inf[j].pendantBranch); 
+		      }
+		    else
+		      fprintf(treeFile, "[%d, %f, %f, %f, %f]", inf[j].number, inf[j].lh, prob,  inf[j].distalBranch, inf[j].pendantBranch);
+		  }
+	      }
+	    	      
+	    j++;
+	  }
+	  
+	if(i == tr->numberOfTipsForInsertion - 1)
+	  fprintf(treeFile, "], \"n\":[\"%s\"]}\n", tr->nameList[tr->inserts[i]]);
+	else
+	  fprintf(treeFile, "], \"n\":[\"%s\"]},\n", tr->nameList[tr->inserts[i]]);
+      }      
+    
+    free(inf);      
+  }
 
   fprintf(treeFile, "\t ],\n");
   fprintf(treeFile, "\t\"metadata\": {\"invocation\": \"RAxML EPA\"},\n");
@@ -1705,13 +1763,10 @@ void classifyML(tree *tr, analdef *adef)
   fprintf(treeFile, "\t\"pendant_length\"\n");
   fprintf(treeFile, "\t]\n");
   fprintf(treeFile, "}\n");
-
   
   fclose(treeFile);
 
   /* JSON format end */
-
-#endif
 
   classificationFile = myfopen(classificationFileName, "wb");
   
