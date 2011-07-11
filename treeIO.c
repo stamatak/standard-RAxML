@@ -1563,8 +1563,7 @@ void getStartingTree(tree *tr, analdef *adef)
   else
     { 
       assert(adef->mode != PARSIMONY_ADDITION &&
-	     adef->mode != MORPH_CALIBRATOR && 
-	     adef->mode != MORPH_CALIBRATOR_PARSIMONY);
+	     adef->mode != MORPH_CALIBRATOR);
 
       if(adef->randomStartingTree)	  
 	makeRandomTree(tr, adef);       	   	 	   	  

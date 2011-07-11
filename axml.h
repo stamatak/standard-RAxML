@@ -167,13 +167,11 @@
 #define  BOOTSTOP_ONLY              14
 #define  COMPUTE_LHS                17
 #define  COMPUTE_BIPARTITION_CORRELATION 18
-#define  THOROUGH_PARSIMONY         19
 #define  COMPUTE_RF_DISTANCE        20
 #define  MORPH_CALIBRATOR           21
 #define  CONSENSUS_ONLY             22
 #define  MESH_TREE_SEARCH           23
-#define  FAST_SEARCH                24
-#define  MORPH_CALIBRATOR_PARSIMONY 25          
+#define  FAST_SEARCH                24        
 #define  EPA_SITE_SPECIFIC_BIAS     27
 #define  SH_LIKE_SUPPORTS           28
 
@@ -367,12 +365,6 @@ typedef struct
   stringHashtable;
 
 
-typedef struct
-{
-  unsigned int  parsimonyScore;
-  unsigned int  parsimonyState;
-}
-  parsimonyVector;
 
 
 typedef struct ratec
@@ -519,9 +511,9 @@ typedef  struct {
 typedef struct {
   int     states;
   int     maxTipStates;
-  int     lower;
-  int     upper;
-  int     width;
+  size_t    lower;
+  size_t     upper;
+  size_t     width;
   int     dataType;
   int     protModels;
   int     protFreqs;
@@ -532,7 +524,7 @@ typedef struct {
   int             *xSpaceVector;
  
   unsigned char            **yVector;
-  parsimonyVector **pVector;
+ 
   char   *partitionName;
   double *sumBuffer;
  
@@ -585,6 +577,9 @@ typedef struct {
 
   size_t initialGapVectorSize;
 
+  size_t parsimonyLength;
+  parsimonyNumber *parsVect; 
+
 } pInfo;
 
 
@@ -620,14 +615,8 @@ typedef  struct  {
   int    numberOfTipsForInsertion;
   int    *inserts;
   int    branchCounter;
-
-  parsimonyNumber **parsimonyState_A;
-  parsimonyNumber **parsimonyState_C;
-  parsimonyNumber **parsimonyState_G;
-  parsimonyNumber **parsimonyState_T;
-  unsigned int *parsimonyScore; 
-  int *ti;
-  unsigned int compressedWidth;
+  
+  int *ti; 
   
   int numberOfTrees; 
 
@@ -653,7 +642,8 @@ typedef  struct  {
 
   traversalData td[NUM_BRANCHES];
 
- 
+  unsigned int *parsimonyScore;
+
   int              maxCategories;
 
   double           *wr;
@@ -1092,7 +1082,7 @@ extern void makeRandomTree ( tree *tr, analdef *adef );
 extern void nodeRectifier ( tree *tr );
 extern void makeParsimonyTreeThorough(tree *tr, analdef *adef);
 extern void makeParsimonyTree ( tree *tr, analdef *adef );
-extern void makeParsimonyTreeFastDNA(tree *tr, analdef *adef);
+extern void makeParsimonyTreeFast(tree *tr, analdef *adef, boolean full);
 extern void makeParsimonyTreeIncomplete ( tree *tr, analdef *adef );
 extern void makeParsimonyInsertions(tree *tr, nodeptr startNodeQ, nodeptr startNodeR);
 
@@ -1180,7 +1170,7 @@ extern void   newviewIterative(tree *);
 
 extern double evaluateIterative(tree *, boolean writeVector);
 
-extern void *malloc_aligned( size_t size);
+extern void *malloc_aligned( size_t size, size_t align);
 
 
 
@@ -1200,7 +1190,7 @@ extern void newviewParsimonyIterative(tree *);
 extern unsigned int evaluateParsimonyIterativeFast(tree *);
 extern void newviewParsimonyIterativeFast(tree *);
 
-extern unsigned int evaluatePerSiteParsimony(tree *tr, nodeptr p, unsigned int *siteParsimony);
+
 extern void initravParsimonyNormal(tree *tr, nodeptr p);
 
 extern double evaluateGenericInitrav (tree *tr, nodeptr p);
@@ -1318,8 +1308,6 @@ extern void testInsertThoroughIterative(tree *tr, int branchNumber);
 #define THREAD_MAKENEWZ               2
 #define THREAD_MAKENEWZ_FIRST         3
 #define THREAD_RATE_CATS              4
-#define THREAD_NEWVIEW_PARSIMONY      5
-#define THREAD_EVALUATE_PARSIMONY     6
 #define THREAD_EVALUATE_VECTOR        7
 #define THREAD_ALLOC_LIKELIHOOD       8
 #define THREAD_COPY_RATE_CATS         9
@@ -1337,7 +1325,6 @@ extern void testInsertThoroughIterative(tree *tr, int branchNumber);
 #define THREAD_GAMMA_TO_CAT           21
 #define THREAD_NEWVIEW_MASKED         22
 #define THREAD_COPY_PARAMS            26
-#define THREAD_PARSIMONY_RATCHET            27
 #define THREAD_INIT_EPA                     28
 #define THREAD_GATHER_LIKELIHOOD            29
 #define THREAD_INSERT_CLASSIFY              30

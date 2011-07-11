@@ -285,10 +285,10 @@ static void recAssign(tree *tr, int model, size_t entries, size_t width, nodeptr
 
       q = p->next;
 
-      tr->partitionData[model].xVector[p->number - tr->mxtips -1] = (double*)malloc_aligned(sizeof(double) * entries);
+      tr->partitionData[model].xVector[p->number - tr->mxtips -1] = (double*)malloc_aligned(sizeof(double) * entries, 16);
 
       if(!tr->useFastScaling)
-	tr->partitionData[model].expVector[p->number - tr->mxtips - 1] = (int *)malloc_aligned(sizeof(int) * width);
+	tr->partitionData[model].expVector[p->number - tr->mxtips - 1] = (int *)malloc_aligned(sizeof(int) * width, 16);
 
       while(q != p)
 	{

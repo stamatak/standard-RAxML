@@ -8242,7 +8242,7 @@ void newviewIterative (tree *tr)
 		      if(x3_start)
 			free(x3_start);
 		     
-		      x3_start = (double*)malloc_aligned(requiredLength * 16 *sizeof(double));		 
+		      x3_start = (double*)malloc_aligned(requiredLength * 16 *sizeof(double), 16);		 
 		      
 		      tr->partitionData[model].xVector[tInfo->pNumber - tr->mxtips - 1] = x3_start;
 		      

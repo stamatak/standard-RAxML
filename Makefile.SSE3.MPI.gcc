@@ -8,7 +8,7 @@ LIBRARIES = -lm
 
 RM = rm -f
 
-objs    = axml.o raxmlParsimony.o optimizeModel.o multiple.o searchAlgo.o topologies.o parsePartitions.o treeIO.o models.o bipartitionList.o rapidBootstrap.o evaluatePartialGenericSpecial.o evaluateGenericSpecial.o newviewGenericSpecial.o makenewzGenericSpecial.o   classify.o mesh.o fastDNAparsimony.o fastSearch.o leaveDropping.o rogueEPA.o
+objs    = axml.o  optimizeModel.o multiple.o searchAlgo.o topologies.o parsePartitions.o treeIO.o models.o bipartitionList.o rapidBootstrap.o evaluatePartialGenericSpecial.o evaluateGenericSpecial.o newviewGenericSpecial.o makenewzGenericSpecial.o   classify.o mesh.o fastDNAparsimony.o fastSearch.o leaveDropping.o rogueEPA.o
 
 all : raxmlHPC-MPI-SSE3
 
@@ -23,7 +23,6 @@ bipartitionList.o : bipartitionList.c $(GLOBAL_DEPS)
 optimizeModel.o : optimizeModel.c $(GLOBAL_DEPS)
 multiple.o : multiple.c $(GLOBAL_DEPS)
 axml.o : axml.c $(GLOBAL_DEPS)
-raxmlParsimony.o : raxmlParsimony.c $(GLOBAL_DEPS)
 searchAlgo.o : searchAlgo.c $(GLOBAL_DEPS)
 topologies.o : topologies.c $(GLOBAL_DEPS)
 parsePartitions.o : parsePartitions.c $(GLOBAL_DEPS)

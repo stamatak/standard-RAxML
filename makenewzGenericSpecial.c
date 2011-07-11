@@ -301,7 +301,7 @@ static void coreGTRCAT(int upper, int numberOfCategories, double *sum,
   e2v[0]= _mm_load_pd(&e2[0]);
   e2v[1]= _mm_load_pd(&e2[2]);
 
-  d = d_start = (double *)malloc_aligned(numberOfCategories * 4 * sizeof(double));
+  d = d_start = (double *)malloc_aligned(numberOfCategories * 4 * sizeof(double), 16);
 
   dd1 = EIGN[0] * lz;
   dd2 = EIGN[1] * lz;
@@ -708,7 +708,7 @@ static void coreGTRCATPROT(double *EIGN, double lz, int numberOfCategories, doub
   double  dlnLdlz = 0.0;
   double  d2lnLdlz2 = 0.0;
 
-  d1 = d_start = (double *)malloc_aligned(numberOfCategories * 20 * sizeof(double));
+  d1 = d_start = (double *)malloc_aligned(numberOfCategories * 20 * sizeof(double), 16);
 
   e[0] = 0.0;
   s[0] = 0.0; 

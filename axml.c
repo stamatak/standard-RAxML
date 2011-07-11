@@ -85,10 +85,9 @@
 
 
 
-void *malloc_aligned(size_t size) 
+void *malloc_aligned(size_t size, size_t align) 
 {
   void *ptr = (void *)NULL;
-  const size_t align = 16;
   int res;
   
 
@@ -97,6 +96,8 @@ void *malloc_aligned(size_t size)
      presumably malloc on MACs always returns 
      a 16-byte aligned pointer
   */
+
+  assert(align == 16);
 
   ptr = malloc(size);
   
@@ -2606,14 +2607,14 @@ static void allocPartitions(tree *tr)
 
 
 
-      tr->partitionData[i].left              = (double *)malloc_aligned(pl->leftLength * maxCategories * sizeof(double));
-      tr->partitionData[i].right             = (double *)malloc_aligned(pl->rightLength * maxCategories * sizeof(double));
+      tr->partitionData[i].left              = (double *)malloc_aligned(pl->leftLength * maxCategories * sizeof(double), 16);
+      tr->partitionData[i].right             = (double *)malloc_aligned(pl->rightLength * maxCategories * sizeof(double), 16);
       tr->partitionData[i].EIGN              = (double*)malloc(pl->eignLength * sizeof(double));
-      tr->partitionData[i].EV                = (double*)malloc_aligned(pl->evLength * sizeof(double));
+      tr->partitionData[i].EV                = (double*)malloc_aligned(pl->evLength * sizeof(double), 16);
       tr->partitionData[i].EI                = (double*)malloc(pl->eiLength * sizeof(double));
       tr->partitionData[i].substRates        = (double *)malloc(pl->substRatesLength * sizeof(double));
       tr->partitionData[i].frequencies       = (double*)malloc(pl->frequenciesLength * sizeof(double));
-      tr->partitionData[i].tipVector         = (double *)malloc_aligned(pl->tipVectorLength * sizeof(double));
+      tr->partitionData[i].tipVector         = (double *)malloc_aligned(pl->tipVectorLength * sizeof(double), 16);
       tr->partitionData[i].symmetryVector    = (int *)malloc(pl->symmetryVectorLength  * sizeof(int));
       tr->partitionData[i].frequencyGrouping = (int *)malloc(pl->frequencyGroupingLength  * sizeof(int));
       tr->partitionData[i].perSiteRates      = (double *)malloc(sizeof(double) * tr->maxCategories);
@@ -2630,8 +2631,7 @@ static void allocPartitions(tree *tr)
       tr->partitionData[i].xVector = (double **)malloc(sizeof(double*) * tr->innerNodes);
       if(tr->saveMemory)
 	tr->partitionData[i].xSpaceVector = (int *)calloc(tr->innerNodes, sizeof(int));	
-
-      tr->partitionData[i].pVector = (parsimonyVector **)malloc(sizeof(parsimonyVector*) * tr->innerNodes);
+     
       if(!tr->useFastScaling)
 	tr->partitionData[i].expVector = (int **)malloc(sizeof(int*) * tr->innerNodes);
 
@@ -2696,7 +2696,7 @@ static void allocNodex (tree *tr)
 	tr->partitionData[model].gapColumn = (double *)malloc_aligned(((size_t)tr->innerNodes) *
 								      ((size_t)(tr->discreteRateCategories)) * 
 								      ((size_t)(tr->partitionData[model].states)) *
-								      sizeof(double));		  		
+								      sizeof(double), 16);		  		
 	
 	undetermined = getUndetermined(tr->partitionData[model].dataType);
 
@@ -2719,7 +2719,7 @@ static void allocNodex (tree *tr)
       if(!tr->saveMemory)
 	{	 
 
-	  likelihoodArray = (double *)malloc_aligned(tr->innerNodes * memoryRequirements * sizeof(double));
+	  likelihoodArray = (double *)malloc_aligned(tr->innerNodes * memoryRequirements * sizeof(double), 16);
 	  assert(likelihoodArray != NULL);
 	}	 
     }
@@ -2734,11 +2734,11 @@ static void allocNodex (tree *tr)
     }
 
  
-  tr->sumBuffer  = (double *)malloc_aligned(memoryRequirements * sizeof(double));
+  tr->sumBuffer  = (double *)malloc_aligned(memoryRequirements * sizeof(double), 16);
   assert(tr->sumBuffer != NULL);
  
 
-  assert(4 * sizeof(double) > sizeof(parsimonyVector));
+ 
 
   offset = 0;
 
@@ -2780,22 +2780,13 @@ static void allocNodex (tree *tr)
 	      if(!tr->useFastScaling)
 		tr->partitionData[model].expVector[i] = &expArray[i * ((size_t)tr->cdta->endsite) + ((size_t)tr->partitionData[model].lower)];	    
 	  	      
-	      if(tr->saveMemory)
-		{
-		  tr->partitionData[model].xVector[i]   = (double*)NULL;
-		  tr->partitionData[model].pVector[i]   = (parsimonyVector *)NULL;
-		  /* DYNAMIC: SOS what do we do here? Only allow operating on pre-defined starting trees?*/
-		}
-	      else		    
-		{
-		  tr->partitionData[model].xVector[i]   = &likelihoodArray[i * memoryRequirements + offset];		  		      		      
-		  tr->partitionData[model].pVector[i]   = (parsimonyVector *)tr->partitionData[model].xVector[i];
-		}	    
+	      if(tr->saveMemory)		
+		tr->partitionData[model].xVector[i]   = (double*)NULL;		  		
+	      else		    		
+		tr->partitionData[model].xVector[i]   = &likelihoodArray[i * memoryRequirements + offset];		  		      		      		  	    
 	    }
 
-
-	  offset += (size_t)(tr->discreteRateCategories) * (size_t)(tr->partitionData[model].states) * width;
-	 
+	  offset += (size_t)(tr->discreteRateCategories) * (size_t)(tr->partitionData[model].states) * width;	 
 	}
     }
 }
@@ -3378,10 +3369,7 @@ static void printMinusFUsage(void)
   printf("              \"-f t\": do randomized tree searches on one fixed starting tree\n");
 
   printf("              \"-f u\": execute morphological weight calibration using maximum likelihood, this will return a weight vector.\n");
-  printf("                      you need to provide a morphological alignment and a reference tree via \"-t\" \n");
-  
-  printf("              \"-f U\": execute morphological wieght calibration using parsimony, this will return a weight vector.\n");
-  printf("                      you need to provide a morphological alignment and a reference tree via \"-t\" \n");
+  printf("                      you need to provide a morphological alignment and a reference tree via \"-t\" \n");    
 
   printf("              \"-f v\": classify a bunch of environmental sequences into a reference tree using thorough read insertions\n");
   printf("                      you will need to start RAxML with a non-comprehensive reference tree and an alignment containing all sequences (reference + query)\n");
@@ -3416,7 +3404,7 @@ static void printREADME(void)
   printf("      [-b bootstrapRandomNumberSeed] [-B wcCriterionThreshold]\n");
   printf("      [-c numberOfCategories] [-C] [-d] [-D]\n");
   printf("      [-e likelihoodEpsilon] [-E excludeFileName]\n");
-  printf("      [-f a|b|c|d|e|E|F|g|h|i|I|j|J|m|n|o|p|r|s|S|t|u|U|v|w|x] [-F]\n");
+  printf("      [-f a|b|c|d|e|E|F|g|h|i|I|j|J|m|n|o|p|r|s|S|t|u|v|w|x] [-F]\n");
   printf("      [-g groupingFileName] [-G placementThreshold] [-h]\n");
   printf("      [-i initialRearrangementSetting] [-I autoFC|autoMR|autoMRE|autoMRE_IGN]\n");
   printf("      [-j] [-J MR|MR_DROP|MRE|STRICT|STRICT_DROP] [-k] [-K] [-M]\n");
@@ -3425,7 +3413,7 @@ static void printREADME(void)
   printf("      [-q multipleModelFileName] [-r binaryConstraintTree]\n");
   printf("      [-R binaryModelParamFile] [-S secondaryStructureFile] [-t userStartingTree]\n");
   printf("      [-T numberOfThreads] [-U] [-v] [-w outputDirectory] [-W slidingWindowSize]\n");
-  printf("      [-x rapidBootstrapRandomNumberSeed] [-y] [-Y]\n");
+  printf("      [-x rapidBootstrapRandomNumberSeed] [-y]\n");
   printf("      [-z multipleTreesFile] [-#|-N numberOfRuns|autoFC|autoMR|autoMRE|autoMRE_IGN]\n");
   printf("\n");
   printf("      -a      Specify a column weight file name to assign individual weights to each column of \n");
@@ -3671,13 +3659,7 @@ static void printREADME(void)
   printf("              the program will exit after computation of the starting tree\n");
   printf("\n");
   printf("              DEFAULT: OFF\n");
-  printf("\n");
-  printf("      -Y      Do a more thorough parsimony tree search using a parsimony ratchet and exit. \n");
-  printf("              specify the number of ratchet searches via \"-#\" or \"-N\"\n");
-  printf("              This has just been implemented for completeness, if you want a fast MP implementation use TNT\n");
-  printf("\n");
-  printf("              DEFAULT: OFF\n");
-  printf("\n");
+  printf("\n"); 
   printf("      -z      Specify the file name of a file containing multiple trees e.g. from a bootstrap\n");
   printf("              that shall be used to draw bipartition values onto a tree provided with \"-t\",\n");
   printf("              It can also be used to compute per site log likelihoods in combination with \"-f g\"\n");
@@ -3801,7 +3783,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 
 
   while(!bad_opt &&
-	((c = mygetopt(argc,argv,"R:O:T:E:N:B:L:P:S:A:G:H:I:J:K:W:l:x:z:g:r:e:a:b:c:f:i:m:t:w:s:n:o:q:#:p:vdyjhkMYDFCQU", &optind, &optarg))!=-1))
+	((c = mygetopt(argc,argv,"R:O:T:E:N:B:L:P:S:A:G:H:I:J:K:W:l:x:z:g:r:e:a:b:c:f:i:m:t:w:s:n:o:q:#:p:vdyjhkMDFCQU", &optind, &optarg))!=-1))
     {
     switch(c)
       {
@@ -4096,10 +4078,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	errorExit(0);
       case 'y':
 	adef->startingTreeOnly = 1;
-	break;
-      case 'Y':
-	adef->mode = THOROUGH_PARSIMONY;
-	break;
+	break;     
       case 'h':
 	printREADME();
 	errorExit(0);
@@ -4222,12 +4201,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	    adef->mode = MORPH_CALIBRATOR;
 	    tr->useFastScaling = FALSE;
 	    adef->compressPatterns  = FALSE;	    
-	    break;
-	  case 'U':
-	    adef->mode = MORPH_CALIBRATOR_PARSIMONY;
-	    tr->useFastScaling = FALSE;
-	    adef->compressPatterns  = FALSE;	    
-	    break;
+	    break;	  
 	  case 'v':	    
 	    adef->mode = CLASSIFY_ML;	   
 	   	   
@@ -4849,11 +4823,7 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
 	}
 
       switch(adef->mode)
-	{
-	case THOROUGH_PARSIMONY:
-	  printBoth(infoFile, "\nRAxML more exhaustive parsimony search with a ratchet.\n");
-	  printBoth(infoFile, "For a faster and better implementation of MP searches please use TNT by Pablo Goloboff.\n\n");
-	  break;
+	{	
 	case DISTANCE_MODE:
 	  printBoth(infoFile, "\nRAxML Computation of pairwise distances\n\n");
 	  break;
@@ -4910,10 +4880,7 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
 	  break;
 	case MORPH_CALIBRATOR:
 	  printBoth(infoFile, "\nRAxML morphological calibrator using Maximum Likelihood\n\n");
-	  break;
-	case MORPH_CALIBRATOR_PARSIMONY:
-	  printBoth(infoFile, "\nRAxML morphological calibrator using Parsimony\n\n");
-	  break;	  
+	  break;		  
 	case MESH_TREE_SEARCH:
 	  printBoth(infoFile, "\nRAxML experimental mesh tree search\n\n");
 	  break;
@@ -4930,16 +4897,14 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
 	  assert(0);
 	}
 
-      if(adef->mode != THOROUGH_PARSIMONY)
-	{ 
-	  if(!adef->readTaxaOnly)
-	    {
-	      if(adef->perGeneBranchLengths)
-		printBoth(infoFile, "Using %d distinct models/data partitions with individual per partition branch length optimization\n\n\n", tr->NumberOfModels);
-	      else
-		printBoth(infoFile, "Using %d distinct models/data partitions with joint branch length optimization\n\n\n", tr->NumberOfModels);
-	    }
-	}
+    
+      if(!adef->readTaxaOnly)
+	{
+	  if(adef->perGeneBranchLengths)
+	    printBoth(infoFile, "Using %d distinct models/data partitions with individual per partition branch length optimization\n\n\n", tr->NumberOfModels);
+	  else
+	    printBoth(infoFile, "Using %d distinct models/data partitions with joint branch length optimization\n\n\n", tr->NumberOfModels);
+	}    
 
       if(adef->mode == BIG_RAPID_MODE)
 	{
@@ -4976,25 +4941,23 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
 
 
       if(!adef->readTaxaOnly)
-	{
-	  if(adef->mode != THOROUGH_PARSIMONY)
-	    printBoth(infoFile, "All free model parameters will be estimated by RAxML\n");
+	{	  
+	  printBoth(infoFile, "All free model parameters will be estimated by RAxML\n");
 
-	  if(adef->mode != THOROUGH_PARSIMONY)
+	  
+	  if(tr->rateHetModel == GAMMA || tr->rateHetModel == GAMMA_I)
+	    printBoth(infoFile, "%s model of rate heteorgeneity, ML estimate of alpha-parameter\n\n", modelType);
+	  else
 	    {
-	      if(tr->rateHetModel == GAMMA || tr->rateHetModel == GAMMA_I)
-		printBoth(infoFile, "%s model of rate heteorgeneity, ML estimate of alpha-parameter\n\n", modelType);
-	      else
-		{
-		  printBoth(infoFile, "ML estimate of %d per site rate categories\n\n", adef->categories);
-		  if(adef->mode != CLASSIFY_ML)
-		    printBoth(infoFile, "Likelihood of final tree will be evaluated and optimized under %s\n\n", modelType);
-		}
-	      
+	      printBoth(infoFile, "ML estimate of %d per site rate categories\n\n", adef->categories);
 	      if(adef->mode != CLASSIFY_ML)
-		printBoth(infoFile, "%s Model parameters will be estimated up to an accuracy of %2.10f Log Likelihood units\n\n",
-			  modelType, adef->likelihoodEpsilon);
+		printBoth(infoFile, "Likelihood of final tree will be evaluated and optimized under %s\n\n", modelType);
 	    }
+	  
+	  if(adef->mode != CLASSIFY_ML)
+	    printBoth(infoFile, "%s Model parameters will be estimated up to an accuracy of %2.10f Log Likelihood units\n\n",
+		      modelType, adef->likelihoodEpsilon);
+	  
 
 	  for(model = 0; model < tr->NumberOfModels; model++)
 	    {
@@ -5005,38 +4968,30 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
 	      switch(tr->partitionData[model].dataType)
 		{
 		case DNA_DATA:
-		  printBoth(infoFile, "DataType: DNA\n");
-		  if(adef->mode != THOROUGH_PARSIMONY)
-		    printBoth(infoFile, "Substitution Matrix: GTR\n");
+		  printBoth(infoFile, "DataType: DNA\n");		  
+		  printBoth(infoFile, "Substitution Matrix: GTR\n");
 		  break;
 		case AA_DATA:
 		  assert(tr->partitionData[model].protModels >= 0 && tr->partitionData[model].protModels < NUM_PROT_MODELS);
-		  printBoth(infoFile, "DataType: AA\n");
-		  if(adef->mode != THOROUGH_PARSIMONY)
-		    {
-		      printBoth(infoFile, "Substitution Matrix: %s\n", (adef->userProteinModel)?"External user-specified model":protModels[tr->partitionData[model].protModels]);
-		      printBoth(infoFile, "%s Base Frequencies:\n", (tr->partitionData[model].protFreqs == 1)?"Empirical":"Fixed");
-		    }
+		  printBoth(infoFile, "DataType: AA\n");		 
+		  printBoth(infoFile, "Substitution Matrix: %s\n", (adef->userProteinModel)?"External user-specified model":protModels[tr->partitionData[model].protModels]);
+		  printBoth(infoFile, "%s Base Frequencies:\n", (tr->partitionData[model].protFreqs == 1)?"Empirical":"Fixed");		   
 		  break;
 		case BINARY_DATA:
-		  printBoth(infoFile, "DataType: BINARY/MORPHOLOGICAL\n");
-		  if(adef->mode != THOROUGH_PARSIMONY)
-		    printBoth(infoFile, "Substitution Matrix: Uncorrected\n");
+		  printBoth(infoFile, "DataType: BINARY/MORPHOLOGICAL\n");		  
+		  printBoth(infoFile, "Substitution Matrix: Uncorrected\n");
 		  break;
 		case SECONDARY_DATA:
-		  printBoth(infoFile, "DataType: SECONDARY STRUCTURE\n");
-		  if(adef->mode != THOROUGH_PARSIMONY)
-		    printBoth(infoFile, "Substitution Matrix: %s\n", secondaryModelList[tr->secondaryStructureModel]);
+		  printBoth(infoFile, "DataType: SECONDARY STRUCTURE\n");		  
+		  printBoth(infoFile, "Substitution Matrix: %s\n", secondaryModelList[tr->secondaryStructureModel]);
 		  break;
 		case SECONDARY_DATA_6:
-		  printBoth(infoFile, "DataType: SECONDARY STRUCTURE 6 STATE\n");
-		  if(adef->mode != THOROUGH_PARSIMONY)
-		    printBoth(infoFile, "Substitution Matrix: %s\n", secondaryModelList[tr->secondaryStructureModel]);
+		  printBoth(infoFile, "DataType: SECONDARY STRUCTURE 6 STATE\n");		  
+		  printBoth(infoFile, "Substitution Matrix: %s\n", secondaryModelList[tr->secondaryStructureModel]);
 		  break;
 		case SECONDARY_DATA_7:
-		  printBoth(infoFile, "DataType: SECONDARY STRUCTURE 7 STATE\n");
-		  if(adef->mode != THOROUGH_PARSIMONY)
-		    printBoth(infoFile, "Substitution Matrix: %s\n", secondaryModelList[tr->secondaryStructureModel]);
+		  printBoth(infoFile, "DataType: SECONDARY STRUCTURE 7 STATE\n");		 
+		  printBoth(infoFile, "Substitution Matrix: %s\n", secondaryModelList[tr->secondaryStructureModel]);
 		  break;
 		case GENERIC_32:
 		  printBoth(infoFile, "DataType: Multi-State with %d distinct states in use (maximum 32)\n",tr->partitionData[model].states);		  
@@ -5084,8 +5039,7 @@ void printResult(tree *tr, analdef *adef, boolean finalPrint)
   strcpy(temporaryFileName, resultFileName);
 
   switch(adef->mode)
-    {
-    case MORPH_CALIBRATOR_PARSIMONY:
+    {    
     case MESH_TREE_SEARCH:    
     case MORPH_CALIBRATOR:
       break;
@@ -5296,8 +5250,7 @@ void printLog(tree *tr, analdef *adef, boolean finalPrint)
 	      tr->checkPointCounter++;
 	    }
 	}
-      break;
-    case MORPH_CALIBRATOR_PARSIMONY:
+      break;   
     case MORPH_CALIBRATOR:
       break;
     default:
@@ -5886,19 +5839,11 @@ static void threadFixModelIndices(tree *tr, tree *localTree, int tid, int n)
 	    localTree->partitionData[model].expVector[i] = &localTree->expArray[i * myLength + countOffset];
 
 	  /*localTree->partitionData[model].yVector[i+1]   = &localTree->y_ptr[i * myLength + countOffset];*/
-
 	  
-	  if(!localTree->saveMemory)
-	    {
-	      localTree->partitionData[model].xVector[i]   = &localTree->likelihoodArray[i * memoryRequirements + offset];
-	      localTree->partitionData[model].pVector[i]   = (parsimonyVector *)localTree->partitionData[model].xVector[i];
-	    }
-	  else
-	    {
-	      localTree->partitionData[model].xVector[i]   = (double*)NULL;
-	      localTree->partitionData[model].pVector[i]   = (parsimonyVector *)NULL;
-	      /* DYNAMIC: SOS what do we do here? Only allow operating on pre-defined starting trees?*/
-	    }
+	  if(!localTree->saveMemory)	    
+	    localTree->partitionData[model].xVector[i]   = &localTree->likelihoodArray[i * memoryRequirements + offset];	      	 
+	  else	    
+	    localTree->partitionData[model].xVector[i]   = (double*)NULL;	     	    
 	  
 	  countOffset += width;
 
@@ -6050,7 +5995,7 @@ static void allocNodex(tree *tr, int tid, int n)
 	tr->partitionData[model].gapColumn = (double *)malloc_aligned(((size_t)tr->innerNodes) *
 								      ((size_t)(tr->discreteRateCategories)) * 
 								      ((size_t)(tr->partitionData[model].states)) *
-								      sizeof(double));		        
+								      sizeof(double), 16);		        
       }
       
     }
@@ -6064,7 +6009,7 @@ static void allocNodex(tree *tr, int tid, int n)
   
   if(!tr->saveMemory)
     {
-      tr->likelihoodArray = (double *)malloc_aligned(tr->innerNodes * memoryRequirements * sizeof(double));
+      tr->likelihoodArray = (double *)malloc_aligned(tr->innerNodes * memoryRequirements * sizeof(double), 16);
       assert(tr->likelihoodArray != NULL);
     }
   else
@@ -6078,14 +6023,12 @@ static void allocNodex(tree *tr, int tid, int n)
     }
 
   
-  tr->sumBuffer  = (double *)malloc_aligned(memoryRequirements * sizeof(double));
+  tr->sumBuffer  = (double *)malloc_aligned(memoryRequirements * sizeof(double), 16);
   assert(tr->sumBuffer != NULL);
    
 
   tr->y_ptr = (unsigned char *)malloc(myLength * (size_t)(tr->mxtips) * sizeof(unsigned char));
-  assert(tr->y_ptr != NULL);
-
-  assert(4 * sizeof(double) > sizeof(parsimonyVector));
+  assert(tr->y_ptr != NULL);  
 
   tr->perSiteLLPtr     = (double*) malloc(myLength * sizeof(double));
 
@@ -6179,16 +6122,7 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
       break;
     case THREAD_FIX_MODEL_INDICES:
       threadFixModelIndices(tr, localTree, tid, n);
-      break;
-    case THREAD_EVALUATE_PARSIMONY:
-      sendTraversalInfo(localTree, tr);
-      parsimonyResult = evaluateParsimonyIterative(localTree);
-      reductionBufferParsimony[tid] = parsimonyResult;
-      break;
-    case THREAD_NEWVIEW_PARSIMONY:
-      sendTraversalInfo(localTree, tr);
-      newviewParsimonyIterative(localTree);
-      break;
+      break;    
     case THREAD_EVALUATE:
       sendTraversalInfo(localTree, tr);
       result = evaluateIterative(localTree, FALSE);
@@ -6472,20 +6406,7 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 		 localIndex++;
 	       }	  
 	 }
-      break;
-
-    case THREAD_PARSIMONY_RATCHET:
-      for(model = 0; model < localTree->NumberOfModels; model++)
-	{
-	  int localIndex;
-	  for(i = localTree->partitionData[model].lower, localIndex = 0; i <  localTree->partitionData[model].upper; i++)
-	    if(i % n == tid)
-	      {
-		localTree->partitionData[model].wgt[localIndex]          = tr->cdta->aliaswgt[i];
-		localIndex++;
-	      }
-	}
-      break;
+      break;    
     case THREAD_RATE_CATS:
       sendTraversalInfo(localTree, tr);
       if(tid > 0)
@@ -6604,8 +6525,8 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 	  memcpy(localTree->fracchanges, tr->fracchanges, sizeof(double) * localTree->NumberOfModels);	 
 	}                                                
 
-      localTree->temporarySumBuffer = (double *)malloc_aligned(sizeof(double) * localTree->contiguousVectorLength);
-      localTree->temporaryVector  = (double *)malloc_aligned(sizeof(double) * localTree->contiguousVectorLength);      
+      localTree->temporarySumBuffer = (double *)malloc_aligned(sizeof(double) * localTree->contiguousVectorLength, 16);
+      localTree->temporaryVector  = (double *)malloc_aligned(sizeof(double) * localTree->contiguousVectorLength, 16);      
 
       localTree->temporaryScaling = (int *)malloc(sizeof(int) * localTree->contiguousScalingLength);
                  
@@ -7856,113 +7777,9 @@ static void morphologicalCalibration(tree *tr, analdef *adef)
 }
 
 
-static void minimumWeights(tree *tr, unsigned int *minWeights)
-{
-  int 
-    i,
-    j;
-  
-  for(i = 0; i < tr->cdta->endsite; i++)
-    {
-      int 
-	count = -1,
-	undetermined = getUndetermined(tr->dataVector[i]);
-
-      unsigned int	
-	accumulator = 0,
-	nucleotide = 0;
-      
-      const unsigned int
-	*bitVector = getBitVector(tr->dataVector[i]);          
-      
-      for(j = 1; j <= tr->mxtips; j++)
-	{	   
-	  if(tr->yVector[j][i] != undetermined)
-	    {
-	      nucleotide = bitVector[tr->yVector[j][i]];	
-	      assert(nucleotide > 0);	      	     
-	      
-	      if((nucleotide & accumulator) == 0)
-		{
-		  count++;
-		  accumulator |= nucleotide;
-		}
-	    }	  
-	}
-   
-      assert(count >= 0);
-      
-      minWeights[i] = (unsigned int)count;
-    }
-}
 
 
-static void morphologicalCalibrationParsimony(tree *tr)
-{
-  int
-    i;
 
-  unsigned int
-    maximumDifference = 0,
-    parsimonyScore = 0,
-    *siteParsimony = (unsigned int*)calloc(tr->cdta->endsite, sizeof(unsigned int)),
-    *minWeights    = (unsigned int*)calloc(tr->cdta->endsite, sizeof(unsigned int));
-  
-  double 
-    scaler;
-
-  char    
-    integerFileName[1024] = "";
-
-  FILE 
-    *integerFile; 
-  
-  minimumWeights(tr, minWeights);
- 
-  initravParsimonyNormal(tr, tr->start);
-  initravParsimonyNormal(tr, tr->start->back);  
-  
-  parsimonyScore = evaluatePerSiteParsimony(tr, tr->start, siteParsimony);
-
-  /*printf("Parsimony Score: %u \n\n", parsimonyScore);*/
-
-  for(i = 0; i < tr->cdta->endsite; i++)
-    {
-      assert(siteParsimony[i] >= minWeights[i]);
-      
-      siteParsimony[i] = siteParsimony[i] - minWeights[i];
-      
-      /*printf("%u ", siteParsimony[i]);*/
-      
-      if(siteParsimony[i] > maximumDifference)
-	maximumDifference = siteParsimony[i];
-    }
-  
-  /* printf("\nMax diff: %u\n", maximumDifference); */
- 
-
-  strcpy(integerFileName,         workdir);
-  strcat(integerFileName,         "RAxML_parsimonyWeights.");
-  strcat(integerFileName,         run_id);
-
-  integerFile = myfopen(integerFileName, "wb");  
-
-  scaler = 100.0 / (double)maximumDifference;
-
-  for(i = 0; i < tr->cdta->endsite; i++)   
-    {
-      unsigned int 
-	value = 100 - (unsigned int)((double)siteParsimony[i] * scaler + 0.5);
-
-      fprintf(integerFile, "%u ", value);
-    }
-    
-  fclose(integerFile);
- 
-  printBothOpen("RAxML calibrated parsimony-based integer weight file written to: %s\n", integerFileName);
-
-  exit(0);
-}
 
 
 
@@ -8439,10 +8256,7 @@ int main (int argc, char *argv[])
   printModelAndProgramInfo(tr, adef, argc, argv);
 
   switch(adef->mode)
-    {
-    case THOROUGH_PARSIMONY:
-      makeParsimonyTreeThorough(tr, adef);
-      break;
+    {  
     case CLASSIFY_ML:
       initModel(tr, rdta, cdta, adef);
       getStartingTree(tr, adef);
@@ -8537,12 +8351,7 @@ int main (int argc, char *argv[])
       getStartingTree(tr, adef);
       modOpt(tr, adef, TRUE, adef->likelihoodEpsilon, FALSE);
       morphologicalCalibration(tr, adef);
-      break;
-    case MORPH_CALIBRATOR_PARSIMONY:
-      initModel(tr, rdta, cdta, adef);
-      getStartingTree(tr, adef);     
-      morphologicalCalibrationParsimony(tr);
-      break;
+      break;    
     case MESH_TREE_SEARCH:
       initModel(tr, rdta, cdta, adef); 
       getStartingTree(tr, adef); 

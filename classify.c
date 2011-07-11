@@ -640,10 +640,10 @@ static void allocBranchX(tree *tr)
       branchInfo 
 	*b = &(tr->bInf[i]);
 
-      b->epa->left  = (double*)malloc_aligned(sizeof(double) * tr->contiguousVectorLength);
+      b->epa->left  = (double*)malloc_aligned(sizeof(double) * tr->contiguousVectorLength, 16);
       b->epa->leftScaling = (int*)malloc(sizeof(int) * tr->contiguousScalingLength);
 
-      b->epa->right = (double*)malloc_aligned(sizeof(double)  * tr->contiguousVectorLength);
+      b->epa->right = (double*)malloc_aligned(sizeof(double)  * tr->contiguousVectorLength, 16);
       b->epa->rightScaling = (int*)malloc(sizeof(int) * tr->contiguousScalingLength);     
     }
 }
@@ -1611,7 +1611,7 @@ void classifyML(tree *tr, analdef *adef)
   strcat(originalLabelledTreeFileName, run_id);
   strcat(classificationFileName,       run_id);
  
-  strcat(jointFormatTreeFileName,      ".json");
+  strcat(jointFormatTreeFileName,      ".jplace");
   
   free(tr->tree_string);
   tr->treeStringLength *= 16;
