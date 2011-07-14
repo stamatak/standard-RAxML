@@ -324,7 +324,7 @@ static void baseFrequenciesGTR(rawdata *rdta, cruncheddata *cdta, tree *tr)
   return;
 }
 
-void putWAG(double *ext_initialRates)
+static void putWAG(double *ext_initialRates)
 { 
   double
     scaler,
@@ -450,8 +450,7 @@ void putWAG(double *ext_initialRates)
 
 }
 
-static void initProtMat(double f[20], int proteinMatrix, double *ext_initialRates, 
-			boolean userProteinModel, double *externalAAMatrix)
+static void initProtMat(double f[20], int proteinMatrix, double *ext_initialRates, int model, tree *tr)
 { 
   double q[20][20];
   double daa[400], max, temp;
@@ -459,16 +458,13 @@ static void initProtMat(double f[20], int proteinMatrix, double *ext_initialRate
   double *initialRates = ext_initialRates;
   double scaler;
 
-  if(userProteinModel)
-    {          
-      assert(externalAAMatrix);
-      memcpy(daa, externalAAMatrix,         400 * sizeof(double));
-      memcpy(f,   &(externalAAMatrix[400]), 20  * sizeof(double));      
-    }
-  else
-    {
+  {
       switch(proteinMatrix)
 	{
+	case PROT_FILE:
+	  memcpy(daa, tr->partitionData[model].externalAAMatrix,         400 * sizeof(double));
+	  memcpy(f,   &(tr->partitionData[model].externalAAMatrix[400]), 20  * sizeof(double));
+	  break;
 	case DAYHOFF:
 	  {	
 	    daa[ 1*20+ 0] =   27.00; daa[ 2*20+ 0] =   98.00; daa[ 2*20+ 1] =   32.00; daa[ 3*20+ 0] =  120.00;
@@ -2895,9 +2891,7 @@ static void initProtMat(double f[20], int proteinMatrix, double *ext_initialRate
 	    f[18]	=	0.0315	;
 	    f[19]	=	0.0632	;
 	  }
-	  break;
-	case GTR:	  
-	  assert(0);
+	  break;     
 	default: 
 	  assert(0);
 	}
@@ -3415,24 +3409,22 @@ void initReversibleGTR(tree *tr, analdef *adef, int model)
 		 model);
      break;   
    case AA_DATA:
-     if(tr->partitionData[model].protModels != GTR)           
+     if(!((tr->partitionData[model].protModels == GTR) || (tr->partitionData[model].protModels == GTR_UNLINKED)))
        {
 	 double f[20];
 	 int l;
+       
+	 initProtMat(f, tr->partitionData[model].protModels, ext_initialRates, model, tr);
+       
+	 if(tr->partitionData[model].protModels == PROT_FILE)
+	   assert(tr->partitionData[model].usePredefinedProtFreqs == TRUE);     	 
 
-	 initProtMat(f, tr->partitionData[model].protModels, ext_initialRates, adef->userProteinModel, 
-		     adef->externalAAMatrix);
-	 
-	 if(adef->protEmpiricalFreqs && tr->NumberOfModels == 1)
-	   assert(tr->partitionData[model].protFreqs);
-	 
-	 if(!tr->partitionData[model].protFreqs)	       	  
-	   {	     
-	     for(l = 0; l < 20; l++)		
-	       frequencies[l] = f[l];
-	   } 
+	 if(tr->partitionData[model].usePredefinedProtFreqs == TRUE)	       	  	  
+	   for(l = 0; l < 20; l++)		
+	     frequencies[l] = f[l];	   
        }  
-               
+     else          
+       assert(tr->partitionData[model].usePredefinedProtFreqs == FALSE);
 
      initGeneric(states, bitVectorAA, 23, fracchanges,
 		 ext_EIGN, EV, EI, frequencies, ext_initialRates,
@@ -3804,7 +3796,7 @@ void initRateMatrix(tree *tr)
 	    }
 	  break;
 	case AA_DATA:
-	  if(tr->partitionData[model].protModels == GTR)	      
+	  if(tr->partitionData[model].protModels == GTR || tr->partitionData[model].protModels == GTR_UNLINKED)	      
 	    putWAG(tr->partitionData[model].substRates);
 	  break;
 	default:

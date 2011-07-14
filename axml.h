@@ -186,28 +186,30 @@
 #define M_64CAT          9
 #define M_64GAMMA        10
 
+#define DAYHOFF      0
+#define DCMUT        1
+#define JTT          2
+#define MTREV        3
+#define WAG          4
+#define RTREV        5
+#define CPREV        6
+#define VT           7
+#define BLOSUM62     8
+#define MTMAM        9
+#define LG           10
+#define MTART        11
+#define MTZOA        12
+#define PMB          13
+#define HIVB         14
+#define HIVW         15
+#define JTTDCMUT     16
+#define FLU          17 
+#define PROT_FILE    18
+#define GTR_UNLINKED 19
+#define GTR          20  /* GTR always needs to be the last one */
 
-#define DAYHOFF    0
-#define DCMUT      1
-#define JTT        2
-#define MTREV      3
-#define WAG        4
-#define RTREV      5
-#define CPREV      6
-#define VT         7
-#define BLOSUM62   8
-#define MTMAM      9
-#define LG         10
-#define MTART      11
-#define MTZOA      12
-#define PMB        13
-#define HIVB       14
-#define HIVW       15
-#define JTTDCMUT   16
-#define FLU        17 
-#define GTR        18  /* GTR always needs to be the last one */
+#define NUM_PROT_MODELS 21
 
-#define NUM_PROT_MODELS 19
 
 /* bipartition stuff */
 
@@ -516,7 +518,7 @@ typedef struct {
   size_t     width;
   int     dataType;
   int     protModels;
-  int     protFreqs;
+  boolean usePredefinedProtFreqs;
   int     mxtips;
   int     numberOfCategories;
   int             **expVector;
@@ -526,6 +528,8 @@ typedef struct {
   unsigned char            **yVector;
  
   char   *partitionName;
+  char   proteinSubstitutionFileName[2048];
+  double externalAAMatrix[420];
   double *sumBuffer;
  
   double *gammaRates;
@@ -964,7 +968,7 @@ typedef  struct {
   double         likelihoodEpsilon;
   double         gapyness;
   int            similarityFilterMode;
-  double        *externalAAMatrix;
+  double        externalAAMatrix[420];
   boolean       useFloat;
   boolean       readTaxaOnly;
   int           meshSearch;  
@@ -1208,14 +1212,12 @@ extern void handleExcludeFile(tree *tr, analdef *adef, rawdata *rdta);
 
 extern nodeptr findAnyTip(nodeptr p, int numsp);
 
-extern void parseProteinModel(analdef *adef);
-
+extern void parseProteinModel(double *externalAAMatrix, char *fileName);
+extern int filexists(char *filename);
 extern void computeFullTraversalInfo(nodeptr p, traversalInfo *ti, int *counter, int maxTips, int numBranches);
 
 extern void computeNextReplicate(tree *tr, long *seed, int *originalRateCategories, int *originalInvariant, boolean isRapid, boolean fixRates);
 /*extern void computeNextReplicate(tree *tr, analdef *adef, int *originalRateCategories, int *originalInvariant);*/
-
-extern void putWAG(double *ext_initialRates);
 
 extern void reductionCleanup(tree *tr, int *originalRateCategories, int *originalInvariant);
 extern void parseSecondaryStructure(tree *tr, analdef *adef, int sites);

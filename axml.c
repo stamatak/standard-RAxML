@@ -460,7 +460,7 @@ double randum (long  *seed)
   return res;
 }
 
-static int filexists(char *filename)
+int filexists(char *filename)
 {
   FILE *fp;
   int res;
@@ -1331,16 +1331,21 @@ static void getinput(analdef *adef, rawdata *rdta, cruncheddata *cdta, tree *tr)
 	}
       else
 	{
-	  int dataType = -1;
+	  int 
+	    dataType = -1;
 	  
 	  tr->initialPartitionData  = (pInfo*)malloc(sizeof(pInfo));
 	  tr->initialPartitionData[0].partitionName = (char*)malloc(128 * sizeof(char));
 	  strcpy(tr->initialPartitionData[0].partitionName, "No Name Provided");
 	  
 	  tr->initialPartitionData[0].protModels = adef->proteinMatrix;
-	  tr->initialPartitionData[0].protFreqs  = adef->protEmpiricalFreqs;
+	  if(adef->protEmpiricalFreqs)
+	    tr->initialPartitionData[0].usePredefinedProtFreqs  = FALSE;
+	  else
+	    tr->initialPartitionData[0].usePredefinedProtFreqs  = TRUE;
 	  
 	  
+
 	  tr->NumberOfModels = 1;
 	  
 	  if(adef->model == M_PROTCAT || adef->model == M_PROTGAMMA)
@@ -1361,6 +1366,13 @@ static void getinput(analdef *adef, rawdata *rdta, cruncheddata *cdta, tree *tr)
 
 	  tr->initialPartitionData[0].dataType = dataType;
 	  
+	  if(dataType == AA_DATA && adef->userProteinModel)
+	    {
+	      tr->initialPartitionData[0].protModels = PROT_FILE;
+	      tr->initialPartitionData[0].usePredefinedProtFreqs  = TRUE;
+	      strcpy(tr->initialPartitionData[0].proteinSubstitutionFileName, proteinModelFileName);
+	    }
+	  
 	  for(i = 0; i <= rdta->sites; i++)
 	    {
 	      tr->initialDataVector[i] = dataType;
@@ -1378,10 +1390,10 @@ static void getinput(analdef *adef, rawdata *rdta, cruncheddata *cdta, tree *tr)
 	    {
 	      tr->extendedPartitionData[i].partitionName = (char*)malloc((strlen(tr->initialPartitionData[i].partitionName) + 1) * sizeof(char));
 	      strcpy(tr->extendedPartitionData[i].partitionName, tr->initialPartitionData[i].partitionName);
-	      tr->extendedPartitionData[i].dataType   = tr->initialPartitionData[i].dataType;
-	      
+	      strcpy(tr->extendedPartitionData[i].proteinSubstitutionFileName, tr->initialPartitionData[i].proteinSubstitutionFileName);
+	      tr->extendedPartitionData[i].dataType   = tr->initialPartitionData[i].dataType;	      
 	      tr->extendedPartitionData[i].protModels = tr->initialPartitionData[i].protModels;
-	      tr->extendedPartitionData[i].protFreqs  = tr->initialPartitionData[i].protFreqs;
+	      tr->extendedPartitionData[i].usePredefinedProtFreqs  = tr->initialPartitionData[i].usePredefinedProtFreqs;
 	    }
 	  
 	  parseSecondaryStructure(tr, adef, rdta->sites);
@@ -1394,6 +1406,14 @@ static void getinput(analdef *adef, rawdata *rdta, cruncheddata *cdta, tree *tr)
 	  tr->dataVector    = tr->initialDataVector;
 	  tr->partitionData = tr->initialPartitionData;
 	}
+     
+      
+
+      for(i = 0; i < tr->NumberOfModels; i++)
+	if(tr->partitionData[i].dataType == AA_DATA && tr->partitionData[i].protModels == PROT_FILE)
+	  parseProteinModel(tr->partitionData[i].externalAAMatrix, tr->partitionData[i].proteinSubstitutionFileName);
+      
+      
 
       tr->executeModel   = (boolean *)malloc(sizeof(boolean) * tr->NumberOfModels);
 
@@ -2300,13 +2320,19 @@ static void checkSequences(tree *tr, rawdata *rdta, analdef *adef)
 			{
 			case AA_DATA:
 			  {
-			    char AAmodel[1024];
+			    char 
+			      AAmodel[1024];
 
-			    strcpy(AAmodel, protModels[tr->partitionData[i].protModels]);
-			    if(tr->partitionData[i].protFreqs)
-			      strcat(AAmodel, "F");
-
-			    fprintf(newFile, "%s, ", AAmodel);
+			    if(tr->partitionData[i].protModels != PROT_FILE)
+			      {
+				strcpy(AAmodel, protModels[tr->partitionData[i].protModels]);
+				if(tr->partitionData[i].usePredefinedProtFreqs == FALSE)
+				  strcat(AAmodel, "F");
+				
+				fprintf(newFile, "%s, ", AAmodel);
+			      }
+			    else
+			      fprintf(newFile, "[%s], ", tr->partitionData[i].proteinSubstitutionFileName);
 			  }
 			  break;
 			case DNA_DATA:
@@ -2833,7 +2859,6 @@ static void initAdef(analdef *adef)
   adef->similarityFilterMode   = 0;
   adef->useExcludeFile         = FALSE;
   adef->userProteinModel       = FALSE;
-  adef->externalAAMatrix       = (double*)NULL;
   adef->computeELW             = FALSE;
   adef->computeDistance        = FALSE;
   adef->compressPatterns       = TRUE; 
@@ -2989,6 +3014,7 @@ static int modelExists(char *model, analdef *adef)
       adef->model = M_PROTCAT;
       adef->proteinMatrix = GTR;
       adef->useInvariant = FALSE;
+      adef->protEmpiricalFreqs = 1;
       return 1;
     }
 
@@ -3005,6 +3031,7 @@ static int modelExists(char *model, analdef *adef)
       adef->model = M_PROTGAMMA;
       adef->proteinMatrix = GTR;
       adef->useInvariant = FALSE;
+      adef->protEmpiricalFreqs = 1;
       return 1;
     }
 
@@ -3013,12 +3040,58 @@ static int modelExists(char *model, analdef *adef)
       adef->model = M_PROTGAMMA;
       adef->proteinMatrix = GTR;
       adef->useInvariant = TRUE;
+      adef->protEmpiricalFreqs = 1;
+      return 1;
+    }
+  
+  /*************** AA GTR_UNLINKED ********************/
+
+  if(strcmp(model, "PROTCATGTR_UNLINKED\0") == 0)    
+    {
+      printf("Advisory: GTR_UNLINKED only has an effect if specified in the partition file\n");
+
+      adef->model = M_PROTCAT;
+      adef->proteinMatrix = GTR_UNLINKED;
+      adef->useInvariant = FALSE;
+      adef->protEmpiricalFreqs = 1;
       return 1;
     }
 
+  if(strcmp(model, "PROTCATIGTR_UNLINKED\0") == 0)
+    {
+      printf("Advisory: GTR_UNLINKED only has an effect if specified in the partition file\n");
+      
+      adef->model = M_PROTCAT;
+      adef->proteinMatrix = GTR_UNLINKED;
+      adef->useInvariant = TRUE;
+      adef->protEmpiricalFreqs = 1;
+      return 1;
+    }
+
+  if(strcmp(model, "PROTGAMMAGTR_UNLINKED\0") == 0)
+    {
+      printf("Advisory: GTR_UNLINKED only has an effect if specified in the partition file\n");
+      
+      adef->model = M_PROTGAMMA;
+      adef->proteinMatrix = GTR_UNLINKED;
+      adef->useInvariant = FALSE;
+      adef->protEmpiricalFreqs = 1;
+      return 1;
+    }
+
+  if(strcmp(model, "PROTGAMMAIGTR_UNLINKED\0") == 0)
+    {
+      printf("Advisory: GTR_UNLINKED only has an effect if specified in the partition file\n");
+      
+      adef->model = M_PROTGAMMA;
+      adef->proteinMatrix = GTR_UNLINKED;
+      adef->useInvariant = TRUE;
+      return 1;
+    }
+  
   /****************** AA ************************/
 
-  for(i = 0; i < NUM_PROT_MODELS - 1; i++)
+  for(i = 0; i < NUM_PROT_MODELS - 2; i++)
     {
       /* check CAT */
 
@@ -3971,7 +4044,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
       case 'P':
 	strcpy(proteinModelFileName, optarg);
 	adef->userProteinModel = TRUE;
-	parseProteinModel(adef);
+	/*parseProteinModel(adef->externalAAMatrix, proteinModelFileName);*/
 	break;
       case 'S':
 	adef->useSecondaryStructure = TRUE;
@@ -4973,9 +5046,17 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
 		  break;
 		case AA_DATA:
 		  assert(tr->partitionData[model].protModels >= 0 && tr->partitionData[model].protModels < NUM_PROT_MODELS);
-		  printBoth(infoFile, "DataType: AA\n");		 
-		  printBoth(infoFile, "Substitution Matrix: %s\n", (adef->userProteinModel)?"External user-specified model":protModels[tr->partitionData[model].protModels]);
-		  printBoth(infoFile, "%s Base Frequencies:\n", (tr->partitionData[model].protFreqs == 1)?"Empirical":"Fixed");		   
+		  printBoth(infoFile, "DataType: AA\n");
+		  if(tr->partitionData[model].protModels != PROT_FILE)
+		    {		     		     
+		      printBoth(infoFile, "Substitution Matrix: %s\n", protModels[tr->partitionData[model].protModels]);		      
+		      printBoth(infoFile, "%s Base Frequencies:\n", (tr->partitionData[model].usePredefinedProtFreqs == TRUE)?"Fixed":"Empirical");		   
+		    }
+		  else
+		    {
+		       printBoth(infoFile, "Substitution Matrix File name: %s\n", tr->partitionData[model].proteinSubstitutionFileName);
+		       printBoth(infoFile, "Base Frequencies: as provided in the model file\n");
+		    }
 		  break;
 		case BINARY_DATA:
 		  printBoth(infoFile, "DataType: BINARY/MORPHOLOGICAL\n");		  
@@ -5944,7 +6025,7 @@ static void initPartition(tree *tr, tree *localTree, int tid)
 	  localTree->partitionData[model].maxTipStates    = tr->partitionData[model].maxTipStates;
 	  localTree->partitionData[model].dataType   = tr->partitionData[model].dataType;
 	  localTree->partitionData[model].protModels = tr->partitionData[model].protModels;
-	  localTree->partitionData[model].protFreqs  = tr->partitionData[model].protFreqs;
+	  localTree->partitionData[model].usePredefinedProtFreqs  = tr->partitionData[model].usePredefinedProtFreqs;
 	  localTree->partitionData[model].mxtips     = tr->partitionData[model].mxtips;
 	  localTree->partitionData[model].lower      = tr->partitionData[model].lower;
 	  localTree->partitionData[model].upper      = tr->partitionData[model].upper;
@@ -8197,7 +8278,7 @@ int main (int argc, char *argv[])
 	{
 	  if(tr->partitionData[i].dataType == AA_DATA)
 	    {
-	      if(tr->partitionData[i].protModels == GTR)
+	      if(tr->partitionData[i].protModels == GTR || tr->partitionData[i].protModels == GTR_UNLINKED)
 		countGTR++;
 	      else
 		countOtherModel++;
@@ -8208,13 +8289,13 @@ int main (int argc, char *argv[])
 	{
 	  printf("Error, it is only allowed to conduct partitioned AA analyses\n");
 	  printf("with a GTR model of AA substitution, if all AA partitions are assigned\n");
-	  printf("the GTR model.\n\n");
+	  printf("the GTR or GTR_UNLINKED model.\n\n");
 	  
 	  printf("The following partitions do not use GTR:\n");
 	  
 	  for(i = 0; i < tr->NumberOfModels; i++)
 	    {
-	      if(tr->partitionData[i].dataType == AA_DATA && tr->partitionData[i].protModels != GTR)
+	      if(tr->partitionData[i].dataType == AA_DATA && (tr->partitionData[i].protModels != GTR || tr->partitionData[i].protModels != GTR_UNLINKED))
 		printf("Partition %s\n", tr->partitionData[i].partitionName);
 	    }
 	  printf("exiting ...\n");
@@ -8227,7 +8308,8 @@ int main (int argc, char *argv[])
 
 	  printBoth(info, "You are using the GTR model of AA substitution!\n");
 	  printBoth(info, "GTR parameters for AA substiution will automatically be estimated\n");
-	  printBoth(info, "jointly (GTR params will be linked) across all partitions to avoid over-parametrization!\n\n\n");
+	  printBoth(info, "either jointly (GTR params will be linked) or independently (when using GTR_UNLINKED) across all partitions.\n");
+	  printBoth(info, "WARNING: you may be over-parametrizing the model!\n\n\n");
 
 	  fclose(info);
 	}

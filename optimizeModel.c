@@ -173,8 +173,11 @@ static linkageList* initLinkageListGTR(tree *tr)
     *links = (int*)malloc(sizeof(int) * tr->NumberOfModels),
     firstAA = tr->NumberOfModels + 2,
     countGTR = 0,
+    countUnlinkedGTR = 0,
     countOtherModel = 0;
-  linkageList* ll;
+  
+  linkageList* 
+    ll;
 
   for(i = 0; i < tr->NumberOfModels; i++)
     {     
@@ -187,10 +190,20 @@ static linkageList* initLinkageListGTR(tree *tr)
 	      countGTR++;
 	    }
 	  else
-	    countOtherModel++;
+	    {
+	      if(tr->partitionData[i].protModels == GTR_UNLINKED)
+		countUnlinkedGTR++;
+	      else
+		countOtherModel++;
+	    }
 	}
     }
   
+  /* 
+     TODO need to think what we actually want here ! 
+     Shall we mix everything: linked, unlinked WAG etc?
+  */
+
   assert((countGTR > 0 && countOtherModel == 0) || (countGTR == 0 && countOtherModel > 0) ||  (countGTR == 0 && countOtherModel == 0));
 
   if(countGTR == 0)
@@ -1373,7 +1386,9 @@ static void optRates(tree *tr, analdef *adef, double modelEpsilon, linkageList *
 
 static boolean AAisGTR(tree *tr)
 {
-  int i, count = 0;
+  int 
+    i, 
+    count = 0;
 
   for(i = 0; i < tr->NumberOfModels; i++)   
     {
@@ -1391,12 +1406,35 @@ static boolean AAisGTR(tree *tr)
   return TRUE;
 }
 
+static boolean AAisUnlinkedGTR(tree *tr)
+{
+  int 
+    i, 
+    count = 0;
+
+  for(i = 0; i < tr->NumberOfModels; i++)   
+    {
+      if(tr->partitionData[i].dataType == AA_DATA)
+	{
+	  count++;
+	  if(tr->partitionData[i].protModels != GTR_UNLINKED)
+	    return FALSE;
+	}
+    }
+
+  if(count == 0)
+    return FALSE;
+
+  return TRUE;
+}
+
 static void optRatesGeneric(tree *tr, analdef *adef, double modelEpsilon, linkageList *ll)
 {
   int 
     i,
     dnaPartitions = 0,
-    aaPartitions  = 0,
+    aaPartitionsLinked  = 0,
+    aaPartitionsUnlinked = 0,
     secondaryPartitions = 0,
     secondaryModel = -1,
     states = -1;
@@ -1503,7 +1541,7 @@ static void optRatesGeneric(tree *tr, analdef *adef, double modelEpsilon, linkag
 	    case AA_DATA:
 	      states = tr->partitionData[ll->ld[i].partitionList[0]].states;
 	      ll->ld[i].valid = TRUE;
-	      aaPartitions++;
+	      aaPartitionsLinked++;
 	      break;
 	    case DNA_DATA:	    
 	    case BINARY_DATA:
@@ -1517,11 +1555,40 @@ static void optRatesGeneric(tree *tr, analdef *adef, double modelEpsilon, linkag
 	    }	 
 	}
 
-      assert(aaPartitions == 1);     
+      assert(aaPartitionsLinked == 1);     
       
-      optRates(tr, adef, modelEpsilon, ll, aaPartitions, states);
+      optRates(tr, adef, modelEpsilon, ll, aaPartitionsLinked, states);
     }
   
+   if(AAisUnlinkedGTR(tr))
+    {
+      aaPartitionsUnlinked = 0;
+
+      for(i = 0; i < ll->entries; i++)
+	{
+	  switch(tr->partitionData[ll->ld[i].partitionList[0]].dataType)
+	    {
+	    case AA_DATA:
+	      states = tr->partitionData[ll->ld[i].partitionList[0]].states;
+	      ll->ld[i].valid = TRUE;
+	      aaPartitionsUnlinked++;
+	      break;
+	    case DNA_DATA:	    
+	    case BINARY_DATA:
+	    case SECONDARY_DATA:	
+	    case SECONDARY_DATA_6:
+	    case SECONDARY_DATA_7:
+	      ll->ld[i].valid = FALSE;
+	      break;
+	    default:
+	      assert(0);
+	    }	 
+	}
+
+      assert(aaPartitionsUnlinked >= 1);     
+      
+      optRates(tr, adef, modelEpsilon, ll, aaPartitionsUnlinked, states);
+    }
   /* then multi-state */
 
   /* 
@@ -2234,24 +2301,35 @@ void resetBranches(tree *tr)
 
 static void printAAmatrix(tree *tr, double epsilon)
 {
-  if(AAisGTR(tr))
+  
+
+  if(AAisGTR(tr) || AAisUnlinkedGTR(tr))
     {
-      int model;
+      int 
+	model;
       
       for(model = 0; model < tr->NumberOfModels; model++)
 	{
 	  if(tr->partitionData[model].dataType == AA_DATA) 
 	    {
-	      char gtrFileName[1024];
-	      char epsilonStr[1024];
-	      FILE *gtrFile;
-	      double *rates = tr->partitionData[model].substRates;
-	      double *f     = tr->partitionData[model].frequencies;
-	      double q[20][20];
-	      int    r = 0;
-	      int i, j;
+	      char 
+		gtrFileName[1024],
+		epsilonStr[1024];
+	      
+	      FILE 
+		*gtrFile;
+	      
+	      double 
+		*rates = tr->partitionData[model].substRates,
+		*f     = tr->partitionData[model].frequencies,
+		q[20][20];
+	      
+	      int    
+		r = 0,
+		i, 
+		j;
 
-	      assert(tr->partitionData[model].protModels == GTR);
+	      assert(tr->partitionData[model].protModels == GTR || tr->partitionData[model].protModels == GTR_UNLINKED);
 
 	      sprintf(epsilonStr, "%f", epsilon);
 
@@ -2260,6 +2338,8 @@ static void printAAmatrix(tree *tr, double epsilon)
 	      strcat(gtrFileName, run_id);
 	      strcat(gtrFileName, "_");
 	      strcat(gtrFileName, epsilonStr);
+	      strcat(gtrFileName, "_Partition_");
+	      strcat(gtrFileName, tr->partitionData[model].partitionName);
 
 	      gtrFile = myfopen(gtrFileName, "wb");
 
@@ -2292,10 +2372,11 @@ static void printAAmatrix(tree *tr, double epsilon)
 	      fprintf(gtrFile, "\n");
 
 	      fclose(gtrFile);
-
-	      printBothOpen("\nPrinted intermediate AA substitution matrix to file %s\n\n", gtrFileName);
 	      
-	      break;
+	      if(tr->partitionData[model].protModels == GTR)
+		printBothOpen("\nPrinted intermediate linked AA GTR substitution matrix of partition %s to file %s\n\n", tr->partitionData[model].partitionName, gtrFileName);	      	    
+	      else
+		printBothOpen("\nPrinted intermediate unlinked AA GTR substitution matrix of partition %s to file %s\n\n", tr->partitionData[model].partitionName, gtrFileName);
 	    }
 
 	}	  
