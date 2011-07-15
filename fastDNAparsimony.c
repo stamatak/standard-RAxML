@@ -113,7 +113,16 @@ extern const unsigned int mask32[32];
 /********************************DNA FUNCTIONS *****************************************************************/
 
 
-
+static void checkSeed(analdef *adef)
+{
+  if(adef->parsimonySeed <= 0)
+    {
+      printf("Error: you need to specify a random number seed with \"-p\" for the randomized stepwise addition\n");
+      printf("parsimony algorithm such that runs can be reproduced and debugged ... exiting\n");      
+    }
+  
+  assert(adef->parsimonySeed > 0);
+}
 
 static void getxnodeLocal (nodeptr p)
 {
@@ -1265,7 +1274,7 @@ static void makePermutationFast(int *perm, int n, analdef *adef)
     j, 
     k;
 
-  assert(adef->parsimonySeed != 0);         
+  checkSeed(adef);      
 
   for (i = 1; i <= n; i++)    
     perm[i] = i;               
@@ -1821,7 +1830,9 @@ void makeParsimonyTreeFast(tree *tr, analdef *adef, boolean full)
       score = evaluateParsimony(tr, tr->start->back, TRUE);
 		
       assert(tr->start);
-      assert(adef->parsimonySeed != 0);	 
+      
+      checkSeed(adef);
+
       markNodesInTree(tr->start, tr, nodesInTree);
       markNodesInTree(tr->start->back, tr, nodesInTree);
 	
@@ -2061,33 +2072,21 @@ void makePermutation(int *perm, int n, analdef *adef)
 {    
   int  i, j, k;
 
-
-  if(adef->parsimonySeed == 0)   
-    srand((unsigned int) gettimeSrand());          
-
+  checkSeed(adef);          
 
   for (i = 1; i <= n; i++)    
     perm[i] = i;               
 
   for (i = 1; i <= n; i++) 
-    {
+    {    
+      k =  (int)((double)(n + 1 - i) * randum(&adef->parsimonySeed));
 
-     if(adef->parsimonySeed == 0) 
-       k        = randomInt(n + 1 - i);
-     else
-       k =  (int)((double)(n + 1 - i) * randum(&adef->parsimonySeed));
-
-     assert(i + k <= n);
-
-     j        = perm[i];
-     perm[i]     = perm[i + k];
-     perm[i + k] = j; 
+      assert(i + k <= n);
+      
+      j        = perm[i];
+      perm[i]     = perm[i + k];
+      perm[i + k] = j; 
     }
-
-  /*  for(i = 1; i <= n; i++)
-    printf("%d ", perm[i]);
-    printf("\n");*/
-
 }
 
 
