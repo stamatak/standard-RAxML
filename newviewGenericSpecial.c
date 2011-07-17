@@ -8056,12 +8056,17 @@ void computeTraversalInfoMulti(nodeptr p, traversalInfo *ti, int *counter, int m
 
 void newviewIterative (tree *tr)
 {
-  traversalInfo *ti   = tr->td[0].ti;
-  int i, model;
+  traversalInfo 
+    *ti   = tr->td[0].ti;
+  
+  int 
+    i, 
+    model;
 
   for(i = 1; i < tr->td[0].count; i++)
     {
-      traversalInfo *tInfo = &ti[i];
+      traversalInfo 
+	*tInfo = &ti[i];
 
       for(model = 0; model < tr->NumberOfModels; model++)
 	{
@@ -8070,135 +8075,154 @@ void newviewIterative (tree *tr)
 	      double
 		*x1_start = (double*)NULL,
 		*x2_start = (double*)NULL,
-		*x3_start = (double*)NULL,
+		*x3_start = tr->partitionData[model].xVector[tInfo->pNumber - tr->mxtips - 1],
 		*left     = (double*)NULL,
-		*right    = (double*)NULL;
-
-	      double
+		*right    = (double*)NULL,
 		*x1_gapColumn = (double*)NULL,
 		*x2_gapColumn = (double*)NULL,
-		*x3_gapColumn = (double*)NULL;
+		*x3_gapColumn = (double*)NULL,	       
+		qz, 
+		rz;
 	      
 	      unsigned int
 		*x1_gap = (unsigned int*)NULL,
 		*x2_gap = (unsigned int*)NULL,
 		*x3_gap = (unsigned int*)NULL;
-	      
-	     
-
-	      int
-		rateHet = tr->discreteRateCategories,
-		states = tr->partitionData[model].states,
+	      	     
+	      int		
 		scalerIncrement = 0,
 		*wgt = (int*)NULL,	       
 		*ex3 = (int*)NULL;
+	      
 	      unsigned char
 		*tipX1 = (unsigned char *)NULL,
 		*tipX2 = (unsigned char *)NULL;
-	      double 
-		qz, 
-		rz;
+	    	      
+	      size_t
+		rateHet,
+		states = (size_t)tr->partitionData[model].states,
+		width = tr->partitionData[model].width,
+		availableLength =  tr->partitionData[model].xSpaceVector[(tInfo->pNumber - tr->mxtips - 1)],			       
+		requiredLength;
+	       
+	      if(tr->rateHetModel == CAT)
+		rateHet = 1;
+	      else
+		rateHet = 4;
 
-	      
-	      int 
-		availableLength = 0,
-		requiredLength = 0,
-		width =  tr->partitionData[model].width;
-	      
 	      if(tr->useGappedImplementation || tr->saveMemory)
 		{
 		  x1_gap = &(tr->partitionData[model].gapVector[tInfo->qNumber * tr->partitionData[model].gapVectorLength]);
 		  x2_gap = &(tr->partitionData[model].gapVector[tInfo->rNumber * tr->partitionData[model].gapVectorLength]);
-		  x3_gap = &(tr->partitionData[model].gapVector[tInfo->pNumber * tr->partitionData[model].gapVectorLength]);			     		  
-		  
-		  if(tr->saveMemory)
-		    {
-		      int 
-			j,
-			setBits = 0;
-		      
-		      availableLength = tr->partitionData[model].xSpaceVector[(tInfo->pNumber - tr->mxtips - 1)];
-
-		      for(j = 0; j < tr->partitionData[model].gapVectorLength; j++)
-			{
-			  x3_gap[j] = x1_gap[j] & x2_gap[j];
-			  setBits += (int)(precomputed16_bitcount(x3_gap[j]));
-			}
-		      		  
-		      requiredLength = width - setBits;			      
-		    }		  
+		  x3_gap = &(tr->partitionData[model].gapVector[tInfo->pNumber * tr->partitionData[model].gapVectorLength]);
 		}
+	      
+	      if(tr->saveMemory)
+		{
+		   size_t
+		     j,
+		     setBits = 0;
+		   
+		   availableLength = tr->partitionData[model].xSpaceVector[(tInfo->pNumber - tr->mxtips - 1)];
+		   
+		   for(j = 0; j < tr->partitionData[model].gapVectorLength; j++)
+		     {
+		       x3_gap[j] = x1_gap[j] & x2_gap[j];
+		       setBits += (size_t)(precomputed16_bitcount(x3_gap[j]));
+		     }
+		   
+		   requiredLength = (width - setBits)  * rateHet * states * sizeof(double);	
+		}
+	      else
+		requiredLength  =  width * rateHet * states * sizeof(double);
+
+	      if(requiredLength != availableLength)
+		{		  
+		  if(x3_start)
+		    free(x3_start);
+		 
+		  x3_start = (double*)malloc_aligned(requiredLength, 16);		 
+		  
+		  tr->partitionData[model].xVector[tInfo->pNumber - tr->mxtips - 1] = x3_start;
+		  
+		  tr->partitionData[model].xSpaceVector[(tInfo->pNumber - tr->mxtips - 1)] = requiredLength;		 
+		}
+	      
 
 	      if(tr->useFastScaling)		
-		wgt   =  tr->partitionData[model].wgt;		 		  				
+		wgt   =  tr->partitionData[model].wgt;	
+	      else
+		{
+		  size_t
+		    availableExpLength = tr->partitionData[model].expSpaceVector[(tInfo->pNumber - tr->mxtips - 1)],
+		    requiredExpLength  = width * sizeof(int);
+		  
+		  ex3 = tr->partitionData[model].expVector[tInfo->pNumber - tr->mxtips - 1];
+		  
+		  if(requiredExpLength != availableExpLength)
+		    {
+		      if(ex3)
+			free(ex3);
+		 
+		      ex3 = (int*)malloc_aligned(requiredExpLength, 16);		 
+		  
+		      tr->partitionData[model].expVector[tInfo->pNumber - tr->mxtips - 1] = ex3;
+		  
+		      tr->partitionData[model].expSpaceVector[(tInfo->pNumber - tr->mxtips - 1)] = requiredExpLength;
+		    }
+		}
 
 	      switch(tInfo->tipCase)
 		{
 		case TIP_TIP:		  
 		  tipX1    = tr->partitionData[model].yVector[tInfo->qNumber];
-		  tipX2    = tr->partitionData[model].yVector[tInfo->rNumber];
-
-		 
-		  {
-		    x3_start       = tr->partitionData[model].xVector[tInfo->pNumber - tr->mxtips - 1];
-		    if(tr->useGappedImplementation || tr->saveMemory)
-		      x3_gapColumn   = &tr->partitionData[model].gapColumn[(tInfo->pNumber - tr->mxtips - 1) * states * rateHet];
-		  }
-		 
-
+		  tipX2    = tr->partitionData[model].yVector[tInfo->rNumber];		 		 		 
+		  
+		  if(tr->useGappedImplementation || tr->saveMemory)
+		    x3_gapColumn   = &tr->partitionData[model].gapColumn[(tInfo->pNumber - tr->mxtips - 1) * states * rateHet];
+		  
 		  if(!tr->useFastScaling)
 		    {
-		      int k;
-		      ex3      = tr->partitionData[model].expVector[tInfo->pNumber - tr->mxtips - 1];
+		      int 
+			k;		      		     
 
 		      for(k = 0; k < width; k++)
 			ex3[k] = 0;
 		    }
-
 		  break;
 		case TIP_INNER:		 
-		  tipX1    =  tr->partitionData[model].yVector[tInfo->qNumber];
-
-		 
+		  tipX1    =  tr->partitionData[model].yVector[tInfo->qNumber];		 
 		  x2_start       = tr->partitionData[model].xVector[tInfo->rNumber - tr->mxtips - 1];
-		  x3_start       = tr->partitionData[model].xVector[tInfo->pNumber - tr->mxtips - 1];
-		  
+		 		  
 		  if(tr->useGappedImplementation || tr->saveMemory)
 		    {
 		      x2_gapColumn   = &tr->partitionData[model].gapColumn[(tInfo->rNumber - tr->mxtips - 1) * states * rateHet];
 		      x3_gapColumn   = &tr->partitionData[model].gapColumn[(tInfo->pNumber - tr->mxtips - 1) * states * rateHet];
-		    }
-		  		
+		    }		
+		  
 		  if(!tr->useFastScaling)
 		    {
 		      int 
 			k,
 			*ex2;
 		      
-		      ex2      = tr->partitionData[model].expVector[tInfo->rNumber - tr->mxtips - 1];
-		      ex3      = tr->partitionData[model].expVector[tInfo->pNumber - tr->mxtips - 1];
+		      ex2      = tr->partitionData[model].expVector[tInfo->rNumber - tr->mxtips - 1];		     
 		      
 		      for(k = 0; k < width; k++)
 			ex3[k] = ex2[k];
 		    }
-
 		  break;
-		case INNER_INNER:		 
-		 
+		case INNER_INNER:		 		 		    
+		  x1_start       = tr->partitionData[model].xVector[tInfo->qNumber - tr->mxtips - 1];
+		  x2_start       = tr->partitionData[model].xVector[tInfo->rNumber - tr->mxtips - 1];
+		      
+		  if(tr->useGappedImplementation || tr->saveMemory)
 		    {
-		      x1_start       = tr->partitionData[model].xVector[tInfo->qNumber - tr->mxtips - 1];
-		      x2_start       = tr->partitionData[model].xVector[tInfo->rNumber - tr->mxtips - 1];
-		      x3_start       = tr->partitionData[model].xVector[tInfo->pNumber - tr->mxtips - 1];
-
-		      if(tr->useGappedImplementation || tr->saveMemory)
-			{
-			  x1_gapColumn   = &tr->partitionData[model].gapColumn[(tInfo->qNumber - tr->mxtips - 1) * states * rateHet];
-			  x2_gapColumn   = &tr->partitionData[model].gapColumn[(tInfo->rNumber - tr->mxtips - 1) * states * rateHet];
-			  x3_gapColumn   = &tr->partitionData[model].gapColumn[(tInfo->pNumber - tr->mxtips - 1) * states * rateHet];
-			}
-		    }		      
-		 
-
+		      x1_gapColumn   = &tr->partitionData[model].gapColumn[(tInfo->qNumber - tr->mxtips - 1) * states * rateHet];
+		      x2_gapColumn   = &tr->partitionData[model].gapColumn[(tInfo->rNumber - tr->mxtips - 1) * states * rateHet];
+		      x3_gapColumn   = &tr->partitionData[model].gapColumn[(tInfo->pNumber - tr->mxtips - 1) * states * rateHet];
+		    }
+		  
 		  if(!tr->useFastScaling)
 		    {
 		      int 
@@ -8207,8 +8231,7 @@ void newviewIterative (tree *tr)
 			*ex2;
 
 		      ex1      = tr->partitionData[model].expVector[tInfo->qNumber - tr->mxtips - 1];
-		      ex2      = tr->partitionData[model].expVector[tInfo->rNumber - tr->mxtips - 1];
-		      ex3      = tr->partitionData[model].expVector[tInfo->pNumber - tr->mxtips - 1];
+		      ex2      = tr->partitionData[model].expVector[tInfo->rNumber - tr->mxtips - 1];		      
 		      
 		      for(k = 0; k < width; k++)
 			ex3[k] = ex1[k] + ex2[k];
@@ -8217,13 +8240,10 @@ void newviewIterative (tree *tr)
 		default:
 		  assert(0);
 		}
-
-	     
-		{
-		  left  = tr->partitionData[model].left;
-		  right = tr->partitionData[model].right;
-		}
-
+	     		
+	      left  = tr->partitionData[model].left;
+	      right = tr->partitionData[model].right;
+	      
 	      if(tr->multiBranch)
 		{
 		  qz = tInfo->qz[model];
@@ -8234,23 +8254,7 @@ void newviewIterative (tree *tr)
 		  qz = tInfo->qz[0];
 		  rz = tInfo->rz[0];
 		}
-	      
-	      if(tr->saveMemory)
-		{
-		  if(requiredLength != availableLength)
-		    {
-		      if(x3_start)
-			free(x3_start);
-		     
-		      x3_start = (double*)malloc_aligned(requiredLength * 16 *sizeof(double), 16);		 
-		      
-		      tr->partitionData[model].xVector[tInfo->pNumber - tr->mxtips - 1] = x3_start;
-		      
-		      tr->partitionData[model].xSpaceVector[(tInfo->pNumber - tr->mxtips - 1)] = requiredLength;
-		    }
-		}
-	      
-
+	      	     	      
 	      switch(tr->partitionData[model].dataType)
 		{
 		case BINARY_DATA:
@@ -8568,9 +8572,21 @@ void newviewIterative (tree *tr)
 
 void newviewIterativeMulti (tree *tr)
 { 
-  int i, model;
+  int 
+    i, 
+    model;
 
+  size_t 
+    rateHet;
+  
   assert(tr->multiBranch);
+  assert(!(tr->useGappedImplementation || tr->saveMemory));
+  assert(tr->useFastScaling);
+   
+  if(tr->rateHetModel == CAT)
+    rateHet = 1;
+  else
+    rateHet = 4;  
 
   for(model = 0; model < tr->NumberOfModels; model++)    
     {         
@@ -8581,92 +8597,71 @@ void newviewIterativeMulti (tree *tr)
 	    *x2_start = (double*)NULL,
 	    *x3_start = (double*)NULL,
 	    *left     = (double*)NULL,
-	    *right    = (double*)NULL;
+	    *right    = (double*)NULL,
+	    qz, 
+	    rz;
 	  
-	  int		
+	  int
+	    *ex3 = (int*)NULL,
 	    scalerIncrement = 0,
-	    *wgt = (int*)NULL,	       
-	    *ex3 = (int*)NULL;
+	    *wgt = (int*)NULL;
+
 	  unsigned char
 	    *tipX1 = (unsigned char *)NULL,
 	    *tipX2 = (unsigned char *)NULL;
-	  double 
-
-	    qz, 
-	    rz;
-	  int width =  tr->partitionData[model].width;
-	  traversalInfo *ti   = tr->td[model].ti;
+	 
+	  size_t 	 
+	    states = (size_t)tr->partitionData[model].states,
+	    width =  tr->partitionData[model].width,
+	    requiredLength = width * rateHet * states * sizeof(double);	   
+	  
+	  traversalInfo 
+	    *ti   = tr->td[model].ti;
 
 	  if(tr->useFastScaling)		
-	    wgt   =  tr->partitionData[model].wgt;		 		  				
-	  
+	    wgt = tr->partitionData[model].wgt;		 		  					  	 	  
+
 	  for(i = 1; i < tr->td[model].count; i++)
 	    {    	      
-	      traversalInfo *tInfo = &ti[i];
+	      traversalInfo 
+		*tInfo = &ti[i];
+
+	      size_t
+		availableLength =  tr->partitionData[model].xSpaceVector[(tInfo->pNumber - tr->mxtips - 1)];
+		
+	      x3_start = tr->partitionData[model].xVector[tInfo->pNumber - tr->mxtips - 1];
+
+	      if(requiredLength != availableLength)
+		{		  
+		  if(x3_start)
+		    free(x3_start);
+		 
+		  x3_start = (double*)malloc_aligned(requiredLength, 16);		 
+		  
+		  tr->partitionData[model].xVector[tInfo->pNumber - tr->mxtips - 1] = x3_start;
+		  
+		  tr->partitionData[model].xSpaceVector[(tInfo->pNumber - tr->mxtips - 1)] = requiredLength;		 
+		}
 
 	      switch(tInfo->tipCase)
 		{
 		case TIP_TIP:
 		  tipX1    = tr->partitionData[model].yVector[tInfo->qNumber];
-		  tipX2    = tr->partitionData[model].yVector[tInfo->rNumber];
-
-		 
-		  x3_start       = tr->partitionData[model].xVector[tInfo->pNumber - tr->mxtips - 1];
-		 
-
-		  if(!tr->useFastScaling)
-		    {
-		      int k;
-		      ex3      = tr->partitionData[model].expVector[tInfo->pNumber - tr->mxtips - 1];
-
-		      for(k = 0; k < width; k++)
-			ex3[k] = 0;
-		    }
-
-		  break;
-		case TIP_INNER:
-		  tipX1    =  tr->partitionData[model].yVector[tInfo->qNumber];
+		  tipX2    = tr->partitionData[model].yVector[tInfo->rNumber];				 		 
 
 		  
+		  break;
+		case TIP_INNER:
+		  tipX1    =  tr->partitionData[model].yVector[tInfo->qNumber];		  
 		  x2_start       = tr->partitionData[model].xVector[tInfo->rNumber - tr->mxtips - 1];
-		  x3_start       = tr->partitionData[model].xVector[tInfo->pNumber - tr->mxtips - 1];
-		   
-
-		  if(!tr->useFastScaling)
-		    {
-		      int 
-			k,
-			*ex2;
-		      
-		      ex2      = tr->partitionData[model].expVector[tInfo->rNumber - tr->mxtips - 1];
-		      ex3      = tr->partitionData[model].expVector[tInfo->pNumber - tr->mxtips - 1];
-		      
-		      for(k = 0; k < width; k++)
-			ex3[k] = ex2[k];
-		    }
-
+		 
+		  
 		  break;
 		case INNER_INNER:
-
 		  x1_start       = tr->partitionData[model].xVector[tInfo->qNumber - tr->mxtips - 1];
-		  x2_start       = tr->partitionData[model].xVector[tInfo->rNumber - tr->mxtips - 1];
-		  x3_start       = tr->partitionData[model].xVector[tInfo->pNumber - tr->mxtips - 1];
-		   
+		  x2_start       = tr->partitionData[model].xVector[tInfo->rNumber - tr->mxtips - 1];		  
 
-		  if(!tr->useFastScaling)
-		    {
-		      int 
-			k,
-			*ex1,
-			*ex2;
-
-		      ex1      = tr->partitionData[model].expVector[tInfo->qNumber - tr->mxtips - 1];
-		      ex2      = tr->partitionData[model].expVector[tInfo->rNumber - tr->mxtips - 1];
-		      ex3      = tr->partitionData[model].expVector[tInfo->pNumber - tr->mxtips - 1];
-		      
-		      for(k = 0; k < width; k++)
-			ex3[k] = ex1[k] + ex2[k];
-		    }		  
+		 
 		  break;
 		default:
 		  assert(0);
@@ -8688,7 +8683,6 @@ void newviewIterativeMulti (tree *tr)
 		  qz = tInfo->qz[0];
 		  rz = tInfo->rz[0];
 		}
-
 
 	      switch(tr->partitionData[model].dataType)
 		{
@@ -9059,6 +9053,7 @@ static void newviewMultiGrain(tree *tr,  double *x1, double *x2, double *x3, int
     columnCounter = 0,
     offsetCounter = 0;
 
+  
 
   for(model = 0; model < tr->NumberOfModels; model++)
     {

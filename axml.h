@@ -523,7 +523,8 @@ typedef struct {
   int     numberOfCategories;
   int             **expVector;
   double          **xVector;
-  int             *xSpaceVector;
+  size_t             *xSpaceVector;
+  size_t             *expSpaceVector;
  
   unsigned char            **yVector;
  
@@ -806,9 +807,7 @@ typedef  struct  {
   double *contiguousWR2;
   
   
-  int *expArray;
   unsigned char *y_ptr;
-  double *likelihoodArray;
   
   double *wrPtr;
   double *wr2Ptr;

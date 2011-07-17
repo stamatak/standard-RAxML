@@ -46,6 +46,17 @@
 #include <string.h>
 #include <stdint.h>
 
+#ifdef __AVX
+
+#ifdef __SIM_SSE3
+
+#define _SSE3_WAS_DEFINED
+
+#undef __SIM_SSE3
+
+#endif
+
+#endif
 
 
 #ifdef __SIM_SSE3
@@ -94,7 +105,7 @@ extern const unsigned int mask32[32];
 #define INT_TYPE __m256d
 #define CAST double*
 #define SET_ALL_BITS_ONE (__m256d)_mm256_set_epi32(0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF)
-#define SET_ALL_BITS_ZER0 (__m256d)_mm256_set_epi32(0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000)
+#define SET_ALL_BITS_ZERO (__m256d)_mm256_set_epi32(0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000)
 #define VECTOR_LOAD _mm256_load_pd
 #define VECTOR_BIT_AND _mm256_and_pd
 #define VECTOR_BIT_OR  _mm256_or_pd
@@ -1804,6 +1815,8 @@ void makeParsimonyTreeFast(tree *tr, analdef *adef, boolean full)
     randomMP, 
     startMP;        
 
+  /* double t; */
+
   determineUninformativeSites(tr, informative);     
 
   compressDNA(tr, informative);
@@ -1812,6 +1825,8 @@ void makeParsimonyTreeFast(tree *tr, analdef *adef, boolean full)
 
   tr->ti = (int*)malloc(sizeof(int) * 4 * (size_t)tr->mxtips);  
  
+  /*t = gettime();*/
+
   if(!full)
     {           
       unsigned int 
@@ -1962,7 +1977,9 @@ void makeParsimonyTreeFast(tree *tr, analdef *adef, boolean full)
     }
   while(randomMP < startMP);
   
-  /*printf("OPT: %d\n", tr->bestParsimony);*/
+  /*printf("OPT: %d %f\n", tr->bestParsimony, gettime() - t);*/
+
+  
      
   free(perm);  
   free(tr->parsimonyScore);
@@ -2196,3 +2213,14 @@ void makeParsimonyTreeIncomplete(tree *tr, analdef *adef)
 }
  
 
+#ifdef __AVX
+
+#ifdef _SSE3_WAS_DEFINED
+
+#define __SIM_SSE3
+
+#undef _SSE3_WAS_DEFINED
+
+#endif
+
+#endif

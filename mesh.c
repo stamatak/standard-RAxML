@@ -50,6 +50,8 @@ extern double masterTime;
 extern char run_id[128];
 extern char  workdir[1024];
 
+int terraceCounter = 0;
+
 
 static void findNextRec(nodeptr p, tree *tr, int *count, nodeptr *nodes, int depth)
 {
@@ -269,78 +271,36 @@ static int sanityCheckRec(tree *tr, nodeptr p, int model)
 
 
 
-static void recAssign(tree *tr, int model, size_t entries, size_t width, nodeptr p)
-{
-  if(isTip(p->number, tr->mxtips))
-    {
-      assert(p->isPresent[model / MASK_LENGTH] & mask32[model % MASK_LENGTH]);
-    }
-  else
-    {
-      nodeptr q;
-
-      /* assign xVector, and conditional scaling array */
-      
-      assert(p->backs[model]);
-
-      q = p->next;
-
-      tr->partitionData[model].xVector[p->number - tr->mxtips -1] = (double*)malloc_aligned(sizeof(double) * entries, 16);
-
-      if(!tr->useFastScaling)
-	tr->partitionData[model].expVector[p->number - tr->mxtips - 1] = (int *)malloc_aligned(sizeof(int) * width, 16);
-
-      while(q != p)
-	{
-	  assert(q->backs[model]);
-	  recAssign(tr, model, entries, width, q->backs[model]);
-	  q = q->next;
-	}
-
-    }
-}
 
 
-static void allocNodexMesh (tree *tr)
-{
-  size_t    
-    model;    
 
-  for(model = 0; model < (size_t)tr->NumberOfModels; model++)
-    {
-      size_t 
-	width = tr->partitionData[model].upper - tr->partitionData[model].lower,     
-	entries = (size_t)(tr->discreteRateCategories) * (size_t)(tr->partitionData[model].states) * width;      
-
-      recAssign(tr, model, entries, width, tr->startVector[model]->backs[model]);
-    } 
-}
 
 
 void setupPointerMesh(tree *tr)
 {
   if(tr->multiGene)
     {
-      int model;
+      int 
+	model;
       
       assert(isTip(tr->start->number, tr->mxtips));
-      /*printf("Global start at tip %d\n", tr->start->number);*/
       
+      /*printf("Global start at tip %d\n", tr->start->number);*/      
       /*initravPresence(tr->start->back, tr->mxtips);*/
       
       for(model = 0; model < tr->NumberOfModels; model++)
 	{ 
-	  int branchCounter = 0;
+	  int 
+	    branchCounter = 0;
+	  
 	  assert(isTip(tr->startVector[model]->number, tr->mxtips));
 	  
 	  reduceTreeModelREC(tr->startVector[model]->back, tr->startVector[model], model, tr, &branchCounter);
 	  
 	  /*printf("Partition %d has %d branches\n", model, 2 * tr->mxtipsVector[model] - 3);*/
-	  assert(branchCounter == 2 * tr->mxtipsVector[model] - 3);
 	  
-	}
-      
-      allocNodexMesh(tr);
+	  assert(branchCounter == 2 * tr->mxtipsVector[model] - 3);	  
+	}            
     }
 }
 
@@ -652,9 +612,15 @@ static double lookupLikelihoodList(tree *tr, int model, int left, int right)
 
 static void testInsertBIG_MULTI (tree *tr, nodeptr p, nodeptr q)
 {
-  nodeptr  r; 
-  double likelihood = 0.0;
-  int model;
+  nodeptr  
+    r;
+  
+  double 
+    likelihood = 0.0;
+  
+  int
+    evalCount = 0,
+    model;
  
   r = q->back;                   
 
@@ -790,6 +756,7 @@ static void testInsertBIG_MULTI (tree *tr, nodeptr p, nodeptr q)
 
 			  localSmoothMulti(tr, tr->removeNodes[model], smoothings, model);
 			  partLH = evaluateGenericMulti(tr, qModel, model);
+			  evalCount++;
 			}
 		      else
 			{
@@ -797,6 +764,7 @@ static void testInsertBIG_MULTI (tree *tr, nodeptr p, nodeptr q)
 			  newviewGenericMulti(tr, qModel->backs[model], model);			  
 		      
 			  partLH = evaluateGenericMulti(tr, qModel, model);
+			  evalCount++;
 			}
 		      
 		      insertLikelihoodList(tr, model, rModel->number, qModel->number, partLH);
@@ -831,7 +799,10 @@ static void testInsertBIG_MULTI (tree *tr, nodeptr p, nodeptr q)
       tr->endLH = tr->likelihood;
       printBothOpen("%f %d %d\n", likelihood, tr->insertNode->number,  tr->removeNode->number);
     }        
-           
+
+  if(evalCount == 0)
+    terraceCounter++;
+
   return;   
 }
 
@@ -1173,9 +1144,13 @@ static void treeOptimizeRapidMesh(tree *tr, int mintrav, int maxtrav, analdef *a
 
   evaluateGenericInitrav(tr, tr->start);
 
-  printBothOpen("Done %f -> %f best insert at %d remove at %d\n", tr->likelihood, tr->endLH, tr->insertNode->number, tr->removeNode->number);
-    
-  executeInsert(tr);
+  if(tr->insertNode && tr->removeNode)
+    {
+      printBothOpen("Done %f -> %f best insert at %d remove at %d\n", tr->likelihood, tr->endLH, tr->insertNode->number, tr->removeNode->number);
+      executeInsert(tr);
+    }
+  else
+    printBothOpen("SPR moves did not yield an imporved tree\n");
   
   Tree2String(tr->tree_string, tr, tr->start->back, FALSE, TRUE, FALSE, 
 	      FALSE, FALSE, adef, NO_BRANCHES, FALSE, FALSE);
@@ -1208,11 +1183,15 @@ static void treeOptimizeRapidNoMesh(tree *tr, int mintrav, int maxtrav, analdef 
     }     
 
   evaluateGenericInitrav(tr, tr->start);
-
-  printBothOpen("Done %f -> %f best insert at %d remove at %d\n", tr->likelihood, tr->endLH, tr->insertNode->number, tr->removeNode->number);  
-
-  executeInsert(tr);
-
+  
+  if(tr->insertNode && tr->removeNode)
+    {
+      printBothOpen("Done %f -> %f best insert at %d remove at %d\n", tr->likelihood, tr->endLH, tr->insertNode->number, tr->removeNode->number);
+      executeInsert(tr);
+    }
+  else
+    printBothOpen("SPR moves did not yield an imporved tree\n");
+ 
   Tree2String(tr->tree_string, tr, tr->start->back, FALSE, TRUE, FALSE, 
 	      FALSE, FALSE, adef, NO_BRANCHES, FALSE, FALSE); 
 
@@ -1247,12 +1226,12 @@ void meshTreeSearch(tree *tr, analdef *adef, int thorough)
 
   t = gettime();
   modOpt(tr, adef, FALSE, 5.0, FALSE);
-  printBothOpen("Model optimization time: %f\n", gettime() - t);
+  printBothOpen("Model optimization time: %f %f\n", gettime() - t, tr->likelihood);
 
   t = gettime();
   
   evaluateGenericInitrav(tr, tr->start);
-  
+
   for(model = 0; model < tr->NumberOfModels; model++)
     {            
       tr->likelihoodList[model] = (lhList *)malloc(sizeof(lhList));
@@ -1264,8 +1243,13 @@ void meshTreeSearch(tree *tr, analdef *adef, int thorough)
       lh += tr->storedPerPartitionLH[model];
     } 
       
+ 
+
   if(tr->multiGene)
-    treeOptimizeRapidMesh(tr, 1, 10, adef, fileName);
+    {
+      treeOptimizeRapidMesh(tr, 1, 10, adef, fileName);
+      printBothOpen("Number of terrace moves encountered during SPR: %d\n", terraceCounter);
+    }
   else
     treeOptimizeRapidNoMesh(tr, 1, 10, adef, fileName);
 

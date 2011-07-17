@@ -110,6 +110,18 @@ void *malloc_aligned(size_t size, size_t align)
   if(res != 0) 
     assert(0);
 #endif 
+
+  /*
+    to ensure that the allocated pages are mapped 
+    correctly on the distributed shared memory system:
+
+    for(i=0; i<N; i++) 
+    // or i+=PAGE_SIZE
+    huge[i] = 0.0; // mapping takes place here!
+    
+
+   */
+
    
   return ptr;
 }
@@ -2654,12 +2666,11 @@ static void allocPartitions(tree *tr)
       tr->partitionData[i].yVector = (unsigned char **)malloc(sizeof(unsigned char*) * (tr->mxtips + 1));
 
            
-      tr->partitionData[i].xVector = (double **)malloc(sizeof(double*) * tr->innerNodes);
-      if(tr->saveMemory)
-	tr->partitionData[i].xSpaceVector = (int *)calloc(tr->innerNodes, sizeof(int));	
-     
-      if(!tr->useFastScaling)
-	tr->partitionData[i].expVector = (int **)malloc(sizeof(int*) * tr->innerNodes);
+      tr->partitionData[i].xVector = (double **)malloc(sizeof(double*) * tr->innerNodes);     
+      tr->partitionData[i].xSpaceVector = (size_t *)calloc(tr->innerNodes, sizeof(size_t));	
+           
+      tr->partitionData[i].expVector      = (int **)malloc(sizeof(int*) * tr->innerNodes);
+      tr->partitionData[i].expSpaceVector = (size_t *)calloc(tr->innerNodes, sizeof(size_t));
 
       tr->partitionData[i].mxtips  = tr->mxtips;
 
@@ -2691,89 +2702,55 @@ static void allocNodex (tree *tr)
     model,
     offset,
     memoryRequirements = 0;
-  int    
-    *expArray = (int*)NULL;
-
-  double *likelihoodArray = (double*)NULL;
- 
 
   allocPartitions(tr);
 
-
-
   for(model = 0; model < (size_t)tr->NumberOfModels; model++)
     {
-      size_t width = tr->partitionData[model].upper - tr->partitionData[model].lower;
+      size_t 
+	width = tr->partitionData[model].upper - tr->partitionData[model].lower;
 
-      memoryRequirements += (size_t)(tr->discreteRateCategories) * (size_t)(tr->partitionData[model].states) * width;  
+      int 
+	undetermined, 
+	j;
+
+      memoryRequirements += (size_t)(tr->discreteRateCategories) * (size_t)(tr->partitionData[model].states) * width;              
+	
+      tr->partitionData[model].gapVectorLength = ((int)width / 32) + 1;
       
-      {
-	int 
-	  undetermined, 
-	  j;
-	
-	tr->partitionData[model].gapVectorLength = ((int)width / 32) + 1;
-	
-	tr->partitionData[model].gapVector = (unsigned int*)calloc(tr->partitionData[model].gapVectorLength * 2 * tr->mxtips, sizeof(unsigned int));
+      tr->partitionData[model].gapVector = (unsigned int*)calloc(tr->partitionData[model].gapVectorLength * 2 * tr->mxtips, sizeof(unsigned int));
 
 
-	tr->partitionData[model].initialGapVectorSize = tr->partitionData[model].gapVectorLength * 2 * tr->mxtips * sizeof(int);
+      tr->partitionData[model].initialGapVectorSize = tr->partitionData[model].gapVectorLength * 2 * tr->mxtips * sizeof(int);
 	
-	tr->partitionData[model].gapColumn = (double *)malloc_aligned(((size_t)tr->innerNodes) *
-								      ((size_t)(tr->discreteRateCategories)) * 
-								      ((size_t)(tr->partitionData[model].states)) *
-								      sizeof(double), 16);		  		
+      tr->partitionData[model].gapColumn = (double *)malloc_aligned(((size_t)tr->innerNodes) *
+								    ((size_t)(tr->discreteRateCategories)) * 
+								    ((size_t)(tr->partitionData[model].states)) *
+								    sizeof(double), 16);		  		
 	
-	undetermined = getUndetermined(tr->partitionData[model].dataType);
+      undetermined = getUndetermined(tr->partitionData[model].dataType);
 
-	for(j = 1; j <= tr->mxtips; j++)
-	  for(i = 0; i < width; i++)
-	    if(tr->partitionData[model].yVector[j][i] == undetermined)
-	      tr->partitionData[model].gapVector[tr->partitionData[model].gapVectorLength * j + i / 32] |= mask32[i % 32];
-      }
- 
+      for(j = 1; j <= tr->mxtips; j++)
+	for(i = 0; i < width; i++)
+	  if(tr->partitionData[model].yVector[j][i] == undetermined)
+	    tr->partitionData[model].gapVector[tr->partitionData[model].gapVectorLength * j + i / 32] |= mask32[i % 32];      
     }
 
   tr->perSiteLL       = (double *)malloc((size_t)tr->cdta->endsite * sizeof(double));
   assert(tr->perSiteLL != NULL);
 
- 
-  
-
-  if(!tr->multiGene)
-    {      
-      if(!tr->saveMemory)
-	{	 
-
-	  likelihoodArray = (double *)malloc_aligned(tr->innerNodes * memoryRequirements * sizeof(double), 16);
-	  assert(likelihoodArray != NULL);
-	}	 
-    }
-  
-  if(!tr->multiGene)
-    {
-      if(!tr->useFastScaling)
-	{
-	  expArray = (int *)malloc(((size_t)tr->cdta->endsite) * tr->innerNodes * sizeof(int));
-	  assert(expArray != NULL);
-	}
-    }
-
- 
   tr->sumBuffer  = (double *)malloc_aligned(memoryRequirements * sizeof(double), 16);
   assert(tr->sumBuffer != NULL);
  
-
- 
-
   offset = 0;
 
   /* C-OPT for initial testing tr->NumberOfModels will be 1 */
 
   for(model = 0; model < (size_t)tr->NumberOfModels; model++)
     {
-      size_t lower = tr->partitionData[model].lower;
-      size_t width = tr->partitionData[model].upper - lower;
+      size_t 
+	lower = tr->partitionData[model].lower,
+	width = tr->partitionData[model].upper - lower;
 
       /* TODO all of this must be reset/adapted when fixModelIndices is called ! */
 
@@ -2791,28 +2768,15 @@ static void allocNodex (tree *tr)
       offset += (size_t)(tr->discreteRateCategories) * (size_t)(tr->partitionData[model].states) * width;      
     }
 
-
-
   for(i = 0; i < tr->innerNodes; i++)
-    {
-      offset = 0;
-
+    {     
       for(model = 0; model < (size_t)tr->NumberOfModels; model++)
 	{
-	  size_t width = tr->partitionData[model].upper - tr->partitionData[model].lower;
-
-	  if(!tr->multiGene)
-	    {
-	      if(!tr->useFastScaling)
-		tr->partitionData[model].expVector[i] = &expArray[i * ((size_t)tr->cdta->endsite) + ((size_t)tr->partitionData[model].lower)];	    
-	  	      
-	      if(tr->saveMemory)		
-		tr->partitionData[model].xVector[i]   = (double*)NULL;		  		
-	      else		    		
-		tr->partitionData[model].xVector[i]   = &likelihoodArray[i * memoryRequirements + offset];		  		      		      		  	    
-	    }
-
-	  offset += (size_t)(tr->discreteRateCategories) * (size_t)(tr->partitionData[model].states) * width;	 
+	  size_t 
+	    width = tr->partitionData[model].upper - tr->partitionData[model].lower;
+	  
+	  tr->partitionData[model].expVector[i] = (int*)NULL;
+	  tr->partitionData[model].xVector[i]   = (double*)NULL;		  			      		  		      		      		  	    	    	  	 
 	}
     }
 }
@@ -3481,7 +3445,7 @@ static void printREADME(void)
   printf("      [-g groupingFileName] [-G placementThreshold] [-h]\n");
   printf("      [-i initialRearrangementSetting] [-I autoFC|autoMR|autoMRE|autoMRE_IGN]\n");
   printf("      [-j] [-J MR|MR_DROP|MRE|STRICT|STRICT_DROP] [-k] [-K] [-M]\n");
-  printf("      [-o outGroupName1[,outGroupName2[,...]]] [-O checkPointInterval]\n");
+  printf("      [-o outGroupName1[,outGroupName2[,...]]]\n");
   printf("      [-p parsimonyRandomSeed] [-P proteinModel]\n");
   printf("      [-q multipleModelFileName] [-r binaryConstraintTree]\n");
   printf("      [-R binaryModelParamFile] [-S secondaryStructureFile] [-t userStartingTree]\n");
@@ -3671,14 +3635,7 @@ static void printREADME(void)
   printf("\n");
   printf("      -o      Specify the name of a single outgrpoup or a comma-separated list of outgroups, eg \"-o Rat\" \n");
   printf("              or \"-o Rat,Mouse\", in case that multiple outgroups are not monophyletic the first name \n");
-  printf("              in the list will be selected as outgroup, don't leave spaces between taxon names!\n");
-  printf("\n");  
-  printf("      -O      Enable checkpointing using the dmtcp library available at http://dmtcp.sourceforge.net/\n");
-  printf("              This only works if you call the program by preceded by the command \"dmtcp_checkpoint\"\n");
-  printf("              and if you compile a dedicated binary using the appropriate Makefile.\n");
-  printf("              With \"-O\" you can specify the interval between checkpoints in seconds.\n");
-  printf("\n");
-  printf("              DEFAULT: 3600.0 seconds\n");
+  printf("              in the list will be selected as outgroup, don't leave spaces between taxon names!\n"); 
   printf("\n");
   printf("      -p      Specify a random number seed for the parsimony inferences. This allows you to reproduce your results\n");
   printf("              and will help me debug the program.\n");
@@ -3856,7 +3813,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 
 
   while(!bad_opt &&
-	((c = mygetopt(argc,argv,"R:O:T:E:N:B:L:P:S:A:G:H:I:J:K:W:l:x:z:g:r:e:a:b:c:f:i:m:t:w:s:n:o:q:#:p:vdyjhkMDFCQU", &optind, &optarg))!=-1))
+	((c = mygetopt(argc,argv,"R:T:E:N:B:L:P:S:A:G:H:I:J:K:W:l:x:z:g:r:e:a:b:c:f:i:m:t:w:s:n:o:q:#:p:vdyjhkMDFCQU", &optind, &optarg))!=-1))
     {
     switch(c)
       {
@@ -3884,11 +3841,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
       case 'R':
 	adef->useBinaryModelFile = TRUE;
 	strcpy(binaryModelParamsInputFileName, optarg);
-	break;     
-      case 'O':
-	assert(0);
-	
-	break;
+	break;          
       case 'K':
 	{
 	  const char *modelList[3] = { "ORDERED", "MK", "GTR"};
@@ -5876,15 +5829,9 @@ static void threadFixModelIndices(tree *tr, tree *localTree, int tid, int n)
   computeFraction(localTree, tid, n);
 
   for(model = 0, offset = 0, countOffset = 0; model < (size_t)localTree->NumberOfModels; model++)
-    {
-      
-     
-      localTree->partitionData[model].sumBuffer       = &localTree->sumBuffer[offset];
-      
-
-
+    {           
+      localTree->partitionData[model].sumBuffer    = &localTree->sumBuffer[offset];      
       localTree->partitionData[model].perSiteLL    = &localTree->perSiteLLPtr[countOffset];          
-
       localTree->partitionData[model].wgt          = &localTree->wgtPtr[countOffset];
       localTree->partitionData[model].invariant    = &localTree->invariantPtr[countOffset];
       localTree->partitionData[model].rateCategory = &localTree->rateCategoryPtr[countOffset];     
@@ -5910,29 +5857,7 @@ static void threadFixModelIndices(tree *tr, tree *localTree, int tid, int n)
       assert(countOffset == myLength);
     }
 
-  for(i = 0; i < (size_t)localTree->innerNodes; i++)
-    {
-      for(model = 0, offset = 0, countOffset = 0; model < (size_t)localTree->NumberOfModels; model++)
-	{
-	  size_t width = localTree->partitionData[model].width;
-
-	  if(!tr->useFastScaling)	  
-	    localTree->partitionData[model].expVector[i] = &localTree->expArray[i * myLength + countOffset];
-
-	  /*localTree->partitionData[model].yVector[i+1]   = &localTree->y_ptr[i * myLength + countOffset];*/
-	  
-	  if(!localTree->saveMemory)	    
-	    localTree->partitionData[model].xVector[i]   = &localTree->likelihoodArray[i * memoryRequirements + offset];	      	 
-	  else	    
-	    localTree->partitionData[model].xVector[i]   = (double*)NULL;	     	    
-	  
-	  countOffset += width;
-
-	  offset += (size_t)(tr->discreteRateCategories) * (size_t)(tr->partitionData[model].states) * width;
-	  
-	}
-      assert(countOffset == myLength);
-    }
+ 
 
   for(model = 0, globalCounter = 0; model < (size_t)localTree->NumberOfModels; model++)
     {
@@ -6012,9 +5937,7 @@ static void initPartition(tree *tr, tree *localTree, int tid)
 
       localTree->cdta               = (cruncheddata*)malloc(sizeof(cruncheddata));
       localTree->cdta->patrat       = (double*)malloc(sizeof(double) * localTree->originalCrunchedLength);
-      localTree->cdta->patratStored = (double*)malloc(sizeof(double) * localTree->originalCrunchedLength);
-
-      
+      localTree->cdta->patratStored = (double*)malloc(sizeof(double) * localTree->originalCrunchedLength);      
 
       localTree->discreteRateCategories = tr->discreteRateCategories;     
 
@@ -6032,7 +5955,7 @@ static void initPartition(tree *tr, tree *localTree, int tid)
 	  localTree->executeModel[model]             = TRUE;
 	  localTree->perPartitionLH[model]           = 0.0;
 	  localTree->storedPerPartitionLH[model]     = 0.0;
-	  totalLength += (localTree->partitionData[model].upper -  localTree->partitionData[model].lower);
+	  totalLength += (localTree->partitionData[model].upper -  localTree->partitionData[model].lower);		  
 	}
 
       assert(totalLength == localTree->originalCrunchedLength);
@@ -6058,27 +5981,31 @@ static void allocNodex(tree *tr, int tid, int n)
 
   for(model = 0; model < (size_t)tr->NumberOfModels; model++)
     {
-      size_t width = tr->partitionData[model].width;
+      size_t 
+	width = tr->partitionData[model].width;
+
+      int 
+	i;
 
       myLength += width;
 
       memoryRequirements += (size_t)(tr->discreteRateCategories) * (size_t)(tr->partitionData[model].states) * width;
-
-      {		
-	tr->partitionData[model].gapVectorLength = ((int)width / 32) + 1;
-	
-	tr->partitionData[model].gapVector = (unsigned int*)calloc(tr->partitionData[model].gapVectorLength * 2 * tr->mxtips, sizeof(unsigned int));
-
-
-
-	tr->partitionData[model].initialGapVectorSize = tr->partitionData[model].gapVectorLength * 2 * tr->mxtips * sizeof(int);
-	
-	tr->partitionData[model].gapColumn = (double *)malloc_aligned(((size_t)tr->innerNodes) *
+     
+      tr->partitionData[model].gapVectorLength = ((int)width / 32) + 1;
+      
+      tr->partitionData[model].gapVector = (unsigned int*)calloc(tr->partitionData[model].gapVectorLength * 2 * tr->mxtips, sizeof(unsigned int));
+      
+      tr->partitionData[model].initialGapVectorSize = tr->partitionData[model].gapVectorLength * 2 * tr->mxtips * sizeof(int);
+      
+      tr->partitionData[model].gapColumn = (double *)malloc_aligned(((size_t)tr->innerNodes) *
 								      ((size_t)(tr->discreteRateCategories)) * 
 								      ((size_t)(tr->partitionData[model].states)) *
-								      sizeof(double), 16);		        
-      }
-      
+								      sizeof(double), 16);		             
+      for(i = 0; i < tr->innerNodes; i++)
+	{
+	  tr->partitionData[model].xVector[i]   = (double*)NULL;     
+	  tr->partitionData[model].expVector[i]   = (int*)NULL;
+	}
     }
 
   if(tid == 0)
@@ -6086,34 +6013,15 @@ static void allocNodex(tree *tr, int tid, int n)
       tr->perSiteLL       = (double *)malloc((size_t)tr->cdta->endsite * sizeof(double));
       assert(tr->perSiteLL != NULL);
     }
-
-  
-  if(!tr->saveMemory)
-    {
-      tr->likelihoodArray = (double *)malloc_aligned(tr->innerNodes * memoryRequirements * sizeof(double), 16);
-      assert(tr->likelihoodArray != NULL);
-    }
-  else
-    tr->likelihoodArray = (double *)NULL;	
-
-
-  if(!tr->useFastScaling)
-    {
-      tr->expArray = (int *)malloc(myLength * tr->innerNodes * sizeof(int));
-      assert(tr->expArray != NULL);
-    }
-
   
   tr->sumBuffer  = (double *)malloc_aligned(memoryRequirements * sizeof(double), 16);
   assert(tr->sumBuffer != NULL);
    
-
   tr->y_ptr = (unsigned char *)malloc(myLength * (size_t)(tr->mxtips) * sizeof(unsigned char));
   assert(tr->y_ptr != NULL);  
 
   tr->perSiteLLPtr     = (double*) malloc(myLength * sizeof(double));
-
- 
+  assert(tr->perSiteLLPtr != NULL);
 
   tr->wgtPtr           = (int*)    malloc(myLength * sizeof(int));
   assert(tr->wgtPtr != NULL);  
