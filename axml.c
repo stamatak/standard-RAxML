@@ -4811,6 +4811,29 @@ static void makeFileNames(void)
 /********************PRINTING various INFO **************************************/
 
 
+void printBaseFrequencies(tree *tr, analdef *adef)
+{
+  if(processID == 0)
+    {
+      int 
+	model,
+	states;
+
+      for(model = 0; model < tr->NumberOfModels; model++)
+	{
+	  int i;
+
+	  printBothOpen("Partition: %d with name: %s\n", model, tr->partitionData[model].partitionName);
+	  printBothOpen("Base frequencies: ");
+	  
+	  for(i = 0; i < tr->partitionData[model].states; i++)
+	    printBothOpen("%1.3f ", tr->partitionData[model].frequencies[i]);
+	  
+	  printBothOpen("\n\n");
+	}	      
+    }
+}
+
 static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *argv[])
 {
   if(processID == 0)
@@ -5003,12 +5026,12 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
 		  if(tr->partitionData[model].protModels != PROT_FILE)
 		    {		     		     
 		      printBoth(infoFile, "Substitution Matrix: %s\n", protModels[tr->partitionData[model].protModels]);		      
-		      printBoth(infoFile, "%s Base Frequencies:\n", (tr->partitionData[model].usePredefinedProtFreqs == TRUE)?"Fixed":"Empirical");		   
+		      printBoth(infoFile, "Using %s base frequencies\n", (tr->partitionData[model].usePredefinedProtFreqs == TRUE)?"fixed":"empirical");		      
 		    }
 		  else
 		    {
 		       printBoth(infoFile, "Substitution Matrix File name: %s\n", tr->partitionData[model].proteinSubstitutionFileName);
-		       printBoth(infoFile, "Base Frequencies: as provided in the model file\n");
+		       printBoth(infoFile, "Using base frequencies as provided in the model file\n");
 		    }
 		  break;
 		case BINARY_DATA:
@@ -8321,19 +8344,13 @@ int main (int argc, char *argv[])
 	doBootstrap(tr, adef, rdta, cdta);
       else
 	{
-
 	  if(adef->rapidBoot)
 	    {
 	      initModel(tr, rdta, cdta, adef);
-
 	      doAllInOne(tr, adef);
 	    }
-	  else
-	    {
-	    
-	      doInference(tr, adef, rdta, cdta);
-	     
-	    }
+	  else	    	    
+	    doInference(tr, adef, rdta, cdta);	     	
 	}
       break;
     case MORPH_CALIBRATOR:

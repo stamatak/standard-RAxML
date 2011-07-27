@@ -1398,7 +1398,10 @@ void doInference(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
          
       loopTime = gettime();
                                              
-      initModel(tr, rdta, cdta, adef);      
+      initModel(tr, rdta, cdta, adef); 
+
+      if(i == 0)
+	printBaseFrequencies(tr, adef);
      
       getStartingTree(tr, adef); 
 

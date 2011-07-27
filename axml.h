@@ -1208,7 +1208,7 @@ extern void calculateModelOffsets(tree *tr);
 extern void gammaToCat(tree *tr);
 extern void catToGamma(tree *tr, analdef *adef);
 extern void handleExcludeFile(tree *tr, analdef *adef, rawdata *rdta);
-
+extern void printBaseFrequencies(tree *tr, analdef *adef);
 extern nodeptr findAnyTip(nodeptr p, int numsp);
 
 extern void parseProteinModel(double *externalAAMatrix, char *fileName);

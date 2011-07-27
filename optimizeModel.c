@@ -2313,8 +2313,8 @@ static void printAAmatrix(tree *tr, double epsilon)
 	  if(tr->partitionData[model].dataType == AA_DATA) 
 	    {
 	      char 
-		gtrFileName[1024],
-		epsilonStr[1024];
+		gtrFileName[1024];
+		/*epsilonStr[1024];*/
 	      
 	      FILE 
 		*gtrFile;
@@ -2331,13 +2331,17 @@ static void printAAmatrix(tree *tr, double epsilon)
 
 	      assert(tr->partitionData[model].protModels == GTR || tr->partitionData[model].protModels == GTR_UNLINKED);
 
-	      sprintf(epsilonStr, "%f", epsilon);
+	      /*sprintf(epsilonStr, "%f", epsilon);*/
 
 	      strcpy(gtrFileName, workdir);
 	      strcat(gtrFileName, "RAxML_proteinGTRmodel.");
 	      strcat(gtrFileName, run_id);
-	      strcat(gtrFileName, "_");
-	      strcat(gtrFileName, epsilonStr);
+	      
+	      /*
+		strcat(gtrFileName, "_");
+		strcat(gtrFileName, epsilonStr);
+	      */
+	      
 	      strcat(gtrFileName, "_Partition_");
 	      strcat(gtrFileName, tr->partitionData[model].partitionName);
 
@@ -2374,9 +2378,9 @@ static void printAAmatrix(tree *tr, double epsilon)
 	      fclose(gtrFile);
 	      
 	      if(tr->partitionData[model].protModels == GTR)
-		printBothOpen("\nPrinted intermediate linked AA GTR substitution matrix of partition %s to file %s\n\n", tr->partitionData[model].partitionName, gtrFileName);	      	    
+		printBothOpen("\nPrinted linked AA GTR matrix that achieved an overall improvement of %f log likelihood units for partition %s to file %s\n\n", epsilon, tr->partitionData[model].partitionName, gtrFileName);	      	    
 	      else
-		printBothOpen("\nPrinted intermediate unlinked AA GTR substitution matrix of partition %s to file %s\n\n", tr->partitionData[model].partitionName, gtrFileName);
+		printBothOpen("\nPrinted unlinked AA GTR matrix that achieved an overall improvement of %f log likelihood units for partition %s to file %s\n\n", epsilon, tr->partitionData[model].partitionName, gtrFileName);
 	    }
 
 	}	  
