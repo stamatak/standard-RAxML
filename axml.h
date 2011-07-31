@@ -696,7 +696,6 @@ typedef  struct  {
   double           zDown[NUM_BRANCHES];
 
   boolean          useFastScaling;
-  boolean          usePerSiteAA;
  
   branchInfo	   *bInf;
 
