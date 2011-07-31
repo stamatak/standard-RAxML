@@ -967,6 +967,83 @@ static void coreGammaFlex(double *gammaRates, double *EIGN, double *sumtable, in
   *ext_dlnLdlz   = dlnLdlz;
   *ext_d2lnLdlz2 = d2lnLdlz2;
 }
+static void coreGammaFlex_perSite(siteAAModels *siteProtModel, int* perSiteAA, double *gammaRates, double *sumtable, int upper, int *wrptr,
+				  volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double lz, const int numStates)
+{
+  double  
+    *sum, 
+    dlnLdlz = 0.0,
+    d2lnLdlz2 = 0.0,
+    ki, 
+    kisqr,
+    tmp,
+    inv_Li, 
+    dlnLidlz, 
+    d2lnLidlz2;
+
+  int
+    p,
+    i, 
+    j, 
+    l;  
+
+  const int 
+    gammaStates = 4 * numStates;
+
+  for(p = 0; p < (NUM_PROT_MODELS - 3); p++)
+    {
+      double 
+	*diagptable = siteProtModel[p].left,
+	*EIGN       = siteProtModel[p].EIGN;
+
+      for(i = 0; i < 4; i++)
+	{
+	  ki = gammaRates[i];
+	  kisqr = ki * ki;
+	  
+	  for(l = 1; l < numStates; l++)
+	    {
+	      diagptable[i * gammaStates + l * 4]     = EXP(EIGN[l-1] * ki * lz);
+	      diagptable[i * gammaStates + l * 4 + 1] = EIGN[l-1] * ki;
+	      diagptable[i * gammaStates + l * 4 + 2] = EIGN[l-1] * EIGN[l-1] * kisqr;
+	    }
+	}
+    }
+
+  for (i = 0; i < upper; i++)
+    {
+      double 
+	*diagptable =  siteProtModel[perSiteAA[i]].left;
+
+      sum = &sumtable[i * gammaStates];
+      inv_Li   = 0.0;
+      dlnLidlz = 0.0;
+      d2lnLidlz2 = 0.0;
+
+      for(j = 0; j < 4; j++)
+	{
+	  inv_Li += sum[j * numStates];
+
+	  for(l = 1; l < numStates; l++)
+	    {
+	      inv_Li     += (tmp = diagptable[j * gammaStates + l * 4] * sum[j * numStates + l]);
+	      dlnLidlz   +=  tmp * diagptable[j * gammaStates + l * 4 + 1];
+	      d2lnLidlz2 +=  tmp * diagptable[j * gammaStates + l * 4 + 2];
+	    }
+	}
+
+      inv_Li = 1.0 / inv_Li;
+
+      dlnLidlz   *= inv_Li;
+      d2lnLidlz2 *= inv_Li;
+
+      dlnLdlz   += wrptr[i] * dlnLidlz;
+      d2lnLdlz2 += wrptr[i] * (d2lnLidlz2 - dlnLidlz * dlnLidlz);
+    }
+
+  *ext_dlnLdlz   = dlnLdlz;
+  *ext_d2lnLdlz2 = d2lnLdlz2;
+}
 
 
 static void coreGammaInvarFlex(double *gammaRates, double *EIGN, double *sumtable, int upper, int *wrptr,
@@ -2354,6 +2431,74 @@ static void sumGammaFlex(int tipCase, double *sumtable, double *x1, double *x2, 
     }
 }
 
+
+static void sumGammaFlex_perSite(int *perSiteAA,
+				 siteAAModels *siteProtModel,
+				 int tipCase, double *sumtable, double *x1, double *x2,
+				 unsigned char *tipX1, unsigned char *tipX2, int n, const int numStates)
+{
+  int i, l, k;
+  double *left, *right, *sum;
+
+  const int gammaStates = numStates * 4;
+
+  switch(tipCase)
+    {
+    case TIP_TIP:
+      for(i = 0; i < n; i++)
+	{
+	  double
+	    *tipVector = siteProtModel[perSiteAA[i]].tipVector;
+
+	  left  = &(tipVector[numStates * tipX1[i]]);
+	  right = &(tipVector[numStates * tipX2[i]]);
+
+	  for(l = 0; l < 4; l++)
+	    {
+	      sum = &sumtable[i * gammaStates + l * numStates];
+	      for(k = 0; k < numStates; k++)
+		sum[k] = left[k] * right[k];
+	    }
+	}
+      break;
+    case TIP_INNER:
+      for(i = 0; i < n; i++)
+	{ 
+	  double
+	    *tipVector = siteProtModel[perSiteAA[i]].tipVector;
+	  
+	  left = &(tipVector[numStates * tipX1[i]]);
+
+	  for(l = 0; l < 4; l++)
+	    {
+	      right = &(x2[gammaStates * i + l * numStates]);
+	      sum = &sumtable[i * gammaStates + l * numStates];
+
+	      for(k = 0; k < numStates; k++)
+		sum[k] = left[k] * right[k];
+	    }
+	}
+      break;
+    case INNER_INNER:
+      for(i = 0; i < n; i++)
+	{
+	  for(l = 0; l < 4; l++)
+	    {
+	      left  = &(x1[gammaStates * i + l * numStates]);
+	      right = &(x2[gammaStates * i + l * numStates]);
+	      sum   = &(sumtable[i * gammaStates + l * numStates]);
+
+	      for(k = 0; k < numStates; k++)
+		sum[k] = left[k] * right[k];
+	    }
+	}
+      break;
+    default:
+      assert(0);
+    }
+}
+
+
 static void sumGAMMASECONDARY(int tipCase, double *sumtable, double *x1, double *x2, double *tipVector,
 			      unsigned char *tipX1, unsigned char *tipX2, int n)
 {
@@ -3299,7 +3444,16 @@ void makenewzIterative(tree *tr)
 		  break;
 		case GAMMA:
 		case GAMMA_I:
-		 
+		  if(tr->estimatePerSiteAA)
+		    {
+		    
+		      sumGammaFlex_perSite(tr->partitionData[model].perSiteAAModel,
+					   tr->siteProtModel,
+					   tipCase, tr->partitionData[model].sumBuffer, x1_start, x2_start,
+					   tipX1, tipX2, width, 20);
+		      
+		    }
+		  else
 		    {
 		      if(tr->saveMemory)
 			sumGAMMAPROT_GAPPED_SAVE(tipCase, tr->partitionData[model].sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector, tipX1, tipX2,
@@ -3501,9 +3655,14 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 				     sumBuffer);
 		      break;
 		    case GAMMA:
-		      coreGTRGAMMAPROT(tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN,
-				       sumBuffer, width, tr->partitionData[model].wgt,
-				       &dlnLdlz, &d2lnLdlz2, lz);
+		      if(tr->estimatePerSiteAA)			
+			coreGammaFlex_perSite(tr->siteProtModel, tr->partitionData[model].perSiteAAModel, 
+					      tr->partitionData[model].gammaRates, sumBuffer, width, tr->partitionData[model].wgt,
+					      &dlnLdlz, &d2lnLdlz2, lz, 20);
+		      else
+			coreGTRGAMMAPROT(tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN,
+					 sumBuffer, width, tr->partitionData[model].wgt,
+					 &dlnLdlz, &d2lnLdlz2, lz);
 		      break;
 		    case GAMMA_I:
 		      coreGTRGAMMAPROTINVAR(tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN,

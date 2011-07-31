@@ -2625,12 +2625,21 @@ static void allocPartitions(tree *tr)
     i,
     maxCategories = tr->maxCategories;
 
+ 
+
+
   for(i = 0; i < tr->NumberOfModels; i++)
     {
       const partitionLengths *pl = getPartitionLengths(&(tr->partitionData[i]));
 
-      size_t 
+      size_t
+	k,
 	width = tr->partitionData[i].width;      
+
+      tr->partitionData[i].perSiteAAModel = (int *)malloc(sizeof(int) * width);
+      for(k = 0; k < width; k++)
+	tr->partitionData[i].perSiteAAModel[k] = WAG;
+      
 
       tr->partitionData[i].wr = (double *)malloc(sizeof(double) * width);
       tr->partitionData[i].wr2 = (double *)malloc(sizeof(double) * width);
@@ -2639,11 +2648,8 @@ static void allocPartitions(tree *tr)
 
       if(tr->useFastScaling)
 	{
-
 	  tr->partitionData[i].globalScaler    = (unsigned int *)calloc(2 * tr->mxtips, sizeof(unsigned int));  	  
 	}
-
-
 
       tr->partitionData[i].left              = (double *)malloc_aligned(pl->leftLength * maxCategories * sizeof(double), 16);
       tr->partitionData[i].right             = (double *)malloc_aligned(pl->rightLength * maxCategories * sizeof(double), 16);
@@ -3450,7 +3456,7 @@ static void printREADME(void)
   printf("      [-q multipleModelFileName] [-r binaryConstraintTree]\n");
   printf("      [-R binaryModelParamFile] [-S secondaryStructureFile] [-t userStartingTree]\n");
   printf("      [-T numberOfThreads] [-U] [-v] [-w outputDirectory] [-W slidingWindowSize]\n");
-  printf("      [-x rapidBootstrapRandomNumberSeed] [-y]\n");
+  printf("      [-x rapidBootstrapRandomNumberSeed] [-X] [-y]\n");
   printf("      [-z multipleTreesFile] [-#|-N numberOfRuns|autoFC|autoMR|autoMRE|autoMRE_IGN]\n");
   printf("\n");
   printf("      -a      Specify a column weight file name to assign individual weights to each column of \n");
@@ -3685,6 +3691,14 @@ static void printREADME(void)
   printf("              CAUTION: unlike in version 7.0.4 RAxML will conduct rapid BS replicates under \n");
   printf("              the model of rate heterogeneity you specified via \"-m\" and not by default under CAT\n");
   printf("\n");
+  printf("      -X      EXPERIMENTAL OPTION: This option will do a per-site estimate of protein substitution models\n");
+  printf("              by looping over all given, fixed models LG, WAG, JTT, etc and using their respective base frequencies to independently\n");
+  printf("              assign a prot subst. model to each site via ML optimization\n");
+  printf("              At present this option only works with the GTR+GAMMA model, unpartitioned datasets, and in the sequential\n");
+  printf("              version only.\n");
+  printf("\n");
+  printf("              DEFAULT: OFF\n");
+  printf("\n");
   printf("      -y      If you want to only compute a parsimony starting tree with RAxML specify \"-y\",\n");
   printf("              the program will exit after computation of the starting tree\n");
   printf("\n");
@@ -3808,15 +3822,20 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
   tr->multiStateModel  = GTR_MULTI_STATE;
   tr->useGappedImplementation = FALSE;
   tr->saveMemory = FALSE;
+  tr->estimatePerSiteAA = FALSE;
   
   /********* tr inits end*************/
 
 
   while(!bad_opt &&
-	((c = mygetopt(argc,argv,"R:T:E:N:B:L:P:S:A:G:H:I:J:K:W:l:x:z:g:r:e:a:b:c:f:i:m:t:w:s:n:o:q:#:p:vdyjhkMDFCQU", &optind, &optarg))!=-1))
+	((c = mygetopt(argc,argv,"R:T:E:N:B:L:P:S:A:G:H:I:J:K:W:l:x:z:g:r:e:a:b:c:f:i:m:t:w:s:n:o:q:#:p:vdyjhkMDFCQUX", &optind, &optarg))!=-1))
     {
     switch(c)
       {
+      case 'X':
+	tr->estimatePerSiteAA = TRUE;
+	tr->useFastScaling    = FALSE;
+	break;
       case 'W':
 	sscanf(optarg,"%d", &(adef->slidingWindowSize));
 	if(adef->slidingWindowSize <= 0)
@@ -7990,7 +8009,7 @@ void readBinaryModel(tree *tr)
 
 void testGapped(tree *tr)
 {
-  if(!tr->saveMemory && tr->rateHetModel == GAMMA && tr->useGappedImplementation == FALSE)
+  if((!tr->saveMemory) && (!tr->estimatePerSiteAA) && tr->rateHetModel == GAMMA && tr->useGappedImplementation == FALSE)
     {
       int 
 	i;

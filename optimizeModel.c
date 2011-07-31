@@ -57,7 +57,7 @@ extern char workdir[1024];
 extern char run_id[128];
 extern char lengthFileName[1024];
 extern char lengthFileNameModel[1024];
-
+extern char *protModels[NUM_PROT_MODELS];
 
 
 #ifdef _USE_PTHREADS
@@ -2489,8 +2489,7 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
       treeEvaluate(tr, 0.0625);                     	            
       
       switch(tr->rateHetModel)
-	{
-	  
+	{	  
 	case GAMMA_I:
 	  optAlpha(tr, modelEpsilon, alphaList);
 	  optInvar(tr, modelEpsilon, invarList); 	      	    	   	 
@@ -2513,7 +2512,65 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
 	  assert(0);
 	}       
 
+      if(tr->estimatePerSiteAA)
+	{
+	  int
+	    s,
+	    p,
+	    *modelAssignment = (int *)malloc(tr->cdta->endsite * sizeof(int));
 
+	  double 
+	    *bestScore = (double *)malloc(tr->cdta->endsite * sizeof(double));
+
+	  /*printf("enter: %f\n", tr->likelihood);*/
+
+	  for(s = 0; s < tr->cdta->endsite; s++)
+	    {
+	      modelAssignment[s] = -1;
+	      bestScore[s] = unlikely;
+	    }
+
+	  tr->estimatePerSiteAA = FALSE;
+
+	  for(p = 0; p < NUM_PROT_MODELS - 3; p++)
+	    {
+	      memcpy(tr->partitionData[0].EIGN,        tr->siteProtModel[p].EIGN,        sizeof(double) * 19);
+	      memcpy(tr->partitionData[0].EV,          tr->siteProtModel[p].EV,          sizeof(double) * 400);                
+	      memcpy(tr->partitionData[0].EI,          tr->siteProtModel[p].EI,          sizeof(double) * 380);
+	      memcpy(tr->partitionData[0].substRates,  tr->siteProtModel[p].substRates,  sizeof(double) * 190);        
+	      memcpy(tr->partitionData[0].frequencies, tr->siteProtModel[p].frequencies, sizeof(double) * 20);
+	      memcpy(tr->partitionData[0].tipVector,   tr->siteProtModel[p].tipVector,   sizeof(double) * 460);
+	      /* TODO at some point fix fracchange */
+	      onlyInitrav(tr, tr->start);     
+	      evaluateGenericVector(tr, tr->start);
+	      
+	      for(s = 0; s < tr->cdta->endsite; s++)
+		{
+		  if(tr->perSiteLL[s] > bestScore[s])
+		    {
+		      bestScore[s] = tr->perSiteLL[s];
+		      modelAssignment[s] = p;
+		    }
+		}
+	    }
+
+	  /*
+	    for(s = 0; s < tr->cdta->endsite; s++)
+	    printf("Site %d model %s\n", s, protModels[modelAssignment[s]]);
+	    printf("\n\n");
+	  */
+
+	  memcpy(tr->partitionData[0].perSiteAAModel, modelAssignment, tr->cdta->endsite * sizeof(int));
+	  tr->estimatePerSiteAA = TRUE;
+	  free(bestScore);
+	  free(modelAssignment);
+
+	  onlyInitrav(tr, tr->start); 	 	 
+	  treeEvaluate(tr, 0.1);
+	  /*evaluateGenericInitrav(tr, tr->start);*/
+	  /*printf("exit: %f\n", tr->likelihood);*/
+	  /*exit(0);*/
+	}
 
       printAAmatrix(tr, fabs(currentLikelihood - tr->likelihood));    
     }

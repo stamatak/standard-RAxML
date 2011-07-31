@@ -454,6 +454,83 @@ static double evaluateGammaFlex(int *ex1, int *ex2, int *wptr,
   return  sum;
 }
 
+static double evaluateGammaFlex_perSite(int *ex1, int *ex2, int *wptr,
+					double *x1, double *x2,  				       
+					unsigned char *tipX1, int n, 
+					int *perSiteAA,
+					siteAAModels *siteProtModel,
+					const boolean fastScaling, const int numStates)
+{
+  double   
+    sum = 0.0, 
+    term,
+    *left, 
+    *right;
+  
+  int     
+    i, 
+    j, 
+    l; 
+
+  const int 
+    gammaStates = numStates * 4;
+            
+  if(tipX1)
+    {                    
+      for (i = 0; i < n; i++) 
+	{
+	  double 
+	    *tipVector  = siteProtModel[perSiteAA[i]].tipVector,
+	    *diagptable = siteProtModel[perSiteAA[i]].left;
+	     
+	  left = &(tipVector[numStates * tipX1[i]]);	  	  
+	  
+	  for(j = 0, term = 0.0; j < 4; j++)
+	    {
+	      right = &(x2[gammaStates * i + numStates * j]);
+		  
+	      for(l = 0; l < numStates; l++)
+		term += left[l] * right[l] * diagptable[j * numStates + l];	      
+	    }
+	  
+	  if(fastScaling)
+	    term = LOG(0.25 * term);
+	  else
+	    term = LOG(0.25 * term) + (ex2[i] * LOG(minlikelihood));	   
+	  
+	  sum += wptr[i] * term;
+	}     	       
+    }              
+  else
+    {
+     
+      for (i = 0; i < n; i++) 
+	{	  
+	  double 	   
+	    *diagptable = siteProtModel[perSiteAA[i]].left;	 	             	  
+
+	  for(j = 0, term = 0.0; j < 4; j++)
+	    {
+	      left  = &(x1[gammaStates * i + numStates * j]);
+	      right = &(x2[gammaStates * i + numStates * j]);	    
+	      
+	      for(l = 0; l < numStates; l++)
+		term += left[l] * right[l] * diagptable[j * numStates + l];	
+	    }
+	  
+	  if(fastScaling)
+	    term = LOG(0.25 * term);
+	  else
+	    term = LOG(0.25 * term) + ((ex1[i] + ex2[i])*LOG(minlikelihood));
+	  
+	  sum += wptr[i] * term;
+	}         
+    }
+  
+  return  sum;
+}
+
+
 static double evaluateGammaInvarFlex (int *ex1, int *ex2, int *wptr, int *iptr,
 				      double *x1, double *x2, 
 				      double *tipVector,double *tFreqs, double invariants,
@@ -2780,7 +2857,9 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 		  }	     	      
 		  break;	      
 		case GAMMA:
-		  {
+		  {		    
+		    assert(!tr->estimatePerSiteAA);
+
 		    calcDiagptableFlex(z, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable, states);
 		     
 		    if(tr->useGappedImplementation)
@@ -2911,7 +2990,28 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 				     	      
 		      break;	      
 		    case GAMMA:
-		     
+		      if(tr->estimatePerSiteAA)
+			{ 
+			  int 
+			    p;
+			    
+			  for(p = 0; p < (NUM_PROT_MODELS - 3); p++)			    
+			    calcDiagptable(z, AA_DATA, 4, tr->partitionData[model].gammaRates, tr->siteProtModel[p].EIGN, tr->siteProtModel[p].left);
+
+			  partitionLikelihood = evaluateGammaFlex_perSite(ex1, 
+									  ex2, 
+									  tr->partitionData[model].wgt,
+									  x1_start, 
+									  x2_start,
+									  tip, 
+									  width,
+									  tr->partitionData[model].perSiteAAModel,
+									  tr->siteProtModel,
+									  tr->useFastScaling, 
+									  20);
+
+			}
+		      else
 			{
 			  calcDiagptable(z, AA_DATA, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable);
 #ifdef __SIM_SSE3

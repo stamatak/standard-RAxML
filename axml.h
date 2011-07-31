@@ -567,6 +567,7 @@ typedef struct {
 
   unsigned int    *globalScaler;
   double          *globalScalerDouble;
+  int    *perSiteAAModel;
   int    *wgt;
   int    *invariant;
   int    *rateCategory;
@@ -610,7 +611,24 @@ typedef struct List_{
   struct List_ *next; 
 } List;
 
+
+typedef struct {
+  double EIGN[19];             
+  double EV[400];                
+  double EI[380];
+  double substRates[190];        
+  double frequencies[20];      
+  double tipVector[460];
+  double fracchange[1];
+  double left[1600];
+  double right[1600];
+} siteAAModels;
+
 typedef  struct  {
+  siteAAModels siteProtModel[2 * (NUM_PROT_MODELS - 3)];
+
+  boolean estimatePerSiteAA;
+
   boolean useGappedImplementation;
   boolean saveMemory;
   
@@ -678,7 +696,7 @@ typedef  struct  {
   double           zDown[NUM_BRANCHES];
 
   boolean          useFastScaling;
-  
+  boolean          usePerSiteAA;
  
   branchInfo	   *bInf;
 
@@ -976,6 +994,7 @@ typedef  struct {
   boolean       leaveDropMode;
   int           slidingWindowSize;
 } analdef;
+
 
 typedef struct 
 {
