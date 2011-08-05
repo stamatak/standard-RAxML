@@ -124,15 +124,24 @@ extern const unsigned int mask32[32];
 /********************************DNA FUNCTIONS *****************************************************************/
 
 
+
 static void checkSeed(analdef *adef)
-{
-  if(adef->parsimonySeed <= 0)
+{ 
+  static boolean seedChecked = FALSE;
+
+  if(!seedChecked) 
     {
-      printf("Error: you need to specify a random number seed with \"-p\" for the randomized stepwise addition\n");
-      printf("parsimony algorithm such that runs can be reproduced and debugged ... exiting\n");      
-    }
+      /*printf("Checking seed\n");*/
+
+      if(adef->parsimonySeed <= 0)
+	{
+	  printf("Error: you need to specify a random number seed with \"-p\" for the randomized stepwise addition\n");
+	  printf("parsimony algorithm or random tree building algorithm such that runs can be reproduced and debugged ... exiting\n");      
+	}
   
-  assert(adef->parsimonySeed > 0);
+      assert(adef->parsimonySeed > 0);
+      seedChecked = TRUE;
+    }
 }
 
 static void getxnodeLocal (nodeptr p)
