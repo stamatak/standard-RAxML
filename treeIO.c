@@ -1229,11 +1229,17 @@ int treeReadLen (FILE *fp, tree *tr, boolean readBranches, boolean readNodeLabel
 		  printBothOpen("bifurcating starting trees\n");
 		  exit(-1);
 		}     
-	      if(adef->mode == CLASSIFY_ML)
+	      if(adef->mode == CLASSIFY_ML || adef->mode == CLASSIFY_MP)
 		{	 
-		  printBothOpen("RAxML classifier Algo: You provided a reference tree with %d taxa; alignmnet has %d taxa\n", tr->ntips, tr->mxtips);
-		  printBothOpen("%d query taxa will be classifed under ML\n", tr->mxtips - tr->ntips);
-		  classifyML(tr, adef);	  
+		  printBothOpen("RAxML placement algorithm: You provided a reference tree with %d taxa; alignmnet has %d taxa\n", tr->ntips, tr->mxtips);		  
+		  printBothOpen("%d query taxa will be placed using %s\n", tr->mxtips - tr->ntips, (adef->mode == CLASSIFY_ML)?"maximum likelihood":"parsimony");
+		  if(adef->mode == CLASSIFY_ML)
+		    classifyML(tr, adef);	  
+		  else
+		    {
+		      assert(adef->mode == CLASSIFY_MP);
+		      classifyMP(tr, adef);
+		    }
 		}
 	      else
 		{
@@ -1250,9 +1256,9 @@ int treeReadLen (FILE *fp, tree *tr, boolean readBranches, boolean readNodeLabel
 	      printBothOpen("you have provided an input tree that already contains all taxa\n");
 	      exit(-1);
 	    }
-	  if(adef->mode == CLASSIFY_ML)
+	  if(adef->mode == CLASSIFY_ML || adef->mode == CLASSIFY_MP)
 	    {
-	      printBothOpen("Error you want to classify query sequences into a tree via ML, but \n");
+	      printBothOpen("Error you want to place query sequences into a tree using %s, but\n", tr->mxtips - tr->ntips, (adef->mode == CLASSIFY_ML)?"maximum likelihood":"parsimony");
 	      printBothOpen("you have provided an input tree that already contains all taxa\n");
 	      exit(-1);
 	    }

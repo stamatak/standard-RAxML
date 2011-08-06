@@ -207,8 +207,8 @@ static char *Tree2StringClassifyRec(char *treestr, tree *tr, nodeptr p, int *cou
 
 
 
-static char *Tree2StringClassify(char *treestr, tree *tr, int *inserts, 
-				 boolean  originalTree, boolean jointLabels)
+char *Tree2StringClassify(char *treestr, tree *tr, int *inserts, 
+			  boolean  originalTree, boolean jointLabels)
 {
   nodeptr 
     p;
@@ -268,7 +268,7 @@ static char *Tree2StringClassify(char *treestr, tree *tr, int *inserts,
 
 
 
-static void markTips(nodeptr p, int *perm, int maxTips)
+void markTips(nodeptr p, int *perm, int maxTips)
 {
   if(isTip(p->number, maxTips))
     {
@@ -1305,6 +1305,9 @@ static void setupBranchInfo(tree *tr, nodeptr q)
 
   assert(count == tr->numberOfBranches);
 }
+
+
+
 
 static int infoCompare(const void *p1, const void *p2)
 {

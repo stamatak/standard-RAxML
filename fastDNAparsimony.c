@@ -119,7 +119,9 @@ extern const unsigned int mask32[32];
 #define BYTE_ALIGNMENT 16
 #endif
 
-
+extern double masterTime;
+extern char  workdir[1024];
+extern char run_id[128];
 
 /********************************DNA FUNCTIONS *****************************************************************/
 
@@ -1630,12 +1632,20 @@ static void reorderNodes(tree *tr, nodeptr *np, nodeptr p, int *count)
 
 
   
-static void compressDNA(tree *tr, int *informative)
+static void compressDNA(tree *tr, int *informative, boolean saveMemory)
 {
   size_t
+    totalNodes,
     i,
     model;
   
+  if(saveMemory)
+    totalNodes = (size_t)tr->innerNodes + 1 + (size_t)tr->mxtips;
+  else
+    totalNodes = 2 * (size_t)tr->mxtips;
+
+ 
+
   for(model = 0; model < (size_t) tr->NumberOfModels; model++)
     {
       size_t
@@ -1669,9 +1679,10 @@ static void compressDNA(tree *tr, int *informative)
       compressedEntriesPadded = compressedEntries;
 #endif     
 
-      tr->partitionData[model].parsVect = (parsimonyNumber *)malloc_aligned((size_t)compressedEntriesPadded * states * 2 * (size_t)tr->mxtips * sizeof(parsimonyNumber), BYTE_ALIGNMENT);
+      
+      tr->partitionData[model].parsVect = (parsimonyNumber *)malloc_aligned((size_t)compressedEntriesPadded * states * totalNodes * sizeof(parsimonyNumber), BYTE_ALIGNMENT);
      
-      for(i = 0; i < compressedEntriesPadded * states * 2 * (size_t)tr->mxtips; i++)      
+      for(i = 0; i < compressedEntriesPadded * states * totalNodes; i++)      
 	tr->partitionData[model].parsVect[i] = 0;          
 
       for(i = 0; i < (size_t)tr->mxtips; i++)
@@ -1745,9 +1756,9 @@ static void compressDNA(tree *tr, int *informative)
       free(compressedValues);
     }
   
-  tr->parsimonyScore = (unsigned int*)malloc_aligned(sizeof(unsigned int) * 2 * (size_t)tr->mxtips, BYTE_ALIGNMENT);  
+  tr->parsimonyScore = (unsigned int*)malloc_aligned(sizeof(unsigned int) * totalNodes, BYTE_ALIGNMENT);  
           
-  for(i = 0; i < 2 * (size_t)tr->mxtips; i++) 
+  for(i = 0; i < totalNodes; i++) 
     tr->parsimonyScore[i] = 0;
 }
 
@@ -1828,7 +1839,7 @@ void makeParsimonyTreeFast(tree *tr, analdef *adef, boolean full)
 
   determineUninformativeSites(tr, informative);     
 
-  compressDNA(tr, informative);
+  compressDNA(tr, informative, FALSE);
 
   free(informative); 
 
@@ -2221,6 +2232,457 @@ void makeParsimonyTreeIncomplete(tree *tr, analdef *adef)
   makeParsimonyTreeFast(tr, adef, FALSE);        
 }
  
+
+static void setupBranchMetaInfo(tree *tr, nodeptr p, int nTips, branchInfo *bInf)
+{
+  int 
+    countBranches = tr->branchCounter;
+
+  if(isTip(p->number, tr->mxtips))    
+    {      
+      p->bInf       = &bInf[countBranches];
+      p->back->bInf = &bInf[countBranches];               	      
+
+      bInf[countBranches].oP = p;
+      bInf[countBranches].oQ = p->back;
+      
+      bInf[countBranches].epa->leftNodeNumber = p->number;
+      bInf[countBranches].epa->rightNodeNumber = p->back->number;
+         
+      bInf[countBranches].epa->branchNumber = countBranches;	                 
+
+      tr->branchCounter =  tr->branchCounter + 1;
+      return;
+    }
+  else
+    {
+      nodeptr q;
+      assert(p == p->next->next->next);
+
+      p->bInf       = &bInf[countBranches];
+      p->back->bInf = &bInf[countBranches];
+
+      bInf[countBranches].oP = p;
+      bInf[countBranches].oQ = p->back;
+
+      bInf[countBranches].epa->leftNodeNumber = p->number;
+      bInf[countBranches].epa->rightNodeNumber = p->back->number;
+
+               
+      bInf[countBranches].epa->branchNumber = countBranches;
+
+      tr->branchCounter =  tr->branchCounter + 1;      
+
+      q = p->next;
+
+      while(q != p)
+	{
+	  setupBranchMetaInfo(tr, q->back, nTips, bInf);	
+	  q = q->next;
+	}
+     
+      return;
+    }
+}
+ 
+
+
+static void setupJointFormat(tree *tr, nodeptr p, int ntips, branchInfo *bInf, int *count)
+{
+  if(isTip(p->number, tr->mxtips))    
+    {      
+      p->bInf->epa->jointLabel = *count;
+      *count = *count + 1;
+           
+      return;
+    }
+  else
+    {                           
+      setupJointFormat(tr, p->next->back, ntips, bInf, count);            
+      setupJointFormat(tr, p->next->next->back, ntips, bInf, count);     
+      
+      p->bInf->epa->jointLabel = *count;
+      *count = *count + 1; 
+      
+      return;
+    }
+}
+ 
+
+
+
+
+
+static void setupBranchInfo(tree *tr, nodeptr q)
+{
+  nodeptr 
+    originalNode = tr->nodep[tr->mxtips + 1];
+
+  int 
+    count = 0;
+
+  tr->branchCounter = 0;
+
+  setupBranchMetaInfo(tr, q, tr->ntips, tr->bInf);
+    
+  assert(tr->branchCounter == tr->numberOfBranches);
+
+  if(tr->wasRooted)
+    {
+      assert(tr->leftRootNode->back == tr->rightRootNode);
+      assert(tr->leftRootNode       == tr->rightRootNode->back);      
+
+      if(!isTip(tr->leftRootNode->number, tr->mxtips))
+	{
+	  setupJointFormat(tr,  tr->leftRootNode->next->back, tr->ntips, tr->bInf, &count);
+	  setupJointFormat(tr,  tr->leftRootNode->next->next->back, tr->ntips, tr->bInf, &count);
+	}
+      
+       tr->leftRootNode->bInf->epa->jointLabel = count;
+       tr->rootLabel = count;
+       count = count + 1;
+
+       if(!isTip(tr->rightRootNode->number, tr->mxtips))
+	 {
+	  setupJointFormat(tr,  tr->rightRootNode->next->back, tr->ntips, tr->bInf, &count);
+	  setupJointFormat(tr,  tr->rightRootNode->next->next->back, tr->ntips, tr->bInf, &count);
+	}	       
+    }
+  else
+    {
+      setupJointFormat(tr, originalNode->back, tr->ntips, tr->bInf, &count);
+      setupJointFormat(tr, originalNode->next->back, tr->ntips, tr->bInf, &count);
+      setupJointFormat(tr, originalNode->next->next->back, tr->ntips, tr->bInf, &count);      
+    }  
+
+  assert(count == tr->numberOfBranches);
+}
+
+static void testInsertFast(tree *tr, nodeptr r, nodeptr q)
+{
+  unsigned int
+    result;
+  
+  nodeptr  
+    x = q->back;      
+  
+  int 
+    i,
+    *inserts = tr->inserts;
+    	           
+  assert(!tr->grouped);                             
+ 
+  hookupDefault(r->next,       q, tr->numBranches);
+  hookupDefault(r->next->next, x, tr->numBranches);	                         
+   
+  newviewParsimony(tr, r);   
+    
+  for(i = 0; i < tr->numberOfTipsForInsertion; i++)
+    {           	  	    
+      hookupDefault(r, tr->nodep[inserts[i]], tr->numBranches);
+      
+      tr->bestParsimony = INT_MAX;
+
+      result = evaluateParsimony(tr, r, FALSE);            
+      
+      r->back = (nodeptr) NULL;
+      tr->nodep[inserts[i]]->back = (nodeptr) NULL;
+      
+      tr->bInf[q->bInf->epa->branchNumber].epa->parsimonyScore[i] = result;	  	         
+    }
+ 
+  hookupDefault(q, x, tr->numBranches);
+  
+  r->next->next->back = r->next->back = (nodeptr) NULL;
+ 
+}
+
+
+static void traverseTree(tree *tr, nodeptr r, nodeptr q)
+{       
+  testInsertFast(tr, r, q);
+
+  if(!isTip(q->number, tr->rdta->numsp))
+    {   
+      nodeptr 
+	a = q->next;
+
+      while(a != q)
+	{
+	  traverseTree(tr, r, a->back);
+	  a = a->next;
+	}      
+    }
+} 
+
+
+
+typedef struct
+  {
+    unsigned int parsimonyScore;  
+    int number;
+  }
+  infoMP;
+
+
+static int infoCompare(const void *p1, const void *p2)
+{
+  infoMP *rc1 = (infoMP *)p1;
+  infoMP *rc2 = (infoMP *)p2;
+
+  unsigned int i = rc1->parsimonyScore;
+  unsigned int j = rc2->parsimonyScore;
+
+  if (i > j)
+    return (1);
+  if (i < j)
+    return (-1);
+  return (0);
+}
+
+void classifyMP(tree *tr, analdef *adef)
+{    
+  int  
+    *informative = (int *)malloc(sizeof(int) * (size_t)tr->cdta->endsite),
+    i, 
+    j,  
+    *perm;    
+  
+  infoMP
+    *inf;
+    
+  nodeptr     
+    r, 
+    q;    
+
+  char   
+    jointFormatTreeFileName[1024],  
+    originalLabelledTreeFileName[1024],
+    likelihoodWeightsFileName[1024];
+              
+  FILE    
+    *likelihoodWeightsFile,
+    *treeFile;
+  
+  unsigned int 
+    score;        
+
+  assert(adef->restart);
+
+  determineUninformativeSites(tr, informative);     
+
+  compressDNA(tr, informative, TRUE);
+
+  free(informative); 
+
+  tr->ti = (int*)malloc(sizeof(int) * 4 * (size_t)tr->mxtips);    
+  
+  tr->numberOfBranches = 2 * tr->ntips - 3;
+
+  printBothOpen("\nRAxML Evolutionary Placement Algorithm using parsimony\n"); 
+
+  tr->bestParsimony = INT_MAX;
+
+  score = evaluateParsimony(tr, tr->start->back, TRUE);
+
+  printBothOpen("\nparsimony score of reference tree: %u\n\n", score);
+
+  perm        = (int *)calloc(((size_t)tr->mxtips) + 1, sizeof(int));
+  tr->inserts = (int *)calloc((size_t)tr->mxtips,   sizeof(int));
+
+  markTips(tr->start,       perm, tr->mxtips);
+  markTips(tr->start->back, perm ,tr->mxtips);
+
+  tr->numberOfTipsForInsertion = 0;
+
+  for(i = 1; i <= tr->mxtips; i++)
+    {
+      if(perm[i] == 0)
+	{
+	  tr->inserts[tr->numberOfTipsForInsertion] = i;
+	  tr->numberOfTipsForInsertion = tr->numberOfTipsForInsertion + 1;
+	}
+    }    
+
+  free(perm);
+  
+  printBothOpen("RAxML will place %d Query Sequences into the %d branches of the reference tree with %d taxa\n\n",  tr->numberOfTipsForInsertion, (2 * tr->ntips - 3), tr->ntips);  
+
+  assert(tr->numberOfTipsForInsertion == (tr->mxtips - tr->ntips));      
+
+  tr->bInf              = (branchInfo*)malloc(tr->numberOfBranches * sizeof(branchInfo)); 
+
+  for(i = 0; i < tr->numberOfBranches; i++)
+    {      
+      tr->bInf[i].epa = (epaBranchData*)malloc(sizeof(epaBranchData));                    
+
+      tr->bInf[i].epa->parsimonyScore = (unsigned int*)malloc(tr->numberOfTipsForInsertion * sizeof(unsigned int));
+
+      for(j = 0; j < tr->numberOfTipsForInsertion; j++)
+	tr->bInf[i].epa->parsimonyScore[j] = INT_MAX;
+                
+      tr->bInf[i].epa->branchNumber = i;
+      
+      sprintf(tr->bInf[i].epa->branchLabel, "I%d", i);     
+    } 
+
+  r = tr->nodep[(tr->nextnode)++]; 
+    
+
+  q = findAnyTip(tr->start, tr->rdta->numsp);
+
+  assert(isTip(q->number, tr->rdta->numsp));
+  assert(!isTip(q->back->number, tr->rdta->numsp));
+	 
+  q = q->back; 
+  
+  setupBranchInfo(tr, q);   
+ 
+  traverseTree(tr, r, q);
+                   
+  printBothOpen("Overall Classification time: %f\n\n", gettime() - masterTime);	
+  
+  strcpy(likelihoodWeightsFileName,    workdir);
+  strcpy(jointFormatTreeFileName,      workdir);  
+  strcpy(originalLabelledTreeFileName, workdir);  
+ 
+  strcat(jointFormatTreeFileName,      "RAxML_portableTree."); 
+  strcat(originalLabelledTreeFileName, "RAxML_originalLabelledTree.");
+  strcat(likelihoodWeightsFileName,    "RAxML_equallyParsimoniousPlacements.");
+
+  strcat(likelihoodWeightsFileName,    run_id);
+  strcat(jointFormatTreeFileName,      run_id); 
+  strcat(originalLabelledTreeFileName, run_id);
+ 
+  strcat(jointFormatTreeFileName,      ".jplace");
+  
+  free(tr->tree_string);
+
+  tr->treeStringLength *= 16;
+
+  tr->tree_string  = (char*)calloc(tr->treeStringLength, sizeof(char));  
+  
+ 
+  treeFile = myfopen(originalLabelledTreeFileName, "wb");
+  Tree2StringClassify(tr->tree_string, tr, tr->inserts, TRUE, FALSE);
+  fprintf(treeFile, "%s\n", tr->tree_string);    
+  fclose(treeFile); 
+
+  treeFile = myfopen(jointFormatTreeFileName, "wb");
+  Tree2StringClassify(tr->tree_string, tr, tr->inserts, TRUE, TRUE);
+  
+  fprintf(treeFile, "{\n");
+  fprintf(treeFile, "\t\"tree\": \"%s\", \n", tr->tree_string);
+  fprintf(treeFile, "\t\"placements\": [\n");
+      
+
+  inf = (infoMP*)malloc(sizeof(infoMP) * tr->numberOfBranches); 
+  
+  /* joint format */
+        
+  
+
+  for(i = 0; i < tr->numberOfTipsForInsertion; i++)    
+    {
+      unsigned int
+	lmax;
+      
+      int 	   
+	validEntries = tr->numberOfBranches;
+      
+      for(j =  0; j < tr->numberOfBranches; j++) 
+	{
+	  inf[j].parsimonyScore = tr->bInf[j].epa->parsimonyScore[i];	  
+	  inf[j].number         = tr->bInf[j].epa->jointLabel;
+	}
+      
+      qsort(inf, tr->numberOfBranches, sizeof(infoMP), infoCompare);	            
+      
+      j = 0;
+      
+      lmax = inf[0].parsimonyScore;
+      
+      fprintf(treeFile, "\t{\"p\":[");
+      
+      while(j < validEntries && inf[j].parsimonyScore == lmax)	  
+	{ 	    
+	  if(j > 0)
+	    {
+	      if(tr->wasRooted && inf[j].number == tr->rootLabel)		  
+		assert(0);		 
+	      else
+		fprintf(treeFile, ",[%d, %u, %f, %f, %f]", inf[j].number, inf[j].parsimonyScore, 0.0, 0.0, 0.0);
+	    }
+	  else
+	    {
+	      if(tr->wasRooted && inf[j].number == tr->rootLabel)		  
+		assert(0);		  
+	      else
+		fprintf(treeFile, "[%d, %u, %f, %f, %f]", inf[j].number, inf[j].parsimonyScore, 0.0, 0.0, 0.0);
+	    }	  
+	  
+	  j++;
+	}
+      
+      if(i == tr->numberOfTipsForInsertion - 1)
+	fprintf(treeFile, "], \"n\":[\"%s\"]}\n", tr->nameList[tr->inserts[i]]);
+      else
+	fprintf(treeFile, "], \"n\":[\"%s\"]},\n", tr->nameList[tr->inserts[i]]);
+    }  
+    
+  fprintf(treeFile, "\t ],\n");
+  fprintf(treeFile, "\t\"metadata\": {\"invocation\": \"RAxML EPA parsimony\"},\n");
+  fprintf(treeFile, "\t\"version\": 1,\n");
+  fprintf(treeFile, "\t\"fields\": [\n");
+  fprintf(treeFile, "\t\"edge_num\", \"parsimony\", \"like_weight_ratio\", \"distal_length\", \n");
+  fprintf(treeFile, "\t\"pendant_length\"\n");
+  fprintf(treeFile, "\t]\n");
+  fprintf(treeFile, "}\n");
+  
+  fclose(treeFile);
+
+  /* JSON format end */ 
+           
+  likelihoodWeightsFile = myfopen(likelihoodWeightsFileName, "wb");
+ 
+        
+  for(i = 0; i < tr->numberOfTipsForInsertion; i++)    
+    {
+      unsigned int	 
+	lmax;
+	
+      int 
+	validEntries = tr->numberOfBranches;
+	
+      for(j =  0; j < tr->numberOfBranches; j++) 
+	{
+	  inf[j].parsimonyScore = tr->bInf[j].epa->parsimonyScore[i];
+	  inf[j].number = j;
+	}
+	
+      qsort(inf, tr->numberOfBranches, sizeof(infoMP), infoCompare);	 	     
+		
+      j = 0;
+      
+      lmax = inf[0].parsimonyScore;
+      
+      while(j < validEntries && inf[j].parsimonyScore == lmax)	  
+	{ 	   	    
+	  fprintf(likelihoodWeightsFile, "%s I%d %u\n", tr->nameList[tr->inserts[i]], inf[j].number, inf[j].parsimonyScore);	    
+	  j++;
+	}			      	   
+    }
+      
+  free(inf);
+   
+  fclose(likelihoodWeightsFile); 
+    
+  printBothOpen("Equally parsimonious read placements written to file: %s\n\n", likelihoodWeightsFileName);
+  printBothOpen("Labelled reference tree with branch labels (without query sequences) written to file: %s\n\n", originalLabelledTreeFileName); 
+  printBothOpen("Labelled reference tree with branch labels in portable pplacer/EPA format (without query sequences) written to file: %s\n\n", jointFormatTreeFileName);
+
+  exit(0);
+}
 
 #ifdef __AVX
 

@@ -3423,7 +3423,8 @@ static void printMinusFUsage(void)
   printf("                      starting tree or a user-defined tree passed via \"-t\", only allowed for GAMMA-based\n");
   printf("                      models of rate heterogeneity\n");
 
- 
+  printf("              \"-f y\": classify a bunch of environmental sequences into a reference tree using parsimony\n");
+  printf("                      you will need to start RAxML with a non-comprehensive reference tree and an alignment containing all sequences (reference + query)\n");
   
   printf("\n");
   printf("              DEFAULT for \"-f\": new rapid hill climbing\n");
@@ -3447,7 +3448,7 @@ static void printREADME(void)
   printf("      [-b bootstrapRandomNumberSeed] [-B wcCriterionThreshold]\n");
   printf("      [-c numberOfCategories] [-C] [-d] [-D]\n");
   printf("      [-e likelihoodEpsilon] [-E excludeFileName]\n");
-  printf("      [-f a|b|c|d|e|E|F|g|h|i|I|j|J|m|n|o|p|r|s|S|t|u|v|w|x] [-F]\n");
+  printf("      [-f a|b|c|d|e|E|F|g|h|i|I|j|J|m|n|o|p|r|s|S|t|u|v|w|x|y] [-F]\n");
   printf("      [-g groupingFileName] [-G placementThreshold] [-h]\n");
   printf("      [-i initialRearrangementSetting] [-I autoFC|autoMR|autoMRE|autoMRE_IGN]\n");
   printf("      [-j] [-J MR|MR_DROP|MRE|STRICT|STRICT_DROP] [-k] [-K] [-M]\n");
@@ -4257,6 +4258,9 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	    tr->useFastScaling = FALSE;
 #endif
 	    break;
+	  case 'y':
+	    adef->mode = CLASSIFY_MP;
+	    break;
 	  case 'w':	    
 	    adef->mode = COMPUTE_ELW;
 	    adef->computeELW = TRUE;
@@ -4423,7 +4427,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	}
     }
 
-  if(adef->rapidBoot && !(adef->mode == CLASSIFY_ML))
+  if(adef->rapidBoot)
     {
       if(processID == 0 && (adef->restart || treesSet) && !(groupSet || constraintSet))
 	{
@@ -4920,7 +4924,10 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
 	  printBoth(infoFile, "\nRAxML stepwise MP addition to incomplete starting tree\n\n");
 	  break;
 	case CLASSIFY_ML:
-	  printBoth(infoFile, "\nRAxML classification algorithm\n\n");
+	  printBoth(infoFile, "\nRAxML likelihood-based placement algorithm\n\n");
+	  break;
+	case CLASSIFY_MP:
+	  printBoth(infoFile, "\nRAxML parsimony-based placement algorithm\n\n");
 	  break;
 	case GENERATE_BS:
 	  printBoth(infoFile, "\nRAxML BS replicate generation\n\n");
@@ -5018,11 +5025,11 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
 	  else
 	    {
 	      printBoth(infoFile, "ML estimate of %d per site rate categories\n\n", adef->categories);
-	      if(adef->mode != CLASSIFY_ML)
+	      if(adef->mode != CLASSIFY_ML && adef->mode != CLASSIFY_MP)
 		printBoth(infoFile, "Likelihood of final tree will be evaluated and optimized under %s\n\n", modelType);
 	    }
 	  
-	  if(adef->mode != CLASSIFY_ML)
+	  if(adef->mode != CLASSIFY_ML && adef->mode != CLASSIFY_MP)
 	    printBoth(infoFile, "%s Model parameters will be estimated up to an accuracy of %2.10f Log Likelihood units\n\n",
 		      modelType, adef->likelihoodEpsilon);
 	  
@@ -8265,7 +8272,7 @@ int main (int argc, char *argv[])
 	}
     }
 
-  if(adef->mode == CLASSIFY_ML)              
+  if(adef->mode == CLASSIFY_ML || adef->mode == CLASSIFY_MP)              
     tr->innerNodes = (size_t)(countTaxaInTopology() - 1);   
   else
     tr->innerNodes = tr->mxtips;
@@ -8289,6 +8296,10 @@ int main (int argc, char *argv[])
 
   switch(adef->mode)
     {  
+    case CLASSIFY_MP:
+      getStartingTree(tr, adef);
+      assert(0);
+      break;
     case CLASSIFY_ML:
       initModel(tr, rdta, cdta, adef);
       getStartingTree(tr, adef);

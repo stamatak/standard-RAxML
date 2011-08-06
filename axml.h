@@ -174,6 +174,7 @@
 #define  FAST_SEARCH                24        
 #define  EPA_SITE_SPECIFIC_BIAS     27
 #define  SH_LIKE_SUPPORTS           28
+#define  CLASSIFY_MP                29
 
 #define M_GTRCAT         1
 #define M_GTRGAMMA       2
@@ -400,6 +401,7 @@ typedef struct epBrData
 {
   int    *countThem;
   int    *executeThem;
+  unsigned int *parsimonyScore;
   double *branches;
   double *distalBranches; 
   double *likelihoods;
@@ -1083,6 +1085,12 @@ extern void initModel ( tree *tr, rawdata *rdta, cruncheddata *cdta, analdef *ad
 extern void doAllInOne ( tree *tr, analdef *adef );
 
 extern void classifyML(tree *tr, analdef *adef);
+extern void classifyMP(tree *tr, analdef *adef);
+extern void markTips(nodeptr p, int *perm, int maxTips);
+extern char *Tree2StringClassify(char *treestr, tree *tr, int *inserts, 
+				 boolean  originalTree, boolean jointLabels);
+
+
 extern void doBootstrap ( tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta );
 extern void doInference ( tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta );
 extern void resetBranches ( tree *tr );
