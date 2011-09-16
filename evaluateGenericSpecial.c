@@ -1063,11 +1063,10 @@ static double evaluateGTRCAT_BINARY (int *ex1, int *ex2, int *cptr, int *wptr,
 	    term = LOG(t[0] + t[1]);
 	  else
 	    term = LOG(t[0] + t[1]) + (ex2[i] * LOG(minlikelihood));			     
-#else
-  
-	  for(j = 0, term = 0.0; j < 2; j++)       
+#else	 	    
+	  for(j = 0, term = 0.0; j < 2; j++)       	   	     
 	    term += x1[j] * x2[j] * diagptable[j];	      
-	  
+	  	 
 	  if(fastScaling)
 	    term = LOG(term);
 	  else
@@ -1343,6 +1342,20 @@ static double evaluateGTRCAT (int *ex1, int *ex2, int *cptr, int *wptr,
 	  for(j = 0, term = 0.0; j < 4; j++)
 	    term += x1[j] * x2[j] * diagptable[j];
 	  
+	  /*{
+	    double 
+	      term[4],
+	      sum = 0.0;
+	    
+	    for(j = 0; j < 4; j++)
+	      {
+		term[j] = ABS(x1[j] * x2[j] * diagptable[j]);
+		sum += term[j];
+	      }
+
+	    printf("RRRRRRR %1.80f %1.80f %1.80f %1.80f\n", term[0]/sum, term[1]/sum, term[2]/sum, term[3]/sum);
+	    }*/
+
 	  if(fastScaling)
 	    term = LOG(term);
 	  else
@@ -3738,6 +3751,8 @@ double evaluateGenericInitrav (tree *tr, nodeptr p)
 
   return result;
 }
+
+
 
 
 void onlyInitrav(tree *tr, nodeptr p)

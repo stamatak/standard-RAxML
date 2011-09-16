@@ -285,7 +285,6 @@ static boolean isGamma(analdef *adef)
     return TRUE;
   else
     return FALSE;
-
 }
 
 
@@ -2777,10 +2776,7 @@ static void allocNodex (tree *tr)
   for(i = 0; i < tr->innerNodes; i++)
     {     
       for(model = 0; model < (size_t)tr->NumberOfModels; model++)
-	{
-	  size_t 
-	    width = tr->partitionData[model].upper - tr->partitionData[model].lower;
-	  
+	{	 	  
 	  tr->partitionData[model].expVector[i] = (int*)NULL;
 	  tr->partitionData[model].xVector[i]   = (double*)NULL;		  			      		  		      		      		  	    	    	  	 
 	}
@@ -3358,6 +3354,8 @@ static void printMinusFUsage(void)
   printf("\n");
   printf("              \"-f a\": rapid Bootstrap analysis and search for best-scoring ML tree in one program run\n");  
 
+  printf("              \"-f A\": compute marginal ancestral states on a ROOTED reference tree provided with \"t\"\n");
+
   printf("              \"-f b\": draw bipartition information on a tree provided with \"-t\" based on multiple trees\n");
   printf("                      (e.g., from a bootstrap) in a file specifed by \"-z\"\n");
 
@@ -3448,7 +3446,7 @@ static void printREADME(void)
   printf("      [-b bootstrapRandomNumberSeed] [-B wcCriterionThreshold]\n");
   printf("      [-c numberOfCategories] [-C] [-d] [-D]\n");
   printf("      [-e likelihoodEpsilon] [-E excludeFileName]\n");
-  printf("      [-f a|b|c|d|e|E|F|g|h|i|I|j|J|m|n|o|p|r|s|S|t|u|v|w|x|y] [-F]\n");
+  printf("      [-f a|A|b|c|d|e|E|F|g|h|i|I|j|J|m|n|o|p|r|s|S|t|u|v|w|x|y] [-F]\n");
   printf("      [-g groupingFileName] [-G placementThreshold] [-h]\n");
   printf("      [-i initialRearrangementSetting] [-I autoFC|autoMR|autoMRE|autoMRE_IGN]\n");
   printf("      [-j] [-J MR|MR_DROP|MRE|STRICT|STRICT_DROP] [-k] [-K] [-M]\n");
@@ -4160,6 +4158,10 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	sscanf(optarg, "%c", &modelChar);
 	switch(modelChar)
 	  {
+	  case 'A':
+	    adef->mode = ANCESTRAL_STATES; 
+	    adef->compressPatterns  = FALSE;
+	    break;
 	  case 'a':
 	    adef->allInOne = TRUE;
 	    adef->mode = BIG_RAPID_MODE;
@@ -4585,6 +4587,13 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
       errorExit(-1);
     }
 
+  if(!treeSet && adef->mode == ANCESTRAL_STATES)
+    {
+      if(processID == 0)
+	printf("\n Error you need to specify a ROOTED binary reference tree for ancestral state computations\n");
+      errorExit(-1);
+    }
+
   if(treeSet && constraintSet)
     {
       if(processID == 0)
@@ -4834,13 +4843,12 @@ static void makeFileNames(void)
 /********************PRINTING various INFO **************************************/
 
 
-void printBaseFrequencies(tree *tr, analdef *adef)
+void printBaseFrequencies(tree *tr)
 {
   if(processID == 0)
     {
       int 
-	model,
-	states;
+	model;
 
       for(model = 0; model < tr->NumberOfModels; model++)
 	{
@@ -4967,6 +4975,10 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
 	  break;
 	case EPA_SITE_SPECIFIC_BIAS:
 	  printBoth(infoFile, "\nRAxML exprimental site-specfific phylogenetic placement bias analysis algorithm\n\n");
+	  break;
+
+	case ANCESTRAL_STATES:
+	  printBoth(infoFile, "\nRAxML marginal ancestral state computation\n\n");
 	  break;
 	default:
 	  assert(0);
@@ -5817,6 +5829,9 @@ static void finalizeInfoFile(tree *tr, analdef *adef)
 	  printBothOpen("\n\nTime for MP stepwise addition %f\n", t);
 	  printBothOpen("Execution information file written to :  %s\n",infoFileName);
 	  printBothOpen("Complete parsimony tree written to:      %s\n", permFileName);
+	  break;
+	case ANCESTRAL_STATES:
+	  printBothOpen("\n\nTime for marginal ancestral state computation: %f\n\n", t);
 	  break;
 	default:
 	  assert(0);
@@ -6951,6 +6966,49 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 	  }     
        }      
       break;         
+    case  THREAD_NEWVIEW_ANCESTRAL: 
+      sendTraversalInfo(localTree, tr);
+      newviewIterativeAncestral(localTree);
+      break;
+    case THREAD_GATHER_ANCESTRAL:      
+      {
+	double
+	  *contigousVector = tr->ancestralStates;
+      
+	int	 
+	  globalColumnCount = 0,
+	  globalCount       = 0;	
+
+	for(model = 0; model < localTree->NumberOfModels; model++)
+	  {
+	    size_t
+	      blockRequirements = (size_t)(tr->discreteRateCategories) * (size_t)(tr->partitionData[model].states);
+	    
+	    int	     	     
+	      localColumnCount = 0,
+	      localCount = 0;	   
+
+	    double 
+	      *stridedVector = localTree->partitionData[model].sumBuffer;	    	   	    
+
+	    for(globalColumnCount = localTree->partitionData[model].lower; globalColumnCount < localTree->partitionData[model].upper; globalColumnCount++)
+	      {	
+		if(globalColumnCount % n == tid)
+		  {
+		    memcpy(&contigousVector[globalCount], &stridedVector[localCount], sizeof(double) * blockRequirements);		
+		    		   		   
+		    localColumnCount++;
+		    localCount += blockRequirements;
+		  }	
+
+		globalCount += blockRequirements;
+	      }	    
+
+	    assert(localColumnCount == localTree->partitionData[model].width);
+	    assert(localCount == (localTree->partitionData[model].width * (int)blockRequirements));
+	  }	
+      }      
+      break;
     default:
       printf("Job %d\n", currentJob);
       assert(0);
@@ -8101,6 +8159,8 @@ unsigned int precomputed16_bitcount (unsigned int n)
 }
 
 
+
+
 int main (int argc, char *argv[])
 {
   rawdata      *rdta;
@@ -8365,6 +8425,19 @@ int main (int argc, char *argv[])
 	  printLog(tr, adef, TRUE);
 	  printResult(tr, adef, TRUE);
 	}
+     
+     
+
+      break;
+    case ANCESTRAL_STATES:
+      initModel(tr, rdta, cdta, adef);
+      
+      getStartingTree(tr, adef);
+      modOpt(tr, adef, TRUE, adef->likelihoodEpsilon, FALSE);
+       
+      evaluateGenericInitrav(tr, tr->start);                                       	                  
+      
+      computeAncestralStates(tr, tr->likelihood, adef);
       break;
     case CALC_BIPARTITIONS:      
       calcBipartitions(tr, adef, tree_file, bootStrapFile);

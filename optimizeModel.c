@@ -263,7 +263,7 @@ static void freeLinkageList( linkageList* ll)
 
 
 
-static void evaluateChange(tree *tr, int rateNumber, double *value, double *result, boolean* converged, analdef *adef, int whichFunction, int numberOfModels, linkageList *ll)
+static void evaluateChange(tree *tr, int rateNumber, double *value, double *result, boolean* converged, int whichFunction, int numberOfModels, linkageList *ll)
 { 
   int i, k, pos;
 
@@ -421,7 +421,7 @@ static void evaluateChange(tree *tr, int rateNumber, double *value, double *resu
 		    {
 		      int index = ll->ld[i].partitionList[k];		  	      
 		      setRateModel(tr, index, value[pos], rateNumber);  
-		      initReversibleGTR(tr, adef, index);		 
+		      initReversibleGTR(tr, index);		 
 		    }
 		}
 	      pos++;
@@ -502,7 +502,7 @@ static void evaluateChange(tree *tr, int rateNumber, double *value, double *resu
 
 
 static void brentGeneric(double *ax, double *bx, double *cx, double *fb, double tol, double *xmin, double *result, int numberOfModels, 
-			 int whichFunction, int rateNumber, analdef *adef, tree *tr, linkageList *ll, double lim_inf, double lim_sup)
+			 int whichFunction, int rateNumber, tree *tr, linkageList *ll, double lim_inf, double lim_sup)
 {
   int iter, i;
   double 
@@ -642,7 +642,7 @@ static void brentGeneric(double *ax, double *bx, double *cx, double *fb, double 
 	    }
 	}
                  
-      evaluateChange(tr, rateNumber, u, fu, converged, adef, whichFunction, numberOfModels, ll);
+      evaluateChange(tr, rateNumber, u, fu, converged, whichFunction, numberOfModels, ll);
 
       for(i = 0; i < numberOfModels; i++)
 	{
@@ -721,7 +721,7 @@ static void brentGeneric(double *ax, double *bx, double *cx, double *fb, double 
 
 static int brakGeneric(double *param, double *ax, double *bx, double *cx, double *fa, double *fb, 
 		       double *fc, double lim_inf, double lim_sup, 
-		       int numberOfModels, int rateNumber, analdef *adef, int whichFunction, tree *tr, linkageList *ll)
+		       int numberOfModels, int rateNumber, int whichFunction, tree *tr, linkageList *ll)
 {
   double 
     *ulim = (double *)malloc(sizeof(double) * numberOfModels),
@@ -762,7 +762,7 @@ static int brakGeneric(double *param, double *ax, double *bx, double *cx, double
     }
    
   
-  evaluateChange(tr, rateNumber, param, fa, converged, adef, whichFunction, numberOfModels, ll);
+  evaluateChange(tr, rateNumber, param, fa, converged, whichFunction, numberOfModels, ll);
 
 
   for(i = 0; i < numberOfModels; i++)
@@ -776,7 +776,7 @@ static int brakGeneric(double *param, double *ax, double *bx, double *cx, double
       assert(param[i] >= lim_inf && param[i] <= lim_sup);
     }
   
-  evaluateChange(tr, rateNumber, param, fb, converged, adef, whichFunction, numberOfModels, ll);
+  evaluateChange(tr, rateNumber, param, fb, converged, whichFunction, numberOfModels, ll);
 
   for(i = 0; i < numberOfModels; i++)  
     {
@@ -799,7 +799,7 @@ static int brakGeneric(double *param, double *ax, double *bx, double *cx, double
     }
   
  
-  evaluateChange(tr, rateNumber, param, fc, converged, adef, whichFunction, numberOfModels,  ll);
+  evaluateChange(tr, rateNumber, param, fc, converged, whichFunction, numberOfModels,  ll);
 
    while(1) 
      {       
@@ -943,7 +943,7 @@ static int brakGeneric(double *param, double *ax, double *bx, double *cx, double
 	     }
 	 }
              
-       evaluateChange(tr, rateNumber, param, temp, converged, adef, whichFunction, numberOfModels, ll);
+       evaluateChange(tr, rateNumber, param, temp, converged, whichFunction, numberOfModels, ll);
 
        for(i = 0; i < numberOfModels; i++)
 	 {
@@ -1090,8 +1090,8 @@ static void optInvar(tree *tr, double modelEpsilon, linkageList *ll)
 	}
     }	       
 
-  brakGeneric(_param, _a, _b, _c, _fa, _fb, _fc, lim_inf, lim_sup, numberOfModels, -1, (analdef*)NULL, INVAR_F, tr, ll);
-  brentGeneric(_a, _b, _c, _fb, modelEpsilon, _x, result, numberOfModels, INVAR_F, -1, (analdef*)NULL, tr, ll, lim_inf, lim_sup);
+  brakGeneric(_param, _a, _b, _c, _fa, _fb, _fc, lim_inf, lim_sup, numberOfModels, -1, INVAR_F, tr, ll);
+  brentGeneric(_a, _b, _c, _fb, modelEpsilon, _x, result, numberOfModels, INVAR_F, -1, tr, ll, lim_inf, lim_sup);
 
   for(i = 0; i < numberOfModels; i++)
     endInvar[i] = result[i];
@@ -1196,8 +1196,8 @@ static void optAlpha(tree *tr, double modelEpsilon, linkageList *ll)
 	}
     }					  
 
-  brakGeneric(_param, _a, _b, _c, _fa, _fb, _fc, lim_inf, lim_sup, numberOfModels, -1, (analdef*)NULL, ALPHA_F, tr, ll);       
-  brentGeneric(_a, _b, _c, _fb, modelEpsilon, _x, result, numberOfModels, ALPHA_F, -1, (analdef*)NULL, tr, ll, lim_inf, lim_sup);
+  brakGeneric(_param, _a, _b, _c, _fa, _fb, _fc, lim_inf, lim_sup, numberOfModels, -1, ALPHA_F, tr, ll);       
+  brentGeneric(_a, _b, _c, _fb, modelEpsilon, _x, result, numberOfModels, ALPHA_F, -1, tr, ll, lim_inf, lim_sup);
 
   for(i = 0; i < numberOfModels; i++)
     endAlpha[i] = result[i];
@@ -1244,7 +1244,7 @@ static void optAlpha(tree *tr, double modelEpsilon, linkageList *ll)
 
 
 
-static void optRates(tree *tr, analdef *adef, double modelEpsilon, linkageList *ll, int numberOfModels, int states)
+static void optRates(tree *tr, double modelEpsilon, linkageList *ll, int numberOfModels, int states)
 {
   int 
     i, 
@@ -1325,7 +1325,7 @@ static void optRates(tree *tr, analdef *adef, double modelEpsilon, linkageList *
 
       assert(pos == numberOfModels);
 
-      brakGeneric(_param, _a, _b, _c, _fa, _fb, _fc, lim_inf, lim_sup, numberOfModels, i, adef, RATE_F, tr, ll);
+      brakGeneric(_param, _a, _b, _c, _fa, _fb, _fc, lim_inf, lim_sup, numberOfModels, i, RATE_F, tr, ll);
       
       for(k = 0; k < numberOfModels; k++)
 	{
@@ -1334,7 +1334,7 @@ static void optRates(tree *tr, analdef *adef, double modelEpsilon, linkageList *
 	  assert(_c[k] >= lim_inf && _c[k] <= lim_sup);	    
 	}      
 
-      brentGeneric(_a, _b, _c, _fb, modelEpsilon, _x, result, numberOfModels, RATE_F, i, adef, tr,  ll, lim_inf, lim_sup);
+      brentGeneric(_a, _b, _c, _fb, modelEpsilon, _x, result, numberOfModels, RATE_F, i, tr,  ll, lim_inf, lim_sup);
 	
       for(k = 0; k < numberOfModels; k++)
 	endLH[k] = result[k];
@@ -1352,7 +1352,7 @@ static void optRates(tree *tr, analdef *adef, double modelEpsilon, linkageList *
 		    {
 		      int index = ll->ld[k].partitionList[j];
 		      tr->partitionData[index].substRates[i] = startRates[pos * numberOfRates + i];	             	  
-		      initReversibleGTR(tr, adef, index);
+		      initReversibleGTR(tr, index);
 		    }
 #ifdef _USE_PTHREADS		  
 		  revertModel++;
@@ -1428,7 +1428,7 @@ static boolean AAisUnlinkedGTR(tree *tr)
   return TRUE;
 }
 
-static void optRatesGeneric(tree *tr, analdef *adef, double modelEpsilon, linkageList *ll)
+static void optRatesGeneric(tree *tr, double modelEpsilon, linkageList *ll)
 {
   int 
     i,
@@ -1468,7 +1468,7 @@ static void optRatesGeneric(tree *tr, analdef *adef, double modelEpsilon, linkag
     }   
 
   if(dnaPartitions > 0)
-    optRates(tr, adef, modelEpsilon, ll, dnaPartitions, states);
+    optRates(tr, modelEpsilon, ll, dnaPartitions, states);
   
 
   /* then SECONDARY */
@@ -1517,13 +1517,13 @@ static void optRatesGeneric(tree *tr, analdef *adef, double modelEpsilon, linkag
        switch(secondaryModel)
 	 {
 	 case SECONDARY_DATA:
-	   optRates(tr, adef, modelEpsilon, ll, secondaryPartitions, states);
+	   optRates(tr, modelEpsilon, ll, secondaryPartitions, states);
 	   break;
 	 case SECONDARY_DATA_6:
-	   optRates(tr, adef, modelEpsilon, ll, secondaryPartitions, states);
+	   optRates(tr, modelEpsilon, ll, secondaryPartitions, states);
 	   break;
 	 case SECONDARY_DATA_7:
-	   optRates(tr, adef, modelEpsilon, ll, secondaryPartitions, states);
+	   optRates(tr, modelEpsilon, ll, secondaryPartitions, states);
 	   break; 
 	 default:
 	   assert(0);
@@ -1557,7 +1557,7 @@ static void optRatesGeneric(tree *tr, analdef *adef, double modelEpsilon, linkag
 
       assert(aaPartitionsLinked == 1);     
       
-      optRates(tr, adef, modelEpsilon, ll, aaPartitionsLinked, states);
+      optRates(tr, modelEpsilon, ll, aaPartitionsLinked, states);
     }
   
    if(AAisUnlinkedGTR(tr))
@@ -1587,7 +1587,7 @@ static void optRatesGeneric(tree *tr, analdef *adef, double modelEpsilon, linkag
 
       assert(aaPartitionsUnlinked >= 1);     
       
-      optRates(tr, adef, modelEpsilon, ll, aaPartitionsUnlinked, states);
+      optRates(tr, modelEpsilon, ll, aaPartitionsUnlinked, states);
     }
   /* then multi-state */
 
@@ -1615,7 +1615,7 @@ static void optRatesGeneric(tree *tr, analdef *adef, double modelEpsilon, linkag
 		  if(k != i)
 		    ll->ld[k].valid = FALSE;
 		
-		optRates(tr, adef, modelEpsilon, ll, 1, states);
+		optRates(tr, modelEpsilon, ll, 1, states);
 	      }
 	      break;
 	    case AA_DATA:	    
@@ -2450,7 +2450,7 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
 	  
 	  tr->partitionData[model].alpha = 1.0;     
 	  
-	  initReversibleGTR(tr, adef, model);      
+	  initReversibleGTR(tr, model);      
 	  
 	  makeGammaCats(tr->partitionData[model].alpha, tr->partitionData[model].gammaRates, 4); 
 	}
@@ -2482,7 +2482,7 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
       
 
       
-      optRatesGeneric(tr, adef, modelEpsilon, rateList);
+      optRatesGeneric(tr, modelEpsilon, rateList);
       
       onlyInitrav(tr, tr->start);         
       

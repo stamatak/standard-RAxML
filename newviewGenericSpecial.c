@@ -69,7 +69,7 @@ extern pthread_mutex_t          mutex;
 extern const unsigned int mask32[32];
 
 
-static void makeP_Flex(double z1, double z2, double *rptr, double *EI,  double *EIGN, int numberOfCategories, double *left, double *right, const int numStates)
+void makeP_Flex(double z1, double z2, double *rptr, double *EI,  double *EIGN, int numberOfCategories, double *left, double *right, const int numStates)
 {
   int 
     i,
@@ -115,6 +115,10 @@ static void makeP_Flex(double z1, double z2, double *rptr, double *EI,  double *
 	}
     }  
 }
+
+
+
+
 
 
 static void newviewFlexCat(int tipCase, double *extEV,
@@ -417,6 +421,14 @@ static void newviewFlexGamma(int tipCase,
     *scalerIncrement = addScale;
 
 }
+
+
+
+
+
+
+
+
 static void newviewFlexGamma_perSite(int tipCase,
 				     double *x1, double *x2, double *x3, 
 				     int *perSiteAA, 
@@ -436,8 +448,7 @@ static void newviewFlexGamma_perSite(int tipCase,
   double *vl, *vr, al, ar;
 
   const int     
-    statesSquare = numStates * numStates,
-    offset       = statesSquare * 4, 
+    statesSquare = numStates * numStates,  
     gammaStates  = 4 * numStates;
 
   switch(tipCase)
@@ -535,8 +546,7 @@ static void newviewFlexGamma_perSite(int tipCase,
     case INNER_INNER:
       for (i = 0; i < n; i++)
        {
-	 double 
-	   *tipVector = siteProtModel[perSiteAA[i]].tipVector,
+	 double 	   
 	   *extEV     = siteProtModel[perSiteAA[i]].EV,
 	   *left      = siteProtModel[perSiteAA[i]].left,
 	   *right     = siteProtModel[perSiteAA[i]].right;
@@ -1569,7 +1579,7 @@ static void newviewGTRCAT( int tipCase,  double *EV,  int *cptr,
 
 	    for(j = 0; j < 4; j++)
 	      for(k = 0; k < 4; k++)
-		x3[k] += x1px2[j] * EV[j * 4 + k];	   
+		x3[k] += x1px2[j] * EV[j * 4 + k];	    
 	  }
       }
       break;
@@ -8299,7 +8309,7 @@ void newviewIterative (tree *tr)
 		   
 		   availableLength = tr->partitionData[model].xSpaceVector[(tInfo->pNumber - tr->mxtips - 1)];
 		   
-		   for(j = 0; j < tr->partitionData[model].gapVectorLength; j++)
+		   for(j = 0; j < (size_t)tr->partitionData[model].gapVectorLength; j++)
 		     {
 		       x3_gap[j] = x1_gap[j] & x2_gap[j];
 		       setBits += (size_t)(precomputed16_bitcount(x3_gap[j]));
@@ -8357,7 +8367,7 @@ void newviewIterative (tree *tr)
 		  
 		  if(!tr->useFastScaling)
 		    {
-		      int 
+		      size_t
 			k;		      		     
 
 		      for(k = 0; k < width; k++)
@@ -8376,8 +8386,9 @@ void newviewIterative (tree *tr)
 		  
 		  if(!tr->useFastScaling)
 		    {
-		      int 
-			k,
+		      size_t 
+			k;
+		      int
 			*ex2;
 		      
 		      ex2      = tr->partitionData[model].expVector[tInfo->rNumber - tr->mxtips - 1];		     
@@ -8399,8 +8410,10 @@ void newviewIterative (tree *tr)
 		  
 		  if(!tr->useFastScaling)
 		    {
-		      int 
-			k,
+		      size_t
+			k;
+		      
+		      int
 			*ex1,
 			*ex2;
 
@@ -8767,6 +8780,8 @@ void newviewIterative (tree *tr)
 
     }
 }
+
+
 
 void newviewIterativeMulti (tree *tr)
 { 
@@ -9159,6 +9174,7 @@ void newviewGeneric (tree *tr, nodeptr p)
 	}
     }
 }
+
 
 
 void newviewGenericMulti (tree *tr, nodeptr p, int model)

@@ -597,7 +597,7 @@ static void addTraverseRob(tree *tr, nodeptr r, nodeptr q,
 
 #ifdef _USE_PTHREADS
 
-static size_t getContiguousVectorLength(tree *tr)
+size_t getContiguousVectorLength(tree *tr)
 {
   size_t length = 0;
   int model;

@@ -243,8 +243,6 @@ void fixModelIndices(tree *tr, int endsite, boolean fixRates)
 
 void reductionCleanup(tree *tr, int *originalRateCategories, int *originalInvariant)
 {
-  int j;
-
   tr->cdta->endsite = tr->originalCrunchedLength;
 
   memcpy(tr->cdta->aliaswgt, tr->originalWeights, sizeof(int) * tr->cdta->endsite);
@@ -379,7 +377,7 @@ static pInfo *allocParams(tree *tr)
   return partBuffer;      
 }
 
-static void freeParams(int numberOfModels, pInfo *partBuffer, tree *tr)
+static void freeParams(int numberOfModels, pInfo *partBuffer)
 {
   int i;
 
@@ -391,9 +389,6 @@ static void freeParams(int numberOfModels, pInfo *partBuffer, tree *tr)
       free(partBuffer[i].substRates);
       free(partBuffer[i].frequencies); 
       free(partBuffer[i].tipVector);  
-
-     
-
     }
       
 }
@@ -423,7 +418,6 @@ static void copyParams(int numberOfModels, pInfo *dst, pInfo *src, tree *tr)
 #ifdef _USE_PTHREADS
   masterBarrier(THREAD_COPY_PARAMS, tr);
 #endif    
-
 }
 
 
@@ -756,10 +750,10 @@ void doAllInOne(tree *tr, analdef *adef)
   bootstrapsPerformed = i;
 #endif
 
-  freeParams(tr->NumberOfModels, catParams, tr);
+  freeParams(tr->NumberOfModels, catParams);
   free(catParams);
 
-  freeParams(tr->NumberOfModels, gammaParams, tr);
+  freeParams(tr->NumberOfModels, gammaParams);
   free(gammaParams);
 
   if(adef->bootStopping)
@@ -1401,7 +1395,7 @@ void doInference(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
       initModel(tr, rdta, cdta, adef); 
 
       if(i == 0)
-	printBaseFrequencies(tr, adef);
+	printBaseFrequencies(tr);
      
       getStartingTree(tr, adef); 
 

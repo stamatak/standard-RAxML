@@ -3372,7 +3372,7 @@ static void initGeneric(const int n, const unsigned int *valueVector, int valueV
 
 
 
-void initReversibleGTR(tree *tr, analdef *adef, int model)
+void initReversibleGTR(tree *tr, int model)
 { 
  double   
    *fracchanges      = tr->fracchanges,    
@@ -4084,7 +4084,7 @@ void initModel(tree *tr, rawdata *rdta, cruncheddata *cdta, analdef *adef)
   for(model = 0; model < tr->NumberOfModels; model++)
     {
       tr->partitionData[model].alpha = 1.0;                
-      initReversibleGTR(tr, adef, model);               
+      initReversibleGTR(tr, model);               
       makeGammaCats(tr->partitionData[model].alpha, tr->partitionData[model].gammaRates, 4); 
     }   
                 

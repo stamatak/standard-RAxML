@@ -1386,7 +1386,7 @@ void parseSecondaryStructure(tree *tr, analdef *adef, int sites)
 		{
 		  int 
 		    j = i,
-		    bracket,
+		    bracket = -1,
 		    openBracket,
 		    closeBracket;
 		  
@@ -1395,7 +1395,9 @@ void parseSecondaryStructure(tree *tr, analdef *adef, int sites)
 		      i++;
 		      j++;
 		    }
-		  
+
+		  assert(bracket >= 0);
+
 		  if(j == countCharacters)
 		    {
 		      assert(bracket == 0);

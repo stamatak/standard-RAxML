@@ -1048,6 +1048,9 @@ static nodeptr uprootTree (tree *tr, nodeptr p, boolean readBranchLengths, boole
   else    
     hookupDefault(q, r, tr->numBranches);    
 
+  tr->leftRootNode = p->next->back;
+  tr->rightRootNode = p->next->next->back;
+
   if(readConstraint && tr->grouped)
     {    
       if(tr->constraintVector[p->number] != 0)
@@ -1062,24 +1065,67 @@ static nodeptr uprootTree (tree *tr, nodeptr p, boolean readBranchLengths, boole
   assert(p->number > tr->mxtips);
 
   if(tr->ntips > 2 && p->number != n) 
-    {    
-      
-	
+    {          	     
       q = tr->nodep[n];            /* transfer last node's conections to p */
       r = q->next;
       s = q->next->next;
-      
+           
       if(readConstraint && tr->grouped)	
 	tr->constraintVector[p->number] = tr->constraintVector[q->number];       
       
       hookup(p,             q->back, q->z, tr->numBranches);   /* move connections to p */
       hookup(p->next,       r->back, r->z, tr->numBranches);
-      hookup(p->next->next, s->back, s->z, tr->numBranches);           
+      hookup(p->next->next, s->back, s->z, tr->numBranches); 
+
+      if(q == tr->leftRootNode || q == tr->rightRootNode)
+	{
+	  if(q == tr->leftRootNode)
+	    {
+	      if(p->back == tr->rightRootNode)
+		tr->leftRootNode = p;
+	      else
+		{
+		   if(p->next->back == tr->rightRootNode)
+		     tr->leftRootNode = p->next;
+		   else
+		     {
+		       if(p->next->next->back == tr->rightRootNode)
+			 tr->leftRootNode = p->next->next;
+		       else
+			 assert(0);
+		     }
+		}
+	    }
+	  else
+	    {
+	      assert(q == tr->rightRootNode);
+
+	      if(p->back == tr->leftRootNode)
+		tr->rightRootNode = p;
+	      else
+		{
+		   if(p->next->back == tr->leftRootNode)
+		     tr->rightRootNode = p->next;
+		   else
+		     {
+		       if(p->next->next->back == tr->leftRootNode)
+			 tr->rightRootNode = p->next->next;
+		       else
+			 assert(0);
+		     }
+		}
+	    }
+	}
       
       q->back = q->next->back = q->next->next->back = (nodeptr) NULL;
     }
   else    
-    p->back = p->next->back = p->next->next->back = (nodeptr) NULL;
+    {
+      assert(tr->ntips > 2);     
+      p->back = p->next->back = p->next->next->back = (nodeptr) NULL;
+    }
+
+  
   
   assert(tr->ntips > 2);
   
@@ -1161,20 +1207,26 @@ int treeReadLen (FILE *fp, tree *tr, boolean readBranches, boolean readNodeLabel
 	    assert(0);	    
 	}
       else 
-	{                                    /*  A rooted format */
+	{  	  
+	  /*  A rooted format */
+	  
 	  tr->rooted = TRUE;
 	  tr->wasRooted     = TRUE;
-	  tr->leftRootNode  = p->back;
-	  tr->rightRootNode = p->next->back;
+	  
 	  if (ch != EOF)  (void) ungetc(ch, fp);
 	}	
     }
   else 
-    {      
+    {            
       p->next->next->back = (nodeptr) NULL;
+      tr->wasRooted     = TRUE;    
     }
 
- 
+  if(!tr->rooted && adef->mode == ANCESTRAL_STATES)
+    {
+      printf("Error: The ancestral state computation mode requires a rooted tree as input, exiting ....\n");
+      exit(0);
+    }
 
   if (! treeNeedCh(fp, ')', "in"))                
     assert(0);
@@ -1196,6 +1248,12 @@ int treeReadLen (FILE *fp, tree *tr, boolean readBranches, boolean readNodeLabel
 
       p->next->next->back = (nodeptr) NULL;      
       tr->start = uprootTree(tr, p->next->next, readBranches, FALSE);      
+
+       
+      /*tr->leftRootNode  = p->back;
+	tr->rightRootNode = p->next->back;   
+      */
+
       if (! tr->start)                              
 	{
 	  printf("FATAL ERROR UPROOTING TREE\n");
@@ -1536,13 +1594,29 @@ void getStartingTree(tree *tr, analdef *adef)
                  		
       if(!adef->grouping)	
 	{
-	  if(tr->saveMemory)
-	    treeReadLen(INFILE, tr, FALSE, FALSE, TRUE, adef, FALSE);	          
+	  if(adef->mode == ANCESTRAL_STATES)
+	    {
+	      assert(!tr->saveMemory);
+
+	      tr->leftRootNode  = (nodeptr)NULL;
+	      tr->rightRootNode = (nodeptr)NULL;
+
+	      treeReadLen(INFILE, tr, FALSE, FALSE, FALSE, adef, TRUE);
+
+	      assert(tr->leftRootNode && tr->rightRootNode);
+	    }
 	  else
-	    treeReadLen(INFILE, tr, FALSE, FALSE, FALSE, adef, FALSE);
+	    {
+	      if(tr->saveMemory)
+		treeReadLen(INFILE, tr, FALSE, FALSE, TRUE, adef, FALSE);	          
+	      else
+		treeReadLen(INFILE, tr, FALSE, FALSE, FALSE, adef, FALSE);
+	    }
 	}
       else
 	{
+	  assert(adef->mode != ANCESTRAL_STATES);
+
 	  partCount = 0;
 	  if (! treeReadLenMULT(INFILE, tr, adef))
 	    exit(-1);
@@ -1551,25 +1625,17 @@ void getStartingTree(tree *tr, analdef *adef)
       if(adef->mode == PARSIMONY_ADDITION)
 	return; 
 
-      {
-
 	
-	evaluateGenericInitrav(tr, tr->start); 
-
-	
-		
-
-	treeEvaluate(tr, 1);
-     
-
-      }
+      evaluateGenericInitrav(tr, tr->start); 			
+      treeEvaluate(tr, 1);
                
       fclose(INFILE);
     }
   else
     { 
       assert(adef->mode != PARSIMONY_ADDITION &&
-	     adef->mode != MORPH_CALIBRATOR);
+	     adef->mode != MORPH_CALIBRATOR   &&
+	     adef->mode != ANCESTRAL_STATES);
 
       if(adef->randomStartingTree)	  
 	makeRandomTree(tr, adef);       	   	 	   	  
