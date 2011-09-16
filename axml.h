@@ -175,6 +175,7 @@
 #define  EPA_SITE_SPECIFIC_BIAS     27
 #define  SH_LIKE_SUPPORTS           28
 #define  CLASSIFY_MP                29
+#define  ANCESTRAL_STATES           30
 
 #define M_GTRCAT         1
 #define M_GTRGAMMA       2
@@ -674,7 +675,7 @@ typedef  struct  {
   double           *wr;
   double           *wr2;
   double           *sumBuffer;
-  double           *perSiteLL;
+  double           *perSiteLL;  
   double           coreLZ[NUM_BRANCHES];
   int              modelNumber;
   int              multiBranch;
@@ -800,8 +801,12 @@ typedef  struct  {
   nodeptr leftRootNode;
   nodeptr rightRootNode;
   int rootLabel;
+  
+ 
 
 #ifdef _USE_PTHREADS
+
+  double *ancestralStates;
 
   hashtable *h;
  
@@ -1075,7 +1080,7 @@ extern void printStartingTree ( tree *tr, analdef *adef, boolean finalPrint );
 extern void writeInfoFile ( analdef *adef, tree *tr, double t );
 extern int main ( int argc, char *argv[] );
 extern void calcBipartitions ( tree *tr, analdef *adef, char *bestTreeFileName, char *bootStrapFileName );
-extern void initReversibleGTR (tree *tr, analdef *adef, int model);
+extern void initReversibleGTR (tree *tr, int model);
 extern double LnGamma ( double alpha );
 extern double IncompleteGamma ( double x, double alpha, double ln_gamma_alpha );
 extern double PointNormal ( double prob );
@@ -1234,7 +1239,7 @@ extern void calculateModelOffsets(tree *tr);
 extern void gammaToCat(tree *tr);
 extern void catToGamma(tree *tr, analdef *adef);
 extern void handleExcludeFile(tree *tr, analdef *adef, rawdata *rdta);
-extern void printBaseFrequencies(tree *tr, analdef *adef);
+extern void printBaseFrequencies(tree *tr);
 extern nodeptr findAnyTip(nodeptr p, int numsp);
 
 extern void parseProteinModel(double *externalAAMatrix, char *fileName);
@@ -1293,7 +1298,10 @@ extern int *permutationSH(tree *tr, int nBootstrap, long _randomSeed);
 
 extern void updatePerSiteRates(tree *tr, boolean scaleRates);
 
-
+extern void newviewIterativeAncestral(tree *tr);
+extern void newviewGenericAncestral(tree *tr, nodeptr p, boolean atRoot);
+extern void computeAncestralStates(tree *tr, double referenceLikelihood, analdef *adef);
+extern void makeP_Flex(double z1, double z2, double *rptr, double *EI,  double *EIGN, int numberOfCategories, double *left, double *right, const int numStates);
 
 #ifdef _WAYNE_MPI
 
@@ -1303,6 +1311,8 @@ extern boolean computeBootStopMPI(tree *tr, char *bootStrapFileName, analdef *ad
 
 
 #ifdef _USE_PTHREADS
+
+extern size_t getContiguousVectorLength(tree *tr);
 
 extern void makenewzClassify(tree *tr, int maxiter, double *result, double *z0, double *x1_start, double *x2_start,
 			     unsigned char *tipX1,  unsigned char *tipX2, int tipCase, boolean *partitionConverged);
@@ -1363,6 +1373,8 @@ extern void testInsertThoroughIterative(tree *tr, int branchNumber);
 #define THREAD_USE_GAPPED                   38
 #define THREAD_PREPARE_BIPS_FOR_PRINT       39
 #define THREAD_MRE_COMPUTE                  40
+#define THREAD_NEWVIEW_ANCESTRAL            41
+#define THREAD_GATHER_ANCESTRAL             42
 
 /*
 

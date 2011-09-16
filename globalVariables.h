@@ -79,6 +79,16 @@ char *protModels[NUM_PROT_MODELS] = {"DAYHOFF", "DCMUT", "JTT", "MTREV", "WAG", 
 				     "BLOSUM62", "MTMAM", "LG", "MTART", "MTZOA", "PMB", "HIVB", "HIVW", 
 				     "JTTDCMUT", "FLU", "PROT_FILE", "GTR_UNLINKED", "GTR"};
 
+const char binaryStateNames[2]   = {'0', '1'};
+const char dnaStateNames[4]      = {'A', 'C', 'G', 'T'};
+const char protStateNames[20]    = {'A','R', 'N', 'D', 'C', 'Q', 'E', 'G', 'H', 
+				    'I', 'L', 'K', 'M', 'F', 'P', 'S', 'T', 'W', 
+				    'Y', 'V'};
+const char genericStateNames[32] = {'0', '1', '2', '3', '4', '5', '6', '7', 
+				    '8', '9', 'A', 'B', 'C', 'D', 'E', 'F',
+				    'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N',
+				    'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V'};
+
 const char inverseMeaningBINARY[4] = {'_', '0', '1', '-'};
 const char inverseMeaningDNA[16]   = {'_', 'A', 'C', 'M', 'G', 'R', 'S', 'V', 'T', 'W', 'Y', 'H', 'K', 'D', 'B', '-'};
 const char inverseMeaningPROT[23]  = {'A','R', 'N', 'D', 'C', 'Q', 'E', 'G', 'H', 'I', 'L', 'K', 'M', 'F', 'P', 'S', 
