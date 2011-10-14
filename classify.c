@@ -115,7 +115,14 @@ static char *Tree2StringClassifyRec(char *treestr, tree *tr, nodeptr p, int *cou
       
       if(countQuery > 0)
 	{
-	  *treestr++ = '(';   
+	  int 
+	    localCounter = 0;
+	  
+	  *treestr++ = '(';
+
+	  if(countQuery > 1)
+	    *treestr++ = '(';
+
 	  for(i = 0; i <  tr->numberOfTipsForInsertion; i++)
 	    {
 	      if(bInf->epa->countThem[i] > 0)
@@ -123,13 +130,24 @@ static char *Tree2StringClassifyRec(char *treestr, tree *tr, nodeptr p, int *cou
 		  char 
 		    branchLength[128];
 
-		  sprintf(branchLength, "%f", bInf->epa->branches[i]);
+		  sprintf(branchLength, "%f", bInf->epa->branches[i]);		  
 
 		  sprintf(treestr,"QUERY___%s:%s", tr->nameList[inserts[i]], branchLength);
-		  while (*treestr) treestr++;	
-		  *treestr++ = ',';
-		}
+		  while (*treestr) treestr++;
+		  if(localCounter < countQuery - 1)
+		    *treestr++ = ',';
+		  localCounter++;
+		}	      
 	    }
+
+	  if(countQuery > 1)
+	    {
+	      sprintf(treestr,"):0.0,");
+	      while (*treestr) treestr++;
+	    }
+	  else
+	    *treestr++ = ',';
+	  
 	}
     }
 
@@ -148,14 +166,12 @@ static char *Tree2StringClassifyRec(char *treestr, tree *tr, nodeptr p, int *cou
       *treestr++ = ',';
       treestr = Tree2StringClassifyRec(treestr, tr, p->next->next->back, 
 				       countBranches, inserts, originalTree, jointLabels);          
-      *treestr++ = ')';                    
-
-     
+      *treestr++ = ')';                         
     }
    
   if(countQuery > 0)
     {
-      sprintf(treestr, ":1.0[%s]", p->bInf->epa->branchLabel);
+      sprintf(treestr, ":%8.20f[%s]", 0.5 * p->bInf->epa->originalBranchLength, p->bInf->epa->branchLabel);
       while (*treestr) treestr++;
       *treestr++ = ')'; 
     }
@@ -188,16 +204,19 @@ static char *Tree2StringClassifyRec(char *treestr, tree *tr, nodeptr p, int *cou
       else
 	sprintf(treestr, ":%8.20f[%s", p->bInf->epa->originalBranchLength, p->bInf->epa->branchLabel);	
     }
-  else
-    sprintf(treestr, ":1.0[%s", p->bInf->epa->branchLabel);
+  else    
+    {
+      if(countQuery > 0)
+	sprintf(treestr, ":%8.20f[%s", 0.5 * p->bInf->epa->originalBranchLength, p->bInf->epa->branchLabel);
+      else
+	sprintf(treestr, ":%8.20f[%s", p->bInf->epa->originalBranchLength, p->bInf->epa->branchLabel);
+    }
      
   while (*treestr) treestr++;
-
   
   assert(!(countQuery > 0 &&  originalTree == TRUE));
 
   
-
   sprintf(treestr, "]");            	 	        
   while (*treestr) treestr++;
 
