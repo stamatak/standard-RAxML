@@ -43,7 +43,8 @@ FILE   *INFILE;
 
 int Thorough = 0;
 
-
+int globalArgc;
+char **globalArgv;
 
 char run_id[128] = "", 
   workdir[1024] = "", 

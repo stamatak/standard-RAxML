@@ -45,7 +45,8 @@
 
 #include "axml.h"
 
-
+extern char **globalArgv;
+extern int globalArgc;
 extern char  workdir[1024];
 extern char run_id[128];
 extern double masterTime;
@@ -184,22 +185,22 @@ static char *Tree2StringClassifyRec(char *treestr, tree *tr, nodeptr p, int *cou
 	    {	      
 	      if(p == tr->leftRootNode)
 		{
-		  sprintf(treestr, ":%8.20f[%d", p->bInf->epa->originalBranchLength * 0.5, p->bInf->epa->jointLabel);  
+		  sprintf(treestr, ":%8.20f{%d", p->bInf->epa->originalBranchLength * 0.5, p->bInf->epa->jointLabel);  
 		  assert(tr->rootLabel == p->bInf->epa->jointLabel);
 		}
 	      else
 		{
 		  if(p == tr->rightRootNode)
 		    {
-		      sprintf(treestr, ":%8.20f[%d", p->bInf->epa->originalBranchLength * 0.5, tr->numberOfBranches);  
+		      sprintf(treestr, ":%8.20f{%d", p->bInf->epa->originalBranchLength * 0.5, tr->numberOfBranches);  
 		      assert(tr->rootLabel == p->bInf->epa->jointLabel);
 		    }
 		  else
-		    sprintf(treestr, ":%8.20f[%d", p->bInf->epa->originalBranchLength, p->bInf->epa->jointLabel);       
+		    sprintf(treestr, ":%8.20f{%d", p->bInf->epa->originalBranchLength, p->bInf->epa->jointLabel);       
 		}
 	    }
 	  else
-	    sprintf(treestr, ":%8.20f[%d", p->bInf->epa->originalBranchLength, p->bInf->epa->jointLabel);  
+	    sprintf(treestr, ":%8.20f{%d", p->bInf->epa->originalBranchLength, p->bInf->epa->jointLabel);  
 	}
       else
 	sprintf(treestr, ":%8.20f[%s", p->bInf->epa->originalBranchLength, p->bInf->epa->branchLabel);	
@@ -216,8 +217,11 @@ static char *Tree2StringClassifyRec(char *treestr, tree *tr, nodeptr p, int *cou
   
   assert(!(countQuery > 0 &&  originalTree == TRUE));
 
+  if(jointLabels) 
+    sprintf(treestr, "}");   
+  else
+    sprintf(treestr, "]");            	 	        
   
-  sprintf(treestr, "]");            	 	        
   while (*treestr) treestr++;
 
   return  treestr;
@@ -1778,8 +1782,20 @@ void classifyML(tree *tr, analdef *adef)
   }
 
   fprintf(treeFile, "\t ],\n");
-  fprintf(treeFile, "\t\"metadata\": {\"invocation\": \"RAxML EPA\"},\n");
-  fprintf(treeFile, "\t\"version\": 1,\n");
+  fprintf(treeFile, "\t\"metadata\": {\"invocation\": ");
+
+  fprintf(treeFile, "\"");
+  
+  {
+    int i;
+    
+    for(i = 0; i < globalArgc; i++)
+      fprintf(treeFile,"%s ", globalArgv[i]);
+  }
+  fprintf(treeFile, "\", \"raxml_version\": \"%s\"", programVersion);
+  fprintf(treeFile,"},\n");
+
+  fprintf(treeFile, "\t\"version\": 2,\n");
   fprintf(treeFile, "\t\"fields\": [\n");
   fprintf(treeFile, "\t\"edge_num\", \"likelihood\", \"like_weight_ratio\", \"distal_length\", \n");
   fprintf(treeFile, "\t\"pendant_length\"\n");

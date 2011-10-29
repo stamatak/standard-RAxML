@@ -891,9 +891,8 @@ static boolean treeNeedCh (FILE *fp, int c1, char *where)
       treeEchoContext(fp, stdout, 40);
     }
   putchar('\n');
-
-  if(c1 == ':')    
-    printf("RAxML may be expecting to read a tree that contains branch lengths\n");
+    
+  printf("RAxML may be expecting to read a tree that contains branch lengths\n");
 
   return FALSE;
 } 
@@ -1263,7 +1262,7 @@ int treeReadLen (FILE *fp, tree *tr, boolean readBranches, boolean readNodeLabel
   else    
     tr->start = findAnyTip(p, tr->rdta->numsp);    
   
-   if(!topologyOnly)
+   if(!topologyOnly || adef->mode == CLASSIFY_MP)
     {
       setupPointerMesh(tr);
 
@@ -1607,10 +1606,15 @@ void getStartingTree(tree *tr, analdef *adef)
 	    }
 	  else
 	    {
-	      if(tr->saveMemory)
-		treeReadLen(INFILE, tr, FALSE, FALSE, TRUE, adef, FALSE);	          
+	      if(adef->mode == CLASSIFY_MP)
+		treeReadLen(INFILE, tr, TRUE, FALSE, TRUE, adef, FALSE);
 	      else
-		treeReadLen(INFILE, tr, FALSE, FALSE, FALSE, adef, FALSE);
+		{
+		  if(tr->saveMemory)				 
+		    treeReadLen(INFILE, tr, FALSE, FALSE, TRUE, adef, FALSE);	          	       
+		  else		   
+		    treeReadLen(INFILE, tr, FALSE, FALSE, FALSE, adef, FALSE);
+		}
 	    }
 	}
       else
@@ -1625,9 +1629,11 @@ void getStartingTree(tree *tr, analdef *adef)
       if(adef->mode == PARSIMONY_ADDITION)
 	return; 
 
-	
-      evaluateGenericInitrav(tr, tr->start); 			
-      treeEvaluate(tr, 1);
+      if(adef->mode != CLASSIFY_MP)
+	{
+	  evaluateGenericInitrav(tr, tr->start); 			
+	  treeEvaluate(tr, 1);
+	}
                
       fclose(INFILE);
     }

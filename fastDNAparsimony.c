@@ -81,7 +81,8 @@
 extern const unsigned int mask32[32]; 
 /* vector-specific stuff */
 
-
+extern char **globalArgv;
+extern int globalArgc;
 
 #ifdef __SIM_SSE3
 
@@ -2250,6 +2251,7 @@ static void setupBranchMetaInfo(tree *tr, nodeptr p, int nTips, branchInfo *bInf
       bInf[countBranches].epa->rightNodeNumber = p->back->number;
          
       bInf[countBranches].epa->branchNumber = countBranches;	                 
+      bInf[countBranches].epa->originalBranchLength = p->z[0];
 
       tr->branchCounter =  tr->branchCounter + 1;
       return;
@@ -2270,6 +2272,7 @@ static void setupBranchMetaInfo(tree *tr, nodeptr p, int nTips, branchInfo *bInf
 
                
       bInf[countBranches].epa->branchNumber = countBranches;
+      bInf[countBranches].epa->originalBranchLength = p->z[0];
 
       tr->branchCounter =  tr->branchCounter + 1;      
 
@@ -2611,14 +2614,14 @@ void classifyMP(tree *tr, analdef *adef)
 	      if(tr->wasRooted && inf[j].number == tr->rootLabel)		  
 		assert(0);		 
 	      else
-		fprintf(treeFile, ",[%d, %u, %f, %f, %f]", inf[j].number, inf[j].parsimonyScore, 0.0, 0.0, 0.0);
+		fprintf(treeFile, ",[%d, %u]", inf[j].number, inf[j].parsimonyScore);
 	    }
 	  else
 	    {
 	      if(tr->wasRooted && inf[j].number == tr->rootLabel)		  
 		assert(0);		  
 	      else
-		fprintf(treeFile, "[%d, %u, %f, %f, %f]", inf[j].number, inf[j].parsimonyScore, 0.0, 0.0, 0.0);
+		fprintf(treeFile, "[%d, %u]", inf[j].number, inf[j].parsimonyScore);
 	    }	  
 	  
 	  j++;
@@ -2631,11 +2634,23 @@ void classifyMP(tree *tr, analdef *adef)
     }  
     
   fprintf(treeFile, "\t ],\n");
-  fprintf(treeFile, "\t\"metadata\": {\"invocation\": \"RAxML EPA parsimony\"},\n");
-  fprintf(treeFile, "\t\"version\": 1,\n");
+  /*  fprintf(treeFile, "\t\"metadata\": {\"invocation\": \"RAxML EPA parsimony\"},\n");*/
+  fprintf(treeFile, "\t\"metadata\": {\"invocation\": ");
+
+  fprintf(treeFile, "\"");
+  
+  {
+    int i;
+    
+    for(i = 0; i < globalArgc; i++)
+      fprintf(treeFile,"%s ", globalArgv[i]);
+  }
+  fprintf(treeFile, "\", \"raxml_version\": \"%s\"", programVersion);
+  fprintf(treeFile,"},\n");
+
+  fprintf(treeFile, "\t\"version\": 2,\n");
   fprintf(treeFile, "\t\"fields\": [\n");
-  fprintf(treeFile, "\t\"edge_num\", \"parsimony\", \"like_weight_ratio\", \"distal_length\", \n");
-  fprintf(treeFile, "\t\"pendant_length\"\n");
+  fprintf(treeFile, "\t\"edge_num\", \"parsimony\"\n");
   fprintf(treeFile, "\t]\n");
   fprintf(treeFile, "}\n");
   

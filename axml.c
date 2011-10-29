@@ -8187,8 +8187,10 @@ int main (int argc, char *argv[])
 
   masterTime = gettime();
 
-
-
+  globalArgc = argc;
+  globalArgv = (char **)malloc(sizeof(char *) * argc);
+  for(i = 0; i < argc; i++)
+    globalArgv[i] = argv[i];
 
 
 
