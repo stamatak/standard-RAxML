@@ -1093,7 +1093,7 @@ extern void classifyML(tree *tr, analdef *adef);
 extern void classifyMP(tree *tr, analdef *adef);
 extern void markTips(nodeptr p, int *perm, int maxTips);
 extern char *Tree2StringClassify(char *treestr, tree *tr, int *inserts, 
-				 boolean  originalTree, boolean jointLabels);
+				 boolean  originalTree, boolean jointLabels, boolean likelihood);
 
 
 extern void doBootstrap ( tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta );

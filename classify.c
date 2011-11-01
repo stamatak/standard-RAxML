@@ -101,12 +101,14 @@ static double getBranch(tree *tr, double *b, double *bb)
 
 
 static char *Tree2StringClassifyRec(char *treestr, tree *tr, nodeptr p, int *countBranches, 
-				    int *inserts, boolean originalTree, boolean jointLabels)
+				    int *inserts, boolean originalTree, boolean jointLabels, boolean likelihood)
 {        
   branchInfo *bInf = p->bInf;
   int        i, countQuery = 0;   
 
   *countBranches = *countBranches + 1;
+
+  
 
   if(!originalTree)
     {
@@ -127,13 +129,18 @@ static char *Tree2StringClassifyRec(char *treestr, tree *tr, nodeptr p, int *cou
 	  for(i = 0; i <  tr->numberOfTipsForInsertion; i++)
 	    {
 	      if(bInf->epa->countThem[i] > 0)
-		{	      
-		  char 
-		    branchLength[128];
-
-		  sprintf(branchLength, "%f", bInf->epa->branches[i]);		  
-
-		  sprintf(treestr,"QUERY___%s:%s", tr->nameList[inserts[i]], branchLength);
+		{	      		  
+		  if(likelihood)
+		    {
+		      char 
+			branchLength[128];
+		      
+		      sprintf(branchLength, "%f", bInf->epa->branches[i]);		  
+		      sprintf(treestr,"QUERY___%s:%s", tr->nameList[inserts[i]], branchLength);
+		    }
+		  else
+		    sprintf(treestr,"QUERY___%s", tr->nameList[inserts[i]]);
+		  
 		  while (*treestr) treestr++;
 		  if(localCounter < countQuery - 1)
 		    *treestr++ = ',';
@@ -163,10 +170,10 @@ static char *Tree2StringClassifyRec(char *treestr, tree *tr, nodeptr p, int *cou
     {                    
       *treestr++ = '(';     
       treestr = Tree2StringClassifyRec(treestr, tr, p->next->back, 
-				       countBranches, inserts, originalTree, jointLabels);     
+				       countBranches, inserts, originalTree, jointLabels, likelihood);     
       *treestr++ = ',';
       treestr = Tree2StringClassifyRec(treestr, tr, p->next->next->back, 
-				       countBranches, inserts, originalTree, jointLabels);          
+				       countBranches, inserts, originalTree, jointLabels, likelihood);          
       *treestr++ = ')';                         
     }
    
@@ -231,7 +238,7 @@ static char *Tree2StringClassifyRec(char *treestr, tree *tr, nodeptr p, int *cou
 
 
 char *Tree2StringClassify(char *treestr, tree *tr, int *inserts, 
-			  boolean  originalTree, boolean jointLabels)
+			  boolean  originalTree, boolean jointLabels, boolean likelihood)
 {
   nodeptr 
     p;
@@ -246,10 +253,10 @@ char *Tree2StringClassify(char *treestr, tree *tr, int *inserts,
       
       *treestr++ = '(';
       treestr = Tree2StringClassifyRec(treestr, tr, tr->leftRootNode, &countBranches, 
-				       inserts, originalTree, jointLabels);
+				       inserts, originalTree, jointLabels, likelihood);
       *treestr++ = ',';
       treestr = Tree2StringClassifyRec(treestr, tr, tr->rightRootNode, &countBranches, 
-				       inserts, originalTree, jointLabels);	 
+				       inserts, originalTree, jointLabels, likelihood);	 
       *treestr++ = ')';
       *treestr++ = ';';
       
@@ -270,13 +277,13 @@ char *Tree2StringClassify(char *treestr, tree *tr, int *inserts,
       
       *treestr++ = '(';
       treestr = Tree2StringClassifyRec(treestr, tr, p->back, &countBranches, 
-				       inserts, originalTree, jointLabels);
+				       inserts, originalTree, jointLabels, likelihood);
       *treestr++ = ',';
       treestr = Tree2StringClassifyRec(treestr, tr, p->next->back, &countBranches, 
-				       inserts, originalTree, jointLabels);
+				       inserts, originalTree, jointLabels, likelihood);
       *treestr++ = ',';
       treestr = Tree2StringClassifyRec(treestr, tr, p->next->next->back, &countBranches, 
-				       inserts, originalTree, jointLabels);
+				       inserts, originalTree, jointLabels, likelihood);
       *treestr++ = ')';
       *treestr++ = ';';
       
@@ -1646,13 +1653,13 @@ void classifyML(tree *tr, analdef *adef)
  
  
   treeFile = myfopen(labelledTreeFileName, "wb");
-  Tree2StringClassify(tr->tree_string, tr, tr->inserts, FALSE, FALSE);
+  Tree2StringClassify(tr->tree_string, tr, tr->inserts, FALSE, FALSE, TRUE);
   fprintf(treeFile, "%s\n", tr->tree_string);    
   fclose(treeFile);
   
  
   treeFile = myfopen(originalLabelledTreeFileName, "wb");
-  Tree2StringClassify(tr->tree_string, tr, tr->inserts, TRUE, FALSE);
+  Tree2StringClassify(tr->tree_string, tr, tr->inserts, TRUE, FALSE, TRUE);
   fprintf(treeFile, "%s\n", tr->tree_string);    
   fclose(treeFile);
 
@@ -1663,7 +1670,7 @@ void classifyML(tree *tr, analdef *adef)
   */
 
   treeFile = myfopen(jointFormatTreeFileName, "wb");
-  Tree2StringClassify(tr->tree_string, tr, tr->inserts, TRUE, TRUE);
+  Tree2StringClassify(tr->tree_string, tr, tr->inserts, TRUE, TRUE, TRUE);
   
   fprintf(treeFile, "{\n");
   fprintf(treeFile, "\t\"tree\": \"%s\", \n", tr->tree_string);
