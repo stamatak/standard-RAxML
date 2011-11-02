@@ -1460,7 +1460,14 @@ void doInference(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
 	{
 	  restoreTL(rl, tr, best);
 	  onlyInitrav(tr, tr->start);
-	  modOpt(tr, adef, FALSE, adef->likelihoodEpsilon, FALSE);  
+	  if(!adef->useBinaryModelFile)
+	    modOpt(tr, adef, FALSE, adef->likelihoodEpsilon, FALSE); 
+	  else
+	    {
+	      readBinaryModel(tr);
+	      evaluateGenericInitrav(tr, tr->start);
+	      treeEvaluate(tr, 2);
+	    }
 	  bestLH = tr->likelihood;
 	  tr->likelihoods[best] = tr->likelihood;
 	  saveTL(rl, tr, best);

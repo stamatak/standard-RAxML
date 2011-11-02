@@ -1193,7 +1193,16 @@ void computeBIGRAPID (tree *tr, analdef *adef, boolean estimateModel)
   Thorough = 0;     
   
   if(estimateModel)
-    modOpt(tr, adef, FALSE, 10.0, FALSE);
+    {
+      if(adef->useBinaryModelFile)
+	{
+	  readBinaryModel(tr);
+	  evaluateGenericInitrav(tr, tr->start);
+	  treeEvaluate(tr, 2);
+	}
+      else
+	modOpt(tr, adef, FALSE, 10.0, FALSE);
+    }
   else
     treeEvaluate(tr, 2);  
 
@@ -1208,7 +1217,12 @@ void computeBIGRAPID (tree *tr, analdef *adef, boolean estimateModel)
     bestTrav = adef->bestTrav = adef->initial;
 
   if(estimateModel)
-    modOpt(tr, adef, FALSE, 5.0, FALSE);
+    {
+      if(adef->useBinaryModelFile)	
+	treeEvaluate(tr, 2);
+      else
+	modOpt(tr, adef, FALSE, 5.0, FALSE);
+    }
   else
     treeEvaluate(tr, 1);
   
@@ -1303,7 +1317,12 @@ void computeBIGRAPID (tree *tr, analdef *adef, boolean estimateModel)
   
   recallBestTree(bestT, 1, tr); 
   if(estimateModel)
-    modOpt(tr, adef, FALSE, 1.0, FALSE);
+    {
+      if(adef->useBinaryModelFile)	
+	treeEvaluate(tr, 2);
+      else
+	modOpt(tr, adef, FALSE, 1.0, FALSE);
+    }
   else
     treeEvaluate(tr, 1.0);
 

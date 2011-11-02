@@ -7282,8 +7282,17 @@ static void computePerSiteLLs(tree *tr, analdef *adef, char *bootStrapFileName)
       treeReadLen(treeFile, tr, FALSE, FALSE, FALSE, adef, TRUE);
       assert(tr->ntips == tr->mxtips);
       
-      if(i == 0)       
-	modOpt(tr, adef, TRUE, adef->likelihoodEpsilon, TRUE);	
+      if(i == 0) 
+	{
+	  if(adef->useBinaryModelFile)
+	    {
+	      readBinaryModel(tr);
+	      evaluateGenericInitrav(tr, tr->start);
+	      treeEvaluate(tr, 2);
+	    }
+	  else
+	    modOpt(tr, adef, TRUE, adef->likelihoodEpsilon, TRUE);	
+	}
       else
 	treeEvaluate(tr, 2);     
 
@@ -8033,7 +8042,12 @@ void readBinaryModel(tree *tr)
     model;
 
   FILE 
-    *f = fopen(binaryModelParamsInputFileName, "r");   
+    *f;
+
+
+  printBothOpen("\nRAxML is reading a binary model file and not optimizing model params\n");
+
+  f = fopen(binaryModelParamsInputFileName, "r");   
 
   /* cdta */   
 
@@ -8064,7 +8078,7 @@ void readBinaryModel(tree *tr)
     }
 
 #ifdef _USE_PTHREADS
-  /* TODO need to add stuff if we want this to work for CAT models and SP implementations as well */
+  /* TODO need to add stuff if we want this to work for CAT models as well */
   masterBarrier(THREAD_RESET_MODEL, tr);
 #endif  
 
@@ -8427,9 +8441,7 @@ int main (int argc, char *argv[])
 	  printLog(tr, adef, TRUE);
 	  printResult(tr, adef, TRUE);
 	}
-     
-     
-
+  
       break;
     case ANCESTRAL_STATES:
       initModel(tr, rdta, cdta, adef);

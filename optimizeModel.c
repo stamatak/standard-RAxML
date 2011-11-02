@@ -2408,7 +2408,7 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
   int *unlinked = (int *)malloc(sizeof(int) * tr->NumberOfModels);
   
 
-  
+  assert(!adef->useBinaryModelFile);
  
   modelEpsilon = 0.0001;
   
