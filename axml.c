@@ -1333,6 +1333,8 @@ static void getinput(analdef *adef, rawdata *rdta, cruncheddata *cdta, tree *tr)
 	  int ref;
 	  
 	  parsePartitions(adef, rdta, tr);
+
+	  printf("NUM models: %d\n", tr->NumberOfModels);
 	  
 	  for(i = 1; i <= rdta->sites; i++)
 	    {
@@ -1752,7 +1754,6 @@ static void sitesort(rawdata *rdta, cruncheddata *cdta, tree *tr, analdef *adef)
 		     
 		      flip = (category[jj] > category[jg]);
 		      tied = (category[jj] == category[jg]);		     
-
 		    }
 		  else
 		    {
@@ -1798,7 +1799,7 @@ static void sitecombcrunch (rawdata *rdta, cruncheddata *cdta, tree *tr, analdef
   cdta->alias[0]    = cdta->alias[1];
   cdta->aliaswgt[0] = 0;
 
-  if(adef->mode == PER_SITE_LL)
+  if(adef->mode == PER_SITE_LL || adef->mode == ANCESTRAL_STATES)
     {
       int i;
 
@@ -1838,7 +1839,7 @@ static void sitecombcrunch (rawdata *rdta, cruncheddata *cdta, tree *tr, analdef
 
       if (tied)
 	{
-	  if(adef->mode == PER_SITE_LL)
+	  if(adef->mode == PER_SITE_LL || adef->mode == ANCESTRAL_STATES)
 	    {
 	      tr->patternPosition[j - 1] = i;
 	      tr->columnPosition[j - 1] = sitej;
@@ -1857,7 +1858,7 @@ static void sitecombcrunch (rawdata *rdta, cruncheddata *cdta, tree *tr, analdef
 	{
 	  if (cdta->aliaswgt[i] > 0) i++;
 
-	  if(adef->mode == PER_SITE_LL)
+	  if(adef->mode == PER_SITE_LL || adef->mode == ANCESTRAL_STATES)
 	    {
 	      tr->patternPosition[j - 1] = i;
 	      tr->columnPosition[j - 1] = sitej;
@@ -1877,7 +1878,7 @@ static void sitecombcrunch (rawdata *rdta, cruncheddata *cdta, tree *tr, analdef
   cdta->endsite = i;
   if (cdta->aliaswgt[i] > 0) cdta->endsite++;
 
-  if(adef->mode == PER_SITE_LL)
+  if(adef->mode == PER_SITE_LL || adef->mode == ANCESTRAL_STATES)
     {
       for(i = 0; i < rdta->sites; i++)
 	{
@@ -1955,9 +1956,9 @@ static boolean makevalues(rawdata *rdta, cruncheddata *cdta, tree *tr, analdef *
       i            = 1;
 
       while(i <  cdta->endsite)
-	{
+	{	  
 	  if(tr->model[i] != model)
-	    {
+	    {	     
 	      tr->partitionData[modelCounter].upper     = i;
 	      tr->partitionData[modelCounter + 1].lower = i;
 
@@ -1966,7 +1967,6 @@ static boolean makevalues(rawdata *rdta, cruncheddata *cdta, tree *tr, analdef *
 	    }
 	  i++;
 	}
-
 
       tr->partitionData[tr->NumberOfModels - 1].upper = cdta->endsite;      
     
@@ -4160,7 +4160,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	  {
 	  case 'A':
 	    adef->mode = ANCESTRAL_STATES; 
-	    adef->compressPatterns  = FALSE;
+	    /*adef->compressPatterns  = FALSE;*/
 	    break;
 	  case 'a':
 	    adef->allInOne = TRUE;

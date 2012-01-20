@@ -732,6 +732,12 @@ void newviewGenericAncestral (tree *tr, nodeptr p, boolean atRoot)
     }
 }
 
+typedef struct {
+  double *probs;
+  char c;
+  int states;
+} ancestralState;
+
 
 static void computeAncestralRec(tree *tr, nodeptr p, int *counter, FILE *probsFile, FILE *statesFile, boolean atRoot)
 {
@@ -741,7 +747,12 @@ static void computeAncestralRec(tree *tr, nodeptr p, int *counter, FILE *probsFi
 #endif
 
   int 
-    model;
+    model,
+    globalIndex = 0;
+  
+  ancestralState 
+    *a = (ancestralState *)malloc(sizeof(ancestralState) * tr->cdta->endsite),
+    *unsortedA = (ancestralState *)malloc(sizeof(ancestralState) * tr->rdta->sites);
   
   if(!atRoot)
     {
@@ -773,7 +784,7 @@ static void computeAncestralRec(tree *tr, nodeptr p, int *counter, FILE *probsFi
 
   for(model = 0; model < tr->NumberOfModels; model++)
     {
-      int 
+      int	
 	offset,
 	i,
 	width = tr->partitionData[model].upper - tr->partitionData[model].lower,	
@@ -789,9 +800,9 @@ static void computeAncestralRec(tree *tr, nodeptr p, int *counter, FILE *probsFi
       if(tr->rateHetModel == CAT)
 	offset = 1;
       else
-	offset = 4;
-      
-      for(i = 0; i < width; i++)
+	offset = 4;            
+
+      for(i = 0; i < width; i++, globalIndex++)
 	{
 	  double
 	    equal = 1.0 / (double)states,
@@ -803,6 +814,12 @@ static void computeAncestralRec(tree *tr, nodeptr p, int *counter, FILE *probsFi
 	  int
 	    max_l = -1,
 	    l;
+	  
+	  char 
+	    c;
+
+	  a[globalIndex].states = states;
+	  a[globalIndex].probs = (double *)malloc(sizeof(double) * states);
 	  
 	  for(l = 0; l < states; l++)
 	    {
@@ -816,29 +833,70 @@ static void computeAncestralRec(tree *tr, nodeptr p, int *counter, FILE *probsFi
 		}
 	      
 	      approximatelyEqual = approximatelyEqual && (ABS(equal - value) < 0.000001);
-
-	      fprintf(probsFile, "%f ", value);
+	      
+	      a[globalIndex].probs[l] = value;	      	      
 	    }
 
 	  
 	  if(approximatelyEqual)
-	    fprintf(statesFile, "?");
+	    c = '?';	  
 	  else
-	    fprintf(statesFile, "%c", getStateCharacter(tr->partitionData[model].dataType, max_l));
+	    c = getStateCharacter(tr->partitionData[model].dataType, max_l);
 	  
-	  fprintf(probsFile, "\n");	  
+	  a[globalIndex].c = c;	  
 	}
 
 #ifdef _USE_PTHREADS
       accumulatedOffset += width * offset * states;
-#endif
-      
-      fprintf(probsFile, "\n");
-      fprintf(statesFile, "\n");
-
+#endif            
     }
 
+  {
+    int 
+      j, 
+      k;
+    
+    for(j = 0; j < tr->cdta->endsite; j++)
+      {
+	for(k = 0; k < tr->rdta->sites; k++)	    
+	  if(j == tr->patternPosition[k])		
+	    {
+	      int 
+		sorted = j,
+		unsorted = tr->columnPosition[k] - 1;
+	      
+	      unsortedA[unsorted].states = a[sorted].states;
+	      unsortedA[unsorted].c = a[sorted].c;
+	      unsortedA[unsorted].probs = (double*)malloc(sizeof(double) * unsortedA[unsorted].states);
+	      memcpy(unsortedA[unsorted].probs,  a[sorted].probs, sizeof(double) * a[sorted].states);	      
+	    }	   
+	}  
+
+    for(k = 0; k < tr->rdta->sites; k++)
+      {
+	for(j = 0; j < unsortedA[k].states; j++)
+	  fprintf(probsFile, "%f ", unsortedA[k].probs[j]);
+	fprintf(probsFile, "\n");
+	fprintf(statesFile, "%c", unsortedA[k].c);
+      }
+    fprintf(probsFile, "\n");
+    fprintf(statesFile, "\n");
+  }
+
+
   *counter = *counter + 1;
+
+  {
+    int j;
+
+    for(j = 0; j < tr->rdta->sites; j++)
+      free(unsortedA[j].probs);
+    for(j = 0; j < tr->cdta->endsite; j++)
+      free(a[j].probs);
+  }
+
+  free(a);
+  free(unsortedA);
 }
 
 static char *ancestralTreeRec(char *treestr, tree *tr, nodeptr p)
@@ -904,7 +962,7 @@ void computeAncestralStates(tree *tr, double referenceLikelihood, analdef *adef)
   tr->ancestralStates = (double*)malloc(getContiguousVectorLength(tr) * sizeof(double));
 #endif
 
-  assert(!adef->compressPatterns);
+  /*  assert(!adef->compressPatterns);*/
 
   strcpy(ancestralProbsFileName,         workdir);
   strcpy(ancestralStatesFileName,         workdir);
