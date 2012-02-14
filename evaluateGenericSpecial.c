@@ -115,9 +115,9 @@ static double evaluateCatFlex(int *ex1, int *ex2, int *cptr, int *wptr,
 	      term += left[l] * right[l] * diagptable[l];	 	  	  
 	     
 	    if(fastScaling)
-	      term = LOG(term);
+	      term = LOG(FABS(term));
 	    else
-	      term = LOG(term) + (ex2[i] * LOG(minlikelihood));
+	      term = LOG(FABS(term)) + (ex2[i] * LOG(minlikelihood));
 	    
 	    vector[i] = term;
 	    
@@ -135,9 +135,9 @@ static double evaluateCatFlex(int *ex1, int *ex2, int *cptr, int *wptr,
 	      term += left[l] * right[l] * diagptable[l];
 	 	  	  
 	    if(fastScaling)
-	      term = LOG(term);
+	      term = LOG(FABS(term));
 	    else
-	      term = LOG(term) + (ex2[i] * LOG(minlikelihood));
+	      term = LOG(FABS(term)) + (ex2[i] * LOG(minlikelihood));
 	   
 	    sum += wptr[i] * term;
 	  }      
@@ -156,9 +156,9 @@ static double evaluateCatFlex(int *ex1, int *ex2, int *cptr, int *wptr,
 	    term += left[l] * right[l] * diagptable[l];	
 	  
 	  if(fastScaling)
-	    term = LOG(term);
+	    term = LOG(FABS(term));
 	  else
-	    term = LOG(term) + ((ex1[i] + ex2[i]) * LOG(minlikelihood));
+	    term = LOG(FABS(term)) + ((ex1[i] + ex2[i]) * LOG(minlikelihood));
 	  
 	  vector[i] = term;
 	  
@@ -176,9 +176,9 @@ static double evaluateCatFlex(int *ex1, int *ex2, int *cptr, int *wptr,
 	      term += left[l] * right[l] * diagptable[l];	
 	    
 	    if(fastScaling)
-	      term = LOG(term);
+	      term = LOG(FABS(term));
 	    else
-	      term = LOG(term) + ((ex1[i] + ex2[i]) * LOG(minlikelihood));
+	      term = LOG(FABS(term)) + ((ex1[i] + ex2[i]) * LOG(minlikelihood));
 	    
 	    sum += wptr[i] * term;      
 	  }
@@ -232,9 +232,9 @@ static double evaluateGammaFlex_GAPPED(int *ex1, int *ex2, int *wptr,
 	      }	 
 	    
 	    if(fastScaling)
-	      term = LOG(0.25 * term);
+	      term = LOG(0.25 * FABS(term));
 	    else
-	      term = LOG(0.25 * term) + (ex2[i] * LOG(minlikelihood));	   
+	      term = LOG(0.25 * FABS(term)) + (ex2[i] * LOG(minlikelihood));	   
 	    	    
 	    vector[i] = term;
 	    
@@ -261,9 +261,9 @@ static double evaluateGammaFlex_GAPPED(int *ex1, int *ex2, int *wptr,
 		}
 	      
 	      if(fastScaling)
-		term = LOG(0.25 * term);
+		term = LOG(0.25 * FABS(term));
 	      else
-		term = LOG(0.25 * term) + (ex2[i] * LOG(minlikelihood));	   
+		term = LOG(0.25 * FABS(term)) + (ex2[i] * LOG(minlikelihood));	   
 	      
 	      sum += wptr[i] * term;
 	    }     	 
@@ -295,9 +295,9 @@ static double evaluateGammaFlex_GAPPED(int *ex1, int *ex2, int *wptr,
 	    }
 	  
 	  if(fastScaling)
-	    term = LOG(0.25 * term);
+	    term = LOG(0.25 * FABS(term));
 	  else
-	    term = LOG(0.25 * term) + ((ex1[i] + ex2[i])*LOG(minlikelihood));
+	    term = LOG(0.25 * FABS(term)) + ((ex1[i] + ex2[i])*LOG(minlikelihood));
 	
 	  vector[i] = term;
   
@@ -326,9 +326,9 @@ static double evaluateGammaFlex_GAPPED(int *ex1, int *ex2, int *wptr,
 	      }
 	    
 	    if(fastScaling)
-	      term = LOG(0.25 * term);
+	      term = LOG(0.25 * FABS(term));
 	    else
-	      term = LOG(0.25 * term) + ((ex1[i] + ex2[i])*LOG(minlikelihood));
+	      term = LOG(0.25 * FABS(term)) + ((ex1[i] + ex2[i])*LOG(minlikelihood));
 	    
 	    sum += wptr[i] * term;
 	  }         
@@ -374,9 +374,9 @@ static double evaluateGammaFlex(int *ex1, int *ex2, int *wptr,
 	      }	 
 	    
 	    if(fastScaling)
-	      term = LOG(0.25 * term);
+	      term = LOG(0.25 * FABS(term));
 	    else
-	      term = LOG(0.25 * term) + (ex2[i] * LOG(minlikelihood));	   
+	      term = LOG(0.25 * FABS(term)) + (ex2[i] * LOG(minlikelihood));	   
 	    	    
 	    vector[i] = term;
 	    
@@ -397,9 +397,9 @@ static double evaluateGammaFlex(int *ex1, int *ex2, int *wptr,
 		}
 	      
 	      if(fastScaling)
-		term = LOG(0.25 * term);
+		term = LOG(0.25 * FABS(term));
 	      else
-		term = LOG(0.25 * term) + (ex2[i] * LOG(minlikelihood));	   
+		term = LOG(0.25 * FABS(term)) + (ex2[i] * LOG(minlikelihood));	   
 	      
 	      sum += wptr[i] * term;
 	    }     	 
@@ -421,9 +421,9 @@ static double evaluateGammaFlex(int *ex1, int *ex2, int *wptr,
 	    }
 	  
 	  if(fastScaling)
-	    term = LOG(0.25 * term);
+	    term = LOG(0.25 * FABS(term));
 	  else
-	    term = LOG(0.25 * term) + ((ex1[i] + ex2[i])*LOG(minlikelihood));
+	    term = LOG(0.25 * FABS(term)) + ((ex1[i] + ex2[i])*LOG(minlikelihood));
 	
 	  vector[i] = term;
   
@@ -443,9 +443,9 @@ static double evaluateGammaFlex(int *ex1, int *ex2, int *wptr,
 	      }
 	    
 	    if(fastScaling)
-	      term = LOG(0.25 * term);
+	      term = LOG(0.25 * FABS(term));
 	    else
-	      term = LOG(0.25 * term) + ((ex1[i] + ex2[i])*LOG(minlikelihood));
+	      term = LOG(0.25 * FABS(term)) + ((ex1[i] + ex2[i])*LOG(minlikelihood));
 	    
 	    sum += wptr[i] * term;
 	  }         
@@ -494,9 +494,9 @@ static double evaluateGammaFlex_perSite(int *ex1, int *ex2, int *wptr,
 	    }
 	  
 	  if(fastScaling)
-	    term = LOG(0.25 * term);
+	    term = LOG(0.25 * FABS(term));
 	  else
-	    term = LOG(0.25 * term) + (ex2[i] * LOG(minlikelihood));	   
+	    term = LOG(0.25 * FABS(term)) + (ex2[i] * LOG(minlikelihood));	   
 	  
 	  sum += wptr[i] * term;
 	}     	       
@@ -519,9 +519,9 @@ static double evaluateGammaFlex_perSite(int *ex1, int *ex2, int *wptr,
 	    }
 	  
 	  if(fastScaling)
-	    term = LOG(0.25 * term);
+	    term = LOG(0.25 * FABS(term));
 	  else
-	    term = LOG(0.25 * term) + ((ex1[i] + ex2[i])*LOG(minlikelihood));
+	    term = LOG(0.25 * FABS(term)) + ((ex1[i] + ex2[i])*LOG(minlikelihood));
 	  
 	  sum += wptr[i] * term;
 	}         
@@ -572,14 +572,14 @@ static double evaluateGammaInvarFlex (int *ex1, int *ex2, int *wptr, int *iptr,
 	    
 	    if(iptr[i] < numStates)
 	      if(fastScaling) 
-		term = LOG(((scaler * term) + freqs[iptr[i]]));
+		term = LOG(((scaler * FABS(term)) + freqs[iptr[i]]));
 	      else
-		term = LOG(((scaler * term) + freqs[iptr[i]]))  + ex2[i] * LOG(minlikelihood);
+		term = LOG(((scaler * FABS(term)) + freqs[iptr[i]]))  + ex2[i] * LOG(minlikelihood);
 	    else
 	      if(fastScaling)
-		term = LOG(scaler * term);
+		term = LOG(scaler * FABS(term));
 	      else
-		term = LOG(scaler * term) + (ex2[i] * LOG(minlikelihood));
+		term = LOG(scaler * FABS(term)) + (ex2[i] * LOG(minlikelihood));
 	   	    	    
 	    vector[i] = term;
 	   
@@ -600,14 +600,14 @@ static double evaluateGammaInvarFlex (int *ex1, int *ex2, int *wptr, int *iptr,
 	    
 	    if(iptr[i] < numStates)
 	      if(fastScaling) 
-		term = LOG(((scaler * term) + freqs[iptr[i]]));
+		term = LOG(((scaler * FABS(term)) + freqs[iptr[i]]));
 	      else
-		term = LOG(((scaler * term) + freqs[iptr[i]]))  + ex2[i] * LOG(minlikelihood);
+		term = LOG(((scaler * FABS(term)) + freqs[iptr[i]]))  + ex2[i] * LOG(minlikelihood);
 	    else
 	      if(fastScaling)
-		term = LOG(scaler * term);
+		term = LOG(scaler * FABS(term));
 	      else
-		term = LOG(scaler * term) + (ex2[i] * LOG(minlikelihood));
+		term = LOG(scaler * FABS(term)) + (ex2[i] * LOG(minlikelihood));
 	    	    
 	    sum += wptr[i] * term;
 	  }    	
@@ -628,14 +628,14 @@ static double evaluateGammaInvarFlex (int *ex1, int *ex2, int *wptr, int *iptr,
 	    
 	    if(iptr[i] < numStates)
 	      if(fastScaling) 
-		term = LOG(((scaler * term) + freqs[iptr[i]]));
+		term = LOG(((scaler * FABS(term)) + freqs[iptr[i]]));
 	      else
-		term = LOG(((scaler * term) + freqs[iptr[i]]))  + (ex1[i] + ex2[i]) * LOG(minlikelihood);
+		term = LOG(((scaler * FABS(term)) + freqs[iptr[i]]))  + (ex1[i] + ex2[i]) * LOG(minlikelihood);
 	    else
 	      if(fastScaling)
-		term = LOG(scaler * term);
+		term = LOG(scaler * FABS(term));
 	      else
-		term = LOG(scaler * term) + (ex1[i] + ex2[i]) * LOG(minlikelihood);	  	 	
+		term = LOG(scaler * FABS(term)) + (ex1[i] + ex2[i]) * LOG(minlikelihood);	  	 	
 	    
 	    vector[i] = term;
 
@@ -655,14 +655,14 @@ static double evaluateGammaInvarFlex (int *ex1, int *ex2, int *wptr, int *iptr,
 	    
 	    if(iptr[i] < numStates)
 	      if(fastScaling) 
-		term = LOG(((scaler * term) + freqs[iptr[i]]));
+		term = LOG(((scaler * FABS(term)) + freqs[iptr[i]]));
 	      else
-		term = LOG(((scaler * term) + freqs[iptr[i]]))  + (ex1[i] + ex2[i]) * LOG(minlikelihood);
+		term = LOG(((scaler * FABS(term)) + freqs[iptr[i]]))  + (ex1[i] + ex2[i]) * LOG(minlikelihood);
 	    else
 	      if(fastScaling)
-		term = LOG(scaler * term);
+		term = LOG(scaler * FABS(term));
 	      else
-		term = LOG(scaler * term) + (ex1[i] + ex2[i]) * LOG(minlikelihood);	  	 	
+		term = LOG(scaler * FABS(term)) + (ex1[i] + ex2[i]) * LOG(minlikelihood);	  	 	
 	    
 	    sum += wptr[i] * term;
 	  }              
@@ -825,9 +825,9 @@ static double evaluateGTRCATPROT (int *ex1, int *ex2, int *cptr, int *wptr,
 	    term += left[l] * right[l] * diagptable[l];	 	  	  
 #endif	    
 	  if(fastScaling)
-	    term = LOG(term);
+	    term = LOG(FABS(term));
 	  else
-	    term = LOG(term) + (ex2[i] * LOG(minlikelihood));
+	    term = LOG(FABS(term)) + (ex2[i] * LOG(minlikelihood));
 	  
 	  sum += wptr[i] * term;
 	}      
@@ -862,9 +862,9 @@ static double evaluateGTRCATPROT (int *ex1, int *ex2, int *cptr, int *wptr,
 #endif
 
 	  if(fastScaling)
-	    term = LOG(term);
+	    term = LOG(FABS(term));
 	  else
-	    term = LOG(term) + ((ex1[i] + ex2[i]) * LOG(minlikelihood));
+	    term = LOG(FABS(term)) + ((ex1[i] + ex2[i]) * LOG(minlikelihood));
 	  
 	  sum += wptr[i] * term;      
 	}
@@ -895,9 +895,9 @@ static double evaluateGTRCATSECONDARY (int *ex1, int *ex2, int *cptr, int *wptr,
 	    term += left[l] * right[l] * diagptable[l];
 	  
 	  if(fastScaling)
-	    term = LOG(term);
+	    term = LOG(FABS(term));
 	  else
-	    term = LOG(term) + (ex2[i] * LOG(minlikelihood));
+	    term = LOG(FABS(term)) + (ex2[i] * LOG(minlikelihood));
 	  
 	  sum += wptr[i] * term;
 	}      
@@ -916,9 +916,9 @@ static double evaluateGTRCATSECONDARY (int *ex1, int *ex2, int *cptr, int *wptr,
 	    term += left[l] * right[l] * diagptable[l];	
 	  
 	  if(fastScaling)
-	    term = LOG(term);
+	    term = LOG(FABS(term));
 	  else
-	    term = LOG(term) + ((ex1[i] + ex2[i]) * LOG(minlikelihood));
+	    term = LOG(FABS(term)) + ((ex1[i] + ex2[i]) * LOG(minlikelihood));
 	  
 	  sum += wptr[i] * term;      
 	}
@@ -948,9 +948,9 @@ static double evaluateGTRCATSECONDARY_6 (int *ex1, int *ex2, int *cptr, int *wpt
 	    term += left[l] * right[l] * diagptable[l];
 	  
 	  if(fastScaling)
-	    term = LOG(term);
+	    term = LOG(FABS(term));
 	  else
-	    term = LOG(term) + (ex2[i] * LOG(minlikelihood));
+	    term = LOG(FABS(term)) + (ex2[i] * LOG(minlikelihood));
 	  
 	  sum += wptr[i] * term;
 	}      
@@ -969,9 +969,9 @@ static double evaluateGTRCATSECONDARY_6 (int *ex1, int *ex2, int *cptr, int *wpt
 	    term += left[l] * right[l] * diagptable[l];	
 	  
 	   if(fastScaling)
-	     term = LOG(term);
+	     term = LOG(FABS(term));
 	   else
-	     term = LOG(term) + ((ex1[i] + ex2[i]) * LOG(minlikelihood));
+	     term = LOG(FABS(term)) + ((ex1[i] + ex2[i]) * LOG(minlikelihood));
 	  
 	  sum += wptr[i] * term;      
 	}
@@ -1001,9 +1001,9 @@ static double evaluateGTRCATSECONDARY_7(int *ex1, int *ex2, int *cptr, int *wptr
 	    term += left[l] * right[l] * diagptable[l];	 	  	  
 	  
 	  if(fastScaling)
-	    term = LOG(term);
+	    term = LOG(FABS(term));
 	  else
-	    term = LOG(term) + (ex2[i] * LOG(minlikelihood));
+	    term = LOG(FABS(term)) + (ex2[i] * LOG(minlikelihood));
 	  
 	  sum += wptr[i] * term;
 	}      
@@ -1022,9 +1022,9 @@ static double evaluateGTRCATSECONDARY_7(int *ex1, int *ex2, int *cptr, int *wptr
 	    term += left[l] * right[l] * diagptable[l];	
 
 	  if(fastScaling)
-	    term = LOG(term);
+	    term = LOG(FABS(term));
 	  else
-	    term = LOG(term) + ((ex1[i] + ex2[i]) * LOG(minlikelihood));
+	    term = LOG(FABS(term)) + ((ex1[i] + ex2[i]) * LOG(minlikelihood));
 	  
 	  sum += wptr[i] * term;      
 	}
@@ -1060,17 +1060,17 @@ static double evaluateGTRCAT_BINARY (int *ex1, int *ex2, int *cptr, int *wptr,
 	  _mm_store_pd(t, _mm_mul_pd(_mm_load_pd(x1), _mm_mul_pd(_mm_load_pd(x2), _mm_load_pd(diagptable))));
 	  
 	  if(fastScaling)
-	    term = LOG(t[0] + t[1]);
+	    term = LOG(FABS(t[0] + t[1]));
 	  else
-	    term = LOG(t[0] + t[1]) + (ex2[i] * LOG(minlikelihood));			     
+	    term = LOG(FABS(t[0] + t[1])) + (ex2[i] * LOG(minlikelihood));			     
 #else	 	    
 	  for(j = 0, term = 0.0; j < 2; j++)       	   	     
 	    term += x1[j] * x2[j] * diagptable[j];	      
 	  	 
 	  if(fastScaling)
-	    term = LOG(term);
+	    term = LOG(FABS(term));
 	  else
-	    term = LOG(term) + (ex2[i] * LOG(minlikelihood));	   	    	   	 	  	  	 
+	    term = LOG(FABS(term)) + (ex2[i] * LOG(minlikelihood));	   	    	   	 	  	  	 
 #endif	  
 
 	  sum += wptr[i] * term;
@@ -1091,17 +1091,17 @@ static double evaluateGTRCAT_BINARY (int *ex1, int *ex2, int *cptr, int *wptr,
 	  _mm_store_pd(t, _mm_mul_pd(_mm_load_pd(x1), _mm_mul_pd(_mm_load_pd(x2), _mm_load_pd(diagptable))));
 	  
 	  if(fastScaling)
-	    term = LOG(t[0] + t[1]);
+	    term = LOG(FABS(t[0] + t[1]));
 	  else
-	    term = LOG(t[0] + t[1]) + ((ex1[i] + ex2[i]) * LOG(minlikelihood));			     
+	    term = LOG(FABS(t[0] + t[1])) + ((ex1[i] + ex2[i]) * LOG(minlikelihood));			     
 #else	  
 	  for(j = 0, term = 0.0; j < 2; j++)
 	    term += x1[j] * x2[j] * diagptable[j];   
 	  
 	  if(fastScaling)
-	    term = LOG(term);
+	    term = LOG(FABS(term));
 	  else
-	    term = LOG(term) + ((ex1[i] + ex2[i]) * LOG(minlikelihood));
+	    term = LOG(FABS(term)) + ((ex1[i] + ex2[i]) * LOG(minlikelihood));
 #endif
 	  
 	  sum += wptr[i] * term;
@@ -1152,18 +1152,18 @@ static double evaluateGTRGAMMA_BINARY(int *ex1, int *ex2, int *wptr,
 	  _mm_store_pd(t, termv);	        
 	  
 	  if(fastScaling)
-	    term = LOG(0.25 * (t[0] + t[1]));
+	    term = LOG(0.25 * (FABS(t[0] + t[1])));
 	  else
-	    term = LOG(0.25 * (t[0] + t[1])) + (ex2[i] * LOG(minlikelihood));	  
+	    term = LOG(0.25 * (FABS(t[0] + t[1]))) + (ex2[i] * LOG(minlikelihood));	  
 #else
 	  for(j = 0, term = 0.0; j < 4; j++)
 	    for(k = 0; k < 2; k++)
 	      term += x1[k] * x2[j * 2 + k] * diagptable[j * 2 + k];	          	  	  	    	    
 	  
 	  if(fastScaling)
-	    term = LOG(0.25 * term);
+	    term = LOG(0.25 * FABS(term));
 	  else
-	    term = LOG(0.25 * term) + ex2[i] * LOG(minlikelihood);
+	    term = LOG(0.25 * FABS(term)) + ex2[i] * LOG(minlikelihood);
 #endif	 
 	  
 	  sum += wptr[i] * term;
@@ -1199,18 +1199,18 @@ static double evaluateGTRGAMMA_BINARY(int *ex1, int *ex2, int *wptr,
 	  
 	  
 	  if(fastScaling)
-	    term = LOG(0.25 * (t[0] + t[1]));
+	    term = LOG(0.25 * (FABS(t[0] + t[1])));
 	  else
-	    term = LOG(0.25 * (t[0] + t[1])) + ((ex1[i] +ex2[i]) * LOG(minlikelihood));	  
+	    term = LOG(0.25 * (FABS(t[0] + t[1]))) + ((ex1[i] +ex2[i]) * LOG(minlikelihood));	  
 #else	  
 	  for(j = 0, term = 0.0; j < 4; j++)
 	    for(k = 0; k < 2; k++)
 	      term += x1[j * 2 + k] * x2[j * 2 + k] * diagptable[j * 2 + k];	          	  	  	      
 
 	  if(fastScaling)
-	    term = LOG(0.25 * term);
+	    term = LOG(0.25 * FABS(term));
 	  else
-	    term = LOG(0.25 * term) + (ex1[i] + ex2[i]) * LOG(minlikelihood);
+	    term = LOG(0.25 * FABS(term)) + (ex1[i] + ex2[i]) * LOG(minlikelihood);
 #endif
 
 	  sum += wptr[i] * term;
@@ -1249,14 +1249,14 @@ static double evaluateGTRGAMMAINVAR_BINARY (int *ex1, int *ex2, int *wptr, int *
 	  
 	  if(iptr[i] < 2)
 	    if(fastScaling)	   
-	      term = LOG(((scaler * term) + freqs[iptr[i]]));
+	      term = LOG(((scaler * FABS(term)) + freqs[iptr[i]]));
 	    else
-	      term = LOG(((scaler * term) + freqs[iptr[i]])) + ex2[i] * LOG(minlikelihood);
+	      term = LOG(((scaler * FABS(term)) + freqs[iptr[i]])) + ex2[i] * LOG(minlikelihood);
 	  else
 	    if(fastScaling)
-	      term = LOG(scaler * term);
+	      term = LOG(scaler * FABS(term));
 	    else
-	      term = LOG(scaler * term) + (ex2[i] * LOG(minlikelihood));	 
+	      term = LOG(scaler * FABS(term)) + (ex2[i] * LOG(minlikelihood));	 
 	  
 	  sum += wptr[i] * term;
 	}	  
@@ -1275,14 +1275,14 @@ static double evaluateGTRGAMMAINVAR_BINARY (int *ex1, int *ex2, int *wptr, int *
 	  
 	  if(iptr[i] < 2)
 	    if(fastScaling)	   	       
-	      term = LOG(((scaler * term) + freqs[iptr[i]]));
+	      term = LOG(((scaler * FABS(term)) + freqs[iptr[i]]));
 	    else
-	      term = LOG(((scaler * term) + freqs[iptr[i]])) + (ex2[i] + ex1[i]) * LOG(minlikelihood);
+	      term = LOG(((scaler * FABS(term)) + freqs[iptr[i]])) + (ex2[i] + ex1[i]) * LOG(minlikelihood);
 	  else
 	    if(fastScaling)
-	      term = LOG(scaler * term);
+	      term = LOG(scaler * FABS(term));
 	    else
-	      term = LOG(scaler * term) + ((ex1[i] + ex2[i]) * LOG(minlikelihood));
+	      term = LOG(scaler * FABS(term)) + ((ex1[i] + ex2[i]) * LOG(minlikelihood));
 
 	  sum += wptr[i] * term;
 	}	  	                        
@@ -1335,9 +1335,9 @@ static double evaluateGTRCAT (int *ex1, int *ex2, int *cptr, int *wptr,
 	  _mm_store_pd(t, x1v1);
 	  
 	  if(fastScaling)
-	    term = LOG(t[0] + t[1]);
+	    term = LOG(FABS(t[0] + t[1]));
 	  else
-	    term = LOG(t[0] + t[1]) + (ex2[i] * LOG(minlikelihood));
+	    term = LOG(FABS(t[0] + t[1])) + (ex2[i] * LOG(minlikelihood));
 #else
 	  for(j = 0, term = 0.0; j < 4; j++)
 	    term += x1[j] * x2[j] * diagptable[j];
@@ -1357,9 +1357,9 @@ static double evaluateGTRCAT (int *ex1, int *ex2, int *cptr, int *wptr,
 	    }*/
 
 	  if(fastScaling)
-	    term = LOG(term);
+	    term = LOG(FABS(term));
 	  else
-	    term = LOG(term) + (ex2[i] * LOG(minlikelihood));
+	    term = LOG(FABS(term)) + (ex2[i] * LOG(minlikelihood));
 #endif	    
 	  sum += wptr[i] * term;
 	}	
@@ -1396,18 +1396,18 @@ static double evaluateGTRCAT (int *ex1, int *ex2, int *cptr, int *wptr,
 	  _mm_store_pd(t, x1v1);
 	  
 	  if(fastScaling)
-	    term = LOG(t[0] + t[1]);
+	    term = LOG(FABS(t[0] + t[1]));
 	  else
-	    term = LOG(t[0] + t[1]) + ((ex1[i] + ex2[i]) * LOG(minlikelihood));
+	    term = LOG(FABS(t[0] + t[1])) + ((ex1[i] + ex2[i]) * LOG(minlikelihood));
 #else
 	  
 	  for(j = 0, term = 0.0; j < 4; j++)
 	    term += x1[j] * x2[j] * diagptable[j];     
 	  
 	  if(fastScaling)
-	    term = LOG(term);
+	    term = LOG(FABS(term));
 	  else
-	    term = LOG(term) + ((ex1[i] + ex2[i]) * LOG(minlikelihood));	  
+	    term = LOG(FABS(term)) + ((ex1[i] + ex2[i]) * LOG(minlikelihood));	  
 #endif
 	  sum += wptr[i] * term;
 	}    
@@ -1471,9 +1471,9 @@ static double evaluateGTRGAMMA_GAPPED(int *ex1, int *ex2, int *wptr,
 	  _mm_store_pd(t, termv);	  	 
 
 	  if(fastScaling)
-	    term = LOG(0.25 * (t[0] + t[1]));
+	    term = LOG(0.25 * FABS(t[0] + t[1]));
 	  else
-	    term = LOG(0.25 * (t[0] + t[1])) + (ex2[i] * LOG(minlikelihood));	  
+	    term = LOG(0.25 * FABS(t[0] + t[1])) + (ex2[i] * LOG(minlikelihood));	  
 	  
 	  sum += wptr[i] * term;
 	}     
@@ -1522,9 +1522,9 @@ static double evaluateGTRGAMMA_GAPPED(int *ex1, int *ex2, int *wptr,
 	  _mm_store_pd(t, termv);
 
 	  if(fastScaling)
-	    term = LOG(0.25 * (t[0] + t[1]));
+	    term = LOG(0.25 * FABS(t[0] + t[1]));
 	  else
-	    term = LOG(0.25 * (t[0] + t[1])) + ((ex1[i] + ex2[i]) * LOG(minlikelihood));	  
+	    term = LOG(0.25 * FABS(t[0] + t[1])) + ((ex1[i] + ex2[i]) * LOG(minlikelihood));	  
 	  
 	  sum += wptr[i] * term;
 	}                      	
@@ -1595,9 +1595,9 @@ static double evaluateGTRGAMMA_GAPPED_SAVE(int *ex1, int *ex2, int *wptr,
 	  _mm_store_pd(t, termv);	  	 
 
 	  if(fastScaling)
-	    term = LOG(0.25 * (t[0] + t[1]));
+	    term = LOG(0.25 * FABS(t[0] + t[1]));
 	  else
-	    term = LOG(0.25 * (t[0] + t[1])) + (ex2[i] * LOG(minlikelihood));	  
+	    term = LOG(0.25 * FABS(t[0] + t[1])) + (ex2[i] * LOG(minlikelihood));	  
 	  
 	  sum += wptr[i] * term;
 	}     
@@ -1653,9 +1653,9 @@ static double evaluateGTRGAMMA_GAPPED_SAVE(int *ex1, int *ex2, int *wptr,
 	  _mm_store_pd(t, termv);
 
 	  if(fastScaling)
-	    term = LOG(0.25 * (t[0] + t[1]));
+	    term = LOG(0.25 * FABS(t[0] + t[1]));
 	  else
-	    term = LOG(0.25 * (t[0] + t[1])) + ((ex1[i] + ex2[i]) * LOG(minlikelihood));	  
+	    term = LOG(0.25 * FABS(t[0] + t[1])) + ((ex1[i] + ex2[i]) * LOG(minlikelihood));	  
 	  
 	  sum += wptr[i] * term;
 	}                      	
@@ -1695,9 +1695,9 @@ static double evaluateGTRGAMMA_GAPPED(int *ex1, int *ex2, int *wptr,
 	      term += x1[k] * x2[j * 4 + k] * diagptable[j * 4 + k];	          	  	  	    	    	  
 	  
 	  if(fastScaling)
-	    term = LOG(0.25 * term);
+	    term = LOG(0.25 * FABS(term));
 	  else
-	    term = LOG(0.25 * term) + ex2[i] * LOG(minlikelihood);	 
+	    term = LOG(0.25 * FABS(term)) + ex2[i] * LOG(minlikelihood);	 
 	  
 	  sum += wptr[i] * term;
 	}     
@@ -1722,9 +1722,9 @@ static double evaluateGTRGAMMA_GAPPED(int *ex1, int *ex2, int *wptr,
 	      term += x1[j * 4 + k] * x2[j * 4 + k] * diagptable[j * 4 + k];
 	  
 	  if(fastScaling)
-	     term = LOG(0.25 * term);
+	    term = LOG(0.25 * FABS(term));
 	  else
-	    term = LOG(0.25 * term) + (ex1[i] + ex2[i]) * LOG(minlikelihood);
+	    term = LOG(0.25 * FABS(term)) + (ex1[i] + ex2[i]) * LOG(minlikelihood);
 	  
 	  sum += wptr[i] * term;
 	}                      	
@@ -1789,18 +1789,18 @@ static double evaluateGTRGAMMA(int *ex1, int *ex2, int *wptr,
 	  
 	  
 	  if(fastScaling)
-	    term = LOG(0.25 * (t[0] + t[1]));
+	    term = LOG(0.25 * FABS(t[0] + t[1]));
 	  else
-	    term = LOG(0.25 * (t[0] + t[1])) + (ex2[i] * LOG(minlikelihood));	  
+	    term = LOG(0.25 * FABS(t[0] + t[1])) + (ex2[i] * LOG(minlikelihood));	  
 #else
 	  for(j = 0, term = 0.0; j < 4; j++)
 	    for(k = 0; k < 4; k++)
 	      term += x1[k] * x2[j * 4 + k] * diagptable[j * 4 + k];	          	  	  	    	    	  
 	  
 	  if(fastScaling)
-	    term = LOG(0.25 * term);
+	    term = LOG(0.25 * FABS(term));
 	  else
-	    term = LOG(0.25 * term) + ex2[i] * LOG(minlikelihood);	 
+	    term = LOG(0.25 * FABS(term)) + ex2[i] * LOG(minlikelihood);	 
 #endif
 	  
 	  sum += wptr[i] * term;
@@ -1845,18 +1845,18 @@ static double evaluateGTRGAMMA(int *ex1, int *ex2, int *wptr,
 	  _mm_store_pd(t, termv);
 
 	  if(fastScaling)
-	    term = LOG(0.25 * (t[0] + t[1]));
+	    term = LOG(0.25 * FABS(t[0] + t[1]));
 	  else
-	    term = LOG(0.25 * (t[0] + t[1])) + ((ex1[i] + ex2[i]) * LOG(minlikelihood));	  
+	    term = LOG(0.25 * FABS(t[0] + t[1])) + ((ex1[i] + ex2[i]) * LOG(minlikelihood));	  
 #else 
 	  for(j = 0, term = 0.0; j < 4; j++)
 	    for(k = 0; k < 4; k++)
 	      term += x1[j * 4 + k] * x2[j * 4 + k] * diagptable[j * 4 + k];
 	          	  	  	      
 	   if(fastScaling)
-	      term = LOG(0.25 * term);
+	     term = LOG(0.25 * FABS(term));
 	    else
-	      term = LOG(0.25 * term) + (ex1[i] + ex2[i]) * LOG(minlikelihood);
+	      term = LOG(0.25 * FABS(term)) + (ex1[i] + ex2[i]) * LOG(minlikelihood);
 #endif
 	  
 	  sum += wptr[i] * term;
@@ -1905,14 +1905,14 @@ static double evaluateGTRGAMMAINVAR (int *ex1, int *ex2, int *wptr, int *iptr,
 	  
 	  if(iptr[i] < 4)
 	    if(fastScaling)
-	      term = LOG(((scaler * term) + freqs[iptr[i]]));
+	      term = LOG(((scaler * FABS(term)) + freqs[iptr[i]]));
 	    else
-	      term = LOG(((scaler * term) + freqs[iptr[i]])) + ex2[i] * LOG(minlikelihood);
+	      term = LOG(((scaler * FABS(term)) + freqs[iptr[i]])) + ex2[i] * LOG(minlikelihood);
 	  else
 	    if(fastScaling)
-	      term = LOG(scaler * term);
+	      term = LOG(scaler * FABS(term));
 	    else
-	      term = LOG(scaler * term) + (ex2[i] * LOG(minlikelihood));	 
+	      term = LOG(scaler * FABS(term)) + (ex2[i] * LOG(minlikelihood));	 
 	  
 	  sum += wptr[i] * term;
 	}	  
@@ -1931,14 +1931,14 @@ static double evaluateGTRGAMMAINVAR (int *ex1, int *ex2, int *wptr, int *iptr,
 	  
 	  if(iptr[i] < 4)
 	    if(fastScaling)
-	      term = LOG(((scaler * term) + freqs[iptr[i]]));
+	      term = LOG(((scaler * FABS(term)) + freqs[iptr[i]]));
 	    else
-	      term = LOG(((scaler * term) + freqs[iptr[i]])) + (ex2[i] + ex1[i]) * LOG(minlikelihood);
+	      term = LOG(((scaler * FABS(term)) + freqs[iptr[i]])) + (ex2[i] + ex1[i]) * LOG(minlikelihood);
 	  else
 	    if(fastScaling)
-	      term = LOG(scaler * term);
+	      term = LOG(scaler * FABS(term));
 	    else
-	      term = LOG(scaler * term) + ((ex1[i] + ex2[i]) * LOG(minlikelihood));
+	      term = LOG(scaler * FABS(term)) + ((ex1[i] + ex2[i]) * LOG(minlikelihood));
 
 	  sum += wptr[i] * term;
 	}	  	                        
@@ -1992,9 +1992,9 @@ static double evaluateGTRGAMMAPROT (int *ex1, int *ex2, int *wptr,
 #endif
 	  
 	  if(fastScaling)
-	    term = LOG(0.25 * term);
+	    term = LOG(0.25 * FABS(term));
 	  else
-	    term = LOG(0.25 * term) + (ex2[i] * LOG(minlikelihood));	   
+	    term = LOG(0.25 * FABS(term)) + (ex2[i] * LOG(minlikelihood));	   
 	  
 	  sum += wptr[i] * term;
 	}    	        
@@ -2032,9 +2032,9 @@ static double evaluateGTRGAMMAPROT (int *ex1, int *ex2, int *wptr,
 #endif
 	  
 	  if(fastScaling)
-	    term = LOG(0.25 * term);
+	    term = LOG(0.25 * FABS(term));
 	  else
-	    term = LOG(0.25 * term) + ((ex1[i] + ex2[i])*LOG(minlikelihood));
+	    term = LOG(0.25 * FABS(term)) + ((ex1[i] + ex2[i])*LOG(minlikelihood));
 	  
 	  sum += wptr[i] * term;
 	}         
@@ -2095,9 +2095,9 @@ static double evaluateGTRGAMMAPROT_GAPPED (int *ex1, int *ex2, int *wptr,
 	    }	  
 #endif	 
 	  if(fastScaling)
-	    term = LOG(0.25 * term);
+	    term = LOG(0.25 * FABS(term));
 	  else
-	    term = LOG(0.25 * term) + (ex2[i] * LOG(minlikelihood));	   
+	    term = LOG(0.25 * FABS(term)) + (ex2[i] * LOG(minlikelihood));	   
 	  
 	  sum += wptr[i] * term;
 	}    	        
@@ -2145,9 +2145,9 @@ static double evaluateGTRGAMMAPROT_GAPPED (int *ex1, int *ex2, int *wptr,
 #endif
 	  
 	  if(fastScaling)
-	    term = LOG(0.25 * term);
+	    term = LOG(0.25 * FABS(term));
 	  else
-	    term = LOG(0.25 * term) + ((ex1[i] + ex2[i])*LOG(minlikelihood));
+	    term = LOG(0.25 * FABS(term)) + ((ex1[i] + ex2[i])*LOG(minlikelihood));
 	  
 	  sum += wptr[i] * term;
 	}         
@@ -2207,9 +2207,9 @@ static double evaluateGTRGAMMAPROT_GAPPED_SAVE (int *ex1, int *ex2, int *wptr,
 	    }	  
 #endif	 
 	  if(fastScaling)
-	    term = LOG(0.25 * term);
+	    term = LOG(0.25 * FABS(term));
 	  else
-	    term = LOG(0.25 * term) + (ex2[i] * LOG(minlikelihood));	   
+	    term = LOG(0.25 * FABS(term)) + (ex2[i] * LOG(minlikelihood));	   
 	  
 	  sum += wptr[i] * term;
 	}    	        
@@ -2257,9 +2257,9 @@ static double evaluateGTRGAMMAPROT_GAPPED_SAVE (int *ex1, int *ex2, int *wptr,
 #endif
 	  
 	  if(fastScaling)
-	    term = LOG(0.25 * term);
+	    term = LOG(0.25 * FABS(term));
 	  else
-	    term = LOG(0.25 * term) + ((ex1[i] + ex2[i])*LOG(minlikelihood));
+	    term = LOG(0.25 * FABS(term)) + ((ex1[i] + ex2[i])*LOG(minlikelihood));
 	  
 	  sum += wptr[i] * term;
 	}         
@@ -2296,9 +2296,9 @@ static double evaluateGTRGAMMASECONDARY (int *ex1, int *ex2, int *wptr,
 	    }
 	  
 	  if(fastScaling)
-	    term = LOG(0.25 * term);
+	    term = LOG(0.25 * FABS(term));
 	  else
-	    term = LOG(0.25 * term) + (ex2[i] * LOG(minlikelihood));	   
+	    term = LOG(0.25 * FABS(term)) + (ex2[i] * LOG(minlikelihood));	   
 	  
 	  sum += wptr[i] * term;
 	}     	     
@@ -2318,9 +2318,9 @@ static double evaluateGTRGAMMASECONDARY (int *ex1, int *ex2, int *wptr,
 	    }
 	  
 	  if(fastScaling)
-	    term = LOG(0.25 * term);
+	    term = LOG(0.25 * FABS(term));
 	  else
-	    term = LOG(0.25 * term) + ((ex1[i] + ex2[i])*LOG(minlikelihood));
+	    term = LOG(0.25 * FABS(term)) + ((ex1[i] + ex2[i])*LOG(minlikelihood));
 	  
 	  sum += wptr[i] * term;
 	}         
@@ -2353,9 +2353,9 @@ static double evaluateGTRGAMMASECONDARY_6 (int *ex1, int *ex2, int *wptr,
 	    }	
 	  
 	  if(fastScaling)
-	    term = LOG(0.25 * term);
+	    term = LOG(0.25 * FABS(term));
 	  else
-	    term = LOG(0.25 * term) + (ex2[i] * LOG(minlikelihood));	   
+	    term = LOG(0.25 * FABS(term)) + (ex2[i] * LOG(minlikelihood));	   
 	  
 	  sum += wptr[i] * term;
 	}     	      
@@ -2375,9 +2375,9 @@ static double evaluateGTRGAMMASECONDARY_6 (int *ex1, int *ex2, int *wptr,
 	    }
 
 	  if(fastScaling)
-	    term = LOG(0.25 * term);
+	    term = LOG(0.25 * FABS(term));
 	  else
-	    term = LOG(0.25 * term) + ((ex1[i] + ex2[i])*LOG(minlikelihood));
+	    term = LOG(0.25 * FABS(term)) + ((ex1[i] + ex2[i])*LOG(minlikelihood));
 	  
 	  sum += wptr[i] * term;
 	}         
@@ -2410,9 +2410,9 @@ static double evaluateGTRGAMMASECONDARY_7 (int *ex1, int *ex2, int *wptr,
 	    }	
 	  
 	  if(fastScaling)
-	    term = LOG(0.25 * term);
+	    term = LOG(0.25 * FABS(term));
 	  else
-	    term = LOG(0.25 * term) + (ex2[i] * LOG(minlikelihood));	   
+	    term = LOG(0.25 * FABS(term)) + (ex2[i] * LOG(minlikelihood));	   
 	  
 	  sum += wptr[i] * term;
 	}     	    
@@ -2432,9 +2432,9 @@ static double evaluateGTRGAMMASECONDARY_7 (int *ex1, int *ex2, int *wptr,
 	    }
 	  
 	  if(fastScaling)
-	    term = LOG(0.25 * term);
+	    term = LOG(0.25 * FABS(term));
 	  else
-	    term = LOG(0.25 * term) + ((ex1[i] + ex2[i])*LOG(minlikelihood));
+	    term = LOG(0.25 * FABS(term)) + ((ex1[i] + ex2[i])*LOG(minlikelihood));
 	  
 	  sum += wptr[i] * term;
 	}         
@@ -2473,14 +2473,14 @@ static double evaluateGTRGAMMAPROTINVAR (int *ex1, int *ex2, int *wptr, int *ipt
 	  
 	  if(iptr[i] < 20)	
 	    if(fastScaling)
-	      term = LOG(((scaler * term) + freqs[iptr[i]]));
+	      term = LOG(((scaler * FABS(term)) + freqs[iptr[i]]));
 	    else
-	      term = LOG(((scaler * term) + freqs[iptr[i]]))  + ex2[i] * LOG(minlikelihood);
+	      term = LOG(((scaler * FABS(term)) + freqs[iptr[i]]))  + ex2[i] * LOG(minlikelihood);
 	  else
 	    if(fastScaling)
-	      term = LOG(scaler * term);
+	      term = LOG(scaler * FABS(term));
 	    else
-	      term = LOG(scaler * term) + (ex2[i] * LOG(minlikelihood));
+	      term = LOG(scaler * FABS(term)) + (ex2[i] * LOG(minlikelihood));
 	  
 	  sum += wptr[i] * term;
 	}    	
@@ -2500,14 +2500,14 @@ static double evaluateGTRGAMMAPROTINVAR (int *ex1, int *ex2, int *wptr, int *ipt
 	  
 	  if(iptr[i] < 20)
 	    if(fastScaling)
-	      term = LOG(((scaler * term) + freqs[iptr[i]]));
+	      term = LOG(((scaler * FABS(term)) + freqs[iptr[i]]));
 	    else
-	      term = LOG(((scaler * term) + freqs[iptr[i]])) + (ex1[i] + ex2[i]) * LOG(minlikelihood);
+	      term = LOG(((scaler * FABS(term)) + freqs[iptr[i]])) + (ex1[i] + ex2[i]) * LOG(minlikelihood);
 	  else
 	    if(fastScaling)
-	      term = LOG(scaler * term);
+	      term = LOG(scaler * FABS(term));
 	    else
-	      term = LOG(scaler * term) + ((ex1[i] + ex2[i]) * LOG(minlikelihood));
+	      term = LOG(scaler * FABS(term)) + ((ex1[i] + ex2[i]) * LOG(minlikelihood));
 	  sum += wptr[i] * term;
 	}              
     }
@@ -2545,14 +2545,14 @@ static double evaluateGTRGAMMASECONDARYINVAR (int *ex1, int *ex2, int *wptr, int
 	  
 	  if(iptr[i] < 16)
 	    if(fastScaling) 
-	      term = LOG(((scaler * term) + freqs[iptr[i]]));
+	      term = LOG(((scaler * FABS(term)) + freqs[iptr[i]]));
 	    else
-	      term = LOG(((scaler * term) + freqs[iptr[i]]))  + ex2[i] * LOG(minlikelihood);
+	      term = LOG(((scaler * FABS(term)) + freqs[iptr[i]]))  + ex2[i] * LOG(minlikelihood);
 	  else
 	    if(fastScaling)
-	      term = LOG(scaler * term);
+	      term = LOG(scaler * FABS(term));
 	    else
-	      term = LOG(scaler * term) + (ex2[i] * LOG(minlikelihood));
+	      term = LOG(scaler * FABS(term)) + (ex2[i] * LOG(minlikelihood));
 	  
 	  sum += wptr[i] * term;
 	}    	
@@ -2572,14 +2572,14 @@ static double evaluateGTRGAMMASECONDARYINVAR (int *ex1, int *ex2, int *wptr, int
 
 	  if(iptr[i] < 16)
 	    if(fastScaling) 
-	      term = LOG(((scaler * term) + freqs[iptr[i]]));
+	      term = LOG(((scaler * FABS(term)) + freqs[iptr[i]]));
 	    else
-	      term = LOG(((scaler * term) + freqs[iptr[i]]))  + (ex1[i] + ex2[i]) * LOG(minlikelihood);
+	      term = LOG(((scaler * FABS(term)) + freqs[iptr[i]]))  + (ex1[i] + ex2[i]) * LOG(minlikelihood);
 	  else
 	    if(fastScaling)
-	      term = LOG(scaler * term);
+	      term = LOG(scaler * FABS(term));
 	    else
-	      term = LOG(scaler * term) + (ex1[i] + ex2[i]) * LOG(minlikelihood);	  	 	
+	      term = LOG(scaler * FABS(term)) + (ex1[i] + ex2[i]) * LOG(minlikelihood);	  	 	
 	  
 	  sum += wptr[i] * term;
 	}              
@@ -2618,14 +2618,14 @@ static double evaluateGTRGAMMASECONDARYINVAR_6 (int *ex1, int *ex2, int *wptr, i
 	  
 	  if(iptr[i] < 6)
 	    if(fastScaling)
-	      term = LOG(((scaler * term) + freqs[iptr[i]]));
+	      term = LOG(((scaler * FABS(term)) + freqs[iptr[i]]));
 	    else
-	      term = LOG(((scaler * term) + freqs[iptr[i]]))  + ex2[i] * LOG(minlikelihood);
+	      term = LOG(((scaler * FABS(term)) + freqs[iptr[i]]))  + ex2[i] * LOG(minlikelihood);
 	  else
 	    if(fastScaling)
-	      term = LOG(scaler * term);
+	      term = LOG(scaler * FABS(term));
 	    else
-	      term = LOG(scaler * term) + (ex2[i] * LOG(minlikelihood));
+	      term = LOG(scaler * FABS(term)) + (ex2[i] * LOG(minlikelihood));
 	  
 	  sum += wptr[i] * term;
 	}    	
@@ -2645,14 +2645,14 @@ static double evaluateGTRGAMMASECONDARYINVAR_6 (int *ex1, int *ex2, int *wptr, i
 	  
 	  if(iptr[i] < 6)
 	    if(fastScaling)
-	      term = LOG(((scaler * term) + freqs[iptr[i]]));
+	      term = LOG(((scaler * FABS(term)) + freqs[iptr[i]]));
 	    else
-	      term = LOG(((scaler * term) + freqs[iptr[i]])) + (ex2[i] + ex1[i]) * LOG(minlikelihood);
+	      term = LOG(((scaler * FABS(term)) + freqs[iptr[i]])) + (ex2[i] + ex1[i]) * LOG(minlikelihood);
 	  else
 	    if(fastScaling)
-	      term = LOG(scaler * term);
+	      term = LOG(scaler * FABS(term));
 	    else
-	      term = LOG(scaler * term) + ((ex1[i] + ex2[i]) * LOG(minlikelihood));
+	      term = LOG(scaler * FABS(term)) + ((ex1[i] + ex2[i]) * LOG(minlikelihood));
 
 	  sum += wptr[i] * term;
 	}              
@@ -2691,14 +2691,14 @@ static double evaluateGTRGAMMASECONDARYINVAR_7 (int *ex1, int *ex2, int *wptr, i
 	  
 	  if(iptr[i] < 7)
 	    if(fastScaling)
-	      term = LOG(((scaler * term) + freqs[iptr[i]]));
+	      term = LOG(((scaler * FABS(term)) + freqs[iptr[i]]));
 	    else
-	      term = LOG(((scaler * term) + freqs[iptr[i]]))  + ex2[i] * LOG(minlikelihood);
+	      term = LOG(((scaler * FABS(term)) + freqs[iptr[i]]))  + ex2[i] * LOG(minlikelihood);
 	  else
 	    if(fastScaling)
-	      term = LOG(scaler * term);
+	      term = LOG(scaler * FABS(term));
 	    else
-	      term = LOG(scaler * term) + (ex2[i] * LOG(minlikelihood));
+	      term = LOG(scaler * FABS(term)) + (ex2[i] * LOG(minlikelihood));
 	  
 	  sum += wptr[i] * term;
 	}    	
@@ -2718,14 +2718,14 @@ static double evaluateGTRGAMMASECONDARYINVAR_7 (int *ex1, int *ex2, int *wptr, i
 	  
 	  if(iptr[i] < 7)
 	    if(fastScaling)
-	      term = LOG(((scaler * term) + freqs[iptr[i]]));
+	      term = LOG(((scaler * FABS(term)) + freqs[iptr[i]]));
 	    else
-	      term = LOG(((scaler * term) + freqs[iptr[i]])) + (ex2[i] + ex1[i]) * LOG(minlikelihood);
+	      term = LOG(((scaler * FABS(term)) + freqs[iptr[i]])) + (ex2[i] + ex1[i]) * LOG(minlikelihood);
 	  else
 	    if(fastScaling)
-	      term = LOG(scaler * term);
+	      term = LOG(scaler * FABS(term));
 	    else
-	      term = LOG(scaler * term) + ((ex1[i] + ex2[i]) * LOG(minlikelihood));
+	      term = LOG(scaler * FABS(term)) + ((ex1[i] + ex2[i]) * LOG(minlikelihood));
 
 	  sum += wptr[i] * term;
 	}              

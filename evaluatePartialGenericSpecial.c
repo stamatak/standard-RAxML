@@ -227,7 +227,7 @@ static double evaluatePartialGTRCATPROT(int i, double ki, int counter,  traversa
   for(l = 0; l < 20; l++)
     term += x1[l] * x2[l] * d[l];   
 
-  term = LOG(term) + (scale * LOG(minlikelihood));   
+  term = LOG(FABS(term)) + (scale * LOG(minlikelihood));   
 
   term = term * w;
 
@@ -360,7 +360,7 @@ static double evaluatePartialGTRCATPROT(int i, double ki, int counter,  traversa
   for(l = 0; l < 20; l++)
     term += x1[l] * x2[l] * d[l];   
 
-  term = LOG(term) + (scale * LOG(minlikelihood));   
+  term = LOG(FABS(term)) + (scale * LOG(minlikelihood));   
 
   term = term * w;
 
@@ -880,7 +880,7 @@ static double evaluatePartialGTRCAT_BINARY(int i, double ki, int counter,  trave
   term =  x1[0] * x2[0];
   term += x1[1] * x2[1] * d; 
 
-  term = LOG(term) + (scale * LOG(minlikelihood));   
+  term = LOG(FABS(term)) + (scale * LOG(minlikelihood));   
 
   term = term * w;
 
@@ -931,7 +931,7 @@ static double evaluatePartialGTRCAT(int i, double ki, int counter,  traversalInf
   term += x1[2] * x2[2] * d[1];
   term += x1[3] * x2[3] * d[2];     
 
-  term = LOG(term) + (scale * LOG(minlikelihood));   
+  term = LOG(FABS(term)) + (scale * LOG(minlikelihood));   
 
   term = term * w;
 
@@ -985,7 +985,7 @@ static double evaluatePartialGTRCATSECONDARY(int i, double ki, int counter,  tra
   for(l = 0; l < 16; l++)
     term += x1[l] * x2[l] * d[l];   
 
-  term = LOG(term) + (scale * LOG(minlikelihood));   
+  term = LOG(FABS(term)) + (scale * LOG(minlikelihood));   
 
   term = term * w;
 
@@ -1036,7 +1036,7 @@ static double evaluatePartialFlex(int i, double ki, int counter,  traversalInfo 
   for(l = 0; l < numStates; l++)
     term += x1[l] * x2[l] * d[l];   
 
-  term = LOG(term) + (scale * LOG(minlikelihood));   
+  term = LOG(FABS(term)) + (scale * LOG(minlikelihood));   
 
   term = term * w;
 
@@ -1089,7 +1089,7 @@ static double evaluatePartialGTRCATSECONDARY_6(int i, double ki, int counter,  t
   for(l = 0; l < 6; l++)
     term += x1[l] * x2[l] * d[l];   
 
-  term = LOG(term) + (scale * LOG(minlikelihood));   
+  term = LOG(FABS(term)) + (scale * LOG(minlikelihood));   
 
   term = term * w;
 
@@ -1141,7 +1141,7 @@ static double evaluatePartialGTRCATSECONDARY_7(int i, double ki, int counter,  t
   for(l = 0; l < 7; l++)
     term += x1[l] * x2[l] * d[l];   
 
-  term = LOG(term) + (scale * LOG(minlikelihood));   
+  term = LOG(FABS(term)) + (scale * LOG(minlikelihood));   
 
   term = term * w;
 
