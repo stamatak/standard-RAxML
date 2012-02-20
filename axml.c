@@ -81,9 +81,16 @@
 /***************** UTILITY FUNCTIONS **************************/
 
 
+double FABS(double x)
+{
+  /*  if(x < -1.0E-10)
+      assert(0);*/
+  
+  /* if(x < 0.0)
+     printf("%1.40f\n", x); */
 
-
-
+  return fabs(x);
+}
 
 void *malloc_aligned(size_t size, size_t align) 
 {
@@ -385,6 +392,9 @@ static void setRateHetAndDataIncrement(tree *tr, analdef *adef)
     default:
       assert(0);
     }
+
+  if(adef->bootstrapBranchLengths)
+    assert(tr->discreteRateCategories == 4);
 
   for(model = 0; model < tr->NumberOfModels; model++)
     {

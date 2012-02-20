@@ -138,7 +138,7 @@
 #define MAX(x,y)  (((x)>(y)) ?    (x)  : (y))
 #define NINT(x)   ((int) ((x)>0 ? ((x)+0.5) : ((x)-0.5)))
 
-#define FABS(x) fabs(x)
+
 #define LOG(x)  log(x)
 #define EXP(x)  exp(x)
 
@@ -1206,7 +1206,7 @@ extern void   newviewIterative(tree *);
 extern double evaluateIterative(tree *, boolean writeVector);
 
 extern void *malloc_aligned( size_t size, size_t align);
-
+extern double FABS(double x);
 
 
 
