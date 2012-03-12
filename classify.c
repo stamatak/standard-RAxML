@@ -1723,9 +1723,16 @@ void classifyML(tree *tr, analdef *adef)
 	   my old cutoff was at 0.95 accumulated likelihood weight:
 	   	     
 	   while(acc <= 0.95)
-	*/	  
+	*/
 
+	/*#define _ALL_ENTRIES*/
+	  
+#ifdef _ALL_ENTRIES
+	assert(validEntries == tr->numberOfBranches);
+	while(j < validEntries)	  
+#else
 	while(j < validEntries && j < 7)	  
+#endif
 	  { 
 	    int 
 	      k;
@@ -1741,8 +1748,9 @@ void classifyML(tree *tr, analdef *adef)
 	      
 	    if(j == 0)
 	      maxprob = prob;
-
+#ifndef _ALL_ENTRIES
 	    if(prob >= maxprob * 0.01)
+#endif
 	      {
 		if(j > 0)
 		  {
@@ -1787,6 +1795,10 @@ void classifyML(tree *tr, analdef *adef)
     
     free(inf);      
   }
+
+#ifdef _ALL_ENTRIES
+  assert(j == tr->numberOfBranches);
+#endif
 
   fprintf(treeFile, "\t ],\n");
   fprintf(treeFile, "\t\"metadata\": {\"invocation\": ");
