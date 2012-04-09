@@ -1192,7 +1192,19 @@ void parseSecondaryStructure(tree *tr, analdef *adef, int sites)
 		}
 	    }	
 
-	  assert(depth == 0 && countCharacters == sites);
+	  if(depth != 0)
+	    {
+	      printf("Problem: Depth: %d\n", depth);
+	      printf("Your secondary structure file may be missing a closing or opening paraenthesis!\n");
+	    }
+	  assert(depth == 0);
+	  
+	  if(countCharacters != sites)
+	    {
+	      printf("Problem: sec chars: %d sites: %d\n",countCharacters, sites);
+	      printf("The number of sites in the alignment does not match the length of the secondary structure file\n");
+	    }
+	  assert(countCharacters == sites);
 	
       
 	  if(closing != opening)
