@@ -24,12 +24,12 @@ sub getLH
   {
     my $fileID = $_[0];  
     open(CPF, $fileID);
-    my @lines = <CPF>;	
-    close(CPF);	
+    my @lines = <CPF>;	   
     my $numIT = @lines;   	
     my $lastLH = pop(@lines);  
     my $k = index($lastLH, '-');   
     my $LH = substr($lastLH, $k);     
+    close(CPF);	
     return $LH;
   }
 
@@ -37,12 +37,12 @@ sub getTIME
   {
     my $fileID = $_[0];  
     open(CPF, $fileID);
-    my @lines = <CPF>;	
-    close(CPF);	
+    my @lines = <CPF>;	   	
     my $numIT = @lines;   	
     my $lastLH = pop(@lines);  
     my $k = index($lastLH, '-');   
-    my $TIME = substr($lastLH, 0, $k-1);     
+    my $TIME = substr($lastLH, 0, $k-1);    
+    close(CPF);  
     return $TIME;
   }
 
