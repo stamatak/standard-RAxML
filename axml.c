@@ -2152,34 +2152,37 @@ static void checkSequences(tree *tr, rawdata *rdta, analdef *adef)
       errorExit(-1);
     }
 
-  for(i = 1; i < n; i++)
+  if(adef->checkForUndeterminedSequences)
     {
-      j = 1;
-
-      while(j <= rdta->sites)
-	{	  
-	  if(rdta->y[i][j] != getUndetermined(tr->dataVector[j]))
-	    break;	  	  
-
-	  j++;
+      for(i = 1; i < n; i++)
+	{
+	  j = 1;
+	  
+	  while(j <= rdta->sites)
+	    {	  
+	      if(rdta->y[i][j] != getUndetermined(tr->dataVector[j]))
+		break;	  	  
+	      
+	      j++;
+	    }
+	  
+	  if(j == (rdta->sites + 1))
+	    {
+	      if(processID == 0)
+		printBothOpen("ERROR: Sequence %s consists entirely of undetermined values which will be treated as missing data\n",
+			      tr->nameList[i]);
+	      
+	      countOnlyGaps++;
+	    }
 	}
 
-      if(j == (rdta->sites + 1))
+      if(countOnlyGaps > 0)
 	{
 	  if(processID == 0)
-	    printBothOpen("ERROR: Sequence %s consists entirely of undetermined values which will be treated as missing data\n",
-			  tr->nameList[i]);
-
-	  countOnlyGaps++;
+	    printBothOpen("ERROR: Found %d sequences that consist entirely of undetermined values, exiting...\n", countOnlyGaps);
+	  
+	  errorExit(-1);
 	}
-    }
-
-  if(countOnlyGaps > 0)
-    {
-      if(processID == 0)
-	printBothOpen("ERROR: Found %d sequences that consist entirely of undetermined values, exiting...\n", countOnlyGaps);
-
-      errorExit(-1);
     }
 
   for(i = 0; i <= rdta->sites; i++)
@@ -2843,6 +2846,7 @@ static void initAdef(analdef *adef)
   adef->useBinaryModelFile     = FALSE;
   adef->leaveDropMode          = FALSE;
   adef->slidingWindowSize      = 100;
+  adef->checkForUndeterminedSequences = TRUE;
 }
 
 
@@ -3460,7 +3464,7 @@ static void printREADME(void)
   printf("      [-g groupingFileName] [-G placementThreshold] [-h]\n");
   printf("      [-i initialRearrangementSetting] [-I autoFC|autoMR|autoMRE|autoMRE_IGN]\n");
   printf("      [-j] [-J MR|MR_DROP|MRE|STRICT|STRICT_DROP] [-k] [-K] [-M]\n");
-  printf("      [-o outGroupName1[,outGroupName2[,...]]]\n");
+  printf("      [-o outGroupName1[,outGroupName2[,...]]][-O]\n");
   printf("      [-p parsimonyRandomSeed] [-P proteinModel]\n");
   printf("      [-q multipleModelFileName] [-r binaryConstraintTree]\n");
   printf("      [-R binaryModelParamFile] [-S secondaryStructureFile] [-t userStartingTree]\n");
@@ -3652,6 +3656,11 @@ static void printREADME(void)
   printf("              or \"-o Rat,Mouse\", in case that multiple outgroups are not monophyletic the first name \n");
   printf("              in the list will be selected as outgroup, don't leave spaces between taxon names!\n"); 
   printf("\n");
+  printf("      -O      Disable check for completely undetermined sequence in alignment.\n");
+  printf("              The program will not exit with an error message when \"-O\" is specified.\n");
+  printf("\n");
+  printf("              DEFAULT: check enabled\n");
+  printf("\n");
   printf("      -p      Specify a random number seed for the parsimony inferences. This allows you to reproduce your results\n");
   printf("              and will help me debug the program.\n");
   printf("\n");
@@ -3837,10 +3846,13 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 
 
   while(!bad_opt &&
-	((c = mygetopt(argc,argv,"R:T:E:N:B:L:P:S:A:G:H:I:J:K:W:l:x:z:g:r:e:a:b:c:f:i:m:t:w:s:n:o:q:#:p:vdyjhkMDFCQUX", &optind, &optarg))!=-1))
+	((c = mygetopt(argc,argv,"R:T:E:N:B:L:P:S:A:G:H:I:J:K:W:l:x:z:g:r:e:a:b:c:f:i:m:t:w:s:n:o:q:#:p:vdyjhkMDFCQUXO", &optind, &optarg))!=-1))
     {
     switch(c)
       {
+      case 'O':
+	adef->checkForUndeterminedSequences = FALSE;
+	break;
       case 'X':
 	tr->estimatePerSiteAA = TRUE;
 	tr->useFastScaling    = FALSE;

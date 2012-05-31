@@ -1000,6 +1000,7 @@ typedef  struct {
   boolean       useBinaryModelFile;
   boolean       leaveDropMode;
   int           slidingWindowSize;
+  boolean       checkForUndeterminedSequences;
 } analdef;
 
 
