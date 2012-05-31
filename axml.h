@@ -804,6 +804,7 @@ typedef  struct  {
   int rootLabel;
   
   boolean useGammaMedian;
+  boolean noRateHet;
 
 #ifdef _USE_PTHREADS
 

@@ -3466,7 +3466,7 @@ static void printREADME(void)
   printf("      [-p parsimonyRandomSeed] [-P proteinModel]\n");
   printf("      [-q multipleModelFileName] [-r binaryConstraintTree]\n");
   printf("      [-R binaryModelParamFile] [-S secondaryStructureFile] [-t userStartingTree]\n");
-  printf("      [-T numberOfThreads] [-u] [-U] [-v] [-w outputDirectory] [-W slidingWindowSize]\n");
+  printf("      [-T numberOfThreads] [-u] [-U] [-v] [-V] [-w outputDirectory] [-W slidingWindowSize]\n");
   printf("      [-x rapidBootstrapRandomNumberSeed] [-X] [-y]\n");
   printf("      [-z multipleTreesFile] [-#|-N numberOfRuns|autoFC|autoMR|autoMRE|autoMRE_IGN]\n");
   printf("\n");
@@ -3698,6 +3698,11 @@ static void printREADME(void)
   printf("\n");
   printf("      -v      Display version information\n");
   printf("\n");
+  printf("      -V      Disable rate heterogeneity among sites model and use one without rate heterogeneity instead.\n");
+  printf("              Only works if you specify the CAT model of rate heterogeneity.\n");
+  printf("\n");
+  printf("              DEFAULT: use rate heterogeneity\n");
+  printf("\n");
   printf("      -w      FULL (!) path to the directory into which RAxML shall write its output files\n");
   printf("\n");
   printf("              DEFAULT: current directory\n");
@@ -3844,15 +3849,19 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
   tr->saveMemory = FALSE;
   tr->estimatePerSiteAA = FALSE;
   tr->useGammaMedian = FALSE;
+  tr->noRateHet = FALSE;
   
   /********* tr inits end*************/
 
 
   while(!bad_opt &&
-	((c = mygetopt(argc,argv,"R:T:E:N:B:L:P:S:A:G:H:I:J:K:W:l:x:z:g:r:e:a:b:c:f:i:m:t:w:s:n:o:q:#:p:vudyjhkMDFCQUXO", &optind, &optarg))!=-1))
+	((c = mygetopt(argc,argv,"R:T:E:N:B:L:P:S:A:G:H:I:J:K:W:l:x:z:g:r:e:a:b:c:f:i:m:t:w:s:n:o:q:#:p:vudyjhkMDFCQUXOV", &optind, &optarg))!=-1))
     {
     switch(c)
       {
+      case 'V':
+	tr->noRateHet = TRUE;
+	break;
       case 'u':
 	tr->useGammaMedian = TRUE;
 	break;
@@ -4435,9 +4444,13 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
     }
 
 
-
-
-
+  if(isGamma(adef) && tr->noRateHet)
+    {
+      printf("\n\nError: using a  model without any rate heterogeneity (enabled via \"-V\") only works if you specify a CAT model\n");
+      printf("via the \"-m\" switch, exiting ....\n\n");
+      errorExit(-1);
+    }
+  
   if(((!adef->boot) && (!adef->rapidBoot)) && adef->bootStopping)
     {
       if(processID == 0)

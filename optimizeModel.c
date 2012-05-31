@@ -1952,6 +1952,9 @@ void updatePerSiteRates(tree *tr, boolean scaleRates)
 
 	      accRat /= ((double)accWgt);	  
 
+	      if(!(ABS(1.0 - accRat) < 1.0E-5))	   
+		printBothOpen("An assertion will fail: accumulated rate categories: %1.40f\n", accRat);
+
 	      assert(ABS(1.0 - accRat) < 1.0E-5);
 	    }                
 
@@ -2051,6 +2054,9 @@ void updatePerSiteRates(tree *tr, boolean scaleRates)
 
 	  accRat /= ((double)accWgt);	  
 
+	  if(!(ABS(1.0 - accRat) < 1.0E-5))	   
+	    printBothOpen("An assertion will fail: accumulated rate categories: %1.40f\n", accRat);
+	    
 	  assert(ABS(1.0 - accRat) < 1.0E-5);
 	}
          
@@ -2501,11 +2507,14 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
 	  treeEvaluate(tr, 0.1);	  	 
 	  break;
 	case CAT:
-	  if(catOpt < 3)
-	    {	      	
-	      evaluateGenericInitrav(tr, tr->start);
-	      optimizeRateCategories(tr, adef->categories);	      	     	      	      
-	      catOpt++;
+	  if(!tr->noRateHet)
+	    {
+	      if(catOpt < 3)
+		{	      	
+		  evaluateGenericInitrav(tr, tr->start);
+		  optimizeRateCategories(tr, adef->categories);	      	     	      	      
+		  catOpt++;
+		}
 	    }
 	  break;	  
 	default:
