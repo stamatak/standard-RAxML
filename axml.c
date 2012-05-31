@@ -4617,13 +4617,23 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
       errorExit(-1);
     }
 
+  if(adef->outgroup && adef->mode == ANCESTRAL_STATES)
+    {
+      if(processID == 0)
+	{
+	  printf("\n Specifying an outgroup for ancestral state reconstruction is not allowed\n");
+	  printf(" You already need to specify a rooted input tree for computing ancestral states anyway.\n\n");
+	}
+      errorExit(-1);
+    }
+
   if(!treeSet && adef->mode == ANCESTRAL_STATES)
     {
       if(processID == 0)
 	printf("\n Error you need to specify a ROOTED binary reference tree for ancestral state computations\n");
       errorExit(-1);
     }
-
+  
   if(treeSet && constraintSet)
     {
       if(processID == 0)
