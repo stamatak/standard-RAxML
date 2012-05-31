@@ -1342,9 +1342,7 @@ static void getinput(analdef *adef, rawdata *rdta, cruncheddata *cdta, tree *tr)
 	{
 	  int ref;
 	  
-	  parsePartitions(adef, rdta, tr);
-
-	  printf("NUM models: %d\n", tr->NumberOfModels);
+	  parsePartitions(adef, rdta, tr);	  
 	  
 	  for(i = 1; i <= rdta->sites; i++)
 	    {

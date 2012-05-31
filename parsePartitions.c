@@ -443,7 +443,7 @@ void parsePartitions(analdef *adef, rawdata *rdta, tree *tr)
 	{
 	  n = strlen(cc);	 
 	  p_names[i] = (char *)malloc(sizeof(char) * (n + 1));
-	  strcpy(&(p_names[i][0]), cc);
+	  strcpy(&(p_names[i][0]), cc);	 
 	  i++;
 	}
       if(cc)
@@ -451,8 +451,11 @@ void parsePartitions(analdef *adef, rawdata *rdta, tree *tr)
       cc = (char *)NULL;
     }         
 
+  
+
   for(i = 0; i < numberOfModels; i++)
-    {           
+    {         
+     
       ch = p_names[i];     
       pairsCount = 0;
       skipWhites(&ch);
@@ -592,6 +595,13 @@ void parsePartitions(analdef *adef, rawdata *rdta, tree *tr)
 	      goto numberPairs;
 	    }
 	}  
+      
+      if(*ch == '/')
+	{
+	  printf("\nRAxML detected the character \"/\" in your partition file.\n");
+	  printf("Did you mean to write something similar to this: \"DNA, p1=1-100\\3\" ?\n");
+	  printf("It's actually a backslash, not a slash, the program will exit now with an error!\n\n");
+	}    
       
       assert(0);
        
