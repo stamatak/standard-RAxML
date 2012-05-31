@@ -1712,7 +1712,7 @@ static void categorizePartition(tree *tr, rateCategorize *rc, int model, int low
       }
 
   for(k = 0; k < tr->partitionData[model].numberOfCategories; k++)
-    tr->partitionData[model].perSiteRates[k] = rc[k].rate; 
+    tr->partitionData[model].unscaled_perSiteRates[k] = rc[k].rate; 
 }
 
 
@@ -1919,7 +1919,7 @@ void updatePerSiteRates(tree *tr, boolean scaleRates)
 		    w = tr->cdta->aliaswgt[i];
 		  
 		  double
-		    rate = tr->partitionData[model].perSiteRates[tr->cdta->rateCategory[i]];
+		    rate = tr->partitionData[model].unscaled_perSiteRates[tr->cdta->rateCategory[i]];
 		  
 		  assert(0 <= tr->cdta->rateCategory[i] && tr->cdta->rateCategory[i] < tr->maxCategories);
 		  
@@ -1933,7 +1933,7 @@ void updatePerSiteRates(tree *tr, boolean scaleRates)
 	      scaler = 1.0 / ((double)accRat);
 	  	  
 	      for(i = 0; i < tr->partitionData[model].numberOfCategories; i++)
-		tr->partitionData[model].perSiteRates[i] *= scaler;	    
+		tr->partitionData[model].perSiteRates[i] = scaler * tr->partitionData[model].unscaled_perSiteRates[i];	    
 
 	      accRat = 0.0;	 
 	      
@@ -2011,16 +2011,18 @@ void updatePerSiteRates(tree *tr, boolean scaleRates)
 		    w = tr->cdta->aliaswgt[i];
 		  
 		  double
-		    rate = tr->partitionData[model].perSiteRates[tr->cdta->rateCategory[i]];
+		    rate = tr->partitionData[model].unscaled_perSiteRates[tr->cdta->rateCategory[i]];
 		  
 		  assert(0 <= tr->cdta->rateCategory[i] && tr->cdta->rateCategory[i] < tr->maxCategories);
 		  
 		  accWgt += w;
 		  
 		  accRat += (w * rate);
-		}
+		}	      
 	    }
 	  
+	 
+
 	  accRat /= ((double)accWgt);
 	  
 	  scaler = 1.0 / ((double)accRat);
@@ -2028,7 +2030,7 @@ void updatePerSiteRates(tree *tr, boolean scaleRates)
 	  for(model = 0; model < tr->NumberOfModels; model++)
 	    {
 	      for(i = 0; i < tr->partitionData[model].numberOfCategories; i++)
-		tr->partitionData[model].perSiteRates[i] *= scaler;
+		tr->partitionData[model].perSiteRates[i] = scaler * tr->partitionData[model].unscaled_perSiteRates[i];
 	    }
 
 	  for(model = 0, accRat = 0.0; model < tr->NumberOfModels; model++)
@@ -2118,7 +2120,8 @@ static void optimizeRateCategories(tree *tr, int _maxCategories)
 	initialLH = tr->likelihood,	
 	*ratStored = (double *)malloc(sizeof(double) * tr->cdta->endsite),
 	*lhs =       (double *)malloc(sizeof(double) * tr->cdta->endsite),
-	**oldCategorizedRates = (double **)malloc(sizeof(double *) * tr->NumberOfModels);
+	**oldCategorizedRates = (double **)malloc(sizeof(double *) * tr->NumberOfModels),
+	**oldUnscaledCategorizedRates = (double **)malloc(sizeof(double *) * tr->NumberOfModels);
 
       int  
 	i,
@@ -2162,8 +2165,10 @@ static void optimizeRateCategories(tree *tr, int _maxCategories)
 	  oldNumbers[model]          = tr->partitionData[model].numberOfCategories;
 
 	  oldCategorizedRates[model] = (double *)malloc(sizeof(double) * tr->maxCategories);
+	  oldUnscaledCategorizedRates[model] = (double *)malloc(sizeof(double) * tr->maxCategories);
 	  
 	  memcpy(oldCategorizedRates[model], tr->partitionData[model].perSiteRates, tr->maxCategories * sizeof(double));	  	 	  
+	  memcpy(oldUnscaledCategorizedRates[model], tr->partitionData[model].unscaled_perSiteRates, tr->maxCategories * sizeof(double));
 	}      
       
 #ifdef _USE_PTHREADS
@@ -2248,6 +2253,7 @@ static void optimizeRateCategories(tree *tr, int _maxCategories)
 	    {
 	      tr->partitionData[model].numberOfCategories = oldNumbers[model];
 	      memcpy(tr->partitionData[model].perSiteRates, oldCategorizedRates[model], tr->maxCategories * sizeof(double));
+	      memcpy(tr->partitionData[model].unscaled_perSiteRates, oldUnscaledCategorizedRates[model], tr->maxCategories * sizeof(double));
 	    }	      
 	  
 	  memcpy(tr->cdta->patratStored, ratStored, sizeof(double) * tr->cdta->endsite);
@@ -2263,9 +2269,13 @@ static void optimizeRateCategories(tree *tr, int _maxCategories)
 	}
           
       for(model = 0; model < tr->NumberOfModels; model++)
-	free(oldCategorizedRates[model]);
+	{
+	  free(oldCategorizedRates[model]);
+	  free(oldUnscaledCategorizedRates[model]);
+	}
                    
       free(oldCategorizedRates);
+      free(oldUnscaledCategorizedRates);
       free(oldCategory);
       free(ratStored);       
       free(lhs); 

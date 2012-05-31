@@ -2672,6 +2672,7 @@ static void allocPartitions(tree *tr)
       tr->partitionData[i].symmetryVector    = (int *)malloc(pl->symmetryVectorLength  * sizeof(int));
       tr->partitionData[i].frequencyGrouping = (int *)malloc(pl->frequencyGroupingLength  * sizeof(int));
       tr->partitionData[i].perSiteRates      = (double *)malloc(sizeof(double) * tr->maxCategories);
+      tr->partitionData[i].unscaled_perSiteRates = (double *)malloc(sizeof(double) * tr->maxCategories);
       
       
       tr->partitionData[i].nonGTR = FALSE;
@@ -6294,7 +6295,10 @@ static void broadcastPerSiteRates(tree *tr, tree *localTree)
       localTree->partitionData[model].numberOfCategories = tr->partitionData[model].numberOfCategories;
 
       for(i = 0; i < localTree->partitionData[model].numberOfCategories; i++)
-	localTree->partitionData[model].perSiteRates[i] = tr->partitionData[model].perSiteRates[i];
+	{
+	  localTree->partitionData[model].perSiteRates[i] = tr->partitionData[model].perSiteRates[i];
+	  localTree->partitionData[model].unscaled_perSiteRates[i] = tr->partitionData[model].unscaled_perSiteRates[i];
+	}
     }
 
 }

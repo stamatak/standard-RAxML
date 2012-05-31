@@ -563,6 +563,7 @@ typedef struct {
   double *perSiteLL;
   
   double *perSiteRates;
+  double *unscaled_perSiteRates;
 
   double *wr;
   double *wr2;

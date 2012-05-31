@@ -4059,6 +4059,7 @@ void initModel(tree *tr, rawdata *rdta, cruncheddata *cdta, analdef *adef)
     {            
       tr->partitionData[model].numberOfCategories = 1;           
       tr->partitionData[model].perSiteRates[0] = 1.0; 
+      tr->partitionData[model].unscaled_perSiteRates[0] = 1.0;
     }
 
   updatePerSiteRates(tr, FALSE);
