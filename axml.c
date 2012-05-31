@@ -5685,76 +5685,172 @@ static void finalizeInfoFile(tree *tr, analdef *adef)
 	  printBothOpen("Final GAMMA  likelihood: %f\n", tr->likelihood);
 
 	  {
+	    boolean
+	      linkedProteinGTR = FALSE;
+	    
 	    int
-	      params,
-	      paramsBrLen;
+	      model,
+	      params = 0,
+	      paramsBrLen = 0;
 
-	    if(tr->NumberOfModels == 1)
+	    for(model = 0; model < tr->NumberOfModels; model++)
 	      {
+		switch(tr->partitionData[model].dataType)
+		  {
+		  case AA_DATA:	 
+		    if(tr->partitionData[model].protModels == GTR_UNLINKED)
+		      params += 189;
+		    
+		    if(tr->partitionData[model].protModels == GTR)
+		      linkedProteinGTR = TRUE;
+		    
+		    if(!tr->partitionData[model].usePredefinedProtFreqs)
+		      params += 19;
+		    break;
+		  case GENERIC_32:
+		    {
+		      int 
+			states = tr->partitionData[model].states;
+
+		      /* frequencies */
+		      
+		      params += (states - 1);
+
+		      switch(tr->multiStateModel)
+			{
+			case ORDERED_MULTI_STATE:			 
+			  break;
+			case MK_MULTI_STATE:
+			  params += (states - 1);
+			  break;
+			case GTR_MULTI_STATE:
+			  params += ((((states * states) - states) / 2) - 1);
+			  break;
+			default:
+			  assert(0);
+			}
+		    break;
+		  case GENERIC_64:
+		    assert(0);
+		    break;
+		  case DNA_DATA:
+		    params += 5 + 3;
+		    break;
+		  case SECONDARY_DATA_6:	  	      
+		  case SECONDARY_DATA_7:	 		 
+		  case SECONDARY_DATA: 
+		    {
+		      int 
+			states = tr->partitionData[model].states;
+		      
+		      switch(tr->secondaryStructureModel)
+			{
+			case SEC_6_A:
+			  params += ((((states * states) - states) / 2) - 1); /*rates*/
+			  params += (states - 1); /* frequencies */
+			  break;
+			case SEC_6_B:
+			  params += 1; /*rates */
+			  params += 5; /* frequencies */	     
+			  break;
+			case SEC_6_C:
+			  params += 1; /*rates */
+			  params += 2; /* frequencies */	     
+			  break;
+			case SEC_6_D:
+			  params += 1; /*rates */
+			  params += 1; /* frequencies */	     
+			  break;
+			case SEC_6_E:
+			  params += 1; /*rates */
+			  params += 5; /* frequencies */	      
+			  break;
+			case SEC_7_A:
+			  params += ((((states * states) - states) / 2) - 1); /*rates*/
+			  params += (states - 1); /* frequencies */		
+			  break;
+			case SEC_7_B:
+			  params += 20; /*rates */
+			  params += 3; /* frequencies */		
+			  break;
+			case SEC_7_C:
+			  params += 9; /*rates */
+			  params += 6; /* frequencies */	     
+			  break;
+			case SEC_7_D:	
+			  params += 3; /*rates */
+			  params += 6; /* frequencies */	     
+			  break;	      	   
+			case SEC_7_E:
+			  params += 1; /*rates */
+			  params += 6; /* frequencies */	     
+			  break;				  
+			case SEC_7_F:
+			  params += 3; /*rates */
+			  params += 3; /* frequencies */	     
+			  break;				     
+			case SEC_16:
+			  params += ((((states * states) - states) / 2) - 1); /*rates*/
+			  params += (states - 1); /* frequencies */
+			  break;
+			case SEC_16_A:	
+			  params += 4; /*rates */
+			  params += 15; /* frequencies */	      
+			  break;
+			case SEC_16_B:
+			  params += 0; /*rates */
+			  params += 15; /* frequencies */	      
+			  break;	     	    
+			case SEC_16_C:	      
+			case SEC_16_D:
+			case SEC_16_E:
+			case SEC_16_F:
+			case SEC_16_I:
+			case SEC_16_J:
+			case SEC_16_K:
+			  assert(0);
+			default:
+			  assert(0);
+			}	 
+		    }
+		    break;
+		    case BINARY_DATA:
+		      params += 1;
+		      break;
+		    default:
+		      assert(0);
+		    }
+		  }
+		
 		if(adef->useInvariant)
-		  {
-		    params      = 1 /* INVAR */ + 5 /* RATES */ + 3 /* freqs */ + 1 /* alpha */;
-		    paramsBrLen = 1 /* INVAR */ + 5 /* RATES */ + 3 /* freqs */ + 1 /* alpha */ +
-		      (2 * tr->mxtips - 3);
-		  }
-		else
-		  {
-		    params      = 5 /* RATES */ + 3 /* freqs */ + 1 /* alpha */;
-		    paramsBrLen = 5 /* RATES */ + 3 /* freqs */ + 1 /* alpha */ +
-		      (2 * tr->mxtips - 3);
-		  }
+		  params += 2;
+		else /* GAMMA */
+		  params += 1;
 	      }
+	    
+	    if(linkedProteinGTR)
+	      params += 189;
+
+	    if(tr->multiBranch)
+	      paramsBrLen = params + tr->NumberOfModels * (2 * tr->mxtips - 3);
 	    else
-	      {
-		if(tr->multiBranch)
-		  {
-		    if(adef->useInvariant)
-		      {
-			params      = tr->NumberOfModels * (1 /* INVAR */ + 5 /* RATES */ + 3 /* freqs */ + 1 /* alpha */);
-			paramsBrLen = tr->NumberOfModels * (1 /* INVAR */ + 5 /* RATES */ + 3 /* freqs */ + 1 /* alpha */ +
-							    (2 * tr->mxtips - 3));
-		      }
-		    else
-		      {
-			params      = tr->NumberOfModels * (5 /* RATES */ + 3 /* freqs */ + 1 /* alpha */);
-			paramsBrLen = tr->NumberOfModels * (5 /* RATES */ + 3 /* freqs */ + 1 /* alpha */ +
-							    (2 * tr->mxtips - 3));
-		      }
-		  }
-		else
-		  {
-		    if(adef->useInvariant)
-		      {
-			params      = tr->NumberOfModels * (1 /* INVAR */ + 5 /* RATES */ + 3 /* freqs */ + 1 /* alpha */);
-			paramsBrLen = tr->NumberOfModels * (1 /* INVAR */ + 5 /* RATES */ + 3 /* freqs */ + 1 /* alpha */)
-			  + (2 * tr->mxtips - 3);
-		      }
-		    else
-		      {
-			params      = tr->NumberOfModels * (5 /* RATES */ + 3 /* freqs */ + 1 /* alpha */);
-			paramsBrLen = tr->NumberOfModels * (5 /* RATES */ + 3 /* freqs */ + 1 /* alpha */)
-			  + (2 * tr->mxtips - 3);
-		      }
+	      paramsBrLen = params + 2 * tr->mxtips - 3;
 
-		  }
-	      }
+	    printBothOpen("\n");
 
-	    if(tr->partitionData[0].dataType == DNA_DATA)
-	      {
-		printBothOpen("Number of free parameters for AIC-TEST(BR-LEN): %d\n",    paramsBrLen);
-		printBothOpen("Number of free parameters for AIC-TEST(NO-BR-LEN): %d\n", params);
-	      }
-
-	  }
-
-	  printBothOpen("\n\n");
-
-	  printModelParams(tr, adef);
-
-	  printBothOpen("Final tree written to:                 %s\n", resultFileName);
-	  printBothOpen("Execution Log File written to:         %s\n", logFileName);
+	   
+	    printBothOpen("Number of free parameters for AIC-TEST(BR-LEN): %d\n",    paramsBrLen);
+	    printBothOpen("Number of free parameters for AIC-TEST(NO-BR-LEN): %d\n", params);
+	    
+	    
+	    printBothOpen("\n\n");
+	    
+	    printModelParams(tr, adef);
+	    
+	    printBothOpen("Final tree written to:                 %s\n", resultFileName);
+	    printBothOpen("Execution Log File written to:         %s\n", logFileName);
 	 
-
+	  }
 	  break;
 	case  BIG_RAPID_MODE:
 	  if(adef->boot)
