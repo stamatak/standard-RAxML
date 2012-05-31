@@ -3468,7 +3468,7 @@ static void printREADME(void)
   printf("      [-p parsimonyRandomSeed] [-P proteinModel]\n");
   printf("      [-q multipleModelFileName] [-r binaryConstraintTree]\n");
   printf("      [-R binaryModelParamFile] [-S secondaryStructureFile] [-t userStartingTree]\n");
-  printf("      [-T numberOfThreads] [-U] [-v] [-w outputDirectory] [-W slidingWindowSize]\n");
+  printf("      [-T numberOfThreads] [-u] [-U] [-v] [-w outputDirectory] [-W slidingWindowSize]\n");
   printf("      [-x rapidBootstrapRandomNumberSeed] [-X] [-y]\n");
   printf("      [-z multipleTreesFile] [-#|-N numberOfRuns|autoFC|autoMR|autoMRE|autoMRE_IGN]\n");
   printf("\n");
@@ -3691,6 +3691,10 @@ static void printREADME(void)
   printf("              Make sure to set \"-T\" to at most the number of CPUs you have on your machine,\n");
   printf("              otherwise, there will be a huge performance decrease!\n");
   printf("\n");
+  printf("      -u      use the median for the discrete approximation of the GAMMA model of rate heterogeneity\n");
+  printf("\n");
+  printf("              DEFAULT: OFF\n");
+  printf("\n");
   printf("      -U      Try to save memory by using SEV-based implementation for gap columns on large gappy alignments\n");
   printf("              WARNING: this will only work for DNA under GTRGAMMA and is still in an experimental state.\n");
   printf("\n");
@@ -3841,15 +3845,19 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
   tr->useGappedImplementation = FALSE;
   tr->saveMemory = FALSE;
   tr->estimatePerSiteAA = FALSE;
+  tr->useGammaMedian = FALSE;
   
   /********* tr inits end*************/
 
 
   while(!bad_opt &&
-	((c = mygetopt(argc,argv,"R:T:E:N:B:L:P:S:A:G:H:I:J:K:W:l:x:z:g:r:e:a:b:c:f:i:m:t:w:s:n:o:q:#:p:vdyjhkMDFCQUXO", &optind, &optarg))!=-1))
+	((c = mygetopt(argc,argv,"R:T:E:N:B:L:P:S:A:G:H:I:J:K:W:l:x:z:g:r:e:a:b:c:f:i:m:t:w:s:n:o:q:#:p:vudyjhkMDFCQUXO", &optind, &optarg))!=-1))
     {
     switch(c)
       {
+      case 'u':
+	tr->useGammaMedian = TRUE;
+	break;
       case 'O':
 	adef->checkForUndeterminedSequences = FALSE;
 	break;
@@ -6089,7 +6097,8 @@ static void initPartition(tree *tr, tree *localTree, int tid)
   if(tid > 0)
     {
       int totalLength = 0;
-
+      
+      localTree->useGammaMedian          = tr->useGammaMedian;
       localTree->saveMemory              = tr->saveMemory;
       localTree->useGappedImplementation = tr->useGappedImplementation;
       localTree->innerNodes              = tr->innerNodes;

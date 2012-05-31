@@ -3644,42 +3644,59 @@ l4:
 
 
 
-void makeGammaCats(double alpha, double *gammaRates, int K)
+void makeGammaCats(double alpha, double *gammaRates, int K, boolean useMedian)
 {
-  int i;
-  double factor, lnga1, alfa, beta;
-  double *gammaProbs = (double *)malloc(K * sizeof(double));
+  int 
+    i;
 
-  alfa = beta = alpha;
+  double 
+    factor = alpha / alpha * K, 
+    lnga1, 
+    alfa = alpha, 
+    beta = alpha,
+    *gammaProbs = (double *)malloc(K * sizeof(double));
 
   /* Note that ALPHA_MIN setting is somewhat critical due to   */
   /* numerical instability caused by very small rate[0] values */
   /* induced by low alpha values around 0.01 */
 
-  assert(alfa >= ALPHA_MIN);
-  
- 
-  factor = alfa / beta * K;  
-    
-  lnga1 = LnGamma(alfa + 1);
-   
-  for (i = 0; i < K - 1; i++)
-    gammaProbs[i] = PointGamma((i + 1.0) / K, alfa, beta);
-  
-  for (i = 0; i < K - 1; i++)
-    gammaProbs[i] = IncompleteGamma(gammaProbs[i] * beta, alfa + 1, lnga1);   
-  
-  gammaRates[0] = gammaProbs[0] * factor;
-  
-  gammaRates[K - 1] = (1 - gammaProbs[K - 2]) * factor;
-  
-  for (i= 1; i < K - 1; i++)  
-    gammaRates[i] = (gammaProbs[i] - gammaProbs[i - 1]) * factor;      
+  assert(alfa >= ALPHA_MIN); 
 
+  if(useMedian)
+    {
+      double  
+	middle = 1.0 / (2.0*K),
+	t = 0.0; 
+      
+      for(i = 0; i < K; i++)     
+	gammaRates[i] = PointGamma((double)(i * 2 + 1) * middle, alfa, beta);
+      
+      for (i = 0; i < K; i++) 
+	t += gammaRates[i];
+       for( i = 0; i < K; i++)     
+	 gammaRates[i] *= factor / t;
+    }
+  else
+    {
+      lnga1 = LnGamma(alfa + 1);
+
+      for (i = 0; i < K - 1; i++)
+	gammaProbs[i] = PointGamma((i + 1.0) / K, alfa, beta);
+
+      for (i = 0; i < K - 1; i++)
+	gammaProbs[i] = IncompleteGamma(gammaProbs[i] * beta, alfa + 1, lnga1);   
+
+      gammaRates[0] = gammaProbs[0] * factor;
+      
+      gammaRates[K - 1] = (1 - gammaProbs[K - 2]) * factor;
+
+      for (i= 1; i < K - 1; i++)  
+	gammaRates[i] = (gammaProbs[i] - gammaProbs[i - 1]) * factor;      
+    }
   /* assert(gammaRates[0] >= 0.00000000000000000000000000000044136090435925743185910935350715027016962154188875); */
 
   free(gammaProbs);
-     
+
   return;  
 }
 
@@ -4085,7 +4102,7 @@ void initModel(tree *tr, rawdata *rdta, cruncheddata *cdta, analdef *adef)
     {
       tr->partitionData[model].alpha = 1.0;                
       initReversibleGTR(tr, model);               
-      makeGammaCats(tr->partitionData[model].alpha, tr->partitionData[model].gammaRates, 4); 
+      makeGammaCats(tr->partitionData[model].alpha, tr->partitionData[model].gammaRates, 4, tr->useGammaMedian); 
     }   
                 
   if(tr->estimatePerSiteAA)
