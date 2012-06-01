@@ -278,8 +278,8 @@ static void coreGTRCAT(int upper, int numberOfCategories, double *sum,
     inv_Li, dlnLidlz, d2lnLidlz2,
     dlnLdlz = 0.0,
     d2lnLdlz2 = 0.0;
-  double e1[4] __attribute__ ((aligned (16)));
-  double e2[4] __attribute__ ((aligned (16)));
+  double e1[4] __attribute__ ((aligned (BYTE_ALIGNMENT)));
+  double e2[4] __attribute__ ((aligned (BYTE_ALIGNMENT)));
   double dd1, dd2, dd3;
 
   __m128d
@@ -301,7 +301,7 @@ static void coreGTRCAT(int upper, int numberOfCategories, double *sum,
   e2v[0]= _mm_load_pd(&e2[0]);
   e2v[1]= _mm_load_pd(&e2[2]);
 
-  d = d_start = (double *)malloc_aligned(numberOfCategories * 4 * sizeof(double), 16);
+  d = d_start = (double *)malloc_aligned(numberOfCategories * 4 * sizeof(double));
 
   dd1 = EIGN[0] * lz;
   dd2 = EIGN[1] * lz;
@@ -701,14 +701,14 @@ static void coreGTRCATPROT(double *EIGN, double lz, int numberOfCategories, doub
   int i, l;
   double *d1, *d_start, *sum;
   double 
-    e[20] __attribute__ ((aligned (16))), 
-    s[20] __attribute__ ((aligned (16))), 
-    dd[20] __attribute__ ((aligned (16)));
+    e[20] __attribute__ ((aligned (BYTE_ALIGNMENT))), 
+    s[20] __attribute__ ((aligned (BYTE_ALIGNMENT))), 
+    dd[20] __attribute__ ((aligned (BYTE_ALIGNMENT)));
   double inv_Li, dlnLidlz, d2lnLidlz2;
   double  dlnLdlz = 0.0;
   double  d2lnLdlz2 = 0.0;
 
-  d1 = d_start = (double *)malloc_aligned(numberOfCategories * 20 * sizeof(double), 16);
+  d1 = d_start = (double *)malloc_aligned(numberOfCategories * 20 * sizeof(double));
 
   e[0] = 0.0;
   s[0] = 0.0; 
@@ -1843,9 +1843,9 @@ static void coreGTRGAMMA_BINARY(const int upper, double *sumtable,
     dlnLidlz, 
     d2lnLidlz2,  
     *sum, 
-    diagptable0[8] __attribute__ ((aligned (16))),
-    diagptable1[8] __attribute__ ((aligned (16))),
-    diagptable2[8] __attribute__ ((aligned (16)));    
+    diagptable0[8] __attribute__ ((aligned (BYTE_ALIGNMENT))),
+    diagptable1[8] __attribute__ ((aligned (BYTE_ALIGNMENT))),
+    diagptable2[8] __attribute__ ((aligned (BYTE_ALIGNMENT)));    
     
   int     
     i, 
@@ -1997,9 +1997,9 @@ static void coreGTRGAMMA(const int upper, double *sumtable,
     dlnLidlz, 
     d2lnLidlz2,  
     *sum, 
-    diagptable0[16] __attribute__ ((aligned (16))),
-    diagptable1[16] __attribute__ ((aligned (16))),
-    diagptable2[16] __attribute__ ((aligned (16)));    
+    diagptable0[16] __attribute__ ((aligned (BYTE_ALIGNMENT))),
+    diagptable1[16] __attribute__ ((aligned (BYTE_ALIGNMENT))),
+    diagptable2[16] __attribute__ ((aligned (BYTE_ALIGNMENT)));    
     
   int     
     i, 
@@ -2673,9 +2673,9 @@ static void coreGTRGAMMAPROT(double *gammaRates, double *EIGN, double *sumtable,
 			      volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double lz)
 {
   double  *sum, 
-    diagptable0[80] __attribute__ ((aligned (16))),
-    diagptable1[80] __attribute__ ((aligned (16))),
-    diagptable2[80] __attribute__ ((aligned (16)));    
+    diagptable0[80] __attribute__ ((aligned (BYTE_ALIGNMENT))),
+    diagptable1[80] __attribute__ ((aligned (BYTE_ALIGNMENT))),
+    diagptable2[80] __attribute__ ((aligned (BYTE_ALIGNMENT)));    
   int     i, j, l;
   double  dlnLdlz = 0;
   double d2lnLdlz2 = 0;

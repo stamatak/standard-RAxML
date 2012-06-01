@@ -670,10 +670,10 @@ static void allocBranchX(tree *tr)
       branchInfo 
 	*b = &(tr->bInf[i]);
 
-      b->epa->left  = (double*)malloc_aligned(sizeof(double) * tr->contiguousVectorLength, 16);
+      b->epa->left  = (double*)malloc_aligned(sizeof(double) * tr->contiguousVectorLength);
       b->epa->leftScaling = (int*)malloc(sizeof(int) * tr->contiguousScalingLength);
 
-      b->epa->right = (double*)malloc_aligned(sizeof(double)  * tr->contiguousVectorLength, 16);
+      b->epa->right = (double*)malloc_aligned(sizeof(double)  * tr->contiguousVectorLength);
       b->epa->rightScaling = (int*)malloc(sizeof(int) * tr->contiguousScalingLength);     
     }
 }

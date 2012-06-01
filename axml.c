@@ -92,7 +92,7 @@ double FABS(double x)
   return fabs(x);
 }
 
-void *malloc_aligned(size_t size, size_t align) 
+void *malloc_aligned(size_t size) 
 {
   void *ptr = (void *)NULL;
   int res;
@@ -104,7 +104,7 @@ void *malloc_aligned(size_t size, size_t align)
      a 16-byte aligned pointer
   */
 
-  assert(align == 16);
+  assert(align == BYTE_ALIGNMENT);
 
   ptr = malloc(size);
   
@@ -112,7 +112,7 @@ void *malloc_aligned(size_t size, size_t align)
    assert(0);
 
 #else
-  res = posix_memalign( &ptr, align, size );
+  res = posix_memalign( &ptr, BYTE_ALIGNMENT, size );
 
   if(res != 0) 
     assert(0);
@@ -2661,14 +2661,14 @@ static void allocPartitions(tree *tr)
 	  tr->partitionData[i].globalScaler    = (unsigned int *)calloc(2 * tr->mxtips, sizeof(unsigned int));  	  
 	}
 
-      tr->partitionData[i].left              = (double *)malloc_aligned(pl->leftLength * maxCategories * sizeof(double), 16);
-      tr->partitionData[i].right             = (double *)malloc_aligned(pl->rightLength * maxCategories * sizeof(double), 16);
+      tr->partitionData[i].left              = (double *)malloc_aligned(pl->leftLength * maxCategories * sizeof(double));
+      tr->partitionData[i].right             = (double *)malloc_aligned(pl->rightLength * maxCategories * sizeof(double));
       tr->partitionData[i].EIGN              = (double*)malloc(pl->eignLength * sizeof(double));
-      tr->partitionData[i].EV                = (double*)malloc_aligned(pl->evLength * sizeof(double), 16);
+      tr->partitionData[i].EV                = (double*)malloc_aligned(pl->evLength * sizeof(double));
       tr->partitionData[i].EI                = (double*)malloc(pl->eiLength * sizeof(double));
       tr->partitionData[i].substRates        = (double *)malloc(pl->substRatesLength * sizeof(double));
       tr->partitionData[i].frequencies       = (double*)malloc(pl->frequenciesLength * sizeof(double));
-      tr->partitionData[i].tipVector         = (double *)malloc_aligned(pl->tipVectorLength * sizeof(double), 16);
+      tr->partitionData[i].tipVector         = (double *)malloc_aligned(pl->tipVectorLength * sizeof(double));
       tr->partitionData[i].symmetryVector    = (int *)malloc(pl->symmetryVectorLength  * sizeof(int));
       tr->partitionData[i].frequencyGrouping = (int *)malloc(pl->frequencyGroupingLength  * sizeof(int));
       tr->partitionData[i].perSiteRates      = (double *)malloc(sizeof(double) * tr->maxCategories);
@@ -2743,7 +2743,7 @@ static void allocNodex (tree *tr)
       tr->partitionData[model].gapColumn = (double *)malloc_aligned(((size_t)tr->innerNodes) *
 								    ((size_t)(tr->discreteRateCategories)) * 
 								    ((size_t)(tr->partitionData[model].states)) *
-								    sizeof(double), 16);		  		
+								    sizeof(double));		  		
 	
       undetermined = getUndetermined(tr->partitionData[model].dataType);
 
@@ -2756,7 +2756,7 @@ static void allocNodex (tree *tr)
   tr->perSiteLL       = (double *)malloc((size_t)tr->cdta->endsite * sizeof(double));
   assert(tr->perSiteLL != NULL);
 
-  tr->sumBuffer  = (double *)malloc_aligned(memoryRequirements * sizeof(double), 16);
+  tr->sumBuffer  = (double *)malloc_aligned(memoryRequirements * sizeof(double));
   assert(tr->sumBuffer != NULL);
  
   offset = 0;
@@ -6213,7 +6213,7 @@ static void allocNodex(tree *tr, int tid, int n)
       tr->partitionData[model].gapColumn = (double *)malloc_aligned(((size_t)tr->innerNodes) *
 								      ((size_t)(tr->discreteRateCategories)) * 
 								      ((size_t)(tr->partitionData[model].states)) *
-								      sizeof(double), 16);		             
+								      sizeof(double));		             
       for(i = 0; i < tr->innerNodes; i++)
 	{
 	  tr->partitionData[model].xVector[i]   = (double*)NULL;     
@@ -6227,7 +6227,7 @@ static void allocNodex(tree *tr, int tid, int n)
       assert(tr->perSiteLL != NULL);
     }
   
-  tr->sumBuffer  = (double *)malloc_aligned(memoryRequirements * sizeof(double), 16);
+  tr->sumBuffer  = (double *)malloc_aligned(memoryRequirements * sizeof(double));
   assert(tr->sumBuffer != NULL);
    
   tr->y_ptr = (unsigned char *)malloc(myLength * (size_t)(tr->mxtips) * sizeof(unsigned char));
@@ -6730,8 +6730,8 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 	  memcpy(localTree->fracchanges, tr->fracchanges, sizeof(double) * localTree->NumberOfModels);	 
 	}                                                
 
-      localTree->temporarySumBuffer = (double *)malloc_aligned(sizeof(double) * localTree->contiguousVectorLength, 16);
-      localTree->temporaryVector  = (double *)malloc_aligned(sizeof(double) * localTree->contiguousVectorLength, 16);      
+      localTree->temporarySumBuffer = (double *)malloc_aligned(sizeof(double) * localTree->contiguousVectorLength);
+      localTree->temporaryVector  = (double *)malloc_aligned(sizeof(double) * localTree->contiguousVectorLength);      
 
       localTree->temporaryScaling = (int *)malloc(sizeof(int) * localTree->contiguousScalingLength);
                  

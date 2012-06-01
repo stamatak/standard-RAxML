@@ -3,13 +3,13 @@
 
 CC = gcc 
 
-CFLAGS = -D__SIM_SSE3 -msse3 -D_GNU_SOURCE -O2 -fomit-frame-pointer -funroll-loops -D__AVX -mavx #-Wall -pedantic -Wunused-parameter -Wredundant-decls  -Wreturn-type  -Wswitch-default -Wunused-value -Wimplicit  -Wimplicit-function-declaration  -Wimplicit-int -Wimport  -Wunused  -Wunused-function  -Wunused-label -Wno-int-to-pointer-cast -Wbad-function-cast  -Wmissing-declarations -Wmissing-prototypes  -Wnested-externs  -Wold-style-definition -Wstrict-prototypes  -Wdeclaration-after-statement -Wpointer-sign -Wextra -Wredundant-decls -Wunused -Wunused-function -Wunused-parameter -Wunused-value  -Wunused-variable -Wformat  -Wformat-nonliteral -Wparentheses -Wsequence-point -Wuninitialized -Wundef -Wbad-function-cast
+CFLAGS = -D__SIM_SSE3 -msse3 -D_GNU_SOURCE -O2 -fomit-frame-pointer -funroll-loops -D__AVX #-Wall -pedantic -Wunused-parameter -Wredundant-decls  -Wreturn-type  -Wswitch-default -Wunused-value -Wimplicit  -Wimplicit-function-declaration  -Wimplicit-int -Wimport  -Wunused  -Wunused-function  -Wunused-label -Wno-int-to-pointer-cast -Wbad-function-cast  -Wmissing-declarations -Wmissing-prototypes  -Wnested-externs  -Wold-style-definition -Wstrict-prototypes  -Wdeclaration-after-statement -Wpointer-sign -Wextra -Wredundant-decls -Wunused -Wunused-function -Wunused-parameter -Wunused-value  -Wunused-variable -Wformat  -Wformat-nonliteral -Wparentheses -Wsequence-point -Wuninitialized -Wundef -Wbad-function-cast
 
 LIBRARIES = -lm
 
 RM = rm -f
 
-objs    = axml.o  optimizeModel.o multiple.o searchAlgo.o topologies.o parsePartitions.o treeIO.o models.o bipartitionList.o rapidBootstrap.o evaluatePartialGenericSpecial.o evaluateGenericSpecial.o newviewGenericSpecial.o makenewzGenericSpecial.o   classify.o mesh.o fastDNAparsimony.o fastSearch.o leaveDropping.o rogueEPA.o ancestralStates.o
+objs    = axml.o  optimizeModel.o multiple.o searchAlgo.o topologies.o parsePartitions.o treeIO.o models.o bipartitionList.o rapidBootstrap.o evaluatePartialGenericSpecial.o evaluateGenericSpecial.o newviewGenericSpecial.o makenewzGenericSpecial.o   classify.o mesh.o fastDNAparsimony.o fastSearch.o leaveDropping.o rogueEPA.o ancestralStates.o avxLikelihood.o
 
 all : raxmlHPC
 
@@ -17,6 +17,12 @@ GLOBAL_DEPS = axml.h globalVariables.h
 
 raxmlHPC : $(objs)
 	$(CC) -o raxmlHPC-AVX $(objs) $(LIBRARIES) 
+
+avxLikelihood.o : avxLikelihood.c $(GLOBAL_DEPS)
+		$(CC) $(CFLAGS) -mavx -c -o avxLikelihood.o avxLikelihood.c
+
+fastDNAparsimony.o : fastDNAparsimony.c $(GLOBAL_DEPS)
+		   $(CC) $(CFLAGS) -mavx -c -o fastDNAparsimony.o fastDNAparsimony.c
 
 classify.o : classify.c $(GLOBAL_DEPS)
 evaluatePartialSpecialGeneric.o : evaluatePartialSpecialGeneric.c $(GLOBAL_DEPS)
@@ -35,7 +41,6 @@ evaluateGenericSpecial.o : evaluateGenericSpecial.c $(GLOBAL_DEPS)
 newviewGenericSpecial.o : newviewGenericSpecial.c $(GLOBAL_DEPS)
 makenewzGenericSpecial.o : makenewzGenericSpecial.c $(GLOBAL_DEPS)
 mesh.o : mesh.c $(GLOBAL_DEPS)
-fastDNAparsimony.o : fastDNAparsimony.c  $(GLOBAL_DEPS)
 fastSearch.o : fastSearch.c $(GLOBAL_DEPS)
 leaveDropping.o : leaveDropping.c $(GLOBAL_DEPS)
 rogueEPA.o : rogueEPA.c $(GLOBAL_DEPS)

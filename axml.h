@@ -32,6 +32,11 @@
 #include <assert.h>
 #include <stdint.h>
 
+#ifdef __AVX
+#define BYTE_ALIGNMENT 32
+#else
+#define BYTE_ALIGNMENT 16
+#endif
 
 #ifdef _USE_PTHREADS
 
@@ -1208,7 +1213,7 @@ extern void   newviewIterative(tree *);
 
 extern double evaluateIterative(tree *, boolean writeVector);
 
-extern void *malloc_aligned( size_t size, size_t align);
+extern void *malloc_aligned( size_t size);
 extern double FABS(double x);
 
 
@@ -1419,3 +1424,29 @@ extern void masterBarrier(int jobType, tree *tr);
 
 
 
+#ifdef __AVX
+void newviewGTRCAT_AVX(int tipCase,  double *EV,  int *cptr,
+    double *x1_start, double *x2_start,  double *x3_start, double *tipVector,
+    int *ex3, unsigned char *tipX1, unsigned char *tipX2,
+    int n,  double *left, double *right, int *wgt, int *scalerIncrement, const boolean useFastScaling);
+
+
+void newviewGenericCATPROT_AVX(int tipCase, double *extEV,
+    int *cptr,
+    double *x1, double *x2, double *x3, double *tipVector,
+    int *ex3, unsigned char *tipX1, unsigned char *tipX2,
+    int n, double *left, double *right, int *wgt, int *scalerIncrement, const boolean useFastScaling);
+
+
+void newviewGTRGAMMA_AVX(int tipCase,
+    double *x1_start, double *x2_start, double *x3_start,
+    double *EV, double *tipVector,
+    int *ex3, unsigned char *tipX1, unsigned char *tipX2,
+    const int n, double *left, double *right, int *wgt, int *scalerIncrement, const boolean useFastScaling);
+
+void newviewGTRGAMMAPROT_AVX(int tipCase,
+			     double *x1, double *x2, double *x3, double *extEV, double *tipVector,
+			     int *ex3, unsigned char *tipX1, unsigned char *tipX2, int n, 
+			     double *left, double *right, int *wgt, int *scalerIncrement, const boolean useFastScaling);
+
+#endif

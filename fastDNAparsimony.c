@@ -96,7 +96,6 @@ extern int globalArgc;
 #define VECTOR_BIT_OR  _mm_or_si128
 #define VECTOR_STORE  _mm_store_si128
 #define VECTOR_AND_NOT _mm_andnot_si128
-#define BYTE_ALIGNMENT 16
 
 #endif
 
@@ -112,12 +111,7 @@ extern int globalArgc;
 #define VECTOR_BIT_OR  _mm256_or_pd
 #define VECTOR_STORE  _mm256_store_pd
 #define VECTOR_AND_NOT _mm256_andnot_pd
-#define BYTE_ALIGNMENT 32
 
-#endif
-
-#if !(defined(__SIM_SSE3) || defined(__AVX))
-#define BYTE_ALIGNMENT 16
 #endif
 
 extern double masterTime;
@@ -1681,7 +1675,7 @@ static void compressDNA(tree *tr, int *informative, boolean saveMemory)
 #endif     
 
       
-      tr->partitionData[model].parsVect = (parsimonyNumber *)malloc_aligned((size_t)compressedEntriesPadded * states * totalNodes * sizeof(parsimonyNumber), BYTE_ALIGNMENT);
+      tr->partitionData[model].parsVect = (parsimonyNumber *)malloc_aligned((size_t)compressedEntriesPadded * states * totalNodes * sizeof(parsimonyNumber));
      
       for(i = 0; i < compressedEntriesPadded * states * totalNodes; i++)      
 	tr->partitionData[model].parsVect[i] = 0;          
@@ -1757,7 +1751,7 @@ static void compressDNA(tree *tr, int *informative, boolean saveMemory)
       free(compressedValues);
     }
   
-  tr->parsimonyScore = (unsigned int*)malloc_aligned(sizeof(unsigned int) * totalNodes, BYTE_ALIGNMENT);  
+  tr->parsimonyScore = (unsigned int*)malloc_aligned(sizeof(unsigned int) * totalNodes);  
           
   for(i = 0; i < totalNodes; i++) 
     tr->parsimonyScore[i] = 0;

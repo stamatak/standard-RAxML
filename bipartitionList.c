@@ -391,7 +391,7 @@ static void insertHash(unsigned int *bitVector, hashtable *h, unsigned int vecto
   e->bipNumber = bipNumber; 
   /*e->bitVector = (unsigned int*)calloc(vectorLength, sizeof(unsigned int)); */
 
-  e->bitVector = (unsigned int*)malloc_aligned(vectorLength * sizeof(unsigned int), 16);
+  e->bitVector = (unsigned int*)malloc_aligned(vectorLength * sizeof(unsigned int));
   memset(e->bitVector, 0, vectorLength * sizeof(unsigned int));
  
   memcpy(e->bitVector, bitVector, sizeof(unsigned int) * vectorLength);
@@ -465,7 +465,7 @@ static void insertHashAll(unsigned int *bitVector, hashtable *h, unsigned int ve
       e = initEntry(); 
   
       /*e->bitVector  = (unsigned int*)calloc(vectorLength, sizeof(unsigned int)); */
-      e->bitVector = (unsigned int*)malloc_aligned(vectorLength * sizeof(unsigned int), 16);
+      e->bitVector = (unsigned int*)malloc_aligned(vectorLength * sizeof(unsigned int));
       memset(e->bitVector, 0, vectorLength * sizeof(unsigned int));
 
 
@@ -485,7 +485,7 @@ static void insertHashAll(unsigned int *bitVector, hashtable *h, unsigned int ve
   
       /*e->bitVector  = (unsigned int*)calloc(vectorLength, sizeof(unsigned int)); */
 
-      e->bitVector = (unsigned int*)malloc_aligned(vectorLength * sizeof(unsigned int), 16);
+      e->bitVector = (unsigned int*)malloc_aligned(vectorLength * sizeof(unsigned int));
       memset(e->bitVector, 0, vectorLength * sizeof(unsigned int));
 
       memcpy(e->bitVector, bitVector, sizeof(unsigned int) * vectorLength);
@@ -533,7 +533,7 @@ static void insertHashBootstop(unsigned int *bitVector, hashtable *h, unsigned i
       e->bipNumber = h->entryCount;
        
       /*e->bitVector  = (unsigned int*)calloc(vectorLength, sizeof(unsigned int));*/
-      e->bitVector = (unsigned int*)malloc_aligned(vectorLength * sizeof(unsigned int), 16);
+      e->bitVector = (unsigned int*)malloc_aligned(vectorLength * sizeof(unsigned int));
       memset(e->bitVector, 0, vectorLength * sizeof(unsigned int));
 
 
@@ -553,7 +553,7 @@ static void insertHashBootstop(unsigned int *bitVector, hashtable *h, unsigned i
 
       /*e->bitVector  = (unsigned int*)calloc(vectorLength, sizeof(unsigned int));*/
 
-      e->bitVector = (unsigned int*)malloc_aligned(vectorLength * sizeof(unsigned int), 16);
+      e->bitVector = (unsigned int*)malloc_aligned(vectorLength * sizeof(unsigned int));
       memset(e->bitVector, 0, vectorLength * sizeof(unsigned int));
 
       e->treeVector = (unsigned int*)calloc(treeVectorLength, sizeof(unsigned int));
@@ -601,7 +601,7 @@ static void insertHashRF(unsigned int *bitVector, hashtable *h, unsigned int vec
       e = initEntry(); 
        
       /*e->bitVector  = (unsigned int*)calloc(vectorLength, sizeof(unsigned int));*/
-      e->bitVector = (unsigned int*)malloc_aligned(vectorLength * sizeof(unsigned int), 16);
+      e->bitVector = (unsigned int*)malloc_aligned(vectorLength * sizeof(unsigned int));
       memset(e->bitVector, 0, vectorLength * sizeof(unsigned int));
 
 
@@ -628,7 +628,7 @@ static void insertHashRF(unsigned int *bitVector, hashtable *h, unsigned int vec
        
       /*e->bitVector  = (unsigned int*)calloc(vectorLength, sizeof(unsigned int)); */
 
-      e->bitVector = (unsigned int*)malloc_aligned(vectorLength * sizeof(unsigned int), 16);
+      e->bitVector = (unsigned int*)malloc_aligned(vectorLength * sizeof(unsigned int));
       memset(e->bitVector, 0, vectorLength * sizeof(unsigned int));
 
       e->treeVector = (unsigned int*)calloc(treeVectorLength, sizeof(unsigned int));

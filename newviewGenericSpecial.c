@@ -47,7 +47,7 @@
 #include <xmmintrin.h>
 #include <pmmintrin.h>
 
-const union __attribute__ ((aligned (16)))
+const union __attribute__ ((aligned (BYTE_ALIGNMENT)))
 {
        uint64_t i[2];
        __m128d m;
@@ -633,11 +633,11 @@ static void makeP(double z1, double z2, double *rptr, double *EI,  double *EIGN,
       {
 #ifdef __SIM_SSE3
 	double 
-	  d1[4] __attribute__ ((aligned (16))), 
-	  d2[4] __attribute__ ((aligned (16))),
+	  d1[4] __attribute__ ((aligned (BYTE_ALIGNMENT))), 
+	  d2[4] __attribute__ ((aligned (BYTE_ALIGNMENT))),
 	  ez1[3], 
 	  ez2[3],
-	  EI_16[16] __attribute__ ((aligned (16)));
+	  EI_16[16] __attribute__ ((aligned (BYTE_ALIGNMENT)));
 	
 	  	  
 	for(j = 0; j < 4; j++)
@@ -1699,7 +1699,7 @@ static void newviewGTRCAT( int tipCase,  double *EV,  int *cptr,
     *x1,
     *x2, 
     *x3, 
-    EV_t[16] __attribute__ ((aligned (16)));
+    EV_t[16] __attribute__ ((aligned (BYTE_ALIGNMENT)));
     
   int 
     i, 
@@ -2148,8 +2148,8 @@ static void newviewGTRGAMMA(int tipCase,
     *x2,
     *x3,
     max,
-    maxima[2] __attribute__ ((aligned (16))),       
-    EV_t[16] __attribute__ ((aligned (16)));      
+    maxima[2] __attribute__ ((aligned (BYTE_ALIGNMENT))),       
+    EV_t[16] __attribute__ ((aligned (BYTE_ALIGNMENT)));      
     
   __m128d 
     values[8],
@@ -2166,7 +2166,7 @@ static void newviewGTRGAMMA(int tipCase,
     {
     case TIP_TIP:
       {
-	double *uX1, umpX1[256] __attribute__ ((aligned (16))), *uX2, umpX2[256] __attribute__ ((aligned (16)));
+	double *uX1, umpX1[256] __attribute__ ((aligned (BYTE_ALIGNMENT))), *uX2, umpX2[256] __attribute__ ((aligned (BYTE_ALIGNMENT)));
 
 
 	for (i = 1; i < 16; i++)
@@ -2273,7 +2273,7 @@ static void newviewGTRGAMMA(int tipCase,
       break;
     case TIP_INNER:
       {	
-	double *uX1, umpX1[256] __attribute__ ((aligned (16)));
+	double *uX1, umpX1[256] __attribute__ ((aligned (BYTE_ALIGNMENT)));
 
 
 	for (i = 1; i < 16; i++)
@@ -2661,8 +2661,8 @@ static void newviewGTRGAMMA_GAPPED(int tipCase,
     *x2,
     *x3,   
     max,
-    maxima[2] __attribute__ ((aligned (16))),        
-    EV_t[16] __attribute__ ((aligned (16)));      
+    maxima[2] __attribute__ ((aligned (BYTE_ALIGNMENT))),        
+    EV_t[16] __attribute__ ((aligned (BYTE_ALIGNMENT)));      
     
   __m128d 
     values[8],
@@ -2696,7 +2696,7 @@ static void newviewGTRGAMMA_GAPPED(int tipCase,
     {
     case TIP_TIP:
       {
-	double *uX1, umpX1[256] __attribute__ ((aligned (16))), *uX2, umpX2[256] __attribute__ ((aligned (16)));
+	double *uX1, umpX1[256] __attribute__ ((aligned (BYTE_ALIGNMENT))), *uX2, umpX2[256] __attribute__ ((aligned (BYTE_ALIGNMENT)));
 
 
 	for (i = 1; i < 16; i++)
@@ -2854,7 +2854,7 @@ static void newviewGTRGAMMA_GAPPED(int tipCase,
       {	
 	double 
 	  *uX1, 
-	  umpX1[256] __attribute__ ((aligned (16)));		 
+	  umpX1[256] __attribute__ ((aligned (BYTE_ALIGNMENT)));		 
 
 	for (i = 1; i < 16; i++)
 	  {
@@ -3560,8 +3560,8 @@ static void newviewGTRGAMMA_GAPPED_SAVE(int tipCase,
     *x1_ptr = x1_start,
     *x2_ptr = x2_start,       
     max,
-    maxima[2] __attribute__ ((aligned (16))),        
-    EV_t[16] __attribute__ ((aligned (16)));      
+    maxima[2] __attribute__ ((aligned (BYTE_ALIGNMENT))),        
+    EV_t[16] __attribute__ ((aligned (BYTE_ALIGNMENT)));      
     
   __m128d 
     values[8],
@@ -3580,7 +3580,7 @@ static void newviewGTRGAMMA_GAPPED_SAVE(int tipCase,
     {
     case TIP_TIP:
       {
-	double *uX1, umpX1[256] __attribute__ ((aligned (16))), *uX2, umpX2[256] __attribute__ ((aligned (16)));
+	double *uX1, umpX1[256] __attribute__ ((aligned (BYTE_ALIGNMENT))), *uX2, umpX2[256] __attribute__ ((aligned (BYTE_ALIGNMENT)));
 
 
 	for (i = 1; i < 16; i++)
@@ -3741,7 +3741,7 @@ static void newviewGTRGAMMA_GAPPED_SAVE(int tipCase,
       {	
 	double 
 	  *uX1, 
-	  umpX1[256] __attribute__ ((aligned (16)));		 
+	  umpX1[256] __attribute__ ((aligned (BYTE_ALIGNMENT)));		 
 
 	for (i = 1; i < 16; i++)
 	  {
@@ -8325,7 +8325,7 @@ void newviewIterative (tree *tr)
 		  if(x3_start)
 		    free(x3_start);
 		 
-		  x3_start = (double*)malloc_aligned(requiredLength, 16);		 
+		  x3_start = (double*)malloc_aligned(requiredLength);		 
 		  
 		  tr->partitionData[model].xVector[tInfo->pNumber - tr->mxtips - 1] = x3_start;
 		  
@@ -8348,7 +8348,7 @@ void newviewIterative (tree *tr)
 		      if(ex3)
 			free(ex3);
 		 
-		      ex3 = (int*)malloc_aligned(requiredExpLength, 16);		 
+		      ex3 = (int*)malloc_aligned(requiredExpLength);		 
 		  
 		      tr->partitionData[model].expVector[tInfo->pNumber - tr->mxtips - 1] = ex3;
 		  
@@ -8486,11 +8486,17 @@ void newviewIterative (tree *tr)
 			  makeP(qz, rz, tr->partitionData[model].perSiteRates,   tr->partitionData[model].EI,
 				tr->partitionData[model].EIGN, tr->partitionData[model].numberOfCategories,
 				left, right, DNA_DATA);
-
+#ifdef __AVX
+			  newviewGTRCAT_AVX(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
+					    x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
+					    ex3, tipX1, tipX2,
+					    width, left, right, wgt, &scalerIncrement, tr->useFastScaling);
+#else
 			  newviewGTRCAT(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
 					x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
 					ex3, tipX1, tipX2,
 					width, left, right, wgt, &scalerIncrement, tr->useFastScaling);
+#endif
 			}
 		      break;
 		    case GAMMA:
@@ -8525,10 +8531,17 @@ void newviewIterative (tree *tr)
 						       x1_gap, x2_gap, x3_gap, tr->partitionData[model].gapVectorLength, 
 						       x1_gapColumn, x2_gapColumn, x3_gapColumn);
 			      else
+#ifdef __AVX
+				newviewGTRGAMMA_AVX(tInfo->tipCase,
+						    x1_start, x2_start, x3_start, tr->partitionData[model].EV, tr->partitionData[model].tipVector,
+						    ex3, tipX1, tipX2,
+						    width, left, right, wgt, &scalerIncrement, tr->useFastScaling);
+#else
 				newviewGTRGAMMA(tInfo->tipCase,
 						x1_start, x2_start, x3_start, tr->partitionData[model].EV, tr->partitionData[model].tipVector,
 						ex3, tipX1, tipX2,
 						width, left, right, wgt, &scalerIncrement, tr->useFastScaling);
+#endif
 			    }
 			}
 		      break;
@@ -8546,10 +8559,15 @@ void newviewIterative (tree *tr)
 				tr->partitionData[model].EI,
 				tr->partitionData[model].EIGN,
 				tr->partitionData[model].numberOfCategories, left, right, AA_DATA);
-			  
+#ifdef __AVX
+			  newviewGTRCATPROT_AVX(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
+						x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
+						ex3, tipX1, tipX2, width, left, right, wgt, &scalerIncrement, tr->useFastScaling);
+#else			  
 			  newviewGTRCATPROT(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
 					    x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
 					    ex3, tipX1, tipX2, width, left, right, wgt, &scalerIncrement, tr->useFastScaling);			
+#endif
 			}
 		      break;
 		    case GAMMA:
@@ -8605,12 +8623,21 @@ void newviewIterative (tree *tr)
 							       x1_gap, x2_gap, x3_gap, tr->partitionData[model].gapVectorLength, 
 							       x1_gapColumn, x2_gapColumn, x3_gapColumn);
 				  else
+#ifdef __AVX
+				    newviewGTRGAMMAPROT_AVX(tInfo->tipCase,
+							    x1_start, x2_start, x3_start,
+							    tr->partitionData[model].EV,
+							    tr->partitionData[model].tipVector,
+							    ex3, tipX1, tipX2,
+							    width, left, right, wgt, &scalerIncrement, tr->useFastScaling);
+#else
 				    newviewGTRGAMMAPROT(tInfo->tipCase,
 							x1_start, x2_start, x3_start,
 							tr->partitionData[model].EV,
 							tr->partitionData[model].tipVector,
 							ex3, tipX1, tipX2,
 							width, left, right, wgt, &scalerIncrement, tr->useFastScaling);
+#endif
 				}
 			    }
 			}
@@ -8849,7 +8876,7 @@ void newviewIterativeMulti (tree *tr)
 		  if(x3_start)
 		    free(x3_start);
 		 
-		  x3_start = (double*)malloc_aligned(requiredLength, 16);		 
+		  x3_start = (double*)malloc_aligned(requiredLength);		 
 		  
 		  tr->partitionData[model].xVector[tInfo->pNumber - tr->mxtips - 1] = x3_start;
 		  
