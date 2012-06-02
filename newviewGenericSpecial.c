@@ -68,6 +68,15 @@ extern pthread_mutex_t          mutex;
 
 extern const unsigned int mask32[32];
 
+static inline boolean isGap(unsigned int *x, int pos)
+{
+  return (x[pos / 32] & mask32[pos % 32]);
+}
+
+static inline boolean noGap(unsigned int *x, int pos)
+{
+  return (!(x[pos / 32] & mask32[pos % 32]));
+}
 
 void makeP_Flex(double z1, double z2, double *rptr, double *EI,  double *EIGN, int numberOfCategories, double *left, double *right, const int numStates)
 {
@@ -603,7 +612,7 @@ static void newviewFlexGamma_perSite(int tipCase,
 }
 
 
-static void makeP(double z1, double z2, double *rptr, double *EI,  double *EIGN, int numberOfCategories, double *left, double *right, int data)
+static void makeP(double z1, double z2, double *rptr, double *EI,  double *EIGN, int numberOfCategories, double *left, double *right, int data, boolean saveMem, int maxCat)
 {
   int i, j, k;
 
@@ -693,8 +702,52 @@ static void makeP(double z1, double z2, double *rptr, double *EI,  double *EIGN,
 
 		
 	      }
-	  }	
+	  }
 
+	if(saveMem)
+	  {
+	    i = maxCat;
+	    	    
+	    {	   
+	      __m128d 
+		d1_0, d1_1,
+		d2_0, d2_1;
+	      
+	      d1[0] = 1.0;
+	      d2[0] = 1.0;
+	      
+	      for(j = 0; j < 3; j++)
+		{
+		  d1[j+1] = EXP(ez1[j]);
+		  d2[j+1] = EXP(ez2[j]);
+		}	     
+	      
+	      d1_0 = _mm_load_pd(&d1[0]);
+	      d1_1 = _mm_load_pd(&d1[2]);
+	      
+	      d2_0 = _mm_load_pd(&d2[0]);
+	      d2_1 = _mm_load_pd(&d2[2]);
+	      	      
+	      for(j = 0; j < 4; j++)
+		{	       
+		  double *ll = &left[i * 16 + j * 4];
+		  double *rr = &right[i * 16 + j * 4];	       
+		  
+		  __m128d eev = _mm_load_pd(&EI_16[4 * j]);
+		  
+		  _mm_store_pd(&ll[0], _mm_mul_pd(d1_0, eev));
+		  _mm_store_pd(&rr[0], _mm_mul_pd(d2_0, eev));
+		  
+		  eev = _mm_load_pd(&EI_16[4 * j + 2]);
+		  
+		  _mm_store_pd(&ll[2], _mm_mul_pd(d1_1, eev));
+		  _mm_store_pd(&rr[2], _mm_mul_pd(d2_1, eev));
+		  
+		  
+		}
+	    }
+	  }
+      
 #else
 	double d1[3], d2[3];
 
@@ -847,6 +900,29 @@ static void makeP(double z1, double z2, double *rptr, double *EI,  double *EIGN,
 		  }
 	      }
 	  }
+
+	if(saveMem)
+        {
+          i = maxCat;
+
+          for(j = 0; j < 19; j++)
+          {
+            d1[j] = EXP (lz1[j]);
+            d2[j] = EXP (lz2[j]);
+          }
+
+          for(j = 0; j < 20; j++)
+          {
+            left[400 * i  + 20 * j] = 1.0;
+            right[400 * i + 20 * j] = 1.0;
+
+            for(k = 1; k < 20; k++)
+            {
+              left[400 * i + 20 * j + k]  = d1[k-1] * EI[19 * j + (k-1)];
+              right[400 * i + 20 * j + k] = d2[k-1] * EI[19 * j + (k-1)];
+            }
+          }
+        }      
       }
       break;
     default:
@@ -1686,6 +1762,649 @@ static void newviewGTRCAT( int tipCase,  double *EV,  int *cptr,
 
 #else
 
+
+static void newviewGTRCAT_SAVE( int tipCase,  double *EV,  int *cptr,
+				double *x1_start, double *x2_start,  double *x3_start, double *tipVector,
+				int *ex3, unsigned char *tipX1, unsigned char *tipX2,
+				int n,  double *left, double *right, int *wgt, int *scalerIncrement, const boolean useFastScaling,
+				unsigned int *x1_gap, unsigned int *x2_gap, unsigned int *x3_gap,
+				double *x1_gapColumn, double *x2_gapColumn, double *x3_gapColumn, const int maxCats)
+{
+  double
+    *le,
+  *ri,
+  *x1,
+  *x2,
+  *x3,
+  *x1_ptr = x1_start,
+  *x2_ptr = x2_start, 
+  *x3_ptr = x3_start, 
+  EV_t[16] __attribute__ ((aligned (BYTE_ALIGNMENT)));
+
+  int 
+    i, 
+    j, 
+    scale, 
+    scaleGap = 0,
+    addScale = 0;
+
+  __m128d
+    minlikelihood_sse = _mm_set1_pd( minlikelihood ),
+                      sc = _mm_set1_pd(twotothe256),
+                      EVV[8];  
+
+  for(i = 0; i < 4; i++)
+    for (j=0; j < 4; j++)
+      EV_t[4 * j + i] = EV[4 * i + j];
+
+  for(i = 0; i < 8; i++)
+    EVV[i] = _mm_load_pd(&EV_t[i * 2]);
+
+  
+
+  {
+    x1 = x1_gapColumn;	      
+    x2 = x2_gapColumn;
+    x3 = x3_gapColumn;
+
+   
+
+    le =  &left[maxCats * 16];	     	 
+    ri =  &right[maxCats * 16];		   	  	  	  	         
+
+   
+
+    __m128d x1_0 = _mm_load_pd( &x1[0] );
+    __m128d x1_2 = _mm_load_pd( &x1[2] );
+
+    __m128d left_k0_0 = _mm_load_pd( &le[0] );
+    __m128d left_k0_2 = _mm_load_pd( &le[2] );
+    __m128d left_k1_0 = _mm_load_pd( &le[4] );
+    __m128d left_k1_2 = _mm_load_pd( &le[6] );
+    __m128d left_k2_0 = _mm_load_pd( &le[8] );
+    __m128d left_k2_2 = _mm_load_pd( &le[10] );
+    __m128d left_k3_0 = _mm_load_pd( &le[12] );
+    __m128d left_k3_2 = _mm_load_pd( &le[14] );
+
+    left_k0_0 = _mm_mul_pd(x1_0, left_k0_0);
+    left_k0_2 = _mm_mul_pd(x1_2, left_k0_2);
+
+    left_k1_0 = _mm_mul_pd(x1_0, left_k1_0);
+    left_k1_2 = _mm_mul_pd(x1_2, left_k1_2);
+
+    left_k0_0 = _mm_hadd_pd( left_k0_0, left_k0_2 );
+    left_k1_0 = _mm_hadd_pd( left_k1_0, left_k1_2);
+    left_k0_0 = _mm_hadd_pd( left_k0_0, left_k1_0);
+
+    left_k2_0 = _mm_mul_pd(x1_0, left_k2_0);
+    left_k2_2 = _mm_mul_pd(x1_2, left_k2_2);
+
+    left_k3_0 = _mm_mul_pd(x1_0, left_k3_0);
+    left_k3_2 = _mm_mul_pd(x1_2, left_k3_2);
+
+    left_k2_0 = _mm_hadd_pd( left_k2_0, left_k2_2);
+    left_k3_0 = _mm_hadd_pd( left_k3_0, left_k3_2);
+    left_k2_0 = _mm_hadd_pd( left_k2_0, left_k3_0);
+
+    __m128d x2_0 = _mm_load_pd( &x2[0] );
+    __m128d x2_2 = _mm_load_pd( &x2[2] );
+
+    __m128d right_k0_0 = _mm_load_pd( &ri[0] );
+    __m128d right_k0_2 = _mm_load_pd( &ri[2] );
+    __m128d right_k1_0 = _mm_load_pd( &ri[4] );
+    __m128d right_k1_2 = _mm_load_pd( &ri[6] );
+    __m128d right_k2_0 = _mm_load_pd( &ri[8] );
+    __m128d right_k2_2 = _mm_load_pd( &ri[10] );
+    __m128d right_k3_0 = _mm_load_pd( &ri[12] );
+    __m128d right_k3_2 = _mm_load_pd( &ri[14] );
+
+    right_k0_0 = _mm_mul_pd( x2_0, right_k0_0);
+    right_k0_2 = _mm_mul_pd( x2_2, right_k0_2);
+
+    right_k1_0 = _mm_mul_pd( x2_0, right_k1_0);
+    right_k1_2 = _mm_mul_pd( x2_2, right_k1_2);
+
+    right_k0_0 = _mm_hadd_pd( right_k0_0, right_k0_2);
+    right_k1_0 = _mm_hadd_pd( right_k1_0, right_k1_2);
+    right_k0_0 = _mm_hadd_pd( right_k0_0, right_k1_0);
+
+    right_k2_0 = _mm_mul_pd( x2_0, right_k2_0);
+    right_k2_2 = _mm_mul_pd( x2_2, right_k2_2);
+
+    right_k3_0 = _mm_mul_pd( x2_0, right_k3_0);
+    right_k3_2 = _mm_mul_pd( x2_2, right_k3_2);
+
+    right_k2_0 = _mm_hadd_pd( right_k2_0, right_k2_2);
+    right_k3_0 = _mm_hadd_pd( right_k3_0, right_k3_2);
+    right_k2_0 = _mm_hadd_pd( right_k2_0, right_k3_0);	   
+
+    __m128d x1px2_k0 = _mm_mul_pd( left_k0_0, right_k0_0 );
+    __m128d x1px2_k2 = _mm_mul_pd( left_k2_0, right_k2_0 );
+
+    __m128d EV_t_l0_k0 = EVV[0];
+    __m128d EV_t_l0_k2 = EVV[1];
+    __m128d EV_t_l1_k0 = EVV[2];
+    __m128d EV_t_l1_k2 = EVV[3];
+    __m128d EV_t_l2_k0 = EVV[4];
+    __m128d EV_t_l2_k2 = EVV[5];
+    __m128d EV_t_l3_k0 = EVV[6];
+    __m128d EV_t_l3_k2 = EVV[7];
+
+    EV_t_l0_k0 = _mm_mul_pd( x1px2_k0, EV_t_l0_k0 );
+    EV_t_l0_k2 = _mm_mul_pd( x1px2_k2, EV_t_l0_k2 );
+    EV_t_l0_k0 = _mm_hadd_pd( EV_t_l0_k0, EV_t_l0_k2 );
+
+    EV_t_l1_k0 = _mm_mul_pd( x1px2_k0, EV_t_l1_k0 );
+    EV_t_l1_k2 = _mm_mul_pd( x1px2_k2, EV_t_l1_k2 );
+
+    EV_t_l1_k0 = _mm_hadd_pd( EV_t_l1_k0, EV_t_l1_k2 );
+    EV_t_l0_k0 = _mm_hadd_pd( EV_t_l0_k0, EV_t_l1_k0 );
+
+    EV_t_l2_k0 = _mm_mul_pd( x1px2_k0, EV_t_l2_k0 );
+    EV_t_l2_k2 = _mm_mul_pd( x1px2_k2, EV_t_l2_k2 );
+    EV_t_l2_k0 = _mm_hadd_pd( EV_t_l2_k0, EV_t_l2_k2 );
+
+    EV_t_l3_k0 = _mm_mul_pd( x1px2_k0, EV_t_l3_k0 );
+    EV_t_l3_k2 = _mm_mul_pd( x1px2_k2, EV_t_l3_k2 );
+    EV_t_l3_k0 = _mm_hadd_pd( EV_t_l3_k0, EV_t_l3_k2 );
+
+    EV_t_l2_k0 = _mm_hadd_pd( EV_t_l2_k0, EV_t_l3_k0 );	  	 	    		  
+
+   
+
+    if(tipCase != TIP_TIP)
+    {    
+      scale = 1;
+
+      __m128d v1 = _mm_and_pd(EV_t_l0_k0, absMask.m);
+      v1 = _mm_cmplt_pd(v1,  minlikelihood_sse);
+      if(_mm_movemask_pd( v1 ) != 3)
+        scale = 0;
+      else
+      {
+        v1 = _mm_and_pd(EV_t_l2_k0, absMask.m);
+        v1 = _mm_cmplt_pd(v1,  minlikelihood_sse);
+        if(_mm_movemask_pd( v1 ) != 3)
+          scale = 0;
+      }
+
+      if(scale)
+      {		      
+        _mm_store_pd(&x3[0], _mm_mul_pd(EV_t_l0_k0, sc));
+        _mm_store_pd(&x3[2], _mm_mul_pd(EV_t_l2_k0, sc));	      	      
+
+        scaleGap = TRUE;	   
+      }	
+      else
+      {
+        _mm_store_pd(x3, EV_t_l0_k0);
+        _mm_store_pd(&x3[2], EV_t_l2_k0);
+      }
+    }
+    else
+    {
+      _mm_store_pd(x3, EV_t_l0_k0);
+      _mm_store_pd(&x3[2], EV_t_l2_k0);
+    }
+  }
+  
+  switch(tipCase)
+  {
+    case TIP_TIP:      
+      for (i = 0; i < n; i++)
+      {
+        if(noGap(x3_gap, i))
+        {
+          x1 = &(tipVector[4 * tipX1[i]]);
+          x2 = &(tipVector[4 * tipX2[i]]);
+
+          x3 = x3_ptr;
+
+          if(isGap(x1_gap, i))
+            le =  &left[maxCats * 16];
+          else	  	  
+            le =  &left[cptr[i] * 16];	  
+
+          if(isGap(x2_gap, i))
+            ri =  &right[maxCats * 16];
+          else	 	  
+            ri =  &right[cptr[i] * 16];
+
+          __m128d x1_0 = _mm_load_pd( &x1[0] );
+          __m128d x1_2 = _mm_load_pd( &x1[2] );
+
+          __m128d left_k0_0 = _mm_load_pd( &le[0] );
+          __m128d left_k0_2 = _mm_load_pd( &le[2] );
+          __m128d left_k1_0 = _mm_load_pd( &le[4] );
+          __m128d left_k1_2 = _mm_load_pd( &le[6] );
+          __m128d left_k2_0 = _mm_load_pd( &le[8] );
+          __m128d left_k2_2 = _mm_load_pd( &le[10] );
+          __m128d left_k3_0 = _mm_load_pd( &le[12] );
+          __m128d left_k3_2 = _mm_load_pd( &le[14] );
+
+          left_k0_0 = _mm_mul_pd(x1_0, left_k0_0);
+          left_k0_2 = _mm_mul_pd(x1_2, left_k0_2);
+
+          left_k1_0 = _mm_mul_pd(x1_0, left_k1_0);
+          left_k1_2 = _mm_mul_pd(x1_2, left_k1_2);
+
+          left_k0_0 = _mm_hadd_pd( left_k0_0, left_k0_2 );
+          left_k1_0 = _mm_hadd_pd( left_k1_0, left_k1_2);
+          left_k0_0 = _mm_hadd_pd( left_k0_0, left_k1_0);
+
+          left_k2_0 = _mm_mul_pd(x1_0, left_k2_0);
+          left_k2_2 = _mm_mul_pd(x1_2, left_k2_2);
+
+          left_k3_0 = _mm_mul_pd(x1_0, left_k3_0);
+          left_k3_2 = _mm_mul_pd(x1_2, left_k3_2);
+
+          left_k2_0 = _mm_hadd_pd( left_k2_0, left_k2_2);
+          left_k3_0 = _mm_hadd_pd( left_k3_0, left_k3_2);
+          left_k2_0 = _mm_hadd_pd( left_k2_0, left_k3_0);
+
+          __m128d x2_0 = _mm_load_pd( &x2[0] );
+          __m128d x2_2 = _mm_load_pd( &x2[2] );
+
+          __m128d right_k0_0 = _mm_load_pd( &ri[0] );
+          __m128d right_k0_2 = _mm_load_pd( &ri[2] );
+          __m128d right_k1_0 = _mm_load_pd( &ri[4] );
+          __m128d right_k1_2 = _mm_load_pd( &ri[6] );
+          __m128d right_k2_0 = _mm_load_pd( &ri[8] );
+          __m128d right_k2_2 = _mm_load_pd( &ri[10] );
+          __m128d right_k3_0 = _mm_load_pd( &ri[12] );
+          __m128d right_k3_2 = _mm_load_pd( &ri[14] );
+
+          right_k0_0 = _mm_mul_pd( x2_0, right_k0_0);
+          right_k0_2 = _mm_mul_pd( x2_2, right_k0_2);
+
+          right_k1_0 = _mm_mul_pd( x2_0, right_k1_0);
+          right_k1_2 = _mm_mul_pd( x2_2, right_k1_2);
+
+          right_k0_0 = _mm_hadd_pd( right_k0_0, right_k0_2);
+          right_k1_0 = _mm_hadd_pd( right_k1_0, right_k1_2);
+          right_k0_0 = _mm_hadd_pd( right_k0_0, right_k1_0);
+
+          right_k2_0 = _mm_mul_pd( x2_0, right_k2_0);
+          right_k2_2 = _mm_mul_pd( x2_2, right_k2_2);
+
+          right_k3_0 = _mm_mul_pd( x2_0, right_k3_0);
+          right_k3_2 = _mm_mul_pd( x2_2, right_k3_2);
+
+          right_k2_0 = _mm_hadd_pd( right_k2_0, right_k2_2);
+          right_k3_0 = _mm_hadd_pd( right_k3_0, right_k3_2);
+          right_k2_0 = _mm_hadd_pd( right_k2_0, right_k3_0);	   
+
+          __m128d x1px2_k0 = _mm_mul_pd( left_k0_0, right_k0_0 );
+          __m128d x1px2_k2 = _mm_mul_pd( left_k2_0, right_k2_0 );	  	  
+
+          __m128d EV_t_l0_k0 = EVV[0];
+          __m128d EV_t_l0_k2 = EVV[1];
+          __m128d EV_t_l1_k0 = EVV[2];
+          __m128d EV_t_l1_k2 = EVV[3];
+          __m128d EV_t_l2_k0 = EVV[4];
+          __m128d EV_t_l2_k2 = EVV[5];
+          __m128d EV_t_l3_k0 = EVV[6];
+          __m128d EV_t_l3_k2 = EVV[7];
+
+          EV_t_l0_k0 = _mm_mul_pd( x1px2_k0, EV_t_l0_k0 );
+          EV_t_l0_k2 = _mm_mul_pd( x1px2_k2, EV_t_l0_k2 );
+          EV_t_l0_k0 = _mm_hadd_pd( EV_t_l0_k0, EV_t_l0_k2 );
+
+          EV_t_l1_k0 = _mm_mul_pd( x1px2_k0, EV_t_l1_k0 );
+          EV_t_l1_k2 = _mm_mul_pd( x1px2_k2, EV_t_l1_k2 );
+
+          EV_t_l1_k0 = _mm_hadd_pd( EV_t_l1_k0, EV_t_l1_k2 );
+          EV_t_l0_k0 = _mm_hadd_pd( EV_t_l0_k0, EV_t_l1_k0 );
+
+          EV_t_l2_k0 = _mm_mul_pd( x1px2_k0, EV_t_l2_k0 );
+          EV_t_l2_k2 = _mm_mul_pd( x1px2_k2, EV_t_l2_k2 );
+          EV_t_l2_k0 = _mm_hadd_pd( EV_t_l2_k0, EV_t_l2_k2 );
+
+          EV_t_l3_k0 = _mm_mul_pd( x1px2_k0, EV_t_l3_k0 );
+          EV_t_l3_k2 = _mm_mul_pd( x1px2_k2, EV_t_l3_k2 );
+          EV_t_l3_k0 = _mm_hadd_pd( EV_t_l3_k0, EV_t_l3_k2 );
+
+          EV_t_l2_k0 = _mm_hadd_pd( EV_t_l2_k0, EV_t_l3_k0 );	 
+
+          _mm_store_pd(x3, EV_t_l0_k0);
+          _mm_store_pd(&x3[2], EV_t_l2_k0);	  	 	   	    
+
+          x3_ptr += 4;
+        }
+      }
+      break;
+    case TIP_INNER:      
+      for (i = 0; i < n; i++)
+      { 
+        if(isGap(x3_gap, i))
+        {
+          if(scaleGap)		   		    
+            addScale += wgt[i];
+        }
+        else
+        {	      
+          x1 = &(tipVector[4 * tipX1[i]]);
+
+          x2 = x2_ptr;
+          x3 = x3_ptr;
+
+          if(isGap(x1_gap, i))
+            le =  &left[maxCats * 16];
+          else
+            le =  &left[cptr[i] * 16];
+
+          if(isGap(x2_gap, i))
+          {		 
+            ri =  &right[maxCats * 16];
+            x2 = x2_gapColumn;
+          }
+          else
+          {
+            ri =  &right[cptr[i] * 16];
+            x2 = x2_ptr;
+            x2_ptr += 4;
+          }	  	  	  	  
+
+          __m128d x1_0 = _mm_load_pd( &x1[0] );
+          __m128d x1_2 = _mm_load_pd( &x1[2] );
+
+          __m128d left_k0_0 = _mm_load_pd( &le[0] );
+          __m128d left_k0_2 = _mm_load_pd( &le[2] );
+          __m128d left_k1_0 = _mm_load_pd( &le[4] );
+          __m128d left_k1_2 = _mm_load_pd( &le[6] );
+          __m128d left_k2_0 = _mm_load_pd( &le[8] );
+          __m128d left_k2_2 = _mm_load_pd( &le[10] );
+          __m128d left_k3_0 = _mm_load_pd( &le[12] );
+          __m128d left_k3_2 = _mm_load_pd( &le[14] );
+
+          left_k0_0 = _mm_mul_pd(x1_0, left_k0_0);
+          left_k0_2 = _mm_mul_pd(x1_2, left_k0_2);
+
+          left_k1_0 = _mm_mul_pd(x1_0, left_k1_0);
+          left_k1_2 = _mm_mul_pd(x1_2, left_k1_2);
+
+          left_k0_0 = _mm_hadd_pd( left_k0_0, left_k0_2 );
+          left_k1_0 = _mm_hadd_pd( left_k1_0, left_k1_2);
+          left_k0_0 = _mm_hadd_pd( left_k0_0, left_k1_0);
+
+          left_k2_0 = _mm_mul_pd(x1_0, left_k2_0);
+          left_k2_2 = _mm_mul_pd(x1_2, left_k2_2);
+
+          left_k3_0 = _mm_mul_pd(x1_0, left_k3_0);
+          left_k3_2 = _mm_mul_pd(x1_2, left_k3_2);
+
+          left_k2_0 = _mm_hadd_pd( left_k2_0, left_k2_2);
+          left_k3_0 = _mm_hadd_pd( left_k3_0, left_k3_2);
+          left_k2_0 = _mm_hadd_pd( left_k2_0, left_k3_0);
+
+          __m128d x2_0 = _mm_load_pd( &x2[0] );
+          __m128d x2_2 = _mm_load_pd( &x2[2] );
+
+          __m128d right_k0_0 = _mm_load_pd( &ri[0] );
+          __m128d right_k0_2 = _mm_load_pd( &ri[2] );
+          __m128d right_k1_0 = _mm_load_pd( &ri[4] );
+          __m128d right_k1_2 = _mm_load_pd( &ri[6] );
+          __m128d right_k2_0 = _mm_load_pd( &ri[8] );
+          __m128d right_k2_2 = _mm_load_pd( &ri[10] );
+          __m128d right_k3_0 = _mm_load_pd( &ri[12] );
+          __m128d right_k3_2 = _mm_load_pd( &ri[14] );
+
+          right_k0_0 = _mm_mul_pd( x2_0, right_k0_0);
+          right_k0_2 = _mm_mul_pd( x2_2, right_k0_2);
+
+          right_k1_0 = _mm_mul_pd( x2_0, right_k1_0);
+          right_k1_2 = _mm_mul_pd( x2_2, right_k1_2);
+
+          right_k0_0 = _mm_hadd_pd( right_k0_0, right_k0_2);
+          right_k1_0 = _mm_hadd_pd( right_k1_0, right_k1_2);
+          right_k0_0 = _mm_hadd_pd( right_k0_0, right_k1_0);
+
+          right_k2_0 = _mm_mul_pd( x2_0, right_k2_0);
+          right_k2_2 = _mm_mul_pd( x2_2, right_k2_2);
+
+          right_k3_0 = _mm_mul_pd( x2_0, right_k3_0);
+          right_k3_2 = _mm_mul_pd( x2_2, right_k3_2);
+
+          right_k2_0 = _mm_hadd_pd( right_k2_0, right_k2_2);
+          right_k3_0 = _mm_hadd_pd( right_k3_0, right_k3_2);
+          right_k2_0 = _mm_hadd_pd( right_k2_0, right_k3_0);	   
+
+          __m128d x1px2_k0 = _mm_mul_pd( left_k0_0, right_k0_0 );
+          __m128d x1px2_k2 = _mm_mul_pd( left_k2_0, right_k2_0 );
+
+          __m128d EV_t_l0_k0 = EVV[0];
+          __m128d EV_t_l0_k2 = EVV[1];
+          __m128d EV_t_l1_k0 = EVV[2];
+          __m128d EV_t_l1_k2 = EVV[3];
+          __m128d EV_t_l2_k0 = EVV[4];
+          __m128d EV_t_l2_k2 = EVV[5];
+          __m128d EV_t_l3_k0 = EVV[6];
+          __m128d EV_t_l3_k2 = EVV[7];
+
+
+          EV_t_l0_k0 = _mm_mul_pd( x1px2_k0, EV_t_l0_k0 );
+          EV_t_l0_k2 = _mm_mul_pd( x1px2_k2, EV_t_l0_k2 );
+          EV_t_l0_k0 = _mm_hadd_pd( EV_t_l0_k0, EV_t_l0_k2 );
+
+          EV_t_l1_k0 = _mm_mul_pd( x1px2_k0, EV_t_l1_k0 );
+          EV_t_l1_k2 = _mm_mul_pd( x1px2_k2, EV_t_l1_k2 );
+
+          EV_t_l1_k0 = _mm_hadd_pd( EV_t_l1_k0, EV_t_l1_k2 );
+          EV_t_l0_k0 = _mm_hadd_pd( EV_t_l0_k0, EV_t_l1_k0 );
+
+          EV_t_l2_k0 = _mm_mul_pd( x1px2_k0, EV_t_l2_k0 );
+          EV_t_l2_k2 = _mm_mul_pd( x1px2_k2, EV_t_l2_k2 );
+          EV_t_l2_k0 = _mm_hadd_pd( EV_t_l2_k0, EV_t_l2_k2 );
+
+          EV_t_l3_k0 = _mm_mul_pd( x1px2_k0, EV_t_l3_k0 );
+          EV_t_l3_k2 = _mm_mul_pd( x1px2_k2, EV_t_l3_k2 );
+          EV_t_l3_k0 = _mm_hadd_pd( EV_t_l3_k0, EV_t_l3_k2 );
+
+          EV_t_l2_k0 = _mm_hadd_pd( EV_t_l2_k0, EV_t_l3_k0 );	  	 	    		  
+
+          scale = 1;
+
+          __m128d v1 = _mm_and_pd(EV_t_l0_k0, absMask.m);
+          v1 = _mm_cmplt_pd(v1,  minlikelihood_sse);
+          if(_mm_movemask_pd( v1 ) != 3)
+            scale = 0;
+          else
+          {
+            v1 = _mm_and_pd(EV_t_l2_k0, absMask.m);
+            v1 = _mm_cmplt_pd(v1,  minlikelihood_sse);
+            if(_mm_movemask_pd( v1 ) != 3)
+              scale = 0;
+          }
+
+          if(scale)
+          {		      
+            _mm_store_pd(&x3[0], _mm_mul_pd(EV_t_l0_k0, sc));
+            _mm_store_pd(&x3[2], _mm_mul_pd(EV_t_l2_k0, sc));	      	      
+
+            addScale += wgt[i];	  
+          }	
+          else
+          {
+            _mm_store_pd(x3, EV_t_l0_k0);
+            _mm_store_pd(&x3[2], EV_t_l2_k0);
+          }
+
+          x3_ptr += 4;
+        }
+
+      }
+      break;
+    case INNER_INNER:
+      for (i = 0; i < n; i++)
+      { 
+        if(isGap(x3_gap, i))
+        {
+          if(scaleGap)		   		    
+            addScale += wgt[i];
+        }
+        else
+        {	     
+          x3 = x3_ptr;
+
+          if(isGap(x1_gap, i))
+          {
+            x1 = x1_gapColumn;
+            le =  &left[maxCats * 16];
+          }
+          else
+          {
+            le =  &left[cptr[i] * 16];
+            x1 = x1_ptr;
+            x1_ptr += 4;
+          }
+
+          if(isGap(x2_gap, i))	
+          {
+            x2 = x2_gapColumn;
+            ri =  &right[maxCats * 16];	    
+          }
+          else
+          {
+            ri =  &right[cptr[i] * 16];
+            x2 = x2_ptr;
+            x2_ptr += 4;
+          }	 	  	  	  
+
+          __m128d x1_0 = _mm_load_pd( &x1[0] );
+          __m128d x1_2 = _mm_load_pd( &x1[2] );
+
+          __m128d left_k0_0 = _mm_load_pd( &le[0] );
+          __m128d left_k0_2 = _mm_load_pd( &le[2] );
+          __m128d left_k1_0 = _mm_load_pd( &le[4] );
+          __m128d left_k1_2 = _mm_load_pd( &le[6] );
+          __m128d left_k2_0 = _mm_load_pd( &le[8] );
+          __m128d left_k2_2 = _mm_load_pd( &le[10] );
+          __m128d left_k3_0 = _mm_load_pd( &le[12] );
+          __m128d left_k3_2 = _mm_load_pd( &le[14] );
+
+          left_k0_0 = _mm_mul_pd(x1_0, left_k0_0);
+          left_k0_2 = _mm_mul_pd(x1_2, left_k0_2);
+
+          left_k1_0 = _mm_mul_pd(x1_0, left_k1_0);
+          left_k1_2 = _mm_mul_pd(x1_2, left_k1_2);
+
+          left_k0_0 = _mm_hadd_pd( left_k0_0, left_k0_2 );
+          left_k1_0 = _mm_hadd_pd( left_k1_0, left_k1_2);
+          left_k0_0 = _mm_hadd_pd( left_k0_0, left_k1_0);
+
+          left_k2_0 = _mm_mul_pd(x1_0, left_k2_0);
+          left_k2_2 = _mm_mul_pd(x1_2, left_k2_2);
+
+          left_k3_0 = _mm_mul_pd(x1_0, left_k3_0);
+          left_k3_2 = _mm_mul_pd(x1_2, left_k3_2);
+
+          left_k2_0 = _mm_hadd_pd( left_k2_0, left_k2_2);
+          left_k3_0 = _mm_hadd_pd( left_k3_0, left_k3_2);
+          left_k2_0 = _mm_hadd_pd( left_k2_0, left_k3_0);
+
+          __m128d x2_0 = _mm_load_pd( &x2[0] );
+          __m128d x2_2 = _mm_load_pd( &x2[2] );
+
+          __m128d right_k0_0 = _mm_load_pd( &ri[0] );
+          __m128d right_k0_2 = _mm_load_pd( &ri[2] );
+          __m128d right_k1_0 = _mm_load_pd( &ri[4] );
+          __m128d right_k1_2 = _mm_load_pd( &ri[6] );
+          __m128d right_k2_0 = _mm_load_pd( &ri[8] );
+          __m128d right_k2_2 = _mm_load_pd( &ri[10] );
+          __m128d right_k3_0 = _mm_load_pd( &ri[12] );
+          __m128d right_k3_2 = _mm_load_pd( &ri[14] );
+
+          right_k0_0 = _mm_mul_pd( x2_0, right_k0_0);
+          right_k0_2 = _mm_mul_pd( x2_2, right_k0_2);
+
+          right_k1_0 = _mm_mul_pd( x2_0, right_k1_0);
+          right_k1_2 = _mm_mul_pd( x2_2, right_k1_2);
+
+          right_k0_0 = _mm_hadd_pd( right_k0_0, right_k0_2);
+          right_k1_0 = _mm_hadd_pd( right_k1_0, right_k1_2);
+          right_k0_0 = _mm_hadd_pd( right_k0_0, right_k1_0);
+
+          right_k2_0 = _mm_mul_pd( x2_0, right_k2_0);
+          right_k2_2 = _mm_mul_pd( x2_2, right_k2_2);
+
+          right_k3_0 = _mm_mul_pd( x2_0, right_k3_0);
+          right_k3_2 = _mm_mul_pd( x2_2, right_k3_2);
+
+          right_k2_0 = _mm_hadd_pd( right_k2_0, right_k2_2);
+          right_k3_0 = _mm_hadd_pd( right_k3_0, right_k3_2);
+          right_k2_0 = _mm_hadd_pd( right_k2_0, right_k3_0);	   
+
+          __m128d x1px2_k0 = _mm_mul_pd( left_k0_0, right_k0_0 );
+          __m128d x1px2_k2 = _mm_mul_pd( left_k2_0, right_k2_0 );
+
+          __m128d EV_t_l0_k0 = EVV[0];
+          __m128d EV_t_l0_k2 = EVV[1];
+          __m128d EV_t_l1_k0 = EVV[2];
+          __m128d EV_t_l1_k2 = EVV[3];
+          __m128d EV_t_l2_k0 = EVV[4];
+          __m128d EV_t_l2_k2 = EVV[5];
+          __m128d EV_t_l3_k0 = EVV[6];
+          __m128d EV_t_l3_k2 = EVV[7];
+
+
+          EV_t_l0_k0 = _mm_mul_pd( x1px2_k0, EV_t_l0_k0 );
+          EV_t_l0_k2 = _mm_mul_pd( x1px2_k2, EV_t_l0_k2 );
+          EV_t_l0_k0 = _mm_hadd_pd( EV_t_l0_k0, EV_t_l0_k2 );
+
+          EV_t_l1_k0 = _mm_mul_pd( x1px2_k0, EV_t_l1_k0 );
+          EV_t_l1_k2 = _mm_mul_pd( x1px2_k2, EV_t_l1_k2 );
+
+          EV_t_l1_k0 = _mm_hadd_pd( EV_t_l1_k0, EV_t_l1_k2 );
+          EV_t_l0_k0 = _mm_hadd_pd( EV_t_l0_k0, EV_t_l1_k0 );
+
+          EV_t_l2_k0 = _mm_mul_pd( x1px2_k0, EV_t_l2_k0 );
+          EV_t_l2_k2 = _mm_mul_pd( x1px2_k2, EV_t_l2_k2 );
+          EV_t_l2_k0 = _mm_hadd_pd( EV_t_l2_k0, EV_t_l2_k2 );
+
+          EV_t_l3_k0 = _mm_mul_pd( x1px2_k0, EV_t_l3_k0 );
+          EV_t_l3_k2 = _mm_mul_pd( x1px2_k2, EV_t_l3_k2 );
+          EV_t_l3_k0 = _mm_hadd_pd( EV_t_l3_k0, EV_t_l3_k2 );
+
+          EV_t_l2_k0 = _mm_hadd_pd( EV_t_l2_k0, EV_t_l3_k0 );	  	 	    		  	 
+
+          scale = 1;
+
+          __m128d v1 = _mm_and_pd(EV_t_l0_k0, absMask.m);
+          v1 = _mm_cmplt_pd(v1,  minlikelihood_sse);
+          if(_mm_movemask_pd( v1 ) != 3)
+            scale = 0;
+          else
+          {
+            v1 = _mm_and_pd(EV_t_l2_k0, absMask.m);
+            v1 = _mm_cmplt_pd(v1,  minlikelihood_sse);
+            if(_mm_movemask_pd( v1 ) != 3)
+              scale = 0;
+          }
+
+          if(scale)
+          {		      
+            _mm_store_pd(&x3[0], _mm_mul_pd(EV_t_l0_k0, sc));
+            _mm_store_pd(&x3[2], _mm_mul_pd(EV_t_l2_k0, sc));	      	      
+
+            addScale += wgt[i];	  
+          }	
+          else
+          {
+            _mm_store_pd(x3, EV_t_l0_k0);
+            _mm_store_pd(&x3[2], EV_t_l2_k0);
+          }
+
+          x3_ptr += 4;
+        }
+      }
+      break;
+    default:
+      assert(0);
+  }
+
+
+  *scalerIncrement = addScale;
+}
 
 
 static void newviewGTRCAT( int tipCase,  double *EV,  int *cptr,
@@ -4980,9 +5699,366 @@ static void newviewGTRGAMMA(int tipCase,
 #endif
 
 
+#ifdef __SIM_SSE3
+static void newviewGTRCATPROT_SAVE(int tipCase, double *extEV,
+    int *cptr,
+    double *x1, double *x2, double *x3, double *tipVector,
+    int *ex3, unsigned char *tipX1, unsigned char *tipX2,
+    int n, double *left, double *right, int *wgt, int *scalerIncrement, const boolean useFastScaling,
+    unsigned int *x1_gap, unsigned int *x2_gap, unsigned int *x3_gap,
+    double *x1_gapColumn, double *x2_gapColumn, double *x3_gapColumn, const int maxCats)
+{
+  double
+    *le, 
+  *ri, 
+  *v, 
+  *vl, 
+  *vr,
+  *x1_ptr = x1,
+  *x2_ptr = x2, 
+  *x3_ptr = x3;
+
+  int 
+    i, 
+    l, 
+    j, 
+    scale, 
+    scaleGap = 0,
+    addScale = 0;
+
+  {
+    vl = x1_gapColumn;	      
+    vr = x2_gapColumn;
+    v = x3_gapColumn;
+
+    le = &left[maxCats * 400];
+    ri = &right[maxCats * 400];	  
+
+    for(l = 0; l < 20; l+=2)
+      _mm_store_pd(&v[l], _mm_setzero_pd());	      		
+
+    for(l = 0; l < 20; l++)
+    {
+      __m128d x1v = _mm_setzero_pd();
+      __m128d x2v = _mm_setzero_pd();
+      double 
+        *ev = &extEV[l * 20],
+        *lv = &le[l * 20],
+        *rv = &ri[l * 20];
 
 
+      for(j = 0; j < 20; j+=2)
+      {
+        x1v = _mm_add_pd(x1v, _mm_mul_pd(_mm_load_pd(&vl[j]), _mm_load_pd(&lv[j])));		    
+        x2v = _mm_add_pd(x2v, _mm_mul_pd(_mm_load_pd(&vr[j]), _mm_load_pd(&rv[j])));
+      }
 
+      x1v = _mm_hadd_pd(x1v, x1v);
+      x2v = _mm_hadd_pd(x2v, x2v);
+
+      x1v = _mm_mul_pd(x1v, x2v);
+
+      for(j = 0; j < 20; j+=2)
+      {
+        __m128d vv = _mm_load_pd(&v[j]);
+        vv = _mm_add_pd(vv, _mm_mul_pd(x1v, _mm_load_pd(&ev[j])));
+        _mm_store_pd(&v[j], vv);
+      }		    	
+    }
+
+    if(tipCase != TIP_TIP)
+    { 	    
+      __m128d minlikelihood_sse = _mm_set1_pd( minlikelihood );
+
+      scale = 1;
+      for(l = 0; scale && (l < 20); l += 2)
+      {
+        __m128d vv = _mm_load_pd(&v[l]);
+        __m128d v1 = _mm_and_pd(vv, absMask.m);
+        v1 = _mm_cmplt_pd(v1,  minlikelihood_sse);
+        if(_mm_movemask_pd( v1 ) != 3)
+          scale = 0;
+      }	    	        
+
+      if(scale)
+      {
+        __m128d twoto = _mm_set_pd(twotothe256, twotothe256);
+
+        for(l = 0; l < 20; l+=2)
+        {
+          __m128d ex3v = _mm_load_pd(&v[l]);		  
+          _mm_store_pd(&v[l], _mm_mul_pd(ex3v,twoto));	
+        }		   		  
+
+        scaleGap = TRUE;	   
+      }
+    }
+  }
+
+  switch(tipCase)
+  {
+    case TIP_TIP:
+      {
+        for (i = 0; i < n; i++)
+        {
+          if(noGap(x3_gap, i))
+          {		
+            vl = &(tipVector[20 * tipX1[i]]);
+            vr = &(tipVector[20 * tipX2[i]]);
+            v  = x3_ptr;
+
+            if(isGap(x1_gap, i))
+              le =  &left[maxCats * 400];
+            else	  	  
+              le =  &left[cptr[i] * 400];	  
+
+            if(isGap(x2_gap, i))
+              ri =  &right[maxCats * 400];
+            else	 	  
+              ri =  &right[cptr[i] * 400];
+
+            for(l = 0; l < 20; l+=2)
+              _mm_store_pd(&v[l], _mm_setzero_pd());	      		
+
+            for(l = 0; l < 20; l++)
+            {
+              __m128d x1v = _mm_setzero_pd();
+              __m128d x2v = _mm_setzero_pd();	 
+              double 
+                *ev = &extEV[l * 20],
+                *lv = &le[l * 20],
+                *rv = &ri[l * 20];
+
+              for(j = 0; j < 20; j+=2)
+              {
+                x1v = _mm_add_pd(x1v, _mm_mul_pd(_mm_load_pd(&vl[j]), _mm_load_pd(&lv[j])));		    
+                x2v = _mm_add_pd(x2v, _mm_mul_pd(_mm_load_pd(&vr[j]), _mm_load_pd(&rv[j])));
+              }
+
+              x1v = _mm_hadd_pd(x1v, x1v);
+              x2v = _mm_hadd_pd(x2v, x2v);
+
+              x1v = _mm_mul_pd(x1v, x2v);
+
+              for(j = 0; j < 20; j+=2)
+              {
+                __m128d vv = _mm_load_pd(&v[j]);
+                vv = _mm_add_pd(vv, _mm_mul_pd(x1v, _mm_load_pd(&ev[j])));
+                _mm_store_pd(&v[j], vv);
+              }		   
+            }
+
+            x3_ptr += 20;
+
+          }   
+        }
+      }
+      break;
+    case TIP_INNER:
+      {
+        for (i = 0; i < n; i++)
+        {
+          if(isGap(x3_gap, i))
+          {
+            if(scaleGap)		   		    
+              addScale += wgt[i];
+          }
+          else
+          {	 
+            vl = &(tipVector[20 * tipX1[i]]);
+
+            vr = x2_ptr;
+            v = x3_ptr;
+
+            if(isGap(x1_gap, i))
+              le =  &left[maxCats * 400];
+            else
+              le =  &left[cptr[i] * 400];
+
+            if(isGap(x2_gap, i))
+            {		 
+              ri =  &right[maxCats * 400];
+              vr = x2_gapColumn;
+            }
+            else
+            {
+              ri =  &right[cptr[i] * 400];
+              vr = x2_ptr;
+              x2_ptr += 20;
+            }	  	  	  	  		  
+
+            for(l = 0; l < 20; l+=2)
+              _mm_store_pd(&v[l], _mm_setzero_pd());	      			   
+
+            for(l = 0; l < 20; l++)
+            {
+              __m128d x1v = _mm_setzero_pd();
+              __m128d x2v = _mm_setzero_pd();	
+              double 
+                *ev = &extEV[l * 20],
+                *lv = &le[l * 20],
+                *rv = &ri[l * 20];
+
+              for(j = 0; j < 20; j+=2)
+              {
+                x1v = _mm_add_pd(x1v, _mm_mul_pd(_mm_load_pd(&vl[j]), _mm_load_pd(&lv[j])));		    
+                x2v = _mm_add_pd(x2v, _mm_mul_pd(_mm_load_pd(&vr[j]), _mm_load_pd(&rv[j])));
+              }
+
+              x1v = _mm_hadd_pd(x1v, x1v);
+              x2v = _mm_hadd_pd(x2v, x2v);
+
+              x1v = _mm_mul_pd(x1v, x2v);
+
+              for(j = 0; j < 20; j+=2)
+              {
+                __m128d vv = _mm_load_pd(&v[j]);
+                vv = _mm_add_pd(vv, _mm_mul_pd(x1v, _mm_load_pd(&ev[j])));
+                _mm_store_pd(&v[j], vv);
+              }		    
+            }
+
+            { 	    
+              __m128d minlikelihood_sse = _mm_set1_pd( minlikelihood );
+
+              scale = 1;
+              for(l = 0; scale && (l < 20); l += 2)
+              {
+                __m128d vv = _mm_load_pd(&v[l]);
+                __m128d v1 = _mm_and_pd(vv, absMask.m);
+                v1 = _mm_cmplt_pd(v1,  minlikelihood_sse);
+                if(_mm_movemask_pd( v1 ) != 3)
+                  scale = 0;
+              }	    	  
+            }
+
+
+            if(scale)
+            {
+              __m128d twoto = _mm_set_pd(twotothe256, twotothe256);
+
+              for(l = 0; l < 20; l+=2)
+              {
+                __m128d ex3v = _mm_load_pd(&v[l]);
+                _mm_store_pd(&v[l], _mm_mul_pd(ex3v,twoto));		    
+              }
+
+              addScale += wgt[i];	  
+            }
+            x3_ptr += 20;
+          }
+        }
+      }
+      break;
+    case INNER_INNER:
+      for(i = 0; i < n; i++)
+      { 
+        if(isGap(x3_gap, i))
+        {
+          if(scaleGap)		   		    
+            addScale += wgt[i];
+        }
+        else
+        {	  	     
+          v = x3_ptr;
+
+          if(isGap(x1_gap, i))
+          {
+            vl = x1_gapColumn;
+            le =  &left[maxCats * 400];
+          }
+          else
+          {
+            le =  &left[cptr[i] * 400];
+            vl = x1_ptr;
+            x1_ptr += 20;
+          }
+
+          if(isGap(x2_gap, i))	
+          {
+            vr = x2_gapColumn;
+            ri =  &right[maxCats * 400];	    
+          }
+          else
+          {
+            ri =  &right[cptr[i] * 400];
+            vr = x2_ptr;
+            x2_ptr += 20;
+          }	 	  	  	  
+
+          for(l = 0; l < 20; l+=2)
+            _mm_store_pd(&v[l], _mm_setzero_pd());	      		
+
+          for(l = 0; l < 20; l++)
+          {
+            __m128d x1v = _mm_setzero_pd();
+            __m128d x2v = _mm_setzero_pd();
+            double 
+              *ev = &extEV[l * 20],
+              *lv = &le[l * 20],
+              *rv = &ri[l * 20];
+
+            for(j = 0; j < 20; j+=2)
+            {
+              x1v = _mm_add_pd(x1v, _mm_mul_pd(_mm_load_pd(&vl[j]), _mm_load_pd(&lv[j])));		    
+              x2v = _mm_add_pd(x2v, _mm_mul_pd(_mm_load_pd(&vr[j]), _mm_load_pd(&rv[j])));
+            }
+
+            x1v = _mm_hadd_pd(x1v, x1v);
+            x2v = _mm_hadd_pd(x2v, x2v);
+
+            x1v = _mm_mul_pd(x1v, x2v);
+
+            for(j = 0; j < 20; j+=2)
+            {
+              __m128d vv = _mm_load_pd(&v[j]);
+              vv = _mm_add_pd(vv, _mm_mul_pd(x1v, _mm_load_pd(&ev[j])));
+              _mm_store_pd(&v[j], vv);
+            }		    
+
+          }
+
+          { 	    
+            __m128d minlikelihood_sse = _mm_set1_pd( minlikelihood );
+
+            scale = 1;
+            for(l = 0; scale && (l < 20); l += 2)
+            {
+              __m128d vv = _mm_load_pd(&v[l]);
+              __m128d v1 = _mm_and_pd(vv, absMask.m);
+              v1 = _mm_cmplt_pd(v1,  minlikelihood_sse);
+              if(_mm_movemask_pd( v1 ) != 3)
+                scale = 0;
+            }	    	  
+          }
+
+          if(scale)
+          {
+            __m128d twoto = _mm_set_pd(twotothe256, twotothe256);
+
+            for(l = 0; l < 20; l+=2)
+            {
+              __m128d ex3v = _mm_load_pd(&v[l]);		  
+              _mm_store_pd(&v[l], _mm_mul_pd(ex3v,twoto));	
+            }		   		  
+
+            addScale += wgt[i];	   
+          }
+          x3_ptr += 20;
+        }
+      }
+      break;
+    default:
+      assert(0);
+  }
+
+
+  *scalerIncrement = addScale;
+
+}
+
+
+#endif
 
 static void newviewGTRCATPROT(int tipCase, double *extEV,
 			      int *cptr,
@@ -6658,534 +7734,548 @@ static void newviewGTRGAMMAPROT_GAPPED(int tipCase,
 }
 
 static void newviewGTRGAMMAPROT_GAPPED_SAVE(int tipCase,
-					    double *x1, double *x2, double *x3, double *extEV, double *tipVector,
-					    int *ex3, unsigned char *tipX1, unsigned char *tipX2,
-					    int n, double *left, double *right, int *wgt, int *scalerIncrement, const boolean useFastScaling,
-					    unsigned int *x1_gap, unsigned int *x2_gap, unsigned int *x3_gap, int gapLength, 
-					    double *x1_gapColumn, double *x2_gapColumn, double *x3_gapColumn
-					    )
+    double *x1, double *x2, double *x3, double *extEV, double *tipVector,
+    int *ex3, unsigned char *tipX1, unsigned char *tipX2,
+    int n, double *left, double *right, int *wgt, int *scalerIncrement, const boolean useFastScaling,
+    unsigned int *x1_gap, unsigned int *x2_gap, unsigned int *x3_gap,  
+    double *x1_gapColumn, double *x2_gapColumn, double *x3_gapColumn
+    )
 {
   double  *uX1, *uX2, *v;
   double x1px2;
   int  i, j, l, k, scale, addScale = 0,   
-    gapScaling = 0;
-  double *vl, *vr, *x1v, *x2v;
+       gapScaling = 0;
+  double 
+    *vl, *vr, *x1v, *x2v,
+    *x1_ptr = x1,
+    *x2_ptr = x2,
+    *x3_ptr = x3;
 
-  for(i = 0; i < gapLength; i++)
-    x3_gap[i] = x1_gap[i] & x2_gap[i];
+
 
   switch(tipCase)
-    {
+  {
     case TIP_TIP:
       {
-	double umpX1[1840], umpX2[1840];
+        double umpX1[1840], umpX2[1840];
 
-	for(i = 0; i < 23; i++)
-	  {
-	    v = &(tipVector[20 * i]);
+        for(i = 0; i < 23; i++)
+        {
+          v = &(tipVector[20 * i]);
 
-	    for(k = 0; k < 80; k++)
-	      {
-		double *ll =  &left[k * 20];
-		double *rr =  &right[k * 20];
-		
-		__m128d umpX1v = _mm_setzero_pd();
-		__m128d umpX2v = _mm_setzero_pd();
+          for(k = 0; k < 80; k++)
+          {
+            double *ll =  &left[k * 20];
+            double *rr =  &right[k * 20];
 
-		for(l = 0; l < 20; l+=2)
-		  {
-		    __m128d vv = _mm_load_pd(&v[l]);
-		    umpX1v = _mm_add_pd(umpX1v, _mm_mul_pd(vv, _mm_load_pd(&ll[l])));
-		    umpX2v = _mm_add_pd(umpX2v, _mm_mul_pd(vv, _mm_load_pd(&rr[l])));					
-		  }
-		
-		umpX1v = _mm_hadd_pd(umpX1v, umpX1v);
-		umpX2v = _mm_hadd_pd(umpX2v, umpX2v);
-		
-		_mm_storel_pd(&umpX1[80 * i + k], umpX1v);
-		_mm_storel_pd(&umpX2[80 * i + k], umpX2v);
-	      }
-	  }
+            __m128d umpX1v = _mm_setzero_pd();
+            __m128d umpX2v = _mm_setzero_pd();
 
-	{
-	  uX1 = &umpX1[1760];
-	  uX2 = &umpX2[1760];
+            for(l = 0; l < 20; l+=2)
+            {
+              __m128d vv = _mm_load_pd(&v[l]);
+              umpX1v = _mm_add_pd(umpX1v, _mm_mul_pd(vv, _mm_load_pd(&ll[l])));
+              umpX2v = _mm_add_pd(umpX2v, _mm_mul_pd(vv, _mm_load_pd(&rr[l])));					
+            }
 
-	  for(j = 0; j < 4; j++)
-	    {
-	      v = &x3_gapColumn[j * 20];
+            umpX1v = _mm_hadd_pd(umpX1v, umpX1v);
+            umpX2v = _mm_hadd_pd(umpX2v, umpX2v);
 
-	      __m128d zero =  _mm_setzero_pd();
-	      for(k = 0; k < 20; k+=2)		  		    
-		_mm_store_pd(&v[k], zero);
+            _mm_storel_pd(&umpX1[80 * i + k], umpX1v);
+            _mm_storel_pd(&umpX2[80 * i + k], umpX2v);
+          }
+        }
 
-	      for(k = 0; k < 20; k++)
-		{ 
-		  double *eev = &extEV[k * 20];
-		  x1px2 = uX1[j * 20 + k] * uX2[j * 20 + k];
-		  __m128d x1px2v = _mm_set1_pd(x1px2);
-		  
-		  for(l = 0; l < 20; l+=2)
-		    {
-		      __m128d vv = _mm_load_pd(&v[l]);
-		      __m128d ee = _mm_load_pd(&eev[l]);
-		      
-		      vv = _mm_add_pd(vv, _mm_mul_pd(x1px2v,ee));
-		      
-		      _mm_store_pd(&v[l], vv);
-		    }
-		}
-	    }	   
-	}	
+        {
+          uX1 = &umpX1[1760];
+          uX2 = &umpX2[1760];
 
-	for(i = 0; i < n; i++)
-	  {
-	    if(!(x3_gap[i / 32] & mask32[i % 32]))
-	      {
+          for(j = 0; j < 4; j++)
+          {
+            v = &x3_gapColumn[j * 20];
 
-		uX1 = &umpX1[80 * tipX1[i]];
-		uX2 = &umpX2[80 * tipX2[i]];
-		
-		for(j = 0; j < 4; j++)
-		  {
-		    v = &x3[i * 80 + j * 20];
-		    
-		    
-		    __m128d zero =  _mm_setzero_pd();
-		    for(k = 0; k < 20; k+=2)		  		    
-		      _mm_store_pd(&v[k], zero);
-		    
-		    for(k = 0; k < 20; k++)
-		      { 
-			double *eev = &extEV[k * 20];
-			x1px2 = uX1[j * 20 + k] * uX2[j * 20 + k];
-			__m128d x1px2v = _mm_set1_pd(x1px2);
-			
-			for(l = 0; l < 20; l+=2)
-			  {
-			    __m128d vv = _mm_load_pd(&v[l]);
-			    __m128d ee = _mm_load_pd(&eev[l]);
-			    
-			    vv = _mm_add_pd(vv, _mm_mul_pd(x1px2v,ee));
-			    
-			    _mm_store_pd(&v[l], vv);
-			  }
-		      }
-		  }	   
-	      }
-	  }
+            __m128d zero =  _mm_setzero_pd();
+            for(k = 0; k < 20; k+=2)		  		    
+              _mm_store_pd(&v[k], zero);
+
+            for(k = 0; k < 20; k++)
+            { 
+              double *eev = &extEV[k * 20];
+              x1px2 = uX1[j * 20 + k] * uX2[j * 20 + k];
+              __m128d x1px2v = _mm_set1_pd(x1px2);
+
+              for(l = 0; l < 20; l+=2)
+              {
+                __m128d vv = _mm_load_pd(&v[l]);
+                __m128d ee = _mm_load_pd(&eev[l]);
+
+                vv = _mm_add_pd(vv, _mm_mul_pd(x1px2v,ee));
+
+                _mm_store_pd(&v[l], vv);
+              }
+            }
+          }	   
+        }	
+
+        for(i = 0; i < n; i++)
+        {
+          if(!(x3_gap[i / 32] & mask32[i % 32]))
+          {
+            uX1 = &umpX1[80 * tipX1[i]];
+            uX2 = &umpX2[80 * tipX2[i]];
+
+            for(j = 0; j < 4; j++)
+            {
+              v = &x3_ptr[j * 20];
+
+
+              __m128d zero =  _mm_setzero_pd();
+              for(k = 0; k < 20; k+=2)		  		    
+                _mm_store_pd(&v[k], zero);
+
+              for(k = 0; k < 20; k++)
+              { 
+                double *eev = &extEV[k * 20];
+                x1px2 = uX1[j * 20 + k] * uX2[j * 20 + k];
+                __m128d x1px2v = _mm_set1_pd(x1px2);
+
+                for(l = 0; l < 20; l+=2)
+                {
+                  __m128d vv = _mm_load_pd(&v[l]);
+                  __m128d ee = _mm_load_pd(&eev[l]);
+
+                  vv = _mm_add_pd(vv, _mm_mul_pd(x1px2v,ee));
+
+                  _mm_store_pd(&v[l], vv);
+                }
+              }
+            }	   
+            x3_ptr += 80;
+          }
+        }
       }
       break;
     case TIP_INNER:
       {
-	double umpX1[1840], ump_x2[20];
+        double umpX1[1840], ump_x2[20];
 
 
-	for(i = 0; i < 23; i++)
-	  {
-	    v = &(tipVector[20 * i]);
+        for(i = 0; i < 23; i++)
+        {
+          v = &(tipVector[20 * i]);
 
-	    for(k = 0; k < 80; k++)
-	      {
-		double *ll =  &left[k * 20];
-				
-		__m128d umpX1v = _mm_setzero_pd();
-		
-		for(l = 0; l < 20; l+=2)
-		  {
-		    __m128d vv = _mm_load_pd(&v[l]);
-		    umpX1v = _mm_add_pd(umpX1v, _mm_mul_pd(vv, _mm_load_pd(&ll[l])));		    					
-		  }
-		
-		umpX1v = _mm_hadd_pd(umpX1v, umpX1v);				
-		_mm_storel_pd(&umpX1[80 * i + k], umpX1v);		
+          for(k = 0; k < 80; k++)
+          {
+            double *ll =  &left[k * 20];
 
-	      }
-	  }
+            __m128d umpX1v = _mm_setzero_pd();
 
-	{
-	  uX1 = &umpX1[1760];
+            for(l = 0; l < 20; l+=2)
+            {
+              __m128d vv = _mm_load_pd(&v[l]);
+              umpX1v = _mm_add_pd(umpX1v, _mm_mul_pd(vv, _mm_load_pd(&ll[l])));		    					
+            }
 
-	  for(k = 0; k < 4; k++)
-	    {
-	      v = &(x2_gapColumn[k * 20]);
-	       
-	      for(l = 0; l < 20; l++)
-		{		   
-		  double *r =  &right[k * 400 + l * 20];
-		  __m128d ump_x2v = _mm_setzero_pd();	    
-		  
-		  for(j = 0; j < 20; j+= 2)
-		    {
-		      __m128d vv = _mm_load_pd(&v[j]);
-		      __m128d rr = _mm_load_pd(&r[j]);
-		      ump_x2v = _mm_add_pd(ump_x2v, _mm_mul_pd(vv, rr));
-		    }
-		  
-		  ump_x2v = _mm_hadd_pd(ump_x2v, ump_x2v);
-		  
-		  _mm_storel_pd(&ump_x2[l], ump_x2v);		   		     
-		}
+            umpX1v = _mm_hadd_pd(umpX1v, umpX1v);				
+            _mm_storel_pd(&umpX1[80 * i + k], umpX1v);		
 
-	      v = &(x3_gapColumn[20 * k]);
+          }
+        }
 
-	      __m128d zero =  _mm_setzero_pd();
-	      for(l = 0; l < 20; l+=2)		  		    
-		_mm_store_pd(&v[l], zero);
-		  
-	      for(l = 0; l < 20; l++)
-		{
-		  double *eev = &extEV[l * 20];
-		  x1px2 = uX1[k * 20 + l]  * ump_x2[l];
-		  __m128d x1px2v = _mm_set1_pd(x1px2);
-		  
-		  for(j = 0; j < 20; j+=2)
-		    {
-		      __m128d vv = _mm_load_pd(&v[j]);
-		      __m128d ee = _mm_load_pd(&eev[j]);
-		      
-		      vv = _mm_add_pd(vv, _mm_mul_pd(x1px2v,ee));
-		      
-		      _mm_store_pd(&v[j], vv);
-		    }		     		    
-		}			
-	      
-	    }
-	  
-	  { 
-	    v = x3_gapColumn;
-	    __m128d minlikelihood_sse = _mm_set1_pd( minlikelihood );
-	    
-	    scale = 1;
-	    for(l = 0; scale && (l < 80); l += 2)
-	      {
-		__m128d vv = _mm_load_pd(&v[l]);
-		__m128d v1 = _mm_and_pd(vv, absMask.m);
-		v1 = _mm_cmplt_pd(v1,  minlikelihood_sse);
-		if(_mm_movemask_pd( v1 ) != 3)
-		  scale = 0;
-	      }	    	  
-	  }
+        {
+          uX1 = &umpX1[1760];
+
+          for(k = 0; k < 4; k++)
+          {
+            v = &(x2_gapColumn[k * 20]);
+
+            for(l = 0; l < 20; l++)
+            {		   
+              double *r =  &right[k * 400 + l * 20];
+              __m128d ump_x2v = _mm_setzero_pd();	    
+
+              for(j = 0; j < 20; j+= 2)
+              {
+                __m128d vv = _mm_load_pd(&v[j]);
+                __m128d rr = _mm_load_pd(&r[j]);
+                ump_x2v = _mm_add_pd(ump_x2v, _mm_mul_pd(vv, rr));
+              }
+
+              ump_x2v = _mm_hadd_pd(ump_x2v, ump_x2v);
+
+              _mm_storel_pd(&ump_x2[l], ump_x2v);		   		     
+            }
+
+            v = &(x3_gapColumn[20 * k]);
+
+            __m128d zero =  _mm_setzero_pd();
+            for(l = 0; l < 20; l+=2)		  		    
+              _mm_store_pd(&v[l], zero);
+
+            for(l = 0; l < 20; l++)
+            {
+              double *eev = &extEV[l * 20];
+              x1px2 = uX1[k * 20 + l]  * ump_x2[l];
+              __m128d x1px2v = _mm_set1_pd(x1px2);
+
+              for(j = 0; j < 20; j+=2)
+              {
+                __m128d vv = _mm_load_pd(&v[j]);
+                __m128d ee = _mm_load_pd(&eev[j]);
+
+                vv = _mm_add_pd(vv, _mm_mul_pd(x1px2v,ee));
+
+                _mm_store_pd(&v[j], vv);
+              }		     		    
+            }			
+
+          }
+
+          { 
+            v = x3_gapColumn;
+            __m128d minlikelihood_sse = _mm_set1_pd( minlikelihood );
+
+            scale = 1;
+            for(l = 0; scale && (l < 80); l += 2)
+            {
+              __m128d vv = _mm_load_pd(&v[l]);
+              __m128d v1 = _mm_and_pd(vv, absMask.m);
+              v1 = _mm_cmplt_pd(v1,  minlikelihood_sse);
+              if(_mm_movemask_pd( v1 ) != 3)
+                scale = 0;
+            }	    	  
+          }
 
 
-	  if (scale)
-	    {
-	      gapScaling = 1;
-	      __m128d twoto = _mm_set_pd(twotothe256, twotothe256);
-	      
-	      for(l = 0; l < 80; l+=2)
-		{
-		  __m128d ex3v = _mm_load_pd(&v[l]);		  
-		  _mm_store_pd(&v[l], _mm_mul_pd(ex3v,twoto));	
-		}		   		  	      	    	       
-	    }
-	}
+          if (scale)
+          {
+            gapScaling = 1;
+            __m128d twoto = _mm_set_pd(twotothe256, twotothe256);
 
-	for (i = 0; i < n; i++)
-	  {	    
-	    if((x3_gap[i / 32] & mask32[i % 32]))
-	       {	       
-		 if(gapScaling)
-		   {
-		     if(useFastScaling)
-		       addScale += wgt[i];
-		     else
-		       ex3[i]  += 1;
-		   }
-	       }
-	     else
-	       {
-		 uX1 = &umpX1[80 * tipX1[i]];
+            for(l = 0; l < 80; l+=2)
+            {
+              __m128d ex3v = _mm_load_pd(&v[l]);		  
+              _mm_store_pd(&v[l], _mm_mul_pd(ex3v,twoto));	
+            }		   		  	      	    	       
+          }
+        }
 
-		  if(x2_gap[i / 32] & mask32[i % 32])
-		   x2v = x2_gapColumn;
-		 else
-		   x2v = &x2[i * 80];
-		 
-		 for(k = 0; k < 4; k++)
-		   {
-		     v = &(x2v[k * 20]);
-		     
-		     for(l = 0; l < 20; l++)
-		       {		   
-			 double *r =  &right[k * 400 + l * 20];
-			 __m128d ump_x2v = _mm_setzero_pd();	    
-			 
-			 for(j = 0; j < 20; j+= 2)
-			   {
-			     __m128d vv = _mm_load_pd(&v[j]);
-			     __m128d rr = _mm_load_pd(&r[j]);
-			     ump_x2v = _mm_add_pd(ump_x2v, _mm_mul_pd(vv, rr));
-			   }
-			 
-			 ump_x2v = _mm_hadd_pd(ump_x2v, ump_x2v);
-			 
-			 _mm_storel_pd(&ump_x2[l], ump_x2v);		   		     
-		       }
-		     
-		     v = &(x3[80 * i + 20 * k]);
-		     
-		     __m128d zero =  _mm_setzero_pd();
-		     for(l = 0; l < 20; l+=2)		  		    
-		       _mm_store_pd(&v[l], zero);
-		     
-		     for(l = 0; l < 20; l++)
-		       {
-			 double *eev = &extEV[l * 20];
-			 x1px2 = uX1[k * 20 + l]  * ump_x2[l];
-			 __m128d x1px2v = _mm_set1_pd(x1px2);
-			 
-			 for(j = 0; j < 20; j+=2)
-			   {
-			     __m128d vv = _mm_load_pd(&v[j]);
-			     __m128d ee = _mm_load_pd(&eev[j]);
-			     
-			     vv = _mm_add_pd(vv, _mm_mul_pd(x1px2v,ee));
-			     
-			     _mm_store_pd(&v[j], vv);
-			   }		     		    
-		       }			
-		     
-		   }
-		 
-		 
-		 { 
-		   v = &(x3[80 * i]);
-		   __m128d minlikelihood_sse = _mm_set1_pd( minlikelihood );
-		   
-		   scale = 1;
-		   for(l = 0; scale && (l < 80); l += 2)
-		     {
-		       __m128d vv = _mm_load_pd(&v[l]);
-		       __m128d v1 = _mm_and_pd(vv, absMask.m);
-		       v1 = _mm_cmplt_pd(v1,  minlikelihood_sse);
-		       if(_mm_movemask_pd( v1 ) != 3)
-			 scale = 0;
-		     }	    	  
-		 }
-		 
-		 
-		 if (scale)
-		   {
-		     __m128d twoto = _mm_set_pd(twotothe256, twotothe256);
-		     
-		     for(l = 0; l < 80; l+=2)
-		       {
-			 __m128d ex3v = _mm_load_pd(&v[l]);		  
-			 _mm_store_pd(&v[l], _mm_mul_pd(ex3v,twoto));	
-		       }		   		  
-		     
-		     if(useFastScaling)
-		       addScale += wgt[i];
-		     else
-		       ex3[i]  += 1;	       
-		   }
-	       }
-	  }
+        for (i = 0; i < n; i++)
+        {	    
+          if((x3_gap[i / 32] & mask32[i % 32]))
+          {	       
+            if(gapScaling)
+            {
+              if(useFastScaling)
+                addScale += wgt[i];
+              else
+                ex3[i]  += 1;
+            }
+          }
+          else
+          {
+            uX1 = &umpX1[80 * tipX1[i]];
+
+            if(x2_gap[i / 32] & mask32[i % 32])
+              x2v = x2_gapColumn;
+            else
+            {
+              x2v = x2_ptr;
+              x2_ptr += 80;
+            }
+
+            for(k = 0; k < 4; k++)
+            {
+              v = &(x2v[k * 20]);
+
+              for(l = 0; l < 20; l++)
+              {		   
+                double *r =  &right[k * 400 + l * 20];
+                __m128d ump_x2v = _mm_setzero_pd();	    
+
+                for(j = 0; j < 20; j+= 2)
+                {
+                  __m128d vv = _mm_load_pd(&v[j]);
+                  __m128d rr = _mm_load_pd(&r[j]);
+                  ump_x2v = _mm_add_pd(ump_x2v, _mm_mul_pd(vv, rr));
+                }
+
+                ump_x2v = _mm_hadd_pd(ump_x2v, ump_x2v);
+
+                _mm_storel_pd(&ump_x2[l], ump_x2v);		   		     
+              }
+
+              v = &x3_ptr[20 * k];
+
+              __m128d zero =  _mm_setzero_pd();
+              for(l = 0; l < 20; l+=2)		  		    
+                _mm_store_pd(&v[l], zero);
+
+              for(l = 0; l < 20; l++)
+              {
+                double *eev = &extEV[l * 20];
+                x1px2 = uX1[k * 20 + l]  * ump_x2[l];
+                __m128d x1px2v = _mm_set1_pd(x1px2);
+
+                for(j = 0; j < 20; j+=2)
+                {
+                  __m128d vv = _mm_load_pd(&v[j]);
+                  __m128d ee = _mm_load_pd(&eev[j]);
+
+                  vv = _mm_add_pd(vv, _mm_mul_pd(x1px2v,ee));
+
+                  _mm_store_pd(&v[j], vv);
+                }		     		    
+              }			
+
+            }
+
+
+            { 
+              v = x3_ptr;
+              __m128d minlikelihood_sse = _mm_set1_pd( minlikelihood );
+
+              scale = 1;
+              for(l = 0; scale && (l < 80); l += 2)
+              {
+                __m128d vv = _mm_load_pd(&v[l]);
+                __m128d v1 = _mm_and_pd(vv, absMask.m);
+                v1 = _mm_cmplt_pd(v1,  minlikelihood_sse);
+                if(_mm_movemask_pd( v1 ) != 3)
+                  scale = 0;
+              }	    	  
+            }
+
+
+            if (scale)
+            {
+              __m128d twoto = _mm_set_pd(twotothe256, twotothe256);
+
+              for(l = 0; l < 80; l+=2)
+              {
+                __m128d ex3v = _mm_load_pd(&v[l]);		  
+                _mm_store_pd(&v[l], _mm_mul_pd(ex3v,twoto));	
+              }		   		  
+
+              if(useFastScaling)
+                addScale += wgt[i];
+              else
+                ex3[i]  += 1;	       
+            }
+
+            x3_ptr += 80;
+          }
+        }
       }
       break;
     case INNER_INNER:
       {
-	for(k = 0; k < 4; k++)
-	   {
-	     vl = &(x1_gapColumn[20 * k]);
-	     vr = &(x2_gapColumn[20 * k]);
-	     v =  &(x3_gapColumn[20 * k]);
+        for(k = 0; k < 4; k++)
+        {
+          vl = &(x1_gapColumn[20 * k]);
+          vr = &(x2_gapColumn[20 * k]);
+          v =  &(x3_gapColumn[20 * k]);
 
-	     __m128d zero =  _mm_setzero_pd();
-	     for(l = 0; l < 20; l+=2)		  		    
-	       _mm_store_pd(&v[l], zero);
-	     
-	     for(l = 0; l < 20; l++)
-	       {		 
-		 {
-		   __m128d al = _mm_setzero_pd();
-		   __m128d ar = _mm_setzero_pd();
+          __m128d zero =  _mm_setzero_pd();
+          for(l = 0; l < 20; l+=2)		  		    
+            _mm_store_pd(&v[l], zero);
 
-		   double *ll   = &left[k * 400 + l * 20];
-		   double *rr   = &right[k * 400 + l * 20];
-		   double *EVEV = &extEV[20 * l];
-		   
-		   for(j = 0; j < 20; j+=2)
-		     {
-		       __m128d lv  = _mm_load_pd(&ll[j]);
-		       __m128d rv  = _mm_load_pd(&rr[j]);
-		       __m128d vll = _mm_load_pd(&vl[j]);
-		       __m128d vrr = _mm_load_pd(&vr[j]);
-		       
-		       al = _mm_add_pd(al, _mm_mul_pd(vll, lv));
-		       ar = _mm_add_pd(ar, _mm_mul_pd(vrr, rv));
-		     }  		 
-		       
-		   al = _mm_hadd_pd(al, al);
-		   ar = _mm_hadd_pd(ar, ar);
-		   
-		   al = _mm_mul_pd(al, ar);
+          for(l = 0; l < 20; l++)
+          {		 
+            {
+              __m128d al = _mm_setzero_pd();
+              __m128d ar = _mm_setzero_pd();
 
-		   for(j = 0; j < 20; j+=2)
-		     {
-		       __m128d vv  = _mm_load_pd(&v[j]);
-		       __m128d EVV = _mm_load_pd(&EVEV[j]);
+              double *ll   = &left[k * 400 + l * 20];
+              double *rr   = &right[k * 400 + l * 20];
+              double *EVEV = &extEV[20 * l];
 
-		       vv = _mm_add_pd(vv, _mm_mul_pd(al, EVV));
+              for(j = 0; j < 20; j+=2)
+              {
+                __m128d lv  = _mm_load_pd(&ll[j]);
+                __m128d rv  = _mm_load_pd(&rr[j]);
+                __m128d vll = _mm_load_pd(&vl[j]);
+                __m128d vrr = _mm_load_pd(&vr[j]);
 
-		       _mm_store_pd(&v[j], vv);
-		     }		  		   		  
-		 }		 
+                al = _mm_add_pd(al, _mm_mul_pd(vll, lv));
+                ar = _mm_add_pd(ar, _mm_mul_pd(vrr, rv));
+              }  		 
 
-	       }
-	   }
-	 
+              al = _mm_hadd_pd(al, al);
+              ar = _mm_hadd_pd(ar, ar);
 
-	{ 
-	   v = x3_gapColumn;
-	   __m128d minlikelihood_sse = _mm_set1_pd( minlikelihood );
-	   
-	   scale = 1;
-	   for(l = 0; scale && (l < 80); l += 2)
-	     {
-	       __m128d vv = _mm_load_pd(&v[l]);
-	       __m128d v1 = _mm_and_pd(vv, absMask.m);
-	       v1 = _mm_cmplt_pd(v1,  minlikelihood_sse);
-	       if(_mm_movemask_pd( v1 ) != 3)
-		 scale = 0;
-	     }	    	  
-	 }
+              al = _mm_mul_pd(al, ar);
 
-	 if (scale)
-	   {
-	     gapScaling = 1;
-	     __m128d twoto = _mm_set_pd(twotothe256, twotothe256);
-	     
-	     for(l = 0; l < 80; l+=2)
-	       {
-		 __m128d ex3v = _mm_load_pd(&v[l]);		  
-		 _mm_store_pd(&v[l], _mm_mul_pd(ex3v,twoto));	
-	       }		   		  
-	     
-	    	  
-	   }
+              for(j = 0; j < 20; j+=2)
+              {
+                __m128d vv  = _mm_load_pd(&v[j]);
+                __m128d EVV = _mm_load_pd(&EVEV[j]);
+
+                vv = _mm_add_pd(vv, _mm_mul_pd(al, EVV));
+
+                _mm_store_pd(&v[j], vv);
+              }		  		   		  
+            }		 
+
+          }
+        }
+
+
+        { 
+          v = x3_gapColumn;
+          __m128d minlikelihood_sse = _mm_set1_pd( minlikelihood );
+
+          scale = 1;
+          for(l = 0; scale && (l < 80); l += 2)
+          {
+            __m128d vv = _mm_load_pd(&v[l]);
+            __m128d v1 = _mm_and_pd(vv, absMask.m);
+            v1 = _mm_cmplt_pd(v1,  minlikelihood_sse);
+            if(_mm_movemask_pd( v1 ) != 3)
+              scale = 0;
+          }	    	  
+        }
+
+        if (scale)
+        {
+          gapScaling = 1;
+          __m128d twoto = _mm_set_pd(twotothe256, twotothe256);
+
+          for(l = 0; l < 80; l+=2)
+          {
+            __m128d ex3v = _mm_load_pd(&v[l]);		  
+            _mm_store_pd(&v[l], _mm_mul_pd(ex3v,twoto));	
+          }		   		  
+
+
+        }
       }
 
       for (i = 0; i < n; i++)
-       {
-	  if(x3_gap[i / 32] & mask32[i % 32])
-	   {	     
-	     if(gapScaling)
-	       {
-		 if(useFastScaling)
-		   addScale += wgt[i];
-		 else
-		   ex3[i]  += 1; 	       
-	       }
-	   }
-	 else
-	   {
-	     if(x1_gap[i / 32] & mask32[i % 32])
-	       x1v = x1_gapColumn;
-	     else
-	       x1v = &x1[i * 80];
+      {
+        if(x3_gap[i / 32] & mask32[i % 32])
+        {	     
+          if(gapScaling)
+          {
+            if(useFastScaling)
+              addScale += wgt[i];
+            else
+              ex3[i]  += 1; 	       
+          }
+        }
+        else
+        {
+          if(x1_gap[i / 32] & mask32[i % 32])
+            x1v = x1_gapColumn;
+          else
+          {
+            x1v = x1_ptr;
+            x1_ptr += 80;
+          }
 
-	     if(x2_gap[i / 32] & mask32[i % 32])
-	       x2v = x2_gapColumn;
-	     else
-	       x2v = &x2[i * 80];
+          if(x2_gap[i / 32] & mask32[i % 32])
+            x2v = x2_gapColumn;
+          else
+          {
+            x2v = x2_ptr;
+            x2_ptr += 80;
+          }
 
-	     for(k = 0; k < 4; k++)
-	       {
-		 vl = &(x1v[20 * k]);
-		 vr = &(x2v[20 * k]);
-		 v =  &(x3[80 * i + 20 * k]);
-		 		 
-		 __m128d zero =  _mm_setzero_pd();
-		 for(l = 0; l < 20; l+=2)		  		    
-		   _mm_store_pd(&v[l], zero);
-		 		 
-		 for(l = 0; l < 20; l++)
-		   {		 
-		     {
-		       __m128d al = _mm_setzero_pd();
-		       __m128d ar = _mm_setzero_pd();
-		       
-		       double *ll   = &left[k * 400 + l * 20];
-		       double *rr   = &right[k * 400 + l * 20];
-		       double *EVEV = &extEV[20 * l];
-		       
-		       for(j = 0; j < 20; j+=2)
-			 {
-			   __m128d lv  = _mm_load_pd(&ll[j]);
-			   __m128d rv  = _mm_load_pd(&rr[j]);
-			   __m128d vll = _mm_load_pd(&vl[j]);
-			   __m128d vrr = _mm_load_pd(&vr[j]);
-			   
-			   al = _mm_add_pd(al, _mm_mul_pd(vll, lv));
-			   ar = _mm_add_pd(ar, _mm_mul_pd(vrr, rv));
-			 }  		 
-		       
-		       al = _mm_hadd_pd(al, al);
-		       ar = _mm_hadd_pd(ar, ar);
-		       
-		       al = _mm_mul_pd(al, ar);
-		       
-		       for(j = 0; j < 20; j+=2)
-			 {
-			   __m128d vv  = _mm_load_pd(&v[j]);
-			   __m128d EVV = _mm_load_pd(&EVEV[j]);
-			   
-			   vv = _mm_add_pd(vv, _mm_mul_pd(al, EVV));
-			   
-			   _mm_store_pd(&v[j], vv);
-			 }		  		   		  
-		     }		 
-		     
-		   }
-	       }
-	     
+          for(k = 0; k < 4; k++)
+          {
+            vl = &(x1v[20 * k]);
+            vr = &(x2v[20 * k]);
+            v =  &x3_ptr[20 * k];
 
-	     
-	     { 
-	       v = &(x3[80 * i]);
-	       __m128d minlikelihood_sse = _mm_set1_pd( minlikelihood );
-	       
-	       scale = 1;
-	       for(l = 0; scale && (l < 80); l += 2)
-		 {
-		   __m128d vv = _mm_load_pd(&v[l]);
-		   __m128d v1 = _mm_and_pd(vv, absMask.m);
-		   v1 = _mm_cmplt_pd(v1,  minlikelihood_sse);
-		   if(_mm_movemask_pd( v1 ) != 3)
-		     scale = 0;
-		 }	    	  
-	     }
-	     
-	     
-	     if (scale)
-	       {
-		 __m128d twoto = _mm_set_pd(twotothe256, twotothe256);
-		 
-		 for(l = 0; l < 80; l+=2)
-		   {
-		     __m128d ex3v = _mm_load_pd(&v[l]);		  
-		     _mm_store_pd(&v[l], _mm_mul_pd(ex3v,twoto));	
-		   }		   		  
-		 
-		 if(useFastScaling)
-		   addScale += wgt[i];
-		 else
-		   ex3[i]  += 1;	  
-	       }
-	   }
-       }
+            __m128d zero =  _mm_setzero_pd();
+            for(l = 0; l < 20; l+=2)		  		    
+              _mm_store_pd(&v[l], zero);
+
+            for(l = 0; l < 20; l++)
+            {		 
+              {
+                __m128d al = _mm_setzero_pd();
+                __m128d ar = _mm_setzero_pd();
+
+                double *ll   = &left[k * 400 + l * 20];
+                double *rr   = &right[k * 400 + l * 20];
+                double *EVEV = &extEV[20 * l];
+
+                for(j = 0; j < 20; j+=2)
+                {
+                  __m128d lv  = _mm_load_pd(&ll[j]);
+                  __m128d rv  = _mm_load_pd(&rr[j]);
+                  __m128d vll = _mm_load_pd(&vl[j]);
+                  __m128d vrr = _mm_load_pd(&vr[j]);
+
+                  al = _mm_add_pd(al, _mm_mul_pd(vll, lv));
+                  ar = _mm_add_pd(ar, _mm_mul_pd(vrr, rv));
+                }  		 
+
+                al = _mm_hadd_pd(al, al);
+                ar = _mm_hadd_pd(ar, ar);
+
+                al = _mm_mul_pd(al, ar);
+
+                for(j = 0; j < 20; j+=2)
+                {
+                  __m128d vv  = _mm_load_pd(&v[j]);
+                  __m128d EVV = _mm_load_pd(&EVEV[j]);
+
+                  vv = _mm_add_pd(vv, _mm_mul_pd(al, EVV));
+
+                  _mm_store_pd(&v[j], vv);
+                }		  		   		  
+              }		 
+
+            }
+          }
+
+
+
+          { 
+            v = x3_ptr;
+            __m128d minlikelihood_sse = _mm_set1_pd( minlikelihood );
+
+            scale = 1;
+            for(l = 0; scale && (l < 80); l += 2)
+            {
+              __m128d vv = _mm_load_pd(&v[l]);
+              __m128d v1 = _mm_and_pd(vv, absMask.m);
+              v1 = _mm_cmplt_pd(v1,  minlikelihood_sse);
+              if(_mm_movemask_pd( v1 ) != 3)
+                scale = 0;
+            }	    	  
+          }
+
+
+          if (scale)
+          {
+            __m128d twoto = _mm_set_pd(twotothe256, twotothe256);
+
+            for(l = 0; l < 80; l+=2)
+            {
+              __m128d ex3v = _mm_load_pd(&v[l]);		  
+              _mm_store_pd(&v[l], _mm_mul_pd(ex3v,twoto));	
+            }		   		  
+
+            if(useFastScaling)
+              addScale += wgt[i];
+            else
+              ex3[i]  += 1;	  
+          }
+          x3_ptr += 80;
+        }
+      }
       break;
     default:
       assert(0);
-    }
+  }
 
   if(useFastScaling)
     *scalerIncrement = addScale;
 
 }
-
 
 #else
 
@@ -8283,6 +9373,7 @@ void newviewIterative (tree *tr)
 		*tipX2 = (unsigned char *)NULL;
 	    	      
 	      size_t
+		gapOffset,
 		rateHet,
 		states = (size_t)tr->partitionData[model].states,
 		width = tr->partitionData[model].width,
@@ -8307,6 +9398,8 @@ void newviewIterative (tree *tr)
 		     j,
 		     setBits = 0;
 		   
+		   gapOffset = gapOffset = states * (size_t)getUndetermined(tr->partitionData[model].dataType);
+
 		   availableLength = tr->partitionData[model].xSpaceVector[(tInfo->pNumber - tr->mxtips - 1)];
 		   
 		   for(j = 0; j < (size_t)tr->partitionData[model].gapVectorLength; j++)
@@ -8363,7 +9456,11 @@ void newviewIterative (tree *tr)
 		  tipX2    = tr->partitionData[model].yVector[tInfo->rNumber];		 		 		 
 		  
 		  if(tr->useGappedImplementation || tr->saveMemory)
-		    x3_gapColumn   = &tr->partitionData[model].gapColumn[(tInfo->pNumber - tr->mxtips - 1) * states * rateHet];
+		    {
+		      x1_gapColumn   = &(tr->partitionData[model].tipVector[gapOffset]);
+		      x2_gapColumn   = &(tr->partitionData[model].tipVector[gapOffset]);
+		      x3_gapColumn   = &tr->partitionData[model].gapColumn[(tInfo->pNumber - tr->mxtips - 1) * states * rateHet];
+		    }
 		  
 		  if(!tr->useFastScaling)
 		    {
@@ -8380,6 +9477,7 @@ void newviewIterative (tree *tr)
 		 		  
 		  if(tr->useGappedImplementation || tr->saveMemory)
 		    {
+		      x1_gapColumn   = &(tr->partitionData[model].tipVector[gapOffset]);
 		      x2_gapColumn   = &tr->partitionData[model].gapColumn[(tInfo->rNumber - tr->mxtips - 1) * states * rateHet];
 		      x3_gapColumn   = &tr->partitionData[model].gapColumn[(tInfo->pNumber - tr->mxtips - 1) * states * rateHet];
 		    }		
@@ -8402,7 +9500,7 @@ void newviewIterative (tree *tr)
 		  x2_start       = tr->partitionData[model].xVector[tInfo->rNumber - tr->mxtips - 1];
 		      
 		  if(tr->useGappedImplementation || tr->saveMemory)
-		    {
+		    {		      
 		      x1_gapColumn   = &tr->partitionData[model].gapColumn[(tInfo->qNumber - tr->mxtips - 1) * states * rateHet];
 		      x2_gapColumn   = &tr->partitionData[model].gapColumn[(tInfo->rNumber - tr->mxtips - 1) * states * rateHet];
 		      x3_gapColumn   = &tr->partitionData[model].gapColumn[(tInfo->pNumber - tr->mxtips - 1) * states * rateHet];
@@ -8451,7 +9549,7 @@ void newviewIterative (tree *tr)
 		      {			
 			makeP(qz, rz, tr->partitionData[model].perSiteRates,   tr->partitionData[model].EI,
 			      tr->partitionData[model].EIGN, tr->partitionData[model].numberOfCategories,
-			      left, right, BINARY_DATA);
+			      left, right, BINARY_DATA, tr->saveMemory, tr->maxCategories);
 
 			newviewGTRCAT_BINARY(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
 					     x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
@@ -8465,7 +9563,7 @@ void newviewIterative (tree *tr)
 		      {
 			makeP(qz, rz, tr->partitionData[model].gammaRates,
 			      tr->partitionData[model].EI, tr->partitionData[model].EIGN,
-			      4, left, right, BINARY_DATA);
+			      4, left, right, BINARY_DATA, tr->saveMemory, tr->maxCategories);
 
 			newviewGTRGAMMA_BINARY(tInfo->tipCase,
 					       x1_start, x2_start, x3_start, tr->partitionData[model].EV, tr->partitionData[model].tipVector,
@@ -8485,18 +9583,33 @@ void newviewIterative (tree *tr)
 			{			  
 			  makeP(qz, rz, tr->partitionData[model].perSiteRates,   tr->partitionData[model].EI,
 				tr->partitionData[model].EIGN, tr->partitionData[model].numberOfCategories,
-				left, right, DNA_DATA);
+				left, right, DNA_DATA, tr->saveMemory, tr->maxCategories);
+
+#ifdef __SIM_SSE3
+			  if(tr->saveMemory)
+			    {
+			      assert(tr->useFastScaling);			      
+			      newviewGTRCAT_SAVE(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
+						 x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
+						 ex3, tipX1, tipX2,
+						 width, left, right, wgt, &scalerIncrement, TRUE, x1_gap, x2_gap, x3_gap,
+						 x1_gapColumn, x2_gapColumn, x3_gapColumn, tr->maxCategories);
+			    }
+			  else
+#endif
+			    {
 #ifdef __AVX
-			  newviewGTRCAT_AVX(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
+			      newviewGTRCAT_AVX(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
+						x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
+						ex3, tipX1, tipX2,
+						width, left, right, wgt, &scalerIncrement, tr->useFastScaling);
+#else
+			      newviewGTRCAT(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
 					    x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
 					    ex3, tipX1, tipX2,
 					    width, left, right, wgt, &scalerIncrement, tr->useFastScaling);
-#else
-			  newviewGTRCAT(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
-					x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
-					ex3, tipX1, tipX2,
-					width, left, right, wgt, &scalerIncrement, tr->useFastScaling);
 #endif
+			    }
 			}
 		      break;
 		    case GAMMA:
@@ -8505,7 +9618,7 @@ void newviewIterative (tree *tr)
 			{			 
 			  makeP(qz, rz, tr->partitionData[model].gammaRates,
 				tr->partitionData[model].EI, tr->partitionData[model].EIGN,
-				4, left, right, DNA_DATA);
+				4, left, right, DNA_DATA, tr->saveMemory, tr->maxCategories);
 		  
 
 #ifdef __SIM_SSE3
@@ -8558,7 +9671,17 @@ void newviewIterative (tree *tr)
 			  makeP(qz, rz, tr->partitionData[model].perSiteRates,
 				tr->partitionData[model].EI,
 				tr->partitionData[model].EIGN,
-				tr->partitionData[model].numberOfCategories, left, right, AA_DATA);
+				tr->partitionData[model].numberOfCategories, left, right, AA_DATA, tr->saveMemory, tr->maxCategories);
+
+#ifdef __SIM_SSE3
+			  if(tr->saveMemory)
+			    newviewGTRCATPROT_SAVE(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
+						   x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
+						   ex3, tipX1, tipX2, width, left, right, wgt, &scalerIncrement, TRUE, x1_gap, x2_gap, x3_gap,
+						   x1_gapColumn, x2_gapColumn, x3_gapColumn, tr->maxCategories);
+			  else
+#endif
+
 #ifdef __AVX
 			  newviewGTRCATPROT_AVX(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
 						x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
@@ -8585,7 +9708,7 @@ void newviewIterative (tree *tr)
 					4, 
 					tr->siteProtModel[p].left, 
 					tr->siteProtModel[p].right, 
-					AA_DATA);				
+					AA_DATA, tr->saveMemory, tr->maxCategories);				
 			      
 			      newviewFlexGamma_perSite(tInfo->tipCase,
 						       x1_start, x2_start, x3_start,
@@ -8599,7 +9722,7 @@ void newviewIterative (tree *tr)
 			      makeP(qz, rz, tr->partitionData[model].gammaRates,
 				    tr->partitionData[model].EI,
 				    tr->partitionData[model].EIGN,
-				    4, left, right, AA_DATA);
+				    4, left, right, AA_DATA, tr->saveMemory, tr->maxCategories);
 #ifdef __SIM_SSE3
 			      if(tr->saveMemory)
 				newviewGTRGAMMAPROT_GAPPED_SAVE(tInfo->tipCase,
@@ -8608,7 +9731,7 @@ void newviewIterative (tree *tr)
 								tr->partitionData[model].tipVector,
 								ex3, tipX1, tipX2,
 								width, left, right, wgt, &scalerIncrement, tr->useFastScaling,
-								x1_gap, x2_gap, x3_gap, tr->partitionData[model].gapVectorLength, 
+								x1_gap, x2_gap, x3_gap,
 								x1_gapColumn, x2_gapColumn, x3_gapColumn);
 			      else
 #endif
@@ -8654,7 +9777,7 @@ void newviewIterative (tree *tr)
 			makeP(qz, rz, tr->partitionData[model].perSiteRates,
 			      tr->partitionData[model].EI,
 			      tr->partitionData[model].EIGN,
-			      tr->partitionData[model].numberOfCategories, left, right, SECONDARY_DATA_6);
+			      tr->partitionData[model].numberOfCategories, left, right, SECONDARY_DATA_6, tr->saveMemory, tr->maxCategories);
 
 			newviewGTRCATSECONDARY_6(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
 						 x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
@@ -8667,7 +9790,7 @@ void newviewIterative (tree *tr)
 			makeP(qz, rz, tr->partitionData[model].gammaRates,
 			      tr->partitionData[model].EI,
 			      tr->partitionData[model].EIGN,
-			      4, left, right, SECONDARY_DATA_6);
+			      4, left, right, SECONDARY_DATA_6, tr->saveMemory, tr->maxCategories);
 
 			newviewGTRGAMMASECONDARY_6(tInfo->tipCase,
 						   x1_start, x2_start, x3_start,
@@ -8689,7 +9812,7 @@ void newviewIterative (tree *tr)
 			makeP(qz, rz, tr->partitionData[model].perSiteRates,
 			      tr->partitionData[model].EI,
 			      tr->partitionData[model].EIGN,
-			      tr->partitionData[model].numberOfCategories, left, right, SECONDARY_DATA_7);
+			      tr->partitionData[model].numberOfCategories, left, right, SECONDARY_DATA_7, tr->saveMemory, tr->maxCategories);
 
 			newviewGTRCATSECONDARY_7(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
 						 x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
@@ -8702,7 +9825,7 @@ void newviewIterative (tree *tr)
 			makeP(qz, rz, tr->partitionData[model].gammaRates,
 			      tr->partitionData[model].EI,
 			      tr->partitionData[model].EIGN,
-			      4, left, right, SECONDARY_DATA_7);
+			      4, left, right, SECONDARY_DATA_7, tr->saveMemory, tr->maxCategories);
 
 			newviewGTRGAMMASECONDARY_7(tInfo->tipCase,
 						   x1_start, x2_start, x3_start,
@@ -8724,7 +9847,7 @@ void newviewIterative (tree *tr)
 			makeP(qz, rz, tr->partitionData[model].perSiteRates,
 			      tr->partitionData[model].EI,
 			      tr->partitionData[model].EIGN,
-			      tr->partitionData[model].numberOfCategories, left, right, SECONDARY_DATA);
+			      tr->partitionData[model].numberOfCategories, left, right, SECONDARY_DATA, tr->saveMemory, tr->maxCategories);
 
 			newviewGTRCATSECONDARY(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
 					       x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
@@ -8737,7 +9860,7 @@ void newviewIterative (tree *tr)
 			makeP(qz, rz, tr->partitionData[model].gammaRates,
 			      tr->partitionData[model].EI,
 			      tr->partitionData[model].EIGN,
-			      4, left, right, SECONDARY_DATA);
+			      4, left, right, SECONDARY_DATA, tr->saveMemory, tr->maxCategories);
 
 			newviewGTRGAMMASECONDARY(tInfo->tipCase,
 						 x1_start, x2_start, x3_start,
@@ -8933,7 +10056,7 @@ void newviewIterativeMulti (tree *tr)
 		      {			
 			makeP(qz, rz, tr->partitionData[model].perSiteRates,   tr->partitionData[model].EI,
 			      tr->partitionData[model].EIGN, tr->partitionData[model].numberOfCategories,
-			      left, right, BINARY_DATA);
+			      left, right, BINARY_DATA, tr->saveMemory, tr->maxCategories);
 
 			newviewGTRCAT_BINARY(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
 					     x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
@@ -8947,7 +10070,7 @@ void newviewIterativeMulti (tree *tr)
 		      {
 			makeP(qz, rz, tr->partitionData[model].gammaRates,
 			      tr->partitionData[model].EI, tr->partitionData[model].EIGN,
-			      4, left, right, BINARY_DATA);
+			      4, left, right, BINARY_DATA, tr->saveMemory, tr->maxCategories);
 
 			newviewGTRGAMMA_BINARY(tInfo->tipCase,
 					       x1_start, x2_start, x3_start, tr->partitionData[model].EV, tr->partitionData[model].tipVector,
@@ -8967,7 +10090,7 @@ void newviewIterativeMulti (tree *tr)
 			{			  
 			  makeP(qz, rz, tr->partitionData[model].perSiteRates,   tr->partitionData[model].EI,
 				tr->partitionData[model].EIGN, tr->partitionData[model].numberOfCategories,
-				left, right, DNA_DATA);
+				left, right, DNA_DATA, tr->saveMemory, tr->maxCategories);
 
 			  newviewGTRCAT(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
 					x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
@@ -8981,7 +10104,7 @@ void newviewIterativeMulti (tree *tr)
 			{			 
 			  makeP(qz, rz, tr->partitionData[model].gammaRates,
 				tr->partitionData[model].EI, tr->partitionData[model].EIGN,
-				4, left, right, DNA_DATA);
+				4, left, right, DNA_DATA, tr->saveMemory, tr->maxCategories);
 
 
 			  if(tr->useGappedImplementation || tr->saveMemory)
@@ -9015,7 +10138,7 @@ void newviewIterativeMulti (tree *tr)
 			  makeP(qz, rz, tr->partitionData[model].perSiteRates,
 				tr->partitionData[model].EI,
 				tr->partitionData[model].EIGN,
-				tr->partitionData[model].numberOfCategories, left, right, AA_DATA);
+				tr->partitionData[model].numberOfCategories, left, right, AA_DATA, tr->saveMemory, tr->maxCategories);
 			  
 			  newviewGTRCATPROT(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
 					    x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
@@ -9030,7 +10153,7 @@ void newviewIterativeMulti (tree *tr)
 			  makeP(qz, rz, tr->partitionData[model].gammaRates,
 				tr->partitionData[model].EI,
 				tr->partitionData[model].EIGN,
-				4, left, right, AA_DATA);
+				4, left, right, AA_DATA, tr->saveMemory, tr->maxCategories);
 
 			  newviewGTRGAMMAPROT(tInfo->tipCase,
 					      x1_start, x2_start, x3_start,
@@ -9052,7 +10175,7 @@ void newviewIterativeMulti (tree *tr)
 			makeP(qz, rz, tr->partitionData[model].perSiteRates,
 			      tr->partitionData[model].EI,
 			      tr->partitionData[model].EIGN,
-			      tr->partitionData[model].numberOfCategories, left, right, SECONDARY_DATA_6);
+			      tr->partitionData[model].numberOfCategories, left, right, SECONDARY_DATA_6, tr->saveMemory, tr->maxCategories);
 
 			newviewGTRCATSECONDARY_6(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
 						 x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
@@ -9065,7 +10188,7 @@ void newviewIterativeMulti (tree *tr)
 			makeP(qz, rz, tr->partitionData[model].gammaRates,
 			      tr->partitionData[model].EI,
 			      tr->partitionData[model].EIGN,
-			      4, left, right, SECONDARY_DATA_6);
+			      4, left, right, SECONDARY_DATA_6, tr->saveMemory, tr->maxCategories);
 
 			newviewGTRGAMMASECONDARY_6(tInfo->tipCase,
 						   x1_start, x2_start, x3_start,
@@ -9087,7 +10210,7 @@ void newviewIterativeMulti (tree *tr)
 			makeP(qz, rz, tr->partitionData[model].perSiteRates,
 			      tr->partitionData[model].EI,
 			      tr->partitionData[model].EIGN,
-			      tr->partitionData[model].numberOfCategories, left, right, SECONDARY_DATA_7);
+			      tr->partitionData[model].numberOfCategories, left, right, SECONDARY_DATA_7, tr->saveMemory, tr->maxCategories);
 
 			newviewGTRCATSECONDARY_7(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
 						 x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
@@ -9100,7 +10223,7 @@ void newviewIterativeMulti (tree *tr)
 			makeP(qz, rz, tr->partitionData[model].gammaRates,
 			      tr->partitionData[model].EI,
 			      tr->partitionData[model].EIGN,
-			      4, left, right, SECONDARY_DATA_7);
+			      4, left, right, SECONDARY_DATA_7, tr->saveMemory, tr->maxCategories);
 
 			newviewGTRGAMMASECONDARY_7(tInfo->tipCase,
 						   x1_start, x2_start, x3_start,
@@ -9122,7 +10245,7 @@ void newviewIterativeMulti (tree *tr)
 			makeP(qz, rz, tr->partitionData[model].perSiteRates,
 			      tr->partitionData[model].EI,
 			      tr->partitionData[model].EIGN,
-			      tr->partitionData[model].numberOfCategories, left, right, SECONDARY_DATA);
+			      tr->partitionData[model].numberOfCategories, left, right, SECONDARY_DATA, tr->saveMemory, tr->maxCategories);
 
 			newviewGTRCATSECONDARY(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
 					       x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
@@ -9135,7 +10258,7 @@ void newviewIterativeMulti (tree *tr)
 			makeP(qz, rz, tr->partitionData[model].gammaRates,
 			      tr->partitionData[model].EI,
 			      tr->partitionData[model].EIGN,
-			      4, left, right, SECONDARY_DATA);
+			      4, left, right, SECONDARY_DATA, tr->saveMemory, tr->maxCategories);
 
 			newviewGTRGAMMASECONDARY(tInfo->tipCase,
 						 x1_start, x2_start, x3_start,
@@ -9400,7 +10523,7 @@ static void newviewMultiGrain(tree *tr,  double *x1, double *x2, double *x3, int
 	    case CAT:	      
 	      makeP(pz, qz, tr->partitionData[model].perSiteRates,   tr->partitionData[model].EI,
 		    tr->partitionData[model].EIGN, tr->partitionData[model].numberOfCategories,
-		    left, right, BINARY_DATA);
+		    left, right, BINARY_DATA, tr->saveMemory, tr->maxCategories);
 	      
 	      newviewGTRCAT_BINARY(tipCase,  tr->partitionData[model].EV, rateCategory,
 				   x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
@@ -9412,7 +10535,7 @@ static void newviewMultiGrain(tree *tr,  double *x1, double *x2, double *x3, int
 	    case GAMMA_I:	      		
 	      makeP(pz, qz, tr->partitionData[model].gammaRates,
 		    tr->partitionData[model].EI, tr->partitionData[model].EIGN,
-		    4, left, right, BINARY_DATA);
+		    4, left, right, BINARY_DATA, tr->saveMemory, tr->maxCategories);
 	      
 	      newviewGTRGAMMA_BINARY(tipCase,
 				     x1_start, x2_start, x3_start, tr->partitionData[model].EV, tr->partitionData[model].tipVector,
@@ -9429,7 +10552,7 @@ static void newviewMultiGrain(tree *tr,  double *x1, double *x2, double *x3, int
 	    case CAT:	      			
 	      makeP(pz, qz, tr->partitionData[model].perSiteRates,   tr->partitionData[model].EI,
 		    tr->partitionData[model].EIGN, tr->partitionData[model].numberOfCategories,
-		    left, right, DNA_DATA);
+		    left, right, DNA_DATA, tr->saveMemory, tr->maxCategories);
 
 #ifdef __AVX
 	      newviewGTRCAT_AVX(tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
@@ -9450,7 +10573,7 @@ static void newviewMultiGrain(tree *tr,  double *x1, double *x2, double *x3, int
 	    case GAMMA_I:	     		
 	      makeP(pz, qz, tr->partitionData[model].gammaRates,
 		    tr->partitionData[model].EI, tr->partitionData[model].EIGN,
-		    4, left, right, DNA_DATA);
+		    4, left, right, DNA_DATA, tr->saveMemory, tr->maxCategories);
 	      
 #ifdef __AVX
 	      newviewGTRGAMMA_AVX(tipCase,
@@ -9475,7 +10598,7 @@ static void newviewMultiGrain(tree *tr,  double *x1, double *x2, double *x3, int
 	      makeP(pz, qz, tr->partitionData[model].perSiteRates,
 		    tr->partitionData[model].EI,
 		    tr->partitionData[model].EIGN,
-		    tr->partitionData[model].numberOfCategories, left, right, AA_DATA);
+		    tr->partitionData[model].numberOfCategories, left, right, AA_DATA, tr->saveMemory, tr->maxCategories);
 #ifdef __AVX
 	      newviewGTRCATPROT_AVX(tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
 				    x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
@@ -9491,7 +10614,7 @@ static void newviewMultiGrain(tree *tr,  double *x1, double *x2, double *x3, int
 	      makeP(pz, qz, tr->partitionData[model].gammaRates,
 		    tr->partitionData[model].EI,
 		    tr->partitionData[model].EIGN,
-		    4, left, right, AA_DATA);
+		    4, left, right, AA_DATA, tr->saveMemory, tr->maxCategories);
 #ifdef __AVX
 	      newviewGTRGAMMAPROT_AVX(tipCase,
 				      x1_start, x2_start, x3_start,
@@ -9520,7 +10643,7 @@ static void newviewMultiGrain(tree *tr,  double *x1, double *x2, double *x3, int
 	      makeP(pz, qz, tr->partitionData[model].perSiteRates,
 		    tr->partitionData[model].EI,
 		    tr->partitionData[model].EIGN,
-		    tr->partitionData[model].numberOfCategories, left, right, SECONDARY_DATA);
+		    tr->partitionData[model].numberOfCategories, left, right, SECONDARY_DATA, tr->saveMemory, tr->maxCategories);
 
 	      newviewGTRCATSECONDARY(tipCase,  tr->partitionData[model].EV, rateCategory,
 				     x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
@@ -9532,7 +10655,7 @@ static void newviewMultiGrain(tree *tr,  double *x1, double *x2, double *x3, int
 	      makeP(pz, qz, tr->partitionData[model].gammaRates,
 		    tr->partitionData[model].EI,
 		    tr->partitionData[model].EIGN,
-		    4, left, right, SECONDARY_DATA);
+		    4, left, right, SECONDARY_DATA, tr->saveMemory, tr->maxCategories);
 	      
 	      newviewGTRGAMMASECONDARY(tipCase,
 				       x1_start, x2_start, x3_start,
@@ -9553,7 +10676,7 @@ static void newviewMultiGrain(tree *tr,  double *x1, double *x2, double *x3, int
 	      makeP(pz, qz, tr->partitionData[model].perSiteRates,
 		    tr->partitionData[model].EI,
 		    tr->partitionData[model].EIGN,
-		    tr->partitionData[model].numberOfCategories, left, right, SECONDARY_DATA_6);
+		    tr->partitionData[model].numberOfCategories, left, right, SECONDARY_DATA_6, tr->saveMemory, tr->maxCategories);
 	      
 	      newviewGTRCATSECONDARY_6(tipCase,  tr->partitionData[model].EV, rateCategory,
 				       x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
@@ -9564,7 +10687,7 @@ static void newviewMultiGrain(tree *tr,  double *x1, double *x2, double *x3, int
 	      makeP(pz, qz, tr->partitionData[model].gammaRates,
 		    tr->partitionData[model].EI,
 		    tr->partitionData[model].EIGN,
-		    4, left, right, SECONDARY_DATA_6);
+		    4, left, right, SECONDARY_DATA_6, tr->saveMemory, tr->maxCategories);
 
 	      newviewGTRGAMMASECONDARY_6(tipCase,
 					 x1_start, x2_start, x3_start,
@@ -9584,7 +10707,7 @@ static void newviewMultiGrain(tree *tr,  double *x1, double *x2, double *x3, int
 	      makeP(pz, qz, tr->partitionData[model].perSiteRates,
 		    tr->partitionData[model].EI,
 		    tr->partitionData[model].EIGN,
-		    tr->partitionData[model].numberOfCategories, left, right, SECONDARY_DATA_7);
+		    tr->partitionData[model].numberOfCategories, left, right, SECONDARY_DATA_7, tr->saveMemory, tr->maxCategories);
 	      
 	      newviewGTRCATSECONDARY_7(tipCase,  tr->partitionData[model].EV, rateCategory,
 				       x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
@@ -9595,7 +10718,7 @@ static void newviewMultiGrain(tree *tr,  double *x1, double *x2, double *x3, int
 	      makeP(pz, qz, tr->partitionData[model].gammaRates,
 		    tr->partitionData[model].EI,
 		    tr->partitionData[model].EIGN,
-		    4, left, right, SECONDARY_DATA_7);
+		    4, left, right, SECONDARY_DATA_7, tr->saveMemory, tr->maxCategories);
 
 	      newviewGTRGAMMASECONDARY_7(tipCase,
 					 x1_start, x2_start, x3_start,

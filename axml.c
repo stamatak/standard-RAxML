@@ -2661,8 +2661,8 @@ static void allocPartitions(tree *tr)
 	  tr->partitionData[i].globalScaler    = (unsigned int *)calloc(2 * tr->mxtips, sizeof(unsigned int));  	  
 	}
 
-      tr->partitionData[i].left              = (double *)malloc_aligned(pl->leftLength * maxCategories * sizeof(double));
-      tr->partitionData[i].right             = (double *)malloc_aligned(pl->rightLength * maxCategories * sizeof(double));
+      tr->partitionData[i].left              = (double *)malloc_aligned(pl->leftLength * (maxCategories + 1) * sizeof(double));
+      tr->partitionData[i].right             = (double *)malloc_aligned(pl->rightLength * (maxCategories + 1) * sizeof(double));
       tr->partitionData[i].EIGN              = (double*)malloc(pl->eignLength * sizeof(double));
       tr->partitionData[i].EV                = (double*)malloc_aligned(pl->evLength * sizeof(double));
       tr->partitionData[i].EI                = (double*)malloc(pl->eiLength * sizeof(double));
@@ -2740,8 +2740,10 @@ static void allocNodex (tree *tr)
 
       tr->partitionData[model].initialGapVectorSize = tr->partitionData[model].gapVectorLength * 2 * tr->mxtips * sizeof(int);
 	
+      /* always multiply by 4 due to frequent switching between CAT and GAMMA in standard RAxML */
+      
       tr->partitionData[model].gapColumn = (double *)malloc_aligned(((size_t)tr->innerNodes) *
-								    ((size_t)(tr->discreteRateCategories)) * 
+								    ((size_t)4) * 
 								    ((size_t)(tr->partitionData[model].states)) *
 								    sizeof(double));		  		
 	
@@ -6210,8 +6212,10 @@ static void allocNodex(tree *tr, int tid, int n)
       
       tr->partitionData[model].initialGapVectorSize = tr->partitionData[model].gapVectorLength * 2 * tr->mxtips * sizeof(int);
       
+      /* always multiply by 4 due to frequent switching between CAT and GAMMA in standard RAxML */
+
       tr->partitionData[model].gapColumn = (double *)malloc_aligned(((size_t)tr->innerNodes) *
-								      ((size_t)(tr->discreteRateCategories)) * 
+								      ((size_t)(4) * 
 								      ((size_t)(tr->partitionData[model].states)) *
 								      sizeof(double));		             
       for(i = 0; i < tr->innerNodes; i++)

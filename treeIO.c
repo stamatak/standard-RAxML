@@ -1658,9 +1658,14 @@ void getStartingTree(tree *tr, analdef *adef)
             
       setupPointerMesh(tr);	  
       
-      evaluateGenericInitrav(tr, tr->start);                                       	 
+      evaluateGenericInitrav(tr, tr->start);   
+
+     
       
-      treeEvaluate(tr, 1);        	     
+      treeEvaluate(tr, 1);        	 
+
+      
+     
     }         
 
   tr->start = tr->nodep[1];

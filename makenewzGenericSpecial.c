@@ -57,6 +57,10 @@ extern volatile int NumberOfThreads;
 
 extern const unsigned int mask32[32];
 
+static inline boolean isGap(unsigned int *x, int pos)
+{
+  return (x[pos / 32] & mask32[pos % 32]);
+}
 /*******************/
 
 static void sumCAT_BINARY(int tipCase, double *sum, double *x1_start, double *x2_start, double *tipVector,
@@ -165,6 +169,74 @@ static void sumCAT(int tipCase, double *sum, double *x1_start, double *x2_start,
 }
 
 #else
+
+static void sumCAT_SAVE(int tipCase, double *sum, double *x1_start, double *x2_start, double *tipVector,
+    unsigned char *tipX1, unsigned char *tipX2, int n, double *x1_gapColumn, double *x2_gapColumn, unsigned int *x1_gap, unsigned int *x2_gap)
+{
+  int i;
+  double 
+    *x1, 
+    *x2,    
+    *x1_ptr = x1_start,
+    *x2_ptr = x2_start;
+
+  switch(tipCase)
+  {
+    case TIP_TIP:
+      for (i = 0; i < n; i++)
+      {
+        x1 = &(tipVector[4 * tipX1[i]]);
+        x2 = &(tipVector[4 * tipX2[i]]);
+
+        _mm_store_pd( &sum[i*4 + 0], _mm_mul_pd( _mm_load_pd( &x1[0] ), _mm_load_pd( &x2[0] )));
+        _mm_store_pd( &sum[i*4 + 2], _mm_mul_pd( _mm_load_pd( &x1[2] ), _mm_load_pd( &x2[2] )));
+      }
+      break;
+    case TIP_INNER:
+      for (i = 0; i < n; i++)
+      {
+        x1 = &(tipVector[4 * tipX1[i]]);
+        if(isGap(x2_gap, i))
+          x2 = x2_gapColumn;
+        else
+        {
+          x2 = x2_ptr;
+          x2_ptr += 4;
+        }
+
+        _mm_store_pd( &sum[i*4 + 0], _mm_mul_pd( _mm_load_pd( &x1[0] ), _mm_load_pd( &x2[0] )));
+        _mm_store_pd( &sum[i*4 + 2], _mm_mul_pd( _mm_load_pd( &x1[2] ), _mm_load_pd( &x2[2] )));
+      }
+      break;
+    case INNER_INNER:
+      for (i = 0; i < n; i++)
+      {
+        if(isGap(x1_gap, i))
+          x1 = x1_gapColumn;
+        else
+        {
+          x1 = x1_ptr;
+          x1_ptr += 4;
+        }
+
+        if(isGap(x2_gap, i))
+          x2 = x2_gapColumn;
+        else
+        {
+          x2 = x2_ptr;
+          x2_ptr += 4;
+        }
+
+        _mm_store_pd( &sum[i*4 + 0], _mm_mul_pd( _mm_load_pd( &x1[0] ), _mm_load_pd( &x2[0] )));
+        _mm_store_pd( &sum[i*4 + 2], _mm_mul_pd( _mm_load_pd( &x1[2] ), _mm_load_pd( &x2[2] )));
+
+      }    
+      break;
+    default:
+      assert(0);
+  }
+}
+
 
 static void sumCAT(int tipCase, double *sum, double *x1_start, double *x2_start, double *tipVector,
 		   unsigned char *tipX1, unsigned char *tipX2, int n)
@@ -428,10 +500,100 @@ static void coreGTRCAT(int upper, int numberOfCategories, double *sum,
 
 
 
+#ifdef __SIM_SSE3
+static void sumGTRCATPROT_SAVE(int tipCase, double *sumtable, double *x1, double *x2, double *tipVector,
+    unsigned char *tipX1, unsigned char *tipX2, int n, 
+    double *x1_gapColumn, double *x2_gapColumn, unsigned int *x1_gap, unsigned int *x2_gap)
+{
+  int 
+    i, 
+  l;
+
+  double 
+    *sum, 
+    *left, 
+    *right,
+    *left_ptr = x1,
+    *right_ptr = x2;
+
+  switch(tipCase)
+  {
+    case TIP_TIP:
+      for (i = 0; i < n; i++)
+      {
+        left  = &(tipVector[20 * tipX1[i]]);
+        right = &(tipVector[20 * tipX2[i]]);
+        sum = &sumtable[20 * i];
+
+        for(l = 0; l < 20; l+=2)
+        {
+          __m128d sumv = _mm_mul_pd(_mm_load_pd(&left[l]), _mm_load_pd(&right[l]));
+
+          _mm_store_pd(&sum[l], sumv);		 
+        }
+
+      }
+      break;
+    case TIP_INNER:
+      for (i = 0; i < n; i++)
+      {
+        left = &(tipVector[20 * tipX1[i]]);       
+
+        if(isGap(x2_gap, i))
+          right = x2_gapColumn;
+        else
+        {
+          right = right_ptr;
+          right_ptr += 20;
+        }
+
+        sum = &sumtable[20 * i];
+
+        for(l = 0; l < 20; l+=2)
+        {
+          __m128d sumv = _mm_mul_pd(_mm_load_pd(&left[l]), _mm_load_pd(&right[l]));
+
+          _mm_store_pd(&sum[l], sumv);		 
+        }
+
+      }
+      break;
+    case INNER_INNER:
+      for (i = 0; i < n; i++)
+      {	 
+        if(isGap(x1_gap, i))
+          left = x1_gapColumn;
+        else
+        {
+          left = left_ptr;
+          left_ptr += 20;
+        }
+
+        if(isGap(x2_gap, i))
+          right = x2_gapColumn;
+        else
+        {
+          right = right_ptr;
+          right_ptr += 20;
+        }
+
+        sum = &sumtable[20 * i];
+
+        for(l = 0; l < 20; l+=2)
+        {
+          __m128d sumv = _mm_mul_pd(_mm_load_pd(&left[l]), _mm_load_pd(&right[l]));
+
+          _mm_store_pd(&sum[l], sumv);		 
+        }
+      }
+      break;
+    default:
+      assert(0);
+  }
+}
 
 
-
-
+#endif
 
 
 static void sumGTRCATPROT(int tipCase, double *sumtable, double *x1, double *x2, double *tipVector,
@@ -2267,110 +2429,110 @@ static void sumGAMMAPROT_GAPPED(int tipCase, double *sumtable, double *x1, doubl
     }
 }
 
+#ifdef __SIM_SSE3
 static void sumGAMMAPROT_GAPPED_SAVE(int tipCase, double *sumtable, double *x1, double *x2, double *tipVector,
-				     unsigned char *tipX1, unsigned char *tipX2, int n, 
-				     double *x1_gapColumn, double *x2_gapColumn, unsigned int *x1_gap, unsigned int *x2_gap)
+    unsigned char *tipX1, unsigned char *tipX2, int n, 
+    double *x1_gapColumn, double *x2_gapColumn, unsigned int *x1_gap, unsigned int *x2_gap)
 {
   int i, l, k;
   double 
     *left, 
     *right, 
     *sum,
+    *x1_ptr = x1,
+    *x2_ptr = x2,
     *x1v,
     *x2v;
 
   switch(tipCase)
-    {
+  {
     case TIP_TIP:
       for(i = 0; i < n; i++)
-	{
-	  left  = &(tipVector[20 * tipX1[i]]);
-	  right = &(tipVector[20 * tipX2[i]]);
+      {
+        left  = &(tipVector[20 * tipX1[i]]);
+        right = &(tipVector[20 * tipX2[i]]);
 
-	  for(l = 0; l < 4; l++)
-	    {
-	      sum = &sumtable[i * 80 + l * 20];
-#ifdef __SIM_SSE3
-	      for(k = 0; k < 20; k+=2)
-		{
-		  __m128d sumv = _mm_mul_pd(_mm_load_pd(&left[k]), _mm_load_pd(&right[k]));
-		  
-		  _mm_store_pd(&sum[k], sumv);		 
-		}
-#else
-	      for(k = 0; k < 20; k++)
-		sum[k] = left[k] * right[k];
-#endif
-	    }
-	}
+        for(l = 0; l < 4; l++)
+        {
+          sum = &sumtable[i * 80 + l * 20];
+
+          for(k = 0; k < 20; k+=2)
+          {
+            __m128d sumv = _mm_mul_pd(_mm_load_pd(&left[k]), _mm_load_pd(&right[k]));
+
+            _mm_store_pd(&sum[k], sumv);		 
+          }
+
+        }
+      }
       break;
     case TIP_INNER:
       for(i = 0; i < n; i++)
-	{
-	  left = &(tipVector[20 * tipX1[i]]);
-	   
-	  if(x2_gap[i / 32] & mask32[i % 32])
-	    x2v = x2_gapColumn;
-	  else
-	    x2v = &x2[80 * i];
-	  
+      {
+        left = &(tipVector[20 * tipX1[i]]);
 
-	  for(l = 0; l < 4; l++)
-	    {
-	      right = &(x2v[l * 20]);
-	      sum = &sumtable[i * 80 + l * 20];
-#ifdef __SIM_SSE3
-	      for(k = 0; k < 20; k+=2)
-		{
-		  __m128d sumv = _mm_mul_pd(_mm_load_pd(&left[k]), _mm_load_pd(&right[k]));
-		  
-		  _mm_store_pd(&sum[k], sumv);		 
-		}
-#else
-	      for(k = 0; k < 20; k++)
-		sum[k] = left[k] * right[k];
-#endif
-	    }
-	}
+        if(x2_gap[i / 32] & mask32[i % 32])
+          x2v = x2_gapColumn;
+        else
+        {
+          x2v = x2_ptr;
+          x2_ptr += 80;
+        }
+
+        for(l = 0; l < 4; l++)
+        {
+          right = &(x2v[l * 20]);
+          sum = &sumtable[i * 80 + l * 20];
+
+          for(k = 0; k < 20; k+=2)
+          {
+            __m128d sumv = _mm_mul_pd(_mm_load_pd(&left[k]), _mm_load_pd(&right[k]));
+
+            _mm_store_pd(&sum[k], sumv);		 
+          }
+        }
+      }
       break;
     case INNER_INNER:
       for(i = 0; i < n; i++)
-	{
-	  if(x1_gap[i / 32] & mask32[i % 32])
-	    x1v = x1_gapColumn;
-	  else
-	    x1v  = &x1[80 * i];
+      {
+        if(x1_gap[i / 32] & mask32[i % 32])
+          x1v = x1_gapColumn;
+        else
+        {
+          x1v  = x1_ptr;
+          x1_ptr += 80;
+        }
 
-	   if(x2_gap[i / 32] & mask32[i % 32])
-	    x2v = x2_gapColumn;
-	  else
-	    x2v  = &x2[80 * i];
+        if(x2_gap[i / 32] & mask32[i % 32])
+          x2v = x2_gapColumn;
+        else
+        {
+          x2v  = x2_ptr;
+          x2_ptr += 80;
+        }
 
-	  for(l = 0; l < 4; l++)
-	    {
-	      left  = &(x1v[l * 20]);
-	      right = &(x2v[l * 20]);
-	      sum   = &(sumtable[i * 80 + l * 20]);
+        for(l = 0; l < 4; l++)
+        {
+          left  = &(x1v[l * 20]);
+          right = &(x2v[l * 20]);
+          sum   = &(sumtable[i * 80 + l * 20]);
 
-#ifdef __SIM_SSE3
-	      for(k = 0; k < 20; k+=2)
-		{
-		  __m128d sumv = _mm_mul_pd(_mm_load_pd(&left[k]), _mm_load_pd(&right[k]));
-		  
-		  _mm_store_pd(&sum[k], sumv);		 
-		}
-#else
-	      for(k = 0; k < 20; k++)
-		sum[k] = left[k] * right[k];
-#endif
-	    }
-	}
+          for(k = 0; k < 20; k+=2)
+          {
+            __m128d sumv = _mm_mul_pd(_mm_load_pd(&left[k]), _mm_load_pd(&right[k]));
+
+            _mm_store_pd(&sum[k], sumv);		 
+          }
+        }
+      }
       break;
     default:
       assert(0);
-    }
+  }
 }
 
+#endif
 
 
 static void sumGammaFlex(int tipCase, double *sumtable, double *x1, double *x2, double *tipVector,
@@ -3266,12 +3428,17 @@ static void getVects(tree *tr, unsigned char **tipX1, unsigned char **tipX2, dou
 		     double **x1_gapColumn, double **x2_gapColumn, unsigned int **x1_gap, unsigned int **x2_gap)
 {
   int 
-    rateHet = tr->discreteRateCategories,
+    rateHet,
     states = tr->partitionData[model].states;
 
   int     
     pNumber, 
     qNumber;
+
+  if(tr->rateHetModel == CAT)
+    rateHet = 1;
+  else
+    rateHet = 4;
 
   if(tr->multiGene)
     {
@@ -3357,8 +3524,6 @@ void makenewzIterative(tree *tr)
     *x1_start = (double*)NULL,
     *x2_start = (double*)NULL;
 
- 
-
   unsigned char
     *tipX1,
     *tipX2;
@@ -3411,6 +3576,15 @@ void makenewzIterative(tree *tr)
 	      switch(tr->rateHetModel)
 		{
 		case CAT:		 
+#ifdef __SIM_SSE3
+		  if(tr->saveMemory)
+		    {
+		      
+		      sumCAT_SAVE(tipCase, tr->partitionData[model].sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector, tipX1, tipX2,
+				  width, x1_gapColumn, x2_gapColumn, x1_gap, x2_gap);
+		    }
+		  else
+#endif
 		    sumCAT(tipCase, tr->partitionData[model].sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector, tipX1, tipX2,
 			   width);
 		  break;
@@ -3438,7 +3612,13 @@ void makenewzIterative(tree *tr)
 	    case AA_DATA:
 	      switch(tr->rateHetModel)
 		{
-		case CAT:		  
+		case CAT:	
+#ifdef __SIM_SSE3
+		  if(tr->saveMemory)	  
+		    sumGTRCATPROT_SAVE(tipCase, tr->partitionData[model].sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector,
+				       tipX1, tipX2, width, x1_gapColumn, x2_gapColumn, x1_gap, x2_gap);
+		  else
+#endif
 		    sumGTRCATPROT(tipCase, tr->partitionData[model].sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector,
 				  tipX1, tipX2, width);
 		  break;

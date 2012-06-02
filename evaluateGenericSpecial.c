@@ -782,9 +782,225 @@ void calcDiagptable(double z, int data, int numberOfCategories, double *rptr, do
 }
 
 
+#ifdef __SIM_SSE3
+
+static inline boolean isGap(unsigned int *x, int pos)
+{
+  return (x[pos / 32] & mask32[pos % 32]);
+}
 
 
+static double evaluateGTRCATPROT_SAVE (int *ex1, int *ex2, int *cptr, int *wptr,
+    double *x1, double *x2, double *tipVector,
+    unsigned char *tipX1, int n, double *diagptable_start, const boolean fastScaling,
+    double *x1_gapColumn, double *x2_gapColumn, unsigned int *x1_gap, unsigned int *x2_gap)
+{
+  double   
+    sum = 0.0, 
+  term,
+  *diagptable,  
+  *left, 
+  *right,
+  *left_ptr = x1,
+  *right_ptr = x2;
 
+  int     
+    i, 
+    l;                           
+
+  if(tipX1)
+  {                 
+    for (i = 0; i < n; i++) 
+    {	       	
+      left = &(tipVector[20 * tipX1[i]]);
+
+      if(isGap(x2_gap, i))
+        right = x2_gapColumn;
+      else
+      {
+        right = right_ptr;
+        right_ptr += 20;
+      }	  	 
+
+      diagptable = &diagptable_start[20 * cptr[i]];	           	 
+
+      __m128d tv = _mm_setzero_pd();	    
+
+      for(l = 0; l < 20; l+=2)
+      {
+        __m128d lv = _mm_load_pd(&left[l]);
+        __m128d rv = _mm_load_pd(&right[l]);
+        __m128d mul = _mm_mul_pd(lv, rv);
+        __m128d dv = _mm_load_pd(&diagptable[l]);
+
+        tv = _mm_add_pd(tv, _mm_mul_pd(mul, dv));		   
+      }		 		
+
+      tv = _mm_hadd_pd(tv, tv);
+      _mm_storel_pd(&term, tv);
+
+
+      term = LOG(term);
+
+      sum += wptr[i] * term;
+    }      
+  }    
+  else
+  {
+
+    for (i = 0; i < n; i++) 
+    {		       	      	      	  
+      if(isGap(x1_gap, i))
+        left = x1_gapColumn;
+      else
+      {
+        left = left_ptr;
+        left_ptr += 20;
+      }
+
+      if(isGap(x2_gap, i))
+        right = x2_gapColumn;
+      else
+      {
+        right = right_ptr;
+        right_ptr += 20;
+      }
+
+      diagptable = &diagptable_start[20 * cptr[i]];	  	
+
+      __m128d tv = _mm_setzero_pd();	    
+
+      for(l = 0; l < 20; l+=2)
+      {
+        __m128d lv = _mm_load_pd(&left[l]);
+        __m128d rv = _mm_load_pd(&right[l]);
+        __m128d mul = _mm_mul_pd(lv, rv);
+        __m128d dv = _mm_load_pd(&diagptable[l]);
+
+        tv = _mm_add_pd(tv, _mm_mul_pd(mul, dv));		   
+      }		 		
+
+      tv = _mm_hadd_pd(tv, tv);
+      _mm_storel_pd(&term, tv);
+
+      term = LOG(term);	 
+
+      sum += wptr[i] * term;      
+    }
+  }
+
+  return  sum;         
+} 
+
+
+static double evaluateGTRCAT_SAVE (int *ex1, int *ex2, int *cptr, int *wptr,
+    double *x1_start, double *x2_start, double *tipVector, 		      
+    unsigned char *tipX1, int n, double *diagptable_start, const boolean fastScaling,
+    double *x1_gapColumn, double *x2_gapColumn, unsigned int *x1_gap, unsigned int *x2_gap)
+{
+  double  sum = 0.0, term;       
+  int     i;
+
+  double  *diagptable, 
+          *x1, 
+          *x2,
+          *x1_ptr = x1_start,
+          *x2_ptr = x2_start;
+
+  if(tipX1)
+  {           
+    for (i = 0; i < n; i++) 
+    {	
+      double t[2] __attribute__ ((aligned (BYTE_ALIGNMENT)));
+      __m128d x1v1, x1v2, x2v1, x2v2, dv1, dv2;
+
+      x1 = &(tipVector[4 * tipX1[i]]);
+
+      if(isGap(x2_gap, i))
+        x2 = x2_gapColumn;
+      else
+      {
+        x2 = x2_ptr;
+        x2_ptr += 4;
+      }
+
+      diagptable = &diagptable_start[4 * cptr[i]];
+
+      x1v1 =  _mm_load_pd(&x1[0]);
+      x1v2 =  _mm_load_pd(&x1[2]);
+      x2v1 =  _mm_load_pd(&x2[0]);
+      x2v2 =  _mm_load_pd(&x2[2]);
+      dv1  =  _mm_load_pd(&diagptable[0]);
+      dv2  =  _mm_load_pd(&diagptable[2]);
+
+      x1v1 = _mm_mul_pd(x1v1, x2v1);
+      x1v1 = _mm_mul_pd(x1v1, dv1);
+
+      x1v2 = _mm_mul_pd(x1v2, x2v2);
+      x1v2 = _mm_mul_pd(x1v2, dv2);
+
+      x1v1 = _mm_add_pd(x1v1, x1v2);
+
+      _mm_store_pd(t, x1v1);
+
+      term = LOG(t[0] + t[1]);      
+
+      sum += wptr[i] * term;
+    }	
+  }               
+  else
+  {
+    for (i = 0; i < n; i++) 
+    { 
+      double t[2] __attribute__ ((aligned (BYTE_ALIGNMENT)));
+      __m128d x1v1, x1v2, x2v1, x2v2, dv1, dv2;
+
+      if(isGap(x1_gap, i))
+        x1 = x1_gapColumn;
+      else
+      {
+        x1 = x1_ptr;
+        x1_ptr += 4;
+      }
+
+      if(isGap(x2_gap, i))
+        x2 = x2_gapColumn;
+      else
+      {
+        x2 = x2_ptr;
+        x2_ptr += 4;
+      }
+
+      diagptable = &diagptable_start[4 * cptr[i]];	
+
+      x1v1 =  _mm_load_pd(&x1[0]);
+      x1v2 =  _mm_load_pd(&x1[2]);
+      x2v1 =  _mm_load_pd(&x2[0]);
+      x2v2 =  _mm_load_pd(&x2[2]);
+      dv1  =  _mm_load_pd(&diagptable[0]);
+      dv2  =  _mm_load_pd(&diagptable[2]);
+
+      x1v1 = _mm_mul_pd(x1v1, x2v1);
+      x1v1 = _mm_mul_pd(x1v1, dv1);
+
+      x1v2 = _mm_mul_pd(x1v2, x2v2);
+      x1v2 = _mm_mul_pd(x1v2, dv2);
+
+      x1v1 = _mm_add_pd(x1v1, x1v2);
+
+      _mm_store_pd(t, x1v1);
+
+
+      term = LOG(t[0] + t[1]);
+      
+      sum += wptr[i] * term;
+    }    
+  }
+
+  return  sum;         
+} 
+
+#endif
 
 
 
@@ -2156,117 +2372,114 @@ static double evaluateGTRGAMMAPROT_GAPPED (int *ex1, int *ex2, int *wptr,
   return  sum;
 }
 
+#ifdef __SIM_SSE3
+
 static double evaluateGTRGAMMAPROT_GAPPED_SAVE (int *ex1, int *ex2, int *wptr,
-						double *x1, double *x2,  
-						double *tipVector, 
-						unsigned char *tipX1, int n, double *diagptable, const boolean fastScaling,
-						double *x1_gapColumn, double *x2_gapColumn, unsigned int *x1_gap, unsigned int *x2_gap)					   
+    double *x1, double *x2,  
+    double *tipVector, 
+    unsigned char *tipX1, int n, double *diagptable, const boolean fastScaling,
+    double *x1_gapColumn, double *x2_gapColumn, unsigned int *x1_gap, unsigned int *x2_gap)					   
 {
   double   sum = 0.0, term;        
   int     i, j, l;   
   double  
     *left, 
     *right,
+    *x1_ptr = x1,
+    *x2_ptr = x2,
     *x1v,
     *x2v;              
-  
+
   if(tipX1)
-    {               
-      for (i = 0; i < n; i++) 
-	{
-	  if(x2_gap[i / 32] & mask32[i % 32])
-	    x2v = x2_gapColumn;
-	  else
-	    x2v = &x2[80 * i];
-
-#ifdef __SIM_SSE3
-	  __m128d tv = _mm_setzero_pd();
-	  left = &(tipVector[20 * tipX1[i]]);	  	  
-	  
-	  for(j = 0, term = 0.0; j < 4; j++)
-	    {
-	      double *d = &diagptable[j * 20];
-	      right = &(x2v[20 * j]);
-	      for(l = 0; l < 20; l+=2)
-		{
-		  __m128d mul = _mm_mul_pd(_mm_load_pd(&left[l]), _mm_load_pd(&right[l]));
-		  tv = _mm_add_pd(tv, _mm_mul_pd(mul, _mm_load_pd(&d[l])));		   
-		}		 		
-	    }
-	  tv = _mm_hadd_pd(tv, tv);
-	  _mm_storel_pd(&term, tv);
-	  
-#else
-	  left = &(tipVector[20 * tipX1[i]]);	  	  
-	  
-	  for(j = 0, term = 0.0; j < 4; j++)
-	    {
-	      right = &(x2v[20 * j]);
-	      for(l = 0; l < 20; l++)
-		term += left[l] * right[l] * diagptable[j * 20 + l];	      
-	    }	  
-#endif	 
-	  if(fastScaling)
-	    term = LOG(0.25 * FABS(term));
-	  else
-	    term = LOG(0.25 * FABS(term)) + (ex2[i] * LOG(minlikelihood));	   
-	  
-	  sum += wptr[i] * term;
-	}    	        
-    }              
-  else
+  {               
+    for (i = 0; i < n; i++) 
     {
-      for (i = 0; i < n; i++) 
-	{
-	  if(x1_gap[i / 32] & mask32[i % 32])
-	    x1v = x1_gapColumn;
-	  else
-	    x1v = &x1[80 * i];
+      if(x2_gap[i / 32] & mask32[i % 32])
+        x2v = x2_gapColumn;
+      else
+      {
+        x2v = x2_ptr;
+        x2_ptr += 80;
+      }
 
-	  if(x2_gap[i / 32] & mask32[i % 32])
-	    x2v = x2_gapColumn;
-	  else
-	    x2v = &x2[80 * i];
-	  	 	             
-#ifdef __SIM_SSE3
-	  __m128d tv = _mm_setzero_pd();	 	  	  
-	      
-	  for(j = 0, term = 0.0; j < 4; j++)
-	    {
-	      double *d = &diagptable[j * 20];
-	      left  = &(x1v[20 * j]);
-	      right = &(x2v[20 * j]);
-	      
-	      for(l = 0; l < 20; l+=2)
-		{
-		  __m128d mul = _mm_mul_pd(_mm_load_pd(&left[l]), _mm_load_pd(&right[l]));
-		  tv = _mm_add_pd(tv, _mm_mul_pd(mul, _mm_load_pd(&d[l])));		   
-		}		 		
-	    }
-	  tv = _mm_hadd_pd(tv, tv);
-	  _mm_storel_pd(&term, tv);	  
-#else
-	  for(j = 0, term = 0.0; j < 4; j++)
-	    {
-	      left  = &(x1v[20 * j]);
-	      right = &(x2v[20 * j]);	    
-	      
-	      for(l = 0; l < 20; l++)
-		term += left[l] * right[l] * diagptable[j * 20 + l];	
-	    }
-#endif
-	  
-	  if(fastScaling)
-	    term = LOG(0.25 * FABS(term));
-	  else
-	    term = LOG(0.25 * FABS(term)) + ((ex1[i] + ex2[i])*LOG(minlikelihood));
-	  
-	  sum += wptr[i] * term;
-	}         
-    }
-       
+      __m128d tv = _mm_setzero_pd();
+      left = &(tipVector[20 * tipX1[i]]);	  	  
+
+      for(j = 0, term = 0.0; j < 4; j++)
+      {
+        double *d = &diagptable[j * 20];
+        right = &(x2v[20 * j]);
+        for(l = 0; l < 20; l+=2)
+        {
+          __m128d mul = _mm_mul_pd(_mm_load_pd(&left[l]), _mm_load_pd(&right[l]));
+          tv = _mm_add_pd(tv, _mm_mul_pd(mul, _mm_load_pd(&d[l])));		   
+        }		 		
+      }
+
+      tv = _mm_hadd_pd(tv, tv);
+      _mm_storel_pd(&term, tv);
+
+
+      if(fastScaling)
+        term = LOG(0.25 * term);
+      else
+        term = LOG(0.25 * term) + (ex2[i] * LOG(minlikelihood));	   
+
+      sum += wptr[i] * term;
+    }    	        
+  }              
+  else
+  {
+    for (i = 0; i < n; i++) 
+    {
+      if(x1_gap[i / 32] & mask32[i % 32])
+        x1v = x1_gapColumn;
+      else
+      {
+        x1v = x1_ptr;
+        x1_ptr += 80;
+      }
+
+      if(x2_gap[i / 32] & mask32[i % 32])
+        x2v = x2_gapColumn;
+      else
+      {
+        x2v = x2_ptr;
+        x2_ptr += 80;
+      }
+
+      __m128d tv = _mm_setzero_pd();	 	  	  
+
+      for(j = 0, term = 0.0; j < 4; j++)
+      {
+        double *d = &diagptable[j * 20];
+        left  = &(x1v[20 * j]);
+        right = &(x2v[20 * j]);
+
+        for(l = 0; l < 20; l+=2)
+        {
+          __m128d mul = _mm_mul_pd(_mm_load_pd(&left[l]), _mm_load_pd(&right[l]));
+          tv = _mm_add_pd(tv, _mm_mul_pd(mul, _mm_load_pd(&d[l])));		   
+        }		 		
+      }
+      tv = _mm_hadd_pd(tv, tv);
+      _mm_storel_pd(&term, tv);	  
+
+      if(fastScaling)
+        term = LOG(0.25 * term);
+      else
+        term = LOG(0.25 * term) + ((ex1[i] + ex2[i])*LOG(minlikelihood));
+
+      sum += wptr[i] * term;
+    }         
+  }
+
   return  sum;
 }
+
+
+#endif
+
 
 
 
@@ -2742,11 +2955,16 @@ double evaluateIterative(tree *tr,  boolean writeVector)
     result = 0.0;   
 
   int 
-    rateHet = tr->discreteRateCategories,
+    rateHet,
     pNumber = tr->td[0].ti[0].pNumber, 
     qNumber = tr->td[0].ti[0].qNumber, 
     model;
- 
+
+  if(tr->rateHetModel == CAT)
+    rateHet = 1;
+  else
+    rateHet = 4;
+  
   newviewIterative(tr); 
 
   if(writeVector)
@@ -2855,9 +3073,7 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 	    z = pz[0];
 
 	  if(writeVector)
-	    {
-	     
-	      
+	    {	     	      
 	      switch(tr->rateHetModel)
 		{
 		case CAT:	    
@@ -2947,20 +3163,30 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 		    case CAT:
 		     
 			  calcDiagptable(z, DNA_DATA, tr->partitionData[model].numberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
-			  
-			  partitionLikelihood =  evaluateGTRCAT(ex1, ex2, tr->partitionData[model].rateCategory, tr->partitionData[model].wgt,
-								x1_start, x2_start, tr->partitionData[model].tipVector, 
-								tip, width, diagptable, tr->useFastScaling);			  		       
+#ifdef __SIM_SSE3
+			  if(tr->saveMemory)
+			    {
+			      assert(tr->useFastScaling);
+			      
+			      partitionLikelihood = evaluateGTRCAT_SAVE(ex1, ex2, tr->partitionData[model].rateCategory, tr->partitionData[model].wgt,
+									    x1_start, x2_start, tr->partitionData[model].tipVector,
+									    tip, width, diagptable, TRUE,  x1_gapColumn, x2_gapColumn, x1_gap, x2_gap);
+			    }
+			  else
+#endif
+			    partitionLikelihood =  evaluateGTRCAT(ex1, ex2, tr->partitionData[model].rateCategory, tr->partitionData[model].wgt,
+								  x1_start, x2_start, tr->partitionData[model].tipVector, 
+								  tip, width, diagptable, tr->useFastScaling);			  		       
 		      break;	  	   
 		    case GAMMA:
 		     			     	     		      
 		      calcDiagptable(z, DNA_DATA, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable);		    		    
 #ifdef __SIM_SSE3
-		      if(tr->saveMemory)
+		      if(tr->saveMemory)						  			  
 			partitionLikelihood = evaluateGTRGAMMA_GAPPED_SAVE(ex1, ex2, tr->partitionData[model].wgt,
 									   x1_start, x2_start, tr->partitionData[model].tipVector,
 									   tip, width, diagptable, tr->useFastScaling,
-									   x1_gapColumn, x2_gapColumn, x1_gap, x2_gap);
+									   x1_gapColumn, x2_gapColumn, x1_gap, x2_gap);			
 		      else
 #endif
 			{
@@ -2996,10 +3222,19 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 		    case CAT:	    
 		     	   
 		      calcDiagptable(z, AA_DATA, tr->partitionData[model].numberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
-			  
-		      partitionLikelihood = evaluateGTRCATPROT(ex1, ex2, tr->partitionData[model].rateCategory, tr->partitionData[model].wgt,
-							       x1_start, x2_start, tr->partitionData[model].tipVector,
-							       tip, width, diagptable, tr->useFastScaling);		  
+#ifdef __SIM_SSE3
+		      if(tr->saveMemory)
+			{
+			  assert(tr->useFastScaling);
+			  partitionLikelihood = evaluateGTRCATPROT_SAVE(ex1, ex2, tr->partitionData[model].rateCategory, tr->partitionData[model].wgt,
+									x1_start, x2_start, tr->partitionData[model].tipVector,
+									tip, width, diagptable, TRUE,  x1_gapColumn, x2_gapColumn, x1_gap, x2_gap);
+			}
+		      else
+#endif			  
+			partitionLikelihood = evaluateGTRCATPROT(ex1, ex2, tr->partitionData[model].rateCategory, tr->partitionData[model].wgt,
+								 x1_start, x2_start, tr->partitionData[model].tipVector,
+								 tip, width, diagptable, tr->useFastScaling);		  
 				     	      
 		      break;	      
 		    case GAMMA:
