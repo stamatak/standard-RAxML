@@ -3697,7 +3697,8 @@ static void printREADME(void)
   printf("              DEFAULT: OFF\n");
   printf("\n");
   printf("      -U      Try to save memory by using SEV-based implementation for gap columns on large gappy alignments\n");
-  printf("              WARNING: this will only work for DNA under GTRGAMMA and is still in an experimental state.\n");
+  printf("              The technique is described here: http://www.biomedcentral.com/1471-2105/12/470\n");
+  printf("              This will only work for DNA and/or PROTEIN data and only with the SSE3 or AVX-vextorized version of the code.\n");
   printf("\n");
   printf("      -v      Display version information\n");
   printf("\n");
@@ -3895,6 +3896,12 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	break;
       case 'U':
 	tr->saveMemory = TRUE;
+#if (!defined(__SIM_SSE3) && !defined(__AVX))	
+	printf("\nmemory saving option -U does only work with the AVX and SSE3 vectorized versions of the code\n");
+	printf("please remove this option and execute the program again\n");
+	printf("exiting ....\n\n");
+	errorExit(0);
+#endif
 	break;
       case 'R':
 	adef->useBinaryModelFile = TRUE;
@@ -8460,11 +8467,17 @@ int main (int argc, char *argv[])
   
   if(!adef->readTaxaOnly)
     {
+      int 
+	countNonSev = 0;
+
       makeweights(adef, rdta, cdta, tr);
       makevalues(rdta, cdta, tr, adef);      
 
       for(i = 0; i < tr->NumberOfModels; i++)
 	{
+	  if(!(tr->partitionData[i].dataType == AA_DATA || tr->partitionData[i].dataType == DNA_DATA))
+	    countNonSev++;
+
 	  if(tr->partitionData[i].dataType == AA_DATA)
 	    {
 	      if(tr->partitionData[i].protModels == GTR || tr->partitionData[i].protModels == GTR_UNLINKED)
@@ -8473,6 +8486,16 @@ int main (int argc, char *argv[])
 		countOtherModel++;
 	    }
 	}
+
+      if(tr->saveMemory && countNonSev > 0)
+	{
+	  printf("\nError, you want to use the SEV-based memory saving technique for large gappy datasets with missing data.\n");
+	  printf("However, this is only implelemented for DNA and protein data partitions, one of your partitions is neither DNA\n");
+	  printf("nor protein data ... exiting to prevent bad things from happening ;-) \n\n");
+
+	  errorExit(-1);
+	}
+
 
       if(countGTR > 0 && countOtherModel > 0)
 	{

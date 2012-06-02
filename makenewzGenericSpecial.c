@@ -3635,10 +3635,12 @@ void makenewzIterative(tree *tr)
 		    }
 		  else
 		    {
+#ifdef __SIM_SSE3
 		      if(tr->saveMemory)
 			sumGAMMAPROT_GAPPED_SAVE(tipCase, tr->partitionData[model].sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector, tipX1, tipX2,
 						 width, x1_gapColumn, x2_gapColumn, x1_gap, x2_gap);
 		      else
+#endif
 			{
 			  if(tr->useGappedImplementation)
 			    sumGAMMAPROT_GAPPED(tipCase, tr->partitionData[model].sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector, tipX1, tipX2,
