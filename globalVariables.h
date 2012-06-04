@@ -78,7 +78,7 @@ char run_id[128] = "",
 
 char *protModels[NUM_PROT_MODELS] = {"DAYHOFF", "DCMUT", "JTT", "MTREV", "WAG", "RTREV", "CPREV", "VT", 
 				     "BLOSUM62", "MTMAM", "LG", "MTART", "MTZOA", "PMB", "HIVB", "HIVW", 
-				     "JTTDCMUT", "FLU", "PROT_FILE", "GTR_UNLINKED", "GTR"};
+				     "JTTDCMUT", "FLU", "DUMMY", "DUMMY2", "PROT_FILE", "GTR_UNLINKED", "GTR"};
 
 const char binaryStateNames[2]   = {'0', '1'};
 const char dnaStateNames[4]      = {'A', 'C', 'G', 'T'};

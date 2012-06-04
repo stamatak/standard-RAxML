@@ -3639,7 +3639,7 @@ static void printREADME(void)
   printf("                                                    heterogeneity (alpha parameter will be estimated)\n");  
   printf("                \"-m PROTGAMMAImatrixName[F]\"      : Same as PROTGAMMAmatrixName[F], but with estimate of proportion of invariable sites \n");
   printf("\n");
-  printf("                Available AA substitution models: DAYHOFF, DCMUT, JTT, MTREV, WAG, RTREV, CPREV, VT, BLOSUM62, MTMAM, LG, MTART, MTZOA, PMB, HIVB, HIVW, JTTDCMUT, FLU, GTR\n");
+  printf("                Available AA substitution models: DAYHOFF, DCMUT, JTT, MTREV, WAG, RTREV, CPREV, VT, BLOSUM62, MTMAM, LG, MTART, MTZOA, PMB, HIVB, HIVW, JTTDCMUT, FLU, DUMMY, DUMMY2, GTR_UNLINKED, GTR\n");
   printf("                With the optional \"F\" appendix you can specify if you want to use empirical base frequencies\n");
   printf("                Please note that for mixed models you can in addition specify the per-gene AA model in\n");
   printf("                the mixed model file (see manual for details). Also note that if you estimate AA GTR parameters on a partitioned\n");
@@ -8500,7 +8500,7 @@ int main (int argc, char *argv[])
       if(countGTR > 0 && countOtherModel > 0)
 	{
 	  printf("Error, it is only allowed to conduct partitioned AA analyses\n");
-	  printf("with a GTR model of AA substitution, if all AA partitions are assigned\n");
+	  printf("with a GTR model of AA substitution, if not all AA partitions are assigned\n");
 	  printf("the GTR or GTR_UNLINKED model.\n\n");
 	  
 	  printf("The following partitions do not use GTR:\n");

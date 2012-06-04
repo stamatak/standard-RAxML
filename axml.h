@@ -212,11 +212,13 @@
 #define HIVW         15
 #define JTTDCMUT     16
 #define FLU          17 
-#define PROT_FILE    18
-#define GTR_UNLINKED 19
-#define GTR          20  /* GTR always needs to be the last one */
+#define DUMMY        18
+#define DUMMY2       19
+#define PROT_FILE    20
+#define GTR_UNLINKED 21
+#define GTR          22  /* GTR always needs to be the last one */
 
-#define NUM_PROT_MODELS 21
+#define NUM_PROT_MODELS 23
 
 
 /* bipartition stuff */
