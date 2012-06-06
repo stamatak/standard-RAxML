@@ -159,7 +159,7 @@ static inline void computeVectorGTRCATPROT(double *lVector, int *eVector, double
 	for(l = 0; l < 20; l+=2)
 	  {
 	    __m128d ex3v = _mm_mul_pd(_mm_load_pd(&x3[l]),twoto);
-	    _mm_store_pd(&x3[l],_mm_mul_pd(ex3v, twoto));	
+	    _mm_store_pd(&x3[l], ex3v);	
 	  }
  	
 	/*
