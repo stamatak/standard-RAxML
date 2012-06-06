@@ -104,8 +104,6 @@ void *malloc_aligned(size_t size)
      a 16-byte aligned pointer
   */
 
-  assert(align == BYTE_ALIGNMENT);
-
   ptr = malloc(size);
   
   if(ptr == (void*)NULL) 
