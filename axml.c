@@ -6219,10 +6219,11 @@ static void allocNodex(tree *tr, int tid, int n)
       
       /* always multiply by 4 due to frequent switching between CAT and GAMMA in standard RAxML */
 
-      tr->partitionData[model].gapColumn = (double *)malloc_aligned(((size_t)tr->innerNodes) *
-								      ((size_t)(4) * 
-								      ((size_t)(tr->partitionData[model].states)) *
-								      sizeof(double));		             
+      tr->partitionData[model].gapColumn = (double *)malloc_aligned(
+								    ((size_t)(tr->innerNodes)) *
+								    ((size_t)(4)) * 
+								    ((size_t)(tr->partitionData[model].states)) *
+								    sizeof(double));		             
       for(i = 0; i < tr->innerNodes; i++)
 	{
 	  tr->partitionData[model].xVector[i]   = (double*)NULL;     
