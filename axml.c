@@ -3424,6 +3424,8 @@ static void printMinusFUsage(void)
 
   printf("              \"-f t\": do randomized tree searches on one fixed starting tree\n");
 
+  printf("              \"-f T\": do final thorough optimization of ML tree from rapid bootstrap search in stand-alone mode\n");
+
   printf("              \"-f u\": execute morphological weight calibration using maximum likelihood, this will return a weight vector.\n");
   printf("                      you need to provide a morphological alignment and a reference tree via \"-t\" \n");    
 
@@ -3461,7 +3463,7 @@ static void printREADME(void)
   printf("      [-b bootstrapRandomNumberSeed] [-B wcCriterionThreshold]\n");
   printf("      [-c numberOfCategories] [-C] [-d] [-D]\n");
   printf("      [-e likelihoodEpsilon] [-E excludeFileName]\n");
-  printf("      [-f a|A|b|c|d|e|E|F|g|h|i|I|j|J|m|n|o|p|q|r|s|S|t|u|v|w|x|y] [-F]\n");
+  printf("      [-f a|A|b|c|d|e|E|F|g|h|i|I|j|J|m|n|o|p|q|r|s|S|t|T|u|v|w|x|y] [-F]\n");
   printf("      [-g groupingFileName] [-G placementThreshold] [-h]\n");
   printf("      [-i initialRearrangementSetting] [-I autoFC|autoMR|autoMRE|autoMRE_IGN]\n");
   printf("      [-j] [-J MR|MR_DROP|MRE|STRICT|STRICT_DROP] [-k] [-K] [-M]\n");
@@ -4295,6 +4297,9 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	    tr->doCutoff = TRUE;
 	    adef->permuteTreeoptimize = TRUE;
 	    break;
+	  case 'T':
+	    adef->mode = THOROUGH_OPTIMIZATION;
+	    break;
 	  case 'u':
 	    adef->mode = MORPH_CALIBRATOR;
 	    tr->useFastScaling = FALSE;
@@ -5046,6 +5051,9 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
 	  break;
 	case  QUARTET_CALCULATION:
 	  printBoth(infoFile, "\nRAxML quartet computation\n\n");
+	  break;
+	case THOROUGH_OPTIMIZATION:
+	  printBoth(infoFile, "\nRAxML thorough tree optimization\n\n");
 	  break;
 	default:
 	  assert(0);
@@ -5998,6 +6006,9 @@ static void finalizeInfoFile(tree *tr, analdef *adef)
 	  break;
 	case QUARTET_CALCULATION:
 	  printBothOpen("\n\nTime for quartet computation: %f\n\n", t);
+	  break;
+	case THOROUGH_OPTIMIZATION:
+	  printBothOpen("\n\nTime for thorough tree optimization: %f\n\n", t);
 	  break;
 	default:
 	  assert(0);
@@ -8395,7 +8406,7 @@ static double quartetLikelihood(tree *tr, nodeptr p1, nodeptr p2, nodeptr p3, no
   */
   
   evaluateGeneric(tr, q1->back->next->next);
-   
+  
   /* debugging code 
      
      l = tr->likelihood;
@@ -8493,6 +8504,45 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
   
 }
 
+static void thoroughTreeOptimization(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
+{
+  char 
+    bestTreeFileName[1024]; 
+
+  FILE 
+    *f;
+  
+  initModel(tr, rdta, cdta, adef);
+      
+  getStartingTree(tr, adef);  
+
+  modOpt(tr, adef, TRUE, adef->likelihoodEpsilon, FALSE);
+
+  Thorough = 1;
+  tr->doCutoff = FALSE;  
+	 
+  printBothOpen("\nStart likelihood: %f\n\n", tr->likelihood);
+
+  treeOptimizeThorough(tr, 1, 10);
+  evaluateGenericInitrav(tr, tr->start);
+  
+  modOpt(tr, adef, TRUE, adef->likelihoodEpsilon, FALSE);
+
+  printBothOpen("End likelihood: %f\n\n", tr->likelihood);
+
+  printModelParams(tr, adef);    
+  
+  strcpy(bestTreeFileName, workdir); 
+  strcat(bestTreeFileName, "RAxML_bestTree.");
+  strcat(bestTreeFileName,         run_id);
+
+  Tree2String(tr->tree_string, tr, tr->start->back, TRUE, TRUE, FALSE, FALSE, TRUE, adef, SUMMARIZE_LH, FALSE, FALSE);
+  f = myfopen(bestTreeFileName, "wb");
+  fprintf(f, "%s", tr->tree_string);
+  fclose(f);
+
+  printBothOpen("Best-scoring ML tree written to: %s\n\n", bestTreeFileName);
+}
 
 int main (int argc, char *argv[])
 {
@@ -8788,10 +8838,11 @@ int main (int argc, char *argv[])
       
       computeAncestralStates(tr, tr->likelihood, adef);
       break;
-    case  QUARTET_CALCULATION:
-                                             	                  
-      
+    case  QUARTET_CALCULATION:                                             	                        
       computeQuartets(tr, adef, rdta, cdta);
+      break;
+    case THOROUGH_OPTIMIZATION:
+      thoroughTreeOptimization(tr, adef, rdta, cdta);
       break;
     case CALC_BIPARTITIONS:      
       calcBipartitions(tr, adef, tree_file, bootStrapFile);

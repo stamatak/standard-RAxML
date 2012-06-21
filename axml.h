@@ -183,6 +183,7 @@
 #define  CLASSIFY_MP                29
 #define  ANCESTRAL_STATES           30
 #define  QUARTET_CALCULATION        31
+#define  THOROUGH_OPTIMIZATION      32
 
 #define M_GTRCAT         1
 #define M_GTRGAMMA       2
