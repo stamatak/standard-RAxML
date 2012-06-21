@@ -3412,6 +3412,8 @@ static void printMinusFUsage(void)
 
   printf("              \"-f p\": perform pure stepwise MP addition of new sequences to an incomplete starting tree and exit\n");
 
+  printf("              \"-f q\": fast quartet calculator\n");
+
   printf("              \"-f r\": compute pairwise Robinson-Foulds (RF) distances between all pairs of trees in a tree file passed via \"-z\" \n");
   printf("                      if the trees have node labales represented as integer support values the program will also compute two flavors of\n");
   printf("                      the weighted Robinson-Foulds (WRF) distance\n");
@@ -3459,7 +3461,7 @@ static void printREADME(void)
   printf("      [-b bootstrapRandomNumberSeed] [-B wcCriterionThreshold]\n");
   printf("      [-c numberOfCategories] [-C] [-d] [-D]\n");
   printf("      [-e likelihoodEpsilon] [-E excludeFileName]\n");
-  printf("      [-f a|A|b|c|d|e|E|F|g|h|i|I|j|J|m|n|o|p|r|s|S|t|u|v|w|x|y] [-F]\n");
+  printf("      [-f a|A|b|c|d|e|E|F|g|h|i|I|j|J|m|n|o|p|q|r|s|S|t|u|v|w|x|y] [-F]\n");
   printf("      [-g groupingFileName] [-G placementThreshold] [-h]\n");
   printf("      [-i initialRearrangementSetting] [-I autoFC|autoMR|autoMRE|autoMRE_IGN]\n");
   printf("      [-j] [-J MR|MR_DROP|MRE|STRICT|STRICT_DROP] [-k] [-K] [-M]\n");
@@ -4270,6 +4272,9 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	    adef->mode = BIG_RAPID_MODE;
 	    tr->doCutoff = FALSE;
 	    break;
+	  case 'q':
+	    adef->mode = QUARTET_CALCULATION;
+	    break;
 	  case 'p':
 	    adef->mode =  PARSIMONY_ADDITION;
 	    break;	 
@@ -5038,6 +5043,9 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
 
 	case ANCESTRAL_STATES:
 	  printBoth(infoFile, "\nRAxML marginal ancestral state computation\n\n");
+	  break;
+	case  QUARTET_CALCULATION:
+	  printBoth(infoFile, "\nRAxML quartet computation\n\n");
 	  break;
 	default:
 	  assert(0);
@@ -5987,6 +5995,9 @@ static void finalizeInfoFile(tree *tr, analdef *adef)
 	  break;
 	case ANCESTRAL_STATES:
 	  printBothOpen("\n\nTime for marginal ancestral state computation: %f\n\n", t);
+	  break;
+	case QUARTET_CALCULATION:
+	  printBothOpen("\n\nTime for quartet computation: %f\n\n", t);
 	  break;
 	default:
 	  assert(0);
@@ -8334,7 +8345,153 @@ unsigned int precomputed16_bitcount (unsigned int n)
         +  bits_in_16bits [(n >> 16) & 0xffffu] ;
 }
 
+/* function to compute the likelihood on quartets */
 
+
+static double quartetLikelihood(tree *tr, nodeptr p1, nodeptr p2, nodeptr p3, nodeptr p4, nodeptr q1, nodeptr q2)
+{
+  /* 
+     build a quartet tree, where q1 and q2 are the inner nodes and p1, p2, p3, p4
+     are the tips of the quartet where the sequence data is located.
+
+     initially set all branch lengths to the default value.
+  */
+
+  /* 
+     for the tree and node data structure used, please see one of the last chapter's of Joe 
+     Felsensteins book. 
+  */
+
+  hookupDefault(q1, q2, tr->numBranches);
+  
+  hookupDefault(q1->next,       p1, tr->numBranches);
+  hookupDefault(q1->next->next, p2, tr->numBranches);
+  
+  hookupDefault(q2->next,       p3, tr->numBranches);
+  hookupDefault(q2->next->next, p4, tr->numBranches);
+  
+  /* now compute the likelihood vectors at the two inner nodes of the tree,
+     here the virtual root is located between the two inner nodes q1 and q2.
+  */
+
+  newviewGeneric(tr, q1);
+  newviewGeneric(tr, q2);
+  
+  /* call a function that is also used for NNIs that iteratively optimizes all 
+     5 branch lengths in the tree.
+
+     Note that 16 is an important tuning parameter, this integer value determines 
+     how many times we visit all branches until we give up further optimizing the branch length 
+     configuration.
+  */
+
+  nniSmooth(tr, q1, 16);
+
+  /* now compute the log likelihood of the tree for the virtual root located between inner nodes q1 and q2 */
+  
+  /* debugging code 
+     {
+    double l;
+  */
+  
+  evaluateGeneric(tr, q1->back->next->next);
+   
+  /* debugging code 
+     
+     l = tr->likelihood;
+
+     newviewGeneric(tr, q1);
+     newviewGeneric(tr, q2);
+     evaluateGeneric(tr, q1);
+     
+   
+     assert(ABS(l - tr->likelihood) < 0.00001);
+     }
+  */
+
+  return (tr->likelihood);
+}
+
+static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
+{
+  /* some indices for generating quartets in an arbitrary way */
+
+  int
+    quartetCounter = 0,    
+    t1, t2, t3, t4;
+
+  /* use two inner nodes for building quartet trees */
+
+  nodeptr 	
+    q1 = tr->nodep[tr->mxtips + 1],
+    q2 = tr->nodep[tr->mxtips + 2];
+
+  /* initialize model parameters */
+
+  initModel(tr, rdta, cdta, adef);
+      
+  /* get a starting tree: either reads in a tree or computes a randomized stepwise addition parsimony tree */
+
+  getStartingTree(tr, adef);
+  
+  /* optimize model parameters on that comprehensive tree that can subsequently be used for qyartet building */
+
+  modOpt(tr, adef, TRUE, adef->likelihoodEpsilon, FALSE);
+
+  /* do a loop to generate some quartets to test.
+     note that tip nodes/sequences in RAxML are indexed from 1,...,n
+     and not from 0,...,n-1 as one might expect 
+     
+     tr->mxtips is the maximum number of tips in the alignment/tree
+  */
+
+  for(t1 = 1; t1 <= tr->mxtips - 3; t1++)
+    for(t2 = t1 + 1; t2 <= tr->mxtips - 2; t2++)
+      for(t3 = t2 + 1; t3 <= tr->mxtips - 1; t3++)
+	for(t4 = t3 + 1; t4 <= tr->mxtips; t4++)
+	  {
+	    /* set the tip nodes to different sequences 
+	       with the tip indices t1, t2, t3, t4 */
+	       
+
+	    nodeptr 
+	      p1 = tr->nodep[t1],
+	      p2 = tr->nodep[t2],
+	      p3 = tr->nodep[t3], 
+	      p4 = tr->nodep[t4];
+
+	    double 
+	      l;
+
+	    /* first quartet */	    
+	    
+	    /* compute the likelihood of tree ((p1, p2), (p3, p4)) */
+
+	    l = quartetLikelihood(tr, p1, p2, p3, p4, q1, q2);
+
+	    printf("quartet %d (1): %f\n", quartetCounter, l);
+
+	    /* second quartet */	    
+	    
+	    /* compute the likelihood of tree ((p1, p3), (p2, p4)) */
+
+	    l = quartetLikelihood(tr, p1, p3, p2, p4, q1, q2);
+
+	    printf("quartet %d (2): %f\n", quartetCounter, l);
+
+	    /* third quartet */	    
+	    
+	    /* compute the likelihood of tree ((p1, p4), (p2, p3)) */
+	    
+	    l = quartetLikelihood(tr, p1, p4, p2, p4, q1, q2);
+
+	    printf("quartet %d (3): %f\n", quartetCounter, l);
+	    
+	    quartetCounter++;
+	  }
+
+  
+}
 
 
 int main (int argc, char *argv[])
@@ -8630,6 +8787,11 @@ int main (int argc, char *argv[])
       evaluateGenericInitrav(tr, tr->start);                                       	                  
       
       computeAncestralStates(tr, tr->likelihood, adef);
+      break;
+    case  QUARTET_CALCULATION:
+                                             	                  
+      
+      computeQuartets(tr, adef, rdta, cdta);
       break;
     case CALC_BIPARTITIONS:      
       calcBipartitions(tr, adef, tree_file, bootStrapFile);

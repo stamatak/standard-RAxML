@@ -182,6 +182,7 @@
 #define  SH_LIKE_SUPPORTS           28
 #define  CLASSIFY_MP                29
 #define  ANCESTRAL_STATES           30
+#define  QUARTET_CALCULATION        31
 
 #define M_GTRCAT         1
 #define M_GTRGAMMA       2
@@ -1303,7 +1304,7 @@ extern void testGapped(tree *tr);
 extern boolean issubset(unsigned int* bipA, unsigned int* bipB, unsigned int vectorLen);
 extern boolean compatible(entry* e1, entry* e2, unsigned int bvlen);
 
-
+extern void nniSmooth(tree *tr, nodeptr p, int maxtimes);
 
 extern int *permutationSH(tree *tr, int nBootstrap, long _randomSeed);
 

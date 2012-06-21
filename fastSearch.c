@@ -680,7 +680,7 @@ static boolean allSmoothed(tree *tr)
   return result;
 }
 
-static void nniSmooth(tree *tr, nodeptr p, int maxtimes)
+void nniSmooth(tree *tr, nodeptr p, int maxtimes)
 {
   int
     i;
