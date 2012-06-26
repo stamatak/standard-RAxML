@@ -6005,7 +6005,7 @@ static void finalizeInfoFile(tree *tr, analdef *adef)
 	  printBothOpen("\n\nTime for marginal ancestral state computation: %f\n\n", t);
 	  break;
 	case QUARTET_CALCULATION:
-	  printBothOpen("\n\nTime for quartet computation: %f\n\n", t);
+	  printBothOpen("\n\nOverall Time for quartet computation: %f\n\n", t);
 	  break;
 	case THOROUGH_OPTIMIZATION:
 	  printBothOpen("\n\nTime for thorough tree optimization: %f\n\n", t);
@@ -8423,19 +8423,83 @@ static double quartetLikelihood(tree *tr, nodeptr p1, nodeptr p2, nodeptr p3, no
   return (tr->likelihood);
 }
 
+static void computeAllThreeQuartets(tree *tr, nodeptr q1, nodeptr q2, int t1, int t2, int t3, int t4, FILE *f)
+{
+  /* set the tip nodes to different sequences 
+     with the tip indices t1, t2, t3, t4 */
+	       
+  nodeptr 
+    p1 = tr->nodep[t1],
+    p2 = tr->nodep[t2],
+    p3 = tr->nodep[t3], 
+    p4 = tr->nodep[t4];
+  
+  double 
+    l;
+  
+  /* first quartet */	    
+  
+  /* compute the likelihood of tree ((p1, p2), (p3, p4)) */
+  
+  l = quartetLikelihood(tr, p1, p2, p3, p4, q1, q2);
+  
+  fprintf(f, "%d %d | %d %d: %f\n", p1->number, p2->number, p3->number, p4->number, l);
+  
+  /* second quartet */	    
+  
+  /* compute the likelihood of tree ((p1, p3), (p2, p4)) */
+  
+  l = quartetLikelihood(tr, p1, p3, p2, p4, q1, q2);
+  
+  fprintf(f, "%d %d | %d %d: %f\n", p1->number, p3->number, p2->number, p4->number, l);
+  
+  /* third quartet */	    
+  
+  /* compute the likelihood of tree ((p1, p4), (p2, p3)) */
+  
+  l = quartetLikelihood(tr, p1, p4, p2, p3, q1, q2);
+  
+  fprintf(f, "%d %d | %d %d: %f\n", p1->number, p4->number, p2->number, p3->number, l);	    	   
+}
+
 static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
 {
   /* some indices for generating quartets in an arbitrary way */
 
   int
-    quartetCounter = 0,    
-    t1, t2, t3, t4;
+    i,
+    t1, 
+    t2, 
+    t3, 
+    t4;
+
+  double
+    fraction,
+    t;
+
+  unsigned long int
+    randomQuartets = (unsigned long int)(adef->multipleRuns),
+    quartetCounter = 0,
+    numberOfQuartets = ((unsigned long int)tr->mxtips * ((unsigned long int)tr->mxtips - 1) * ((unsigned long int)tr->mxtips - 2) * ((unsigned long int)tr->mxtips - 3)) / 24;
 
   /* use two inner nodes for building quartet trees */
 
   nodeptr 	
     q1 = tr->nodep[tr->mxtips + 1],
     q2 = tr->nodep[tr->mxtips + 2];
+
+
+  char 
+    quartetFileName[1024];
+
+  FILE 
+    *f;
+
+  strcpy(quartetFileName,         workdir);
+  strcat(quartetFileName,         "RAxML_quartets.");
+  strcat(quartetFileName,         run_id);
+  
+  f = myfopen(quartetFileName, "w");
 
   /* initialize model parameters */
 
@@ -8449,6 +8513,34 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
 
   modOpt(tr, adef, TRUE, adef->likelihoodEpsilon, FALSE);
 
+  printBothOpen("Time for parsing input tree or building parsimony tree and optimizing model parameters: %f\n\n", gettime() - masterTime); 
+
+  if(randomQuartets > numberOfQuartets)
+    randomQuartets = 1;
+
+  if(randomQuartets == 1)
+    printBothOpen("There are %u quartet sets for which RAxML will evaluate all %u quartet trees\n", numberOfQuartets, numberOfQuartets * 3);
+  else
+    {
+      /* cast from unsigned long int to double may be dangeruous for very large integer values */
+
+      fraction = (double)randomQuartets / (double)numberOfQuartets;
+
+      printBothOpen("There are %u quartet sets for which RAxML will randomly sub-sambple %u sets (%f\%), i.e., compute %u quartet trees\n", numberOfQuartets, randomQuartets, 100 * fraction, randomQuartets * 3);
+    }
+
+  fprintf(f, "Taxon names and indices:\n\n");
+
+  for(i = 1; i <= tr->mxtips; i++)
+    {
+      fprintf(f, "%s %d\n", tr->nameList[i], i);
+      assert(tr->nodep[i]->number == i);
+    }
+
+  fprintf(f, "\n\n");
+
+  t = gettime();
+  
   /* do a loop to generate some quartets to test.
      note that tip nodes/sequences in RAxML are indexed from 1,...,n
      and not from 0,...,n-1 as one might expect 
@@ -8456,52 +8548,50 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
      tr->mxtips is the maximum number of tips in the alignment/tree
   */
 
-  for(t1 = 1; t1 <= tr->mxtips - 3; t1++)
-    for(t2 = t1 + 1; t2 <= tr->mxtips - 2; t2++)
-      for(t3 = t2 + 1; t3 <= tr->mxtips - 1; t3++)
-	for(t4 = t3 + 1; t4 <= tr->mxtips; t4++)
-	  {
-	    /* set the tip nodes to different sequences 
-	       with the tip indices t1, t2, t3, t4 */
-	       
+  if(randomQuartets == 1)
+    {
+      for(t1 = 1; t1 <= tr->mxtips; t1++)
+	for(t2 = t1 + 1; t2 <= tr->mxtips; t2++)
+	  for(t3 = t2 + 1; t3 <= tr->mxtips; t3++)
+	    for(t4 = t3 + 1; t4 <= tr->mxtips; t4++)
+	      {
+		computeAllThreeQuartets(tr, q1, q2, t1, t2, t3, t4, f);
+		quartetCounter++;
+	      }
+      
+      assert(quartetCounter == numberOfQuartets);
+    }
+  else
+    {
+      for(t1 = 1; t1 <= tr->mxtips; t1++)
+	for(t2 = t1 + 1; t2 <= tr->mxtips; t2++)
+	  for(t3 = t2 + 1; t3 <= tr->mxtips; t3++)
+	    for(t4 = t3 + 1; t4 <= tr->mxtips; t4++)
+	      {
+		double
+		  r = randum(&adef->parsimonySeed);
 
-	    nodeptr 
-	      p1 = tr->nodep[t1],
-	      p2 = tr->nodep[t2],
-	      p3 = tr->nodep[t3], 
-	      p4 = tr->nodep[t4];
+		if(r < fraction)
+		  {
+		    computeAllThreeQuartets(tr, q1, q2, t1, t2, t3, t4, f);
+		    quartetCounter++;
+		  }
 
-	    double 
-	      l;
+		if(quartetCounter == randomQuartets)
+		  goto DONE;
+	      }
+      
+    DONE:
+      assert(quartetCounter == randomQuartets);
+    }
 
-	    /* first quartet */	    
-	    
-	    /* compute the likelihood of tree ((p1, p2), (p3, p4)) */
+  t = gettime() - t;
 
-	    l = quartetLikelihood(tr, p1, p2, p3, p4, q1, q2);
-
-	    printf("quartet %d (1): %f\n", quartetCounter, l);
-
-	    /* second quartet */	    
-	    
-	    /* compute the likelihood of tree ((p1, p3), (p2, p4)) */
-
-	    l = quartetLikelihood(tr, p1, p3, p2, p4, q1, q2);
-
-	    printf("quartet %d (2): %f\n", quartetCounter, l);
-
-	    /* third quartet */	    
-	    
-	    /* compute the likelihood of tree ((p1, p4), (p2, p3)) */
-	    
-	    l = quartetLikelihood(tr, p1, p4, p2, p4, q1, q2);
-
-	    printf("quartet %d (3): %f\n", quartetCounter, l);
-	    
-	    quartetCounter++;
-	  }
-
+  printBothOpen("\nPure quartet computation time: %f secs\n", t);
   
+  printBothOpen("\nAll quartets and corresponding likelihoods written to file %s\n", quartetFileName);
+
+  fclose(f);
 }
 
 static void thoroughTreeOptimization(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
