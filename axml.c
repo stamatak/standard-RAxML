@@ -726,6 +726,9 @@ static boolean setupTree (tree *tr, analdef *adef)
     k,
     tips,
     inter; 
+  
+  tr->brLenScaler = 1.0;
+  tr->storedBrLens = (double*)NULL;
 
   if(!adef->readTaxaOnly)
     {
@@ -3372,6 +3375,10 @@ static void printMinusFUsage(void)
   printf("              \"-f b\": draw bipartition information on a tree provided with \"-t\" based on multiple trees\n");
   printf("                      (e.g., from a bootstrap) in a file specifed by \"-z\"\n");
 
+  printf("              \"-f B\": optimize br-len scaler and other model parameters (GTR, alpha, etc.) on a tree provided with \"-t\".\n");
+  printf("                      The tree needs to contain branch lengths. The branch lengths will not be optimized, just scaled by a single common value.\n");
+
+
   printf("              \"-f c\": check if the alignment can be properly read by RAxML\n");
 
   printf("              \"-f d\": new rapid hill-climbing \n");
@@ -3463,7 +3470,7 @@ static void printREADME(void)
   printf("      [-b bootstrapRandomNumberSeed] [-B wcCriterionThreshold]\n");
   printf("      [-c numberOfCategories] [-C] [-d] [-D]\n");
   printf("      [-e likelihoodEpsilon] [-E excludeFileName]\n");
-  printf("      [-f a|A|b|c|d|e|E|F|g|h|i|I|j|J|m|n|o|p|q|r|s|S|t|T|u|v|w|x|y] [-F]\n");
+  printf("      [-f a|A|b|B|c|d|e|E|F|g|h|i|I|j|J|m|n|o|p|q|r|s|S|t|T|u|v|w|x|y] [-F]\n");
   printf("      [-g groupingFileName] [-G placementThreshold] [-h]\n");
   printf("      [-i initialRearrangementSetting] [-I autoFC|autoMR|autoMRE|autoMRE_IGN]\n");
   printf("      [-j] [-J MR|MR_DROP|MRE|STRICT|STRICT_DROP] [-k] [-K] [-M]\n");
@@ -4220,6 +4227,9 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	    adef->readTaxaOnly = TRUE;
 	    adef->mode = CALC_BIPARTITIONS;
 	    break;
+	  case 'B':
+	    adef->mode = OPTIMIZE_BR_LEN_SCALER;
+	    break;
 	  case 'c':
 	    adef->mode = CHECK_ALIGNMENT;
 	    break;
@@ -4696,7 +4706,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
       errorExit(-1);
     }
 
-  if((adef->mode == TREE_EVALUATION) && (!adef->restart))
+  if((adef->mode == TREE_EVALUATION || adef->mode == OPTIMIZE_BR_LEN_SCALER) && (!adef->restart))
     {
       if(processID == 0)
 	printf("\n Error: please specify a treefile for the tree you want to evaluate with -t\n");
@@ -4716,6 +4726,13 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
     {
       if(processID == 0)
 	printf("Tree Evaluation mode (-f e) not implemented for the MPI-Version\n");
+      errorExit(-1);
+    }
+  
+  if(adef->mode == OPTIMIZE_BR_LEN_SCALER)
+    {
+      if(processID == 0)
+	printf("Branch length scaler optimization mode (-f B) not implemented for the MPI-Version\n");
       errorExit(-1);
     }
 
@@ -4738,7 +4755,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 
 #endif
 
-   if((adef->mode == TREE_EVALUATION) && (isCat(adef)))
+   if((adef->mode == TREE_EVALUATION || adef->mode == OPTIMIZE_BR_LEN_SCALER) && (isCat(adef)))
      {
        if(processID == 0)
 	 {
@@ -5054,6 +5071,9 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
 	  break;
 	case THOROUGH_OPTIMIZATION:
 	  printBoth(infoFile, "\nRAxML thorough tree optimization\n\n");
+	  break;
+	case OPTIMIZE_BR_LEN_SCALER :
+	  printBoth(infoFile, "\nRAxML Branch length scaler and other model parameter optimization up to an accuracy of %f log likelihood units\n\n", adef->likelihoodEpsilon);
 	  break;
 	default:
 	  assert(0);
@@ -6010,6 +6030,9 @@ static void finalizeInfoFile(tree *tr, analdef *adef)
 	case THOROUGH_OPTIMIZATION:
 	  printBothOpen("\n\nTime for thorough tree optimization: %f\n\n", t);
 	  break;
+	case OPTIMIZE_BR_LEN_SCALER:
+	  printBothOpen("\n\nTime for branch length scaler and remaining model parameters optimization: %f\n\n", t);
+	  break;
 	default:
 	  assert(0);
 	}
@@ -6290,7 +6313,7 @@ inline static void sendTraversalInfo(tree *localTree, tree *tr)
      fine-grained MPI BlueGene version */
 
   if(1)
-    {
+    {     
       localTree->td[0] = tr->td[0];
     }
   else
@@ -7192,6 +7215,26 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 	    assert(localCount == (localTree->partitionData[model].width * (int)blockRequirements));
 	  }	
       }      
+      break;
+    case THREAD_OPT_SCALER:
+      if(tid > 0)	
+	memcpy(localTree->executeModel, tr->executeModel, localTree->NumberOfModels * sizeof(boolean));	 
+	
+      result = evaluateIterative(localTree, FALSE);
+
+      if(localTree->NumberOfModels > 1)
+	{
+	  for(model = 0; model < localTree->NumberOfModels; model++)
+	    reductionBuffer[tid *  localTree->NumberOfModels + model] = localTree->perPartitionLH[model];
+	}
+      else
+	reductionBuffer[tid] = result;
+
+      if(tid > 0)
+	{
+	  for(model = 0; model < localTree->NumberOfModels; model++)
+	    localTree->executeModel[model] = TRUE;
+	}
       break;
     default:
       printf("Job %d\n", currentJob);
@@ -8974,6 +9017,16 @@ int main (int argc, char *argv[])
       getStartingTree(tr, adef);
       modOpt(tr, adef, TRUE, adef->likelihoodEpsilon, FALSE);
       computePlacementBias(tr, adef);
+      break;
+    case OPTIMIZE_BR_LEN_SCALER:
+      initModel(tr, rdta, cdta, adef);
+      
+      getStartingTree(tr, adef);      
+            	 	 
+      modOpt(tr, adef, FALSE, adef->likelihoodEpsilon, FALSE);	  
+      
+      printBothOpen("Likelihood: %f\n", tr->likelihood);
+
       break;
     default:
       assert(0);

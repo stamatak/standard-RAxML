@@ -184,6 +184,7 @@
 #define  ANCESTRAL_STATES           30
 #define  QUARTET_CALCULATION        31
 #define  THOROUGH_OPTIMIZATION      32
+#define  OPTIMIZE_BR_LEN_SCALER     33
 
 #define M_GTRCAT         1
 #define M_GTRGAMMA       2
@@ -695,6 +696,9 @@ typedef  struct  {
   int              consensusType;
   double           wcThreshold;
 
+  double           brLenScaler;
+  double          *storedBrLens;
+
   int              multiGene;
 
   nodeptr          startVector[NUM_BRANCHES];
@@ -1112,6 +1116,7 @@ extern char *Tree2StringClassify(char *treestr, tree *tr, int *inserts,
 extern void doBootstrap ( tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta );
 extern void doInference ( tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta );
 extern void resetBranches ( tree *tr );
+extern void scaleBranches(tree *tr, boolean fromFile);
 extern void modOpt ( tree *tr, analdef *adef , boolean resetModel, double likelihoodEpsilon, boolean testGappedImplementation);
 
 
@@ -1388,6 +1393,7 @@ extern void testInsertThoroughIterative(tree *tr, int branchNumber);
 #define THREAD_MRE_COMPUTE                  40
 #define THREAD_NEWVIEW_ANCESTRAL            41
 #define THREAD_GATHER_ANCESTRAL             42
+#define THREAD_OPT_SCALER                   43
 
 /*
 

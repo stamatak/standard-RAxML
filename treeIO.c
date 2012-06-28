@@ -1189,7 +1189,12 @@ int treeReadLen (FILE *fp, tree *tr, boolean readBranches, boolean readNodeLabel
   while((ch = treeGetCh(fp)) != '(');
       
   if(!topologyOnly)
-    assert(readBranches == FALSE && readNodeLabels == FALSE);
+    {
+      if(adef->mode != OPTIMIZE_BR_LEN_SCALER)
+	assert(readBranches == FALSE && readNodeLabels == FALSE);
+      else
+	assert(readBranches == TRUE && readNodeLabels == FALSE);	
+    }
   
        
   if (! addElementLen(fp, tr, p, readBranches, readNodeLabels, &lcount))                 
@@ -1593,8 +1598,9 @@ void getStartingTree(tree *tr, analdef *adef)
                  		
       if(!adef->grouping)	
 	{
-	  if(adef->mode == ANCESTRAL_STATES)
+	  switch(adef->mode)
 	    {
+	    case ANCESTRAL_STATES:	    
 	      assert(!tr->saveMemory);
 
 	      tr->leftRootNode  = (nodeptr)NULL;
@@ -1603,18 +1609,19 @@ void getStartingTree(tree *tr, analdef *adef)
 	      treeReadLen(INFILE, tr, FALSE, FALSE, FALSE, adef, TRUE);
 
 	      assert(tr->leftRootNode && tr->rightRootNode);
-	    }
-	  else
-	    {
-	      if(adef->mode == CLASSIFY_MP)
-		treeReadLen(INFILE, tr, TRUE, FALSE, TRUE, adef, FALSE);
-	      else
-		{
-		  if(tr->saveMemory)				 
-		    treeReadLen(INFILE, tr, FALSE, FALSE, TRUE, adef, FALSE);	          	       
-		  else		   
-		    treeReadLen(INFILE, tr, FALSE, FALSE, FALSE, adef, FALSE);
-		}
+	      break;
+	    case CLASSIFY_MP:
+	      treeReadLen(INFILE, tr, TRUE, FALSE, TRUE, adef, FALSE);
+	      break;
+	    case OPTIMIZE_BR_LEN_SCALER:
+	      treeReadLen(INFILE, tr, TRUE, FALSE, FALSE, adef, TRUE);
+	      break;
+	    default:	     
+	      if(tr->saveMemory)				 
+		treeReadLen(INFILE, tr, FALSE, FALSE, TRUE, adef, FALSE);	          	       
+	      else		   
+		treeReadLen(INFILE, tr, FALSE, FALSE, FALSE, adef, FALSE);
+	      break;
 	    }
 	}
       else
@@ -1631,8 +1638,17 @@ void getStartingTree(tree *tr, analdef *adef)
 
       if(adef->mode != CLASSIFY_MP)
 	{
-	  evaluateGenericInitrav(tr, tr->start); 			
-	  treeEvaluate(tr, 1);
+	  if(adef->mode == OPTIMIZE_BR_LEN_SCALER)
+	    {
+	      assert(tr->numBranches == 1);
+	      scaleBranches(tr, TRUE);
+	      evaluateGenericInitrav(tr, tr->start); 				      
+	    }
+	  else
+	    {
+	      evaluateGenericInitrav(tr, tr->start); 
+	      treeEvaluate(tr, 1);
+	    }
 	}
                
       fclose(INFILE);
@@ -1641,7 +1657,8 @@ void getStartingTree(tree *tr, analdef *adef)
     { 
       assert(adef->mode != PARSIMONY_ADDITION &&
 	     adef->mode != MORPH_CALIBRATOR   &&
-	     adef->mode != ANCESTRAL_STATES);
+	     adef->mode != ANCESTRAL_STATES   &&
+	     adef->mode != OPTIMIZE_BR_LEN_SCALER);
 
       if(adef->randomStartingTree)	  
 	makeRandomTree(tr, adef);       	   	 	   	  
