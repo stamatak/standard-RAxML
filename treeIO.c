@@ -776,13 +776,15 @@ static boolean  treeFlushLabel (FILE *fp)
 
 
 
-static int treeFindTipByLabelString(char  *str, tree *tr)                    
+static int treeFindTipByLabelString(char  *str, tree *tr, boolean check)                    
 {
-  int lookup = lookupWord(str, tr->nameHash);
+  int 
+    lookup = lookupWord(str, tr->nameHash);
 
   if(lookup > 0)
     {
-      assert(! tr->nodep[lookup]->back);
+      if(check)
+	assert(! tr->nodep[lookup]->back);
       return lookup;
     }
   else
@@ -793,13 +795,13 @@ static int treeFindTipByLabelString(char  *str, tree *tr)
 }
 
 
-static int treeFindTipName(FILE *fp, tree *tr)
+int treeFindTipName(FILE *fp, tree *tr, boolean check)
 {
   char    str[nmlngth+2];
   int      n;
 
   if(treeGetLabel(fp, str, nmlngth+2))
-    n = treeFindTipByLabelString(str, tr);
+    n = treeFindTipByLabelString(str, tr, check);
   else
     n = 0;
    
@@ -960,7 +962,7 @@ static boolean addElementLen (FILE *fp, tree *tr, nodeptr p, boolean readBranchL
   else 
     {   
       ungetc(ch, fp);
-      if ((n = treeFindTipName(fp, tr)) <= 0)          return FALSE;
+      if ((n = treeFindTipName(fp, tr, TRUE)) <= 0)          return FALSE;
       q = tr->nodep[n];
       if (tr->start->number > n)  tr->start = q;
       (tr->ntips)++;
@@ -1432,7 +1434,7 @@ static boolean  addElementLenMULT (FILE *fp, tree *tr, nodeptr p, int partitionC
   else 
     {                             
       ungetc(ch, fp);
-      if ((n = treeFindTipName(fp, tr)) <= 0)          return FALSE;
+      if ((n = treeFindTipName(fp, tr, TRUE)) <= 0)          return FALSE;
       q = tr->nodep[n];      
       tr->constraintVector[q->number] = partitionCounter;
 

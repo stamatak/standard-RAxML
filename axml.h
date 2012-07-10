@@ -1016,6 +1016,7 @@ typedef  struct {
   boolean       leaveDropMode;
   int           slidingWindowSize;
   boolean       checkForUndeterminedSequences;
+  boolean       useQuartetGrouping;
 } analdef;
 
 
@@ -1191,7 +1192,7 @@ extern char *Tree2String ( char *treestr, tree *tr, nodeptr p, boolean printBran
 extern void printTreePerGene(tree *tr, analdef *adef, char *fileName, char *permission);
 
 
-
+extern int treeFindTipName(FILE *fp, tree *tr, boolean check);
 extern int treeReadLen (FILE *fp, tree *tr, boolean readBranches, boolean readNodeLabels, boolean topologyOnly, analdef *adef, boolean completeTree);
 extern boolean treeReadLenMULT ( FILE *fp, tree *tr, analdef *adef );
 

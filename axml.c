@@ -2849,6 +2849,7 @@ static void initAdef(analdef *adef)
   adef->leaveDropMode          = FALSE;
   adef->slidingWindowSize      = 100;
   adef->checkForUndeterminedSequences = TRUE;
+  adef->useQuartetGrouping = FALSE;
 }
 
 
@@ -3479,7 +3480,7 @@ static void printREADME(void)
   printf("      [-q multipleModelFileName] [-r binaryConstraintTree]\n");
   printf("      [-R binaryModelParamFile] [-S secondaryStructureFile] [-t userStartingTree]\n");
   printf("      [-T numberOfThreads] [-u] [-U] [-v] [-V] [-w outputDirectory] [-W slidingWindowSize]\n");
-  printf("      [-x rapidBootstrapRandomNumberSeed] [-X] [-y]\n");
+  printf("      [-x rapidBootstrapRandomNumberSeed] [-X] [-y] [-Y quartetGroupingFileName]\n");
   printf("      [-z multipleTreesFile] [-#|-N numberOfRuns|autoFC|autoMR|autoMRE|autoMRE_IGN]\n");
   printf("\n");
   printf("      -a      Specify a column weight file name to assign individual weights to each column of \n");
@@ -3742,6 +3743,11 @@ static void printREADME(void)
   printf("\n");
   printf("              DEFAULT: OFF\n");
   printf("\n"); 
+  printf("      -Y      Pass a quartet grouping file name defining four groups from which to draw quartets\n");
+  printf("              The file input format must contain 4 groups in the following form:\n");
+  printf("              (Chicken, Human, Loach), (Cow, Carp), (Mouse, Rat, Seal), (Whale, Frog);\n");
+  printf("              Only works in combination with -f q !\n");
+  printf("\n");
   printf("      -z      Specify the file name of a file containing multiple trees e.g. from a bootstrap\n");
   printf("              that shall be used to draw bipartition values onto a tree provided with \"-t\",\n");
   printf("              It can also be used to compute per site log likelihoods in combination with \"-f g\"\n");
@@ -3868,10 +3874,14 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 
 
   while(!bad_opt &&
-	((c = mygetopt(argc,argv,"R:T:E:N:B:L:P:S:A:G:H:I:J:K:W:l:x:z:g:r:e:a:b:c:f:i:m:t:w:s:n:o:q:#:p:vudyjhkMDFCQUXOV", &optind, &optarg))!=-1))
+	((c = mygetopt(argc,argv,"R:T:E:N:B:L:P:S:Y:A:G:H:I:J:K:W:l:x:z:g:r:e:a:b:c:f:i:m:t:w:s:n:o:q:#:p:vudyjhkMDFCQUXOV", &optind, &optarg))!=-1))
     {
     switch(c)
       {
+      case 'Y':
+	adef->useQuartetGrouping = TRUE;
+	strcpy(quartetGroupingFileName, optarg);
+	break;
       case 'V':
 	tr->noRateHet = TRUE;
 	break;
@@ -8399,7 +8409,121 @@ unsigned int precomputed16_bitcount (unsigned int n)
         +  bits_in_16bits [(n >> 16) & 0xffffu] ;
 }
 
-/* function to compute the likelihood on quartets */
+/* functions to compute likelihoods on quartets */
+
+
+/* a parser error function */
+
+static void parseError(int c)
+{
+  printf("Quartet grouping parser expecting symbol: %c\n", c);
+  assert(0);
+}
+
+/* parser for the taxon grouping format, one has to specify 4 groups in a newick-like 
+   format from which quartets (a substantially smaller number compared to ungrouped quartets) 
+   will be drawn */
+
+static void groupingParser(char *quartetGroupFileName, int *groups[4], int groupSize[4], tree *tr)
+{
+  FILE 
+    *f = myfopen(quartetGroupFileName, "r");
+  
+  int 
+    taxonCounter = 0,
+    n,
+    state = 0,
+    groupCounter = 0,
+    ch,
+    i;
+
+  for(i = 0; i < 4; i++)
+    {
+      groups[i] = (int*)malloc(sizeof(int) * (tr->mxtips + 1));
+      groupSize[i] = 0;
+    }
+  
+  while((ch = getc(f)) != EOF)
+    {
+      if(!whitechar(ch))
+	{
+	  switch(state)
+	    {
+	    case 0:
+	      if(ch != '(')
+		parseError('(');
+	      state = 1;
+	      break;
+	    case 1:
+	      ungetc(ch, f);
+	      n = treeFindTipName(f, tr, FALSE);  
+	      assert(n > 0 && n <= tr->mxtips);	     
+	      taxonCounter++;
+	      groups[groupCounter][groupSize[groupCounter]] = n;
+	      groupSize[groupCounter] = groupSize[groupCounter] + 1;	    
+	      state = 2;
+	      break;
+	    case 2:
+	      if(ch == ',')
+		state = 1;
+	      else
+		{
+		  if(ch == ')')
+		    {
+		      groupCounter++;
+		      state = 3;
+		    }
+		  else
+		    parseError('?');
+		}
+	      break;
+	    case 3:
+	      if(groupCounter == 4)
+		{
+		  if(ch == ';')
+		    state = 4;
+		  else
+		    parseError(';');
+		}
+	      else
+		{
+		  if(ch != ',')
+		    parseError(',');
+		  state = 0;
+		}
+	      break; 
+	    case 4:
+	      printf("Error: extra char after ; %c\n", ch);
+	      assert(0);
+	    default:
+	      assert(0);
+	    }
+	}
+    }
+
+  assert(state == 4);
+  assert(groupCounter == 4); 
+  assert(taxonCounter == tr->mxtips);
+
+  printBothOpen("Successfully parsed quartet groups\n\n");
+
+  /* print out the taxa that have been assigned to the 4 groups */
+
+  for(i = 0; i < 4; i++)
+    {
+      int 
+	j;
+      
+      printBothOpen("group %d has %d members\n", i, groupSize[i]);
+
+      for(j = 0; j < groupSize[i]; j++)
+	printBothOpen("%s\n", tr->nameList[groups[i][j]]);
+
+      printBothOpen("\n");
+    }
+
+  fclose(f);
+}
 
 
 static double quartetLikelihood(tree *tr, nodeptr p1, nodeptr p2, nodeptr p3, nodeptr p4, nodeptr q1, nodeptr q2)
@@ -8505,17 +8629,27 @@ static void computeAllThreeQuartets(tree *tr, nodeptr q1, nodeptr q2, int t1, in
   fprintf(f, "%d %d | %d %d: %f\n", p1->number, p4->number, p2->number, p3->number, l);	    	   
 }
 
+/* the three quartet options: all quartets, randomly sub-sample a certain number n of quartets, 
+   subsample all quartets from 4 pre-defined groups of quartets */
+
+#define ALL_QUARTETS 0
+#define RANDOM_QUARTETS 1
+#define GROUPED_QUARTETS 2
+
 static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
 {
   /* some indices for generating quartets in an arbitrary way */
 
   int
+    flavor = ALL_QUARTETS,
     i,
     t1, 
     t2, 
     t3, 
-    t4;
-
+    t4, 
+    *groups[4],
+    groupSize[4];
+  
   double
     fraction,
     t;
@@ -8531,17 +8665,21 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
     q1 = tr->nodep[tr->mxtips + 1],
     q2 = tr->nodep[tr->mxtips + 2];
 
-
   char 
     quartetFileName[1024];
 
   FILE 
     *f;
-
+    
+   
+  /* build output file name */
+    
   strcpy(quartetFileName,         workdir);
   strcat(quartetFileName,         "RAxML_quartets.");
   strcat(quartetFileName,         run_id);
   
+  /* open output file */
+
   f = myfopen(quartetFileName, "w");
 
   /* initialize model parameters */
@@ -8551,26 +8689,50 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
   /* get a starting tree: either reads in a tree or computes a randomized stepwise addition parsimony tree */
 
   getStartingTree(tr, adef);
-  
+   
   /* optimize model parameters on that comprehensive tree that can subsequently be used for qyartet building */
 
   modOpt(tr, adef, TRUE, adef->likelihoodEpsilon, FALSE);
 
   printBothOpen("Time for parsing input tree or building parsimony tree and optimizing model parameters: %f\n\n", gettime() - masterTime); 
 
-  if(randomQuartets > numberOfQuartets)
-    randomQuartets = 1;
+  /* figure out which flavor of quartets we want to compute */
 
-  if(randomQuartets == 1)
-    printBothOpen("There are %u quartet sets for which RAxML will evaluate all %u quartet trees\n", numberOfQuartets, numberOfQuartets * 3);
+  if(adef->useQuartetGrouping)
+    {
+      flavor = GROUPED_QUARTETS;
+      groupingParser(quartetGroupingFileName, groups, groupSize, tr);
+    }
   else
     {
-      /* cast from unsigned long int to double may be dangeruous for very large integer values */
-
-      fraction = (double)randomQuartets / (double)numberOfQuartets;
-
-      printBothOpen("There are %u quartet sets for which RAxML will randomly sub-sambple %u sets (%f\%), i.e., compute %u quartet trees\n", numberOfQuartets, randomQuartets, 100 * fraction, randomQuartets * 3);
+      if(randomQuartets > numberOfQuartets)
+	randomQuartets = 1;
+  
+      if(randomQuartets == 1)   
+	flavor = ALL_QUARTETS;
+      else
+	{      
+	  fraction = (double)randomQuartets / (double)numberOfQuartets;      
+	  flavor = RANDOM_QUARTETS;
+	}
     }
+
+  /* print some output on what we are doing*/
+
+  switch(flavor)
+    {
+    case ALL_QUARTETS:
+      printBothOpen("There are %u quartet sets for which RAxML will evaluate all %u quartet trees\n", numberOfQuartets, numberOfQuartets * 3);
+      break;
+    case RANDOM_QUARTETS:
+      printBothOpen("There are %u quartet sets for which RAxML will randomly sub-sambple %u sets (%f\%), i.e., compute %u quartet trees\n", numberOfQuartets, randomQuartets, 100 * fraction, randomQuartets * 3);
+      break;
+    case GROUPED_QUARTETS:           
+      printBothOpen("There are 4 quartet groups from which RAxML will evaluate all %u quartet trees\n", (unsigned int)groupSize[0] * (unsigned int)groupSize[1] * (unsigned int)groupSize[2] * (unsigned int)groupSize[3] * 3);
+      break;
+    }
+
+  /* print taxon name to taxon number correspondance table to output file */
 
   fprintf(f, "Taxon names and indices:\n\n");
 
@@ -8591,41 +8753,77 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
      tr->mxtips is the maximum number of tips in the alignment/tree
   */
 
-  if(randomQuartets == 1)
+  switch(flavor)
     {
-      for(t1 = 1; t1 <= tr->mxtips; t1++)
-	for(t2 = t1 + 1; t2 <= tr->mxtips; t2++)
-	  for(t3 = t2 + 1; t3 <= tr->mxtips; t3++)
-	    for(t4 = t3 + 1; t4 <= tr->mxtips; t4++)
-	      {
-		computeAllThreeQuartets(tr, q1, q2, t1, t2, t3, t4, f);
-		quartetCounter++;
-	      }
-      
-      assert(quartetCounter == numberOfQuartets);
-    }
-  else
-    {
-      for(t1 = 1; t1 <= tr->mxtips; t1++)
-	for(t2 = t1 + 1; t2 <= tr->mxtips; t2++)
-	  for(t3 = t2 + 1; t3 <= tr->mxtips; t3++)
-	    for(t4 = t3 + 1; t4 <= tr->mxtips; t4++)
-	      {
-		double
-		  r = randum(&adef->parsimonySeed);
+    case ALL_QUARTETS:
+      {
+	assert(randomQuartets == 1);
 
-		if(r < fraction)
-		  {
-		    computeAllThreeQuartets(tr, q1, q2, t1, t2, t3, t4, f);
-		    quartetCounter++;
-		  }
+	/* compute all possible quartets */
+	  
+	for(t1 = 1; t1 <= tr->mxtips; t1++)
+	  for(t2 = t1 + 1; t2 <= tr->mxtips; t2++)
+	    for(t3 = t2 + 1; t3 <= tr->mxtips; t3++)
+	      for(t4 = t3 + 1; t4 <= tr->mxtips; t4++)
+		{
+		  computeAllThreeQuartets(tr, q1, q2, t1, t2, t3, t4, f);
+		  quartetCounter++;
+		}
+	
+	assert(quartetCounter == numberOfQuartets);
+      }
+      break;
+    case RANDOM_QUARTETS:
+      {
+	/* randomly sub-sample a fraction of all quartets */
 
-		if(quartetCounter == randomQuartets)
-		  goto DONE;
-	      }
+	for(t1 = 1; t1 <= tr->mxtips; t1++)
+	  for(t2 = t1 + 1; t2 <= tr->mxtips; t2++)
+	    for(t3 = t2 + 1; t3 <= tr->mxtips; t3++)
+	      for(t4 = t3 + 1; t4 <= tr->mxtips; t4++)
+		{
+		  double
+		    r = randum(&adef->parsimonySeed);
+		  
+		  if(r < fraction)
+		    {
+		      computeAllThreeQuartets(tr, q1, q2, t1, t2, t3, t4, f);
+		      quartetCounter++;
+		    }
+		  
+		  if(quartetCounter == randomQuartets)
+		    goto DONE;
+		}
       
-    DONE:
-      assert(quartetCounter == randomQuartets);
+      DONE:
+	assert(quartetCounter == randomQuartets);
+      }
+      break;
+    case GROUPED_QUARTETS:
+      {
+	/* compute all quartets that can be built out of the four pre-defined groups */
+
+	for(t1 = 0; t1 < groupSize[0]; t1++)
+	  for(t2 = 0; t2 < groupSize[1]; t2++)
+	    for(t3 = 0; t3 < groupSize[2]; t3++)
+	      for(t4 = 0; t4 < groupSize[3]; t4++)
+		{
+		  int
+		    i1 = groups[0][t1],
+		    i2 = groups[1][t2],
+		    i3 = groups[2][t3],
+		    i4 = groups[3][t4];
+		  
+		  
+		  computeAllThreeQuartets(tr, q1, q2, i1, i2, i3, i4, f);
+		  quartetCounter++;
+		}
+
+	printBothOpen("\nComputed all %u possible grouped quartets\n", quartetCounter);
+      }
+      break;
+    default:
+      assert(0);
     }
 
   t = gettime() - t;

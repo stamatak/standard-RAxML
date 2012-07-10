@@ -71,7 +71,8 @@ char run_id[128] = "",
   proteinModelFileName[1024] = "",
   secondaryStructureFileName[1024] = "",
   binaryModelParamsOutputFileName[1024] = "",
-  binaryModelParamsInputFileName[1024] = "";
+  binaryModelParamsInputFileName[1024] = "",
+  quartetGroupingFileName[1024];
 
 
 
