@@ -9151,9 +9151,19 @@ int main (int argc, char *argv[])
       if(adef->likelihoodTest)
 	computeLHTest(tr, adef, bootStrapFile);
       else
-	{	 	 
-	  modOpt(tr, adef, TRUE, adef->likelihoodEpsilon, TRUE);	  
-	  writeBinaryModel(tr);
+	{ 
+	  if(adef->useBinaryModelFile)	 	 
+	    {
+	      readBinaryModel(tr);
+	      evaluateGenericInitrav(tr, tr->start);
+	      treeEvaluate(tr, 2);
+	    }
+	  else
+	    {
+	      modOpt(tr, adef, TRUE, adef->likelihoodEpsilon, TRUE);	  
+	      writeBinaryModel(tr);
+	    }
+	  
 	  printLog(tr, adef, TRUE);
 	  printResult(tr, adef, TRUE);
 	}
