@@ -4546,7 +4546,12 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	}
     }
 
-
+  if(adef->mode == FAST_SEARCH && (adef->grouping || adef->constraint))
+    {
+      if(processID == 0)
+	printf("\n ERROR: Fast ML search algorithms -f F and -f E can not take as input constraint trees specified via -g or -r, since they will be ignored\n");
+      errorExit(-1);
+    }
 
   if(adef->mode == SPLIT_MULTI_GENE && (!adef->useMultipleModel))
     {
