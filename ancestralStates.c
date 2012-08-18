@@ -791,7 +791,7 @@ static void computeAncestralRec(tree *tr, nodeptr p, int *counter, FILE *probsFi
 	states = tr->partitionData[model].states;
 #ifdef _USE_PTHREADS
       double
-	*ancestral = tr->ancestralStates;
+	*ancestral = &tr->ancestralStates[accumulatedOffset];
 #else
       double 
 	*ancestral = tr->partitionData[model].sumBuffer;

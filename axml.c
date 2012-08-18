@@ -7204,14 +7204,23 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 	for(model = 0; model < localTree->NumberOfModels; model++)
 	  {
 	    size_t
-	      blockRequirements = (size_t)(tr->discreteRateCategories) * (size_t)(tr->partitionData[model].states);
+	      rateHet,	    	 
+	      blockRequirements;
 	    
+	   
 	    int	     	     
 	      localColumnCount = 0,
 	      localCount = 0;	   
 
 	    double 
-	      *stridedVector = localTree->partitionData[model].sumBuffer;	    	   	    
+	      *stridedVector = localTree->partitionData[model].sumBuffer;
+	    
+	    if(tr->rateHetModel == CAT)
+	      rateHet = 1;
+	    else
+	      rateHet = 4;
+	    
+	    blockRequirements = (size_t)(rateHet) * (size_t)(tr->partitionData[model].states);
 
 	    for(globalColumnCount = localTree->partitionData[model].lower; globalColumnCount < localTree->partitionData[model].upper; globalColumnCount++)
 	      {	
