@@ -232,7 +232,7 @@ int getStates(int dataType)
   return pLengths[dataType].states;
 }
 
-int getUndetermined(int dataType)
+unsigned char getUndetermined(int dataType)
 {
   assert(MIN_MODEL < dataType && dataType < MAX_MODEL);
 
@@ -3440,6 +3440,10 @@ static void printMinusFUsage(void)
   printf("              \"-f v\": classify a bunch of environmental sequences into a reference tree using thorough read insertions\n");
   printf("                      you will need to start RAxML with a non-comprehensive reference tree and an alignment containing all sequences (reference + query)\n");
 
+  printf("              \"-f V\": classify a bunch of environmental sequences into a reference tree using thorough read insertions\n");
+  printf("                      you will need to start RAxML with a non-comprehensive reference tree and an alignment containing all sequences (reference + query)\n");
+  printf("                      WARNING: this is a test implementation for more efficient handling of multi-gene/whole-genome datasets!\n");
+
   printf("              \"-f w\": compute ELW test on a bunch of trees passed via \"-z\" \n");
 
   printf("              \"-f x\": compute pair-wise ML distances, ML model parameters will be estimated on an MP \n");
@@ -3471,7 +3475,7 @@ static void printREADME(void)
   printf("      [-b bootstrapRandomNumberSeed] [-B wcCriterionThreshold]\n");
   printf("      [-c numberOfCategories] [-C] [-d] [-D]\n");
   printf("      [-e likelihoodEpsilon] [-E excludeFileName]\n");
-  printf("      [-f a|A|b|B|c|d|e|E|F|g|h|i|I|j|J|m|n|o|p|q|r|s|S|t|T|u|v|w|x|y] [-F]\n");
+  printf("      [-f a|A|b|B|c|d|e|E|F|g|h|i|I|j|J|m|n|o|p|q|r|s|S|t|T|u|v|V|w|x|y] [-F]\n");
   printf("      [-g groupingFileName] [-G placementThreshold] [-h]\n");
   printf("      [-i initialRearrangementSetting] [-I autoFC|autoMR|autoMRE|autoMRE_IGN]\n");
   printf("      [-j] [-J MR|MR_DROP|MRE|STRICT|STRICT_DROP] [-k] [-K] [-M]\n");
@@ -3869,7 +3873,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
   tr->estimatePerSiteAA = FALSE;
   tr->useGammaMedian = FALSE;
   tr->noRateHet = FALSE;
-  
+  tr->perPartitionEPA = FALSE;
   /********* tr inits end*************/
 
 
@@ -4327,13 +4331,27 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	    break;	  
 	  case 'v':	    
 	    adef->mode = CLASSIFY_ML;	   
-	   	   
+
+	    tr->perPartitionEPA = FALSE;
 #ifdef _PAVLOS
 	    adef->compressPatterns  = FALSE; 
 #endif
 #ifdef _USE_PTHREADS
 	    tr->useFastScaling = FALSE;
 #endif
+	    break;
+
+	  case 'V':
+	    adef->mode = CLASSIFY_ML;	   
+	   	   
+	    
+	    tr->perPartitionEPA = TRUE;
+#ifdef _PAVLOS
+	    adef->compressPatterns  = FALSE; 
+#endif
+#ifdef _USE_PTHREADS
+	    tr->useFastScaling = FALSE;
+#endif	    
 	    break;
 	  case 'y':
 	    adef->mode = CLASSIFY_MP;
@@ -6192,6 +6210,7 @@ static void initPartition(tree *tr, tree *localTree, int tid)
       localTree->useGappedImplementation = tr->useGappedImplementation;
       localTree->innerNodes              = tr->innerNodes;
       localTree->useFastScaling          = tr->useFastScaling;
+      localTree->perPartitionEPA         = tr->perPartitionEPA;
       localTree->maxCategories           = tr->maxCategories;
      
       localTree->originalCrunchedLength  = tr->originalCrunchedLength;
@@ -6200,6 +6219,7 @@ static void initPartition(tree *tr, tree *localTree, int tid)
       localTree->multiBranch             = tr->multiBranch;
       localTree->multiGene               = tr->multiGene;
       assert(localTree->multiGene == 0);
+      localTree->nameList                = tr->nameList;
       localTree->numBranches             = tr->numBranches;
       localTree->lhs                     = (double*)malloc(sizeof(double)   * localTree->originalCrunchedLength);
       localTree->executeModel            = (boolean*)malloc(sizeof(boolean) * localTree->NumberOfModels);
@@ -6798,6 +6818,13 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 	  localTree->fracchange = tr->fracchange;
 	  memcpy(localTree->partitionContributions, tr->partitionContributions, sizeof(double) * localTree->NumberOfModels);
 	  memcpy(localTree->fracchanges, tr->fracchanges, sizeof(double) * localTree->NumberOfModels);	 
+
+	  if(localTree->perPartitionEPA)
+	    {
+	      localTree->readPartition = (int *)malloc(sizeof(int) * (size_t)localTree->numberOfTipsForInsertion);
+	      memcpy(localTree->readPartition, tr->readPartition, sizeof(int) * (size_t)localTree->numberOfTipsForInsertion);
+	    }
+
 	}                                                
 
       localTree->temporarySumBuffer = (double *)malloc_aligned(sizeof(double) * localTree->contiguousVectorLength);

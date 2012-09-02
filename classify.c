@@ -91,8 +91,44 @@ static double getBranch(tree *tr, double *b, double *bb)
 	  if(x > zmax)
 	    x = zmax;
 	  x = -log(x) * tr->fracchanges[i];
+	  
 	  z += x * tr->partitionContributions[i];
 	}	
+      
+      return z;
+    } 
+
+}
+
+static double getBranchPerPartition(tree *tr, double *b, double *bb, int j)
+{
+  double z = 0.0;
+
+  if(!tr->multiBranch)
+    {
+      assert(tr->fracchange != -1.0);
+      assert(b[0] == bb[0]);
+      z = b[0];
+      if (z < zmin) 
+	z = zmin;      	 
+      if(z > zmax)
+	z = zmax;
+      z = -log(z) * tr->fracchange;
+      return z;	
+    }
+  else
+    {                 
+      int 
+	i = tr->readPartition[j];
+    
+      assert(b[i] == bb[i]);
+      assert(tr->fracchanges[i] != -1.0);
+      z = b[i];
+      if (z < zmin) 
+	z = zmin;      	 
+      if(z > zmax)
+	z = zmax;
+      z = -log(z) * tr->fracchanges[i];          	
       
       return z;
     } 
@@ -361,6 +397,129 @@ static nodeptr findRootDirection(nodeptr p, tree *tr, int rootNumber)
 }
 
 
+void setPartitionMask(tree *tr, int i, boolean *executeModel)
+{
+  int 
+    model = 0;
+
+  if(tr->perPartitionEPA)
+    {
+      for(model = 0; model < tr->NumberOfModels; model++)   
+	executeModel[model] = FALSE;
+
+      executeModel[tr->readPartition[i]] = TRUE;  
+    }
+  else
+    {
+      for(model = 0; model < tr->NumberOfModels; model++)   
+	executeModel[model] = TRUE;
+    }
+}
+
+void resetPartitionMask(tree *tr, boolean *executeModel)
+{
+  int 
+    model = 0;
+  
+  for(model = 0; model < tr->NumberOfModels; model++)
+    executeModel[model] = TRUE;
+}
+
+
+
+static boolean allSmoothedEPA(tree *tr)
+{
+  int i;
+  boolean result = TRUE;
+  
+  for(i = 0; i < tr->numBranches; i++)
+    {
+      if(tr->partitionSmoothed[i] == FALSE)
+	result = FALSE;
+      else
+	tr->partitionConverged[i] = TRUE;
+    }
+
+  return result;
+}
+
+static boolean updateEPA(tree *tr, nodeptr p, int j)
+{       
+  nodeptr  q; 
+  boolean smoothedPartitions[NUM_BRANCHES];
+  int i;
+  double   z[NUM_BRANCHES], z0[NUM_BRANCHES];
+  double _deltaz;
+
+  q = p->back;   
+
+  for(i = 0; i < tr->numBranches; i++)
+    z0[i] = q->z[i];    
+  
+  setPartitionMask(tr, j, tr->executeModel);
+  makenewzGeneric(tr, p, q, z0, newzpercycle, z, FALSE);
+  
+  for(i = 0; i < tr->numBranches; i++)    
+    smoothedPartitions[i]  = tr->partitionSmoothed[i];
+      
+  for(i = 0; i < tr->numBranches; i++)
+    {         
+      if(!tr->partitionConverged[i])
+	{	  
+	    _deltaz = deltaz;
+	    
+	  if(ABS(z[i] - z0[i]) > _deltaz)  
+	    {	      
+	      smoothedPartitions[i] = FALSE;       
+	    }	 	  
+	  
+	  p->z[i] = q->z[i] = z[i];	 
+	}
+    }
+  
+  for(i = 0; i < tr->numBranches; i++)    
+    tr->partitionSmoothed[i]  = smoothedPartitions[i];
+  
+  return TRUE;
+}
+
+static boolean localSmoothEPA(tree *tr, nodeptr p, int maxtimes, int j)
+{ 
+  nodeptr  q;
+  int i;
+  
+  if (isTip(p->number, tr->rdta->numsp)) return FALSE;
+  
+   for(i = 0; i < tr->numBranches; i++)	
+     tr->partitionConverged[i] = FALSE;	
+
+  while (--maxtimes >= 0) 
+    {     
+      for(i = 0; i < tr->numBranches; i++)	
+	tr->partitionSmoothed[i] = TRUE;
+	 	
+      q = p;
+      do 
+	{
+	  if (! updateEPA(tr, q, j)) return FALSE;
+	  q = q->next;
+        } 
+      while (q != p);
+      
+      if (allSmoothedEPA(tr)) 
+	break;
+    }
+
+  for(i = 0; i < tr->numBranches; i++)
+    {
+      tr->partitionSmoothed[i] = FALSE; 
+      tr->partitionConverged[i] = FALSE;
+    }
+
+  return TRUE;
+}
+
+
 static void testInsertThorough(tree *tr, nodeptr r, nodeptr q)
 {
   double 
@@ -428,19 +587,42 @@ static void testInsertThorough(tree *tr, nodeptr r, nodeptr q)
 	  hookup(r->next,       q, z, tr->numBranches);
 	  hookup(r->next->next, x, z, tr->numBranches);
 	  hookupDefault(r, s, tr->numBranches);      		     
-	  
-	  newviewGeneric(tr, r);	     
-	  
-	  localSmooth(tr, r, smoothings);
-	  
-	  result = evaluateGeneric(tr, r);	 	       
+	   
+
+	  if(tr->perPartitionEPA)
+	    {
+	      setPartitionMask(tr, j, tr->executeModel);	     
+	      newviewGenericMasked(tr, r);	     
+
+	      setPartitionMask(tr, j, tr->executeModel);
+	      localSmoothEPA(tr, r, smoothings, j);
+
+	      setPartitionMask(tr, j, tr->executeModel);
+	      evaluateGeneric(tr, r);
+
+	      result = tr->perPartitionLH[tr->readPartition[j]];
+	      	      
+	      resetPartitionMask(tr, tr->executeModel);
+	    }
+	  else
+	    {
+	      newviewGeneric(tr, r); 
+	      localSmooth(tr, r, smoothings);
+	      result = evaluateGeneric(tr, r);	     
+	    }
 	  	  
-	 
-	  tr->bInf[q->bInf->epa->branchNumber].epa->branches[j] = getBranch(tr, r->z, r->back->z);
+
+	  if(tr->perPartitionEPA)
+	    tr->bInf[q->bInf->epa->branchNumber].epa->branches[j] = getBranchPerPartition(tr, r->z, r->back->z, j);
+	  else
+	    tr->bInf[q->bInf->epa->branchNumber].epa->branches[j] = getBranch(tr, r->z, r->back->z);	  
 	 
 	  tr->bInf[q->bInf->epa->branchNumber].epa->likelihoods[j] = result;	 
 
-	  modifiedBranchLength = getBranch(tr, q->z, q->back->z) + getBranch(tr, x->z, x->back->z);
+	  if(tr->perPartitionEPA)
+	    modifiedBranchLength = getBranchPerPartition(tr, q->z, q->back->z, j) + getBranchPerPartition(tr, x->z, x->back->z, j);
+	  else	      
+	    modifiedBranchLength = getBranch(tr, q->z, q->back->z) + getBranch(tr, x->z, x->back->z);
 
 	  ratio = originalBranchLength / modifiedBranchLength;
 
@@ -449,21 +631,37 @@ static void testInsertThorough(tree *tr, nodeptr r, nodeptr q)
 	      /* always take distal length from left root node and then fix this later */
 
 	      if(x == tr->leftRootNode)
-		distalLength = getBranch(tr, x->z, x->back->z);
+		{
+		  if(tr->perPartitionEPA)
+		    distalLength = getBranchPerPartition(tr, x->z, x->back->z, j);
+		  else
+		    distalLength = getBranch(tr, x->z, x->back->z);
+		}
 	      else
 		{
 		  assert(x == tr->rightRootNode);
-		  distalLength = getBranch(tr, q->z, q->back->z);
+		  if(tr->perPartitionEPA)
+		    distalLength = getBranchPerPartition(tr, q->z, q->back->z, j);
+		  else
+		    distalLength = getBranch(tr, q->z, q->back->z);
 		}
 	    }
 	  else
 	    {
 	      if(root == x)
-		distalLength = getBranch(tr, x->z, x->back->z);
+		{
+		  if(tr->perPartitionEPA)
+		    distalLength = getBranchPerPartition(tr, x->z, x->back->z, j);
+		  else
+		    distalLength = getBranch(tr, x->z, x->back->z);
+		}
 	      else
 		{
-		  assert(root == q);
-		  distalLength = getBranch(tr, q->z, q->back->z);
+		  assert(root == q); 
+		  if(tr->perPartitionEPA)
+		    distalLength = getBranchPerPartition(tr, q->z, q->back->z, j);
+		  else
+		    distalLength = getBranch(tr, q->z, q->back->z);
 		}	      	      
 	    }
 
@@ -522,8 +720,22 @@ static void testInsertFast(tree *tr, nodeptr r, nodeptr q)
       if(q->bInf->epa->executeThem[i])
 	{	  	    
 	  hookupDefault(r, tr->nodep[inserts[i]], tr->numBranches);
-	  result = evaluateGeneric (tr, r);	     
+
+	  if(!tr->perPartitionEPA)
+	    {
+	      result = evaluateGeneric (tr, r);	     	      
+	    }
+	  else
+	    {
+	      setPartitionMask(tr, i, tr->executeModel);
+	      evaluateGeneric(tr, r);
 	      
+	      result = tr->perPartitionLH[tr->readPartition[i]];
+
+	      resetPartitionMask(tr, tr->executeModel);	     
+	    }
+
+	  
 	  r->back = (nodeptr) NULL;
 	  tr->nodep[inserts[i]]->back = (nodeptr) NULL;
 	  	  
@@ -537,80 +749,14 @@ static void testInsertFast(tree *tr, nodeptr r, nodeptr q)
 }
 
 
-#ifndef _USE_PTHREADS
 
-#ifdef _SPECIES_STUFF
-
-static double testInsertSpecies(tree *tr, nodeptr r, nodeptr attachmentBranch, int insertNumber, boolean optimizeOtherBranch)
-{
-  double
-    z[NUM_BRANCHES],
-    result,
-    qz[NUM_BRANCHES],
-    zmins[NUM_BRANCHES];
-  
-  nodeptr  
-    x, q;      
-  
-  int 
-    i;
-    	
-  if(isTip(attachmentBranch->number, tr->mxtips))
-    x = attachmentBranch;
-  else
-    x = attachmentBranch->back;
-
-  q = x->back;
-
-  assert(isTip(x->number, tr->mxtips));
-
-  assert(!tr->grouped);                    
-  
-  for(i = 0; i < tr->numBranches; i++)    	
-    {
-      qz[i] = q->z[i];
-      zmins[i] = zmax;
-    }
-     
-  initrav(tr, q);
-
-  hookup(r->next,       q, qz, tr->numBranches);
-  hookup(r->next->next, x, zmins, tr->numBranches);	                         
-  hookup(r, tr->nodep[insertNumber], zmins, tr->numBranches);
-
-  printf("read name: %s\n", tr->nameList[insertNumber]);    
-
-  newviewGeneric(tr, r);   
-  
-  if(optimizeOtherBranch)
-    {     
-      makenewzGeneric(tr, r->next, q, qz, 10, z, FALSE);
-      hookup(q, r->next, z, tr->numBranches); 
-      newviewGeneric(tr, r);
-    }
- 
-  result = evaluateGeneric (tr, r);	     
-	      
-  r->back = (nodeptr) NULL;
-  tr->nodep[insertNumber]->back = (nodeptr) NULL;
-	  	   
-  hookup(q, x, qz, tr->numBranches);
-  
-  r->next->next->back = r->next->back = (nodeptr) NULL;
-
-  return result;
-}
-
-#endif
-
-#endif
 
 static void addTraverseRob(tree *tr, nodeptr r, nodeptr q,
 			   boolean thorough)
 {       
   if(thorough)
     testInsertThorough(tr, r, q);
-  else
+  else    
     testInsertFast(tr, r, q);
 
   if(!isTip(q->number, tr->rdta->numsp))
@@ -678,7 +824,7 @@ static void allocBranchX(tree *tr)
     }
 }
 
-static void updateClassify(tree *tr, double *z, boolean *partitionSmoothed, boolean *partitionConverged, double *x1, double *x2, unsigned char *tipX1, unsigned char *tipX2, int tipCase)
+static void updateClassify(tree *tr, double *z, boolean *partitionSmoothed, boolean *partitionConverged, double *x1, double *x2, unsigned char *tipX1, unsigned char *tipX2, int tipCase, int insertions)
 {   
   int i;
 
@@ -691,7 +837,7 @@ static void updateClassify(tree *tr, double *z, boolean *partitionSmoothed, bool
   for(i = 0; i < tr->numBranches; i++)   
     z0[i] = z[i];          
 
-  makenewzClassify(tr, newzpercycle, newz, z0, x1, x2, tipX1, tipX2, tipCase, partitionConverged); 
+  makenewzClassify(tr, newzpercycle, newz, z0, x1, x2, tipX1, tipX2, tipCase, partitionConverged, insertions); 
 
   for(i = 0; i < tr->numBranches; i++)    
     smoothedPartitions[i]  = partitionSmoothed[i];
@@ -707,14 +853,13 @@ static void updateClassify(tree *tr, double *z, boolean *partitionSmoothed, bool
 	}
     }
 
-
   for(i = 0; i < tr->numBranches; i++)    
     partitionSmoothed[i]  = smoothedPartitions[i];  
 }
 
 
 static double localSmoothClassify (tree *tr, int maxtimes, int leftNodeNumber, int rightNodeNumber, int insertionNodeNumber, double *e1, double *e2, double *e3, 
-				   branchInfo *b)
+				   branchInfo *b, int insertions)
 { 
   int tipCase;
   
@@ -759,7 +904,7 @@ static double localSmoothClassify (tree *tr, int maxtimes, int leftNodeNumber, i
 	  tipX1 = tr->contiguousTips[leftNodeNumber];
 	  tipX2 = tr->contiguousTips[rightNodeNumber];
 
-	  newviewClassifySpecial(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e1, e2);
+	  newviewClassifySpecial(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e1, e2, insertions);
 	}
       else
 	{
@@ -771,7 +916,7 @@ static double localSmoothClassify (tree *tr, int maxtimes, int leftNodeNumber, i
 	      
 	      x2  = b->epa->right;	     
 	      ex2 = b->epa->rightScaling; 	  
-	      newviewClassifySpecial(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e1, e2);
+	      newviewClassifySpecial(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e1, e2, insertions);
 	    }
 	  else 
 	    {
@@ -783,7 +928,7 @@ static double localSmoothClassify (tree *tr, int maxtimes, int leftNodeNumber, i
 	  
 		  x2  = b->epa->left;	 
 		  ex2 = b->epa->leftScaling; 
-		  newviewClassifySpecial(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e2, e1);
+		  newviewClassifySpecial(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e2, e1, insertions);
 		}       
 	      else
 		{
@@ -794,7 +939,7 @@ static double localSmoothClassify (tree *tr, int maxtimes, int leftNodeNumber, i
 		  
 		  x2  = b->epa->right;
 		  ex2 = b->epa->rightScaling;
-		  newviewClassifySpecial(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e1, e2);
+		  newviewClassifySpecial(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e1, e2, insertions);
 		}
 	    }
 	}
@@ -806,7 +951,7 @@ static double localSmoothClassify (tree *tr, int maxtimes, int leftNodeNumber, i
       x2    = tr->temporaryVector;
       tipX1 = tr->contiguousTips[insertionNodeNumber];
 
-      updateClassify(tr, e3, partitionSmoothed, partitionConverged, x1, x2, tipX1, tipX2, tipCase);
+      updateClassify(tr, e3, partitionSmoothed, partitionConverged, x1, x2, tipX1, tipX2, tipCase, insertions);
 
       /* e1 **********************************************************/
 
@@ -826,7 +971,7 @@ static double localSmoothClassify (tree *tr, int maxtimes, int leftNodeNumber, i
 	  ex2 = b->epa->rightScaling;		  	
 	}
 	
-      newviewClassifySpecial(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e3, e2);
+      newviewClassifySpecial(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e3, e2, insertions);
 
       if(isTip(leftNodeNumber, tr->mxtips))
 	{
@@ -841,7 +986,7 @@ static double localSmoothClassify (tree *tr, int maxtimes, int leftNodeNumber, i
 	  x1      =  b->epa->left;
 	}
 
-      updateClassify(tr, e1, partitionSmoothed, partitionConverged, x1, x3, tipX1, (unsigned char*)NULL, tipCase);
+      updateClassify(tr, e1, partitionSmoothed, partitionConverged, x1, x3, tipX1, (unsigned char*)NULL, tipCase, insertions);
 
       /* e2 *********************************************************/
 
@@ -861,7 +1006,7 @@ static double localSmoothClassify (tree *tr, int maxtimes, int leftNodeNumber, i
 	  ex2 = b->epa->leftScaling;		  	
 	}
 	
-      newviewClassifySpecial(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e3, e1);
+      newviewClassifySpecial(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e3, e1, insertions);
 
       if(isTip(rightNodeNumber, tr->mxtips))
 	{
@@ -876,7 +1021,7 @@ static double localSmoothClassify (tree *tr, int maxtimes, int leftNodeNumber, i
 	  x1      =  b->epa->right;
 	}
 
-      updateClassify(tr, e2, partitionSmoothed, partitionConverged, x1, x3, tipX1, (unsigned char*)NULL, tipCase);
+      updateClassify(tr, e2, partitionSmoothed, partitionConverged, x1, x3, tipX1, (unsigned char*)NULL, tipCase, insertions);
 
 
       allSmoothed = TRUE;
@@ -900,7 +1045,7 @@ static double localSmoothClassify (tree *tr, int maxtimes, int leftNodeNumber, i
       tipX1 = tr->contiguousTips[leftNodeNumber];
       tipX2 = tr->contiguousTips[rightNodeNumber];
 
-      newviewClassifySpecial(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e1, e2);
+      newviewClassifySpecial(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e1, e2, insertions);
     }
   else
     {
@@ -912,7 +1057,7 @@ static double localSmoothClassify (tree *tr, int maxtimes, int leftNodeNumber, i
 
 	  x2  = b->epa->right;	     
 	  ex2 = b->epa->rightScaling; 	  
-	  newviewClassifySpecial(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e1, e2);
+	  newviewClassifySpecial(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e1, e2, insertions);
 	}
       else 
 	{
@@ -924,7 +1069,7 @@ static double localSmoothClassify (tree *tr, int maxtimes, int leftNodeNumber, i
 	      
 	      x2  = b->epa->left;	 
 	      ex2 = b->epa->leftScaling; 
-	      newviewClassifySpecial(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e2, e1);
+	      newviewClassifySpecial(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e2, e1, insertions);
 	    }       
 	  else
 	    {
@@ -935,7 +1080,7 @@ static double localSmoothClassify (tree *tr, int maxtimes, int leftNodeNumber, i
 	      
 	      x2  = b->epa->right;
 	      ex2 = b->epa->rightScaling;
-	      newviewClassifySpecial(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e1, e2);
+	      newviewClassifySpecial(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e1, e2, insertions);
 	    }
 	}
     }
@@ -946,7 +1091,7 @@ static double localSmoothClassify (tree *tr, int maxtimes, int leftNodeNumber, i
   x2    = tr->temporaryVector;
   tipX1 = tr->contiguousTips[insertionNodeNumber];    
  
-  result = evalCL(tr, x2, ex3, tipX1, e3);
+  result = evalCL(tr, x2, ex3, tipX1, e3, insertions);
 
   return result;
 }
@@ -1047,7 +1192,7 @@ void testInsertThoroughIterative(tree *tr, int branchNumber)
 	      tipX1 = tr->contiguousTips[leftNodeNumber];
 	      tipX2 = tr->contiguousTips[rightNodeNumber];
 	      
-	      newviewClassifySpecial(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e1, e2);	
+	      newviewClassifySpecial(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e1, e2, insertions);	
 	    }
 	  else
 	    {
@@ -1059,7 +1204,7 @@ void testInsertThoroughIterative(tree *tr, int branchNumber)
 		  
 		  x2  = b->epa->right;	     
 		  ex2 = b->epa->rightScaling; 
-		  newviewClassifySpecial(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e1, e2);	
+		  newviewClassifySpecial(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e1, e2, insertions);	
 		}
 	      else 
 		{
@@ -1071,7 +1216,7 @@ void testInsertThoroughIterative(tree *tr, int branchNumber)
 		      
 		      x2  = b->epa->left;	 
 		      ex2 = b->epa->leftScaling;
-		      newviewClassifySpecial(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e2, e1);	
+		      newviewClassifySpecial(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e2, e1, insertions);	
 		    }       
 		  else
 		    {
@@ -1082,18 +1227,24 @@ void testInsertThoroughIterative(tree *tr, int branchNumber)
 		      
 		      x2  = b->epa->right;
 		      ex2 = b->epa->rightScaling;
-		      newviewClassifySpecial(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e1, e2);	
+		      newviewClassifySpecial(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e1, e2, insertions);	
 		    }
 		}	      
 	    }
 	  
-	  result = localSmoothClassify(tr, smoothings, leftNodeNumber, rightNodeNumber, tr->inserts[insertions], e1, e2, e3, b);
+	  result = localSmoothClassify(tr, smoothings, leftNodeNumber, rightNodeNumber, tr->inserts[insertions], e1, e2, e3, b, insertions);
 	      	    
 	  b->epa->likelihoods[insertions] = result;	      			      
 	  	
-	  b->epa->branches[insertions] = getBranch(tr, e3, e3);	  
+	  if(tr->perPartitionEPA)
+	    b->epa->branches[insertions] = getBranchPerPartition(tr, e3, e3, insertions);	
+	  else
+	    b->epa->branches[insertions] = getBranch(tr, e3, e3);	  
 
-	  modifiedBranchLength = getBranch(tr, e1, e1) + getBranch(tr, e2, e2);
+	  if(tr->perPartitionEPA)
+	    modifiedBranchLength = getBranchPerPartition(tr, e1, e1, insertions) + getBranchPerPartition(tr, e2, e2, insertions);
+	  else
+	    modifiedBranchLength = getBranch(tr, e1, e1) + getBranch(tr, e2, e2);
 
 	  ratio = b->epa->originalBranchLength / modifiedBranchLength;
 
@@ -1102,21 +1253,37 @@ void testInsertThoroughIterative(tree *tr, int branchNumber)
 	      /* always take distal length from left root node and then fix this later */
 
 	      if(x == tr->leftRootNode)
-		distalLength = getBranch(tr, e1, e1);
+		{
+		  if(tr->perPartitionEPA)
+		    distalLength = getBranchPerPartition(tr, e1, e1, insertions);
+		  else
+		    distalLength = getBranch(tr, e1, e1);
+		}
 	      else
 		{
 		  assert(x == tr->rightRootNode);
-		  distalLength = getBranch(tr, e2, e2);
+		  if(tr->perPartitionEPA)
+		    distalLength = getBranchPerPartition(tr, e2, e2, insertions);
+		  else
+		    distalLength = getBranch(tr, e2, e2);
 		}
 	    }
 	  else
 	    {
 	      if(root == x)
-		distalLength = getBranch(tr, e1, e1);
+		{
+		  if(tr->perPartitionEPA)
+		    distalLength = getBranchPerPartition(tr, e1, e1, insertions);
+		  else
+		    distalLength = getBranch(tr, e1, e1);
+		}
 	      else
 		{
 		  assert(root == q);
-		  distalLength = getBranch(tr, e2, e2);
+		  if(tr->perPartitionEPA)
+		    distalLength = getBranchPerPartition(tr, e2, e2, insertions);
+		  else
+		    distalLength = getBranch(tr, e2, e2);
 		}	      	      
 	    }
 
@@ -1162,11 +1329,11 @@ void addTraverseRobIterative(tree *tr, int branchNumber)
 	z[inserts] = zmax;
     }        
                      
-  newviewClassify(tr, b, z);   
+  newviewClassify(tr, b, z, inserts);   
         
   for(inserts = 0; inserts < tr->numberOfTipsForInsertion; inserts++) 
     { 	       		     
-      result = evalCL(tr, tr->temporaryVector, tr->temporaryScaling, tr->contiguousTips[tr->inserts[inserts]], defaultArray);
+      result = evalCL(tr, tr->temporaryVector, tr->temporaryScaling, tr->contiguousTips[tr->inserts[inserts]], defaultArray, inserts);
 	  	  
       b->epa->likelihoods[inserts] = result;	  	 			        
     } 
@@ -1490,6 +1657,57 @@ static void printPerBranchReadAlignments(tree *tr)
 
 #endif
 
+static void analyzeReads(tree *tr)
+{ 
+  int 
+    i,
+    *inserts = tr->inserts;
+
+  tr->readPartition = (int *)malloc(sizeof(int) * (size_t)tr->numberOfTipsForInsertion);
+  
+  for(i = 0; i < tr->numberOfTipsForInsertion; i++)
+    {
+      int
+	j,
+	whichPartition = -1,
+	partitionCount = 0,
+	model,
+	nodeNumber = tr->nodep[inserts[i]]->number;
+
+       unsigned char 	
+	 *tipX1 = tr->yVector[nodeNumber];
+      
+      for(model = 0; model < tr->NumberOfModels; model++)
+	{
+	  int 	   
+	    nonGap = 0;
+	  
+	  unsigned char
+	    undetermined = getUndetermined(tr->partitionData[model].dataType);
+
+	  for(j = tr->partitionData[model].lower; j < tr->partitionData[model].upper; j++)
+	    {	      
+	      if(tipX1[j] != undetermined)
+		nonGap++;
+	    }
+       
+	  if(nonGap > 0)
+	    {
+	      partitionCount++;
+	      whichPartition = model;
+	    }	  	  
+	}
+      
+      assert(partitionCount == 1);
+      assert(whichPartition >= 0 && whichPartition < tr->NumberOfModels);
+
+      //printf("read %d %d partition %d\n", i, nodeNumber, whichPartition);
+
+      tr->readPartition[i] = whichPartition; 
+    }
+}
+
+
 void classifyML(tree *tr, analdef *adef)
 {
   int  
@@ -1521,7 +1739,10 @@ void classifyML(tree *tr, analdef *adef)
   
   tr->numberOfBranches = 2 * tr->ntips - 3;
 
-  printBothOpen("\nRAxML Evolutionary Placement Algorithm\n"); 
+  if(tr->perPartitionEPA)
+    printBothOpen("\nRAxML Evolutionary Placement Algorithm for partitioned multi-gene datasets (experimental version)\n"); 
+  else
+    printBothOpen("\nRAxML Evolutionary Placement Algorithm\n"); 
 
   evaluateGenericInitrav(tr, tr->start); 
   
@@ -1584,6 +1805,9 @@ void classifyML(tree *tr, analdef *adef)
 	 
   q = q->back;       
   
+  if(tr->perPartitionEPA)
+    analyzeReads(tr);
+
 #ifdef _USE_PTHREADS 
   tr->contiguousVectorLength = getContiguousVectorLength(tr);
   tr->contiguousScalingLength = getContiguousScalingLength(tr);
@@ -1907,51 +2131,7 @@ void classifyML(tree *tr, analdef *adef)
 	    acc += (prob = (exp(inf[j].lh - lmax) / all));
 	    
 	    fprintf(likelihoodWeightsFile, "%s I%d %f %f\n", tr->nameList[tr->inserts[i]], inf[j].number, prob, acc);
-	    
-#ifndef _USE_PTHREADS
-	    
-
-#ifdef _SPECIES_STUFF	    
-	    /* Species test */
-	    
-	    if(j == 0)
-	      {
-		boolean 
-		  tipBranch;
-		
-		nodeptr 
-		  attachmentBranch = tr->bInf[inf[j].number].oP,
-		  check =  tr->bInf[inf[j].number].oQ;
-		
-		double 
-		  speciesLikelihood;
-		
-		assert(attachmentBranch == check->back);
-		
-		tipBranch = (isTip(attachmentBranch->number, tr->mxtips) || isTip(check->number, tr->mxtips));
-		
-		if(tipBranch)
-		  {
-		    evaluateGeneric(tr, q);
-		    printf("Tree likelihood: %f\n", tr->likelihood);
-		    
-		    printf("Best placement for read: %s lh: %f \n", tr->nameList[tr->inserts[i]], inf[j].lh);		     
-		    
-		    speciesLikelihood = testInsertSpecies(tr, r, attachmentBranch, tr->inserts[i], FALSE);
-		    
-		    printf("species likelihood: %f\n", speciesLikelihood);
-		    
-		    speciesLikelihood = testInsertSpecies(tr, r, attachmentBranch, tr->inserts[i], TRUE);
-		    
-		    printf("species likelihood with re-opt: %f\n", speciesLikelihood);
-		    
-		    printf("Like ratio: %f\n\n", -2.0 * inf[j].lh + 2.0 * speciesLikelihood);		    
-		  }
-	      }
-
-#endif
-#endif 
-
+	   	    
 	    j++;
 	  }
 	

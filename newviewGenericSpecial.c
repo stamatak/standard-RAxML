@@ -9337,13 +9337,22 @@ void newviewIterative (tree *tr)
     i, 
     model;
 
+
+
   for(i = 1; i < tr->td[0].count; i++)
     {
       traversalInfo 
 	*tInfo = &ti[i];
-
+#ifdef _DEBUG_MULTI_EPA  
+      printf("NV: ");
+#endif
       for(model = 0; model < tr->NumberOfModels; model++)
 	{
+#ifdef _DEBUG_MULTI_EPA  
+	  printf("%d ", tr->executeModel[model]);
+#endif
+	  
+	  
 	  if(tr->executeModel[model])
 	    {	      
 	      double
@@ -9924,11 +9933,14 @@ void newviewIterative (tree *tr)
 		  assert(tr->partitionData[model].globalScaler[tInfo->pNumber] < INT_MAX);
 		}
 	    }
+
 	}
-
-
-
+#ifdef _DEBUG_MULTI_EPA
+	  printf("\n");
+#endif 	  
+	
     }
+ 
 }
 
 
@@ -10409,7 +10421,7 @@ void newviewGenericMasked(tree *tr, nodeptr p)
 #ifdef  _USE_PTHREADS
 
 static void newviewMultiGrain(tree *tr,  double *x1, double *x2, double *x3, int *_ex1, int *_ex2, int *_ex3, unsigned char *_tipX1, unsigned char *_tipX2, 
-			      int tipCase, double *_pz, double *_qz)
+			      int tipCase, double *_pz, double *_qz, int insertion)
 {
   int    
     scalerIncrement = 0,   
@@ -10417,331 +10429,356 @@ static void newviewMultiGrain(tree *tr,  double *x1, double *x2, double *x3, int
     columnCounter = 0,
     offsetCounter = 0;
 
-  
+  setPartitionMask(tr, insertion, tr->executeModel);
+
+
+#ifdef _DEBUG_MULTI_EPA
+  if(tr->threadID == THREAD_TO_DEBUG)
+    printf("NV %s: ", tr->nameList[tr->inserts[insertion]]);
+#endif
 
   for(model = 0; model < tr->NumberOfModels; model++)
     {
-      double
-	*x1_start = (double*)NULL,
-	*x2_start = (double*)NULL,
-	*x3_start = (double*)NULL,
-	*left     = tr->partitionData[model].left,
-	*right    = tr->partitionData[model].right,
-	pz, qz;
-
       int
-	*wgt          = &tr->contiguousWgt[columnCounter],
-	*rateCategory = &tr->contiguousRateCategory[columnCounter],
-	*ex1 = (int*)NULL,
-	*ex2 = (int*)NULL,
-	*ex3 = (int*)NULL,
 	width = tr->partitionData[model].upper - tr->partitionData[model].lower;
+      
+#ifdef _DEBUG_MULTI_EPA
+  if(tr->threadID == THREAD_TO_DEBUG)
+    printf("%d", tr->executeModel[model]);
+#endif    
 
-      unsigned char
-	*tipX1 = (unsigned char *)NULL,
-	*tipX2 = (unsigned char *)NULL;     
-
-      switch(tipCase)
+      if(tr->executeModel[model])
 	{
-	case TIP_TIP:    
-	  tipX1 =    &_tipX1[columnCounter];
-	  tipX2 =    &_tipX2[columnCounter];
-	  ex3   =    &_ex3[columnCounter];
-	  x3_start = &x3[offsetCounter];
-	 
-	  if(!tr->useFastScaling)
-	    {
-	      int k;	      
-	      
-	      for(k = 0; k < width; k++)
-		ex3[k] = 0;
-	    }
-	  break;
-	case TIP_INNER:
-	  tipX1 =    &_tipX1[columnCounter];
-
-	  ex2   =    &_ex2[columnCounter];
-	  x2_start = &x2[offsetCounter];
+	  double
+	    *x1_start = (double*)NULL,
+	    *x2_start = (double*)NULL,
+	    *x3_start = (double*)NULL,
+	    *left     = tr->partitionData[model].left,
+	    *right    = tr->partitionData[model].right,
+	    pz, qz;
 	  
-	  ex3   =    &_ex3[columnCounter];
-	  x3_start = &x3[offsetCounter];
-	 
-	  if(!tr->useFastScaling)
-	    {
-	      int k;	      
-	      
-	      for(k = 0; k < width; k++)
-		ex3[k] = ex2[k];
-	    }
-	  break;
-	case INNER_INNER:
-	  ex1   =    &_ex1[columnCounter];
-	  x1_start = &x1[offsetCounter];
-
-	  ex2   =    &_ex2[columnCounter];
-	  x2_start = &x2[offsetCounter];
+	  int
+	    *wgt          = &tr->contiguousWgt[columnCounter],
+	    *rateCategory = &tr->contiguousRateCategory[columnCounter],
+	    *ex1 = (int*)NULL,
+	    *ex2 = (int*)NULL,
+	    *ex3 = (int*)NULL;
+	   
 	  
-	  ex3   =    &_ex3[columnCounter];
-	  x3_start = &x3[offsetCounter];
-	 
-	  if(!tr->useFastScaling)
-	    {
-	      int k;	      
-	      
-	      for(k = 0; k < width; k++)
-		ex3[k] = ex1[k] + ex2[k];
-	    }
-	  break;
-	default:
-	  assert(0);
-	}    
-
-      if(tr->multiBranch)
-	{
-	  pz = _pz[model];
-	  pz = (pz > zmin) ? log(pz) : log(zmin);
+	  unsigned char
+	    *tipX1 = (unsigned char *)NULL,
+	    *tipX2 = (unsigned char *)NULL;     
 	  
-	  qz = _qz[model];
-	  qz = (qz > zmin) ? log(qz) : log(zmin);
-	}
-      else
-	{	  
-	  pz = _pz[0];
-	  pz = (pz > zmin) ? log(pz) : log(zmin);
-
-	  qz = _qz[0];
-	  qz = (qz > zmin) ? log(qz) : log(zmin);
-	}
-
+	  switch(tipCase)
+	    {
+	    case TIP_TIP:    
+	      tipX1 =    &_tipX1[columnCounter];
+	      tipX2 =    &_tipX2[columnCounter];
+	      ex3   =    &_ex3[columnCounter];
+	      x3_start = &x3[offsetCounter];
+	      
+	      if(!tr->useFastScaling)
+		{
+		  int k;	      
+		  
+		  for(k = 0; k < width; k++)
+		    ex3[k] = 0;
+		}
+	      break;
+	    case TIP_INNER:
+	      tipX1 =    &_tipX1[columnCounter];
+	      
+	      ex2   =    &_ex2[columnCounter];
+	      x2_start = &x2[offsetCounter];
+	      
+	      ex3   =    &_ex3[columnCounter];
+	      x3_start = &x3[offsetCounter];
+	      
+	      if(!tr->useFastScaling)
+		{
+		  int k;	      
+		  
+		  for(k = 0; k < width; k++)
+		    ex3[k] = ex2[k];
+		}
+	      break;
+	    case INNER_INNER:
+	      ex1   =    &_ex1[columnCounter];
+	      x1_start = &x1[offsetCounter];
+	      
+	      ex2   =    &_ex2[columnCounter];
+	      x2_start = &x2[offsetCounter];
+	      
+	      ex3   =    &_ex3[columnCounter];
+	      x3_start = &x3[offsetCounter];
+	      
+	      if(!tr->useFastScaling)
+		{
+		  int k;	      
+		  
+		  for(k = 0; k < width; k++)
+		    ex3[k] = ex1[k] + ex2[k];
+		}
+	      break;
+	    default:
+	      assert(0);
+	    }    
+	  
+	  if(tr->multiBranch)
+	    {
+	      pz = _pz[model];
+	      pz = (pz > zmin) ? log(pz) : log(zmin);
+	      
+	      qz = _qz[model];
+	      qz = (qz > zmin) ? log(qz) : log(zmin);
+	    }
+	  else
+	    {	  
+	      pz = _pz[0];
+	      pz = (pz > zmin) ? log(pz) : log(zmin);
+	      
+	      qz = _qz[0];
+	      qz = (qz > zmin) ? log(qz) : log(zmin);
+	    }
+	  
       
 
-      switch(tr->partitionData[model].dataType)
-	{
-	case BINARY_DATA:
-	  switch(tr->rateHetModel)
+	  switch(tr->partitionData[model].dataType)
 	    {
-	    case CAT:	      
-	      makeP(pz, qz, tr->partitionData[model].perSiteRates,   tr->partitionData[model].EI,
-		    tr->partitionData[model].EIGN, tr->partitionData[model].numberOfCategories,
-		    left, right, BINARY_DATA, tr->saveMemory, tr->maxCategories);
-	      
-	      newviewGTRCAT_BINARY(tipCase,  tr->partitionData[model].EV, rateCategory,
-				   x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
-				   ex3, tipX1, tipX2,
-				   width, left, right, wgt, &scalerIncrement, tr->useFastScaling
-				   );	      	      
+	    case BINARY_DATA:
+	      switch(tr->rateHetModel)
+		{
+		case CAT:	      
+		  makeP(pz, qz, tr->partitionData[model].perSiteRates,   tr->partitionData[model].EI,
+			tr->partitionData[model].EIGN, tr->partitionData[model].numberOfCategories,
+			left, right, BINARY_DATA, tr->saveMemory, tr->maxCategories);
+		  
+		  newviewGTRCAT_BINARY(tipCase,  tr->partitionData[model].EV, rateCategory,
+				       x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
+				       ex3, tipX1, tipX2,
+				       width, left, right, wgt, &scalerIncrement, tr->useFastScaling
+				       );	      	      
+		  break;
+		case GAMMA:
+		case GAMMA_I:	      		
+		  makeP(pz, qz, tr->partitionData[model].gammaRates,
+			tr->partitionData[model].EI, tr->partitionData[model].EIGN,
+			4, left, right, BINARY_DATA, tr->saveMemory, tr->maxCategories);
+		  
+		  newviewGTRGAMMA_BINARY(tipCase,
+					 x1_start, x2_start, x3_start, tr->partitionData[model].EV, tr->partitionData[model].tipVector,
+					 ex3, tipX1, tipX2,
+					 width, left, right, wgt, &scalerIncrement, tr->useFastScaling);	      	      
+		  break;
+		default:
+		  assert(0);
+		}
 	      break;
-	    case GAMMA:
-	    case GAMMA_I:	      		
-	      makeP(pz, qz, tr->partitionData[model].gammaRates,
-		    tr->partitionData[model].EI, tr->partitionData[model].EIGN,
-		    4, left, right, BINARY_DATA, tr->saveMemory, tr->maxCategories);
-	      
-	      newviewGTRGAMMA_BINARY(tipCase,
-				     x1_start, x2_start, x3_start, tr->partitionData[model].EV, tr->partitionData[model].tipVector,
-				     ex3, tipX1, tipX2,
-				     width, left, right, wgt, &scalerIncrement, tr->useFastScaling);	      	      
-	      break;
-	    default:
-	      assert(0);
-	    }
-	  break;
-	case DNA_DATA:
-	  switch(tr->rateHetModel)
-	    {
-	    case CAT:	      			
-	      makeP(pz, qz, tr->partitionData[model].perSiteRates,   tr->partitionData[model].EI,
-		    tr->partitionData[model].EIGN, tr->partitionData[model].numberOfCategories,
-		    left, right, DNA_DATA, tr->saveMemory, tr->maxCategories);
-
+	    case DNA_DATA:
+	      switch(tr->rateHetModel)
+		{
+		case CAT:	      			
+		  makeP(pz, qz, tr->partitionData[model].perSiteRates,   tr->partitionData[model].EI,
+			tr->partitionData[model].EIGN, tr->partitionData[model].numberOfCategories,
+			left, right, DNA_DATA, tr->saveMemory, tr->maxCategories);
+		  
 #ifdef __AVX
-	      newviewGTRCAT_AVX(tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
+		  newviewGTRCAT_AVX(tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
+				    x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
+				    ex3, tipX1, tipX2,
+				    width, left, right, wgt, &scalerIncrement, tr->useFastScaling); 
+#else
+		  
+		  newviewGTRCAT(tipCase,  tr->partitionData[model].EV, rateCategory,
 				x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
 				ex3, tipX1, tipX2,
-				width, left, right, wgt, &scalerIncrement, tr->useFastScaling); 
-#else
-	      
-	      newviewGTRCAT(tipCase,  tr->partitionData[model].EV, rateCategory,
-			    x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
-			    ex3, tipX1, tipX2,
-			    width, left, right, wgt, &scalerIncrement, tr->useFastScaling
-			    );
+				width, left, right, wgt, &scalerIncrement, tr->useFastScaling
+				);
 #endif
-	      	      
-	      break;
-	    case GAMMA:
-	    case GAMMA_I:	     		
-	      makeP(pz, qz, tr->partitionData[model].gammaRates,
-		    tr->partitionData[model].EI, tr->partitionData[model].EIGN,
-		    4, left, right, DNA_DATA, tr->saveMemory, tr->maxCategories);
-	      
+		  
+		  break;
+		case GAMMA:
+		case GAMMA_I:	     		
+		  makeP(pz, qz, tr->partitionData[model].gammaRates,
+			tr->partitionData[model].EI, tr->partitionData[model].EIGN,
+			4, left, right, DNA_DATA, tr->saveMemory, tr->maxCategories);
+		  
 #ifdef __AVX
-	      newviewGTRGAMMA_AVX(tipCase,
+		  newviewGTRGAMMA_AVX(tipCase,
+				      x1_start, x2_start, x3_start, tr->partitionData[model].EV, tr->partitionData[model].tipVector,
+				      ex3, tipX1, tipX2,
+				      width, left, right, wgt, &scalerIncrement, tr->useFastScaling);
+#else
+		  newviewGTRGAMMA(tipCase,
 				  x1_start, x2_start, x3_start, tr->partitionData[model].EV, tr->partitionData[model].tipVector,
 				  ex3, tipX1, tipX2,
-				  width, left, right, wgt, &scalerIncrement, tr->useFastScaling);
-#else
-	      newviewGTRGAMMA(tipCase,
-			      x1_start, x2_start, x3_start, tr->partitionData[model].EV, tr->partitionData[model].tipVector,
-			      ex3, tipX1, tipX2,
-			      width, left, right, wgt, &scalerIncrement, tr->useFastScaling);			      	     
+				  width, left, right, wgt, &scalerIncrement, tr->useFastScaling);			      	     
 #endif
+		  break;
+		default:
+		  assert(0);
+		}
 	      break;
-	    default:
-	      assert(0);
-	    }
-	  break;
-	case AA_DATA:
-	  switch(tr->rateHetModel)
-	    {
-	    case CAT:	      
-	      makeP(pz, qz, tr->partitionData[model].perSiteRates,
-		    tr->partitionData[model].EI,
-		    tr->partitionData[model].EIGN,
-		    tr->partitionData[model].numberOfCategories, left, right, AA_DATA, tr->saveMemory, tr->maxCategories);
+	    case AA_DATA:
+	      switch(tr->rateHetModel)
+		{
+		case CAT:	      
+		  makeP(pz, qz, tr->partitionData[model].perSiteRates,
+			tr->partitionData[model].EI,
+			tr->partitionData[model].EIGN,
+			tr->partitionData[model].numberOfCategories, left, right, AA_DATA, tr->saveMemory, tr->maxCategories);
 #ifdef __AVX
-	      newviewGTRCATPROT_AVX(tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
-				    x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
-				    ex3, tipX1, tipX2, width, left, right, wgt, &scalerIncrement, tr->useFastScaling);
+		  newviewGTRCATPROT_AVX(tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
+					x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
+					ex3, tipX1, tipX2, width, left, right, wgt, &scalerIncrement, tr->useFastScaling);
 #else		      
-	      newviewGTRCATPROT(tipCase,  tr->partitionData[model].EV, rateCategory,
-				x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
-				ex3, tipX1, tipX2, width, left, right, wgt, &scalerIncrement, tr->useFastScaling);	      	      
+		  newviewGTRCATPROT(tipCase,  tr->partitionData[model].EV, rateCategory,
+				    x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
+				    ex3, tipX1, tipX2, width, left, right, wgt, &scalerIncrement, tr->useFastScaling);	      	      
 #endif
-	      break;
-	    case GAMMA:
-	    case GAMMA_I:	      
-	      makeP(pz, qz, tr->partitionData[model].gammaRates,
-		    tr->partitionData[model].EI,
-		    tr->partitionData[model].EIGN,
-		    4, left, right, AA_DATA, tr->saveMemory, tr->maxCategories);
+		  break;
+		case GAMMA:
+		case GAMMA_I:	      
+		  makeP(pz, qz, tr->partitionData[model].gammaRates,
+			tr->partitionData[model].EI,
+			tr->partitionData[model].EIGN,
+			4, left, right, AA_DATA, tr->saveMemory, tr->maxCategories);
 #ifdef __AVX
-	      newviewGTRGAMMAPROT_AVX(tipCase,
+		  newviewGTRGAMMAPROT_AVX(tipCase,
+					  x1_start, x2_start, x3_start,
+					  tr->partitionData[model].EV,
+					  tr->partitionData[model].tipVector,
+					  ex3, tipX1, tipX2,
+					  width, left, right, wgt, &scalerIncrement, tr->useFastScaling);
+#else	      
+		  newviewGTRGAMMAPROT(tipCase,
 				      x1_start, x2_start, x3_start,
 				      tr->partitionData[model].EV,
 				      tr->partitionData[model].tipVector,
 				      ex3, tipX1, tipX2,
 				      width, left, right, wgt, &scalerIncrement, tr->useFastScaling);
-#else	      
-	      newviewGTRGAMMAPROT(tipCase,
-				  x1_start, x2_start, x3_start,
-				  tr->partitionData[model].EV,
-				  tr->partitionData[model].tipVector,
-				  ex3, tipX1, tipX2,
-				  width, left, right, wgt, &scalerIncrement, tr->useFastScaling);
 #endif
-	      	      
+		  
+		  break;
+		default:
+		  assert(0);
+		}
+	      break;
+	    case SECONDARY_DATA:
+	      switch(tr->rateHetModel)
+		{
+		case CAT:	      
+		  makeP(pz, qz, tr->partitionData[model].perSiteRates,
+			tr->partitionData[model].EI,
+			tr->partitionData[model].EIGN,
+			tr->partitionData[model].numberOfCategories, left, right, SECONDARY_DATA, tr->saveMemory, tr->maxCategories);
+		  
+		  newviewGTRCATSECONDARY(tipCase,  tr->partitionData[model].EV, rateCategory,
+					 x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
+					 ex3, tipX1, tipX2, width, left, right, wgt, &scalerIncrement, tr->useFastScaling);
+		  
+		  break;
+		case GAMMA:
+		case GAMMA_I:	      
+		  makeP(pz, qz, tr->partitionData[model].gammaRates,
+			tr->partitionData[model].EI,
+			tr->partitionData[model].EIGN,
+			4, left, right, SECONDARY_DATA, tr->saveMemory, tr->maxCategories);
+		  
+		  newviewGTRGAMMASECONDARY(tipCase,
+					   x1_start, x2_start, x3_start,
+					   tr->partitionData[model].EV,
+					   tr->partitionData[model].tipVector,
+					   ex3, tipX1, tipX2,
+					   width, left, right, wgt, &scalerIncrement, tr->useFastScaling);
+		  
+		  break;
+		default:
+		  assert(0);
+		}
+	      break;
+	    case SECONDARY_DATA_6:
+	      switch(tr->rateHetModel)
+		{
+		case CAT:		      
+		  makeP(pz, qz, tr->partitionData[model].perSiteRates,
+			tr->partitionData[model].EI,
+			tr->partitionData[model].EIGN,
+			tr->partitionData[model].numberOfCategories, left, right, SECONDARY_DATA_6, tr->saveMemory, tr->maxCategories);
+		  
+		  newviewGTRCATSECONDARY_6(tipCase,  tr->partitionData[model].EV, rateCategory,
+					   x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
+					   ex3, tipX1, tipX2, width, left, right, wgt, &scalerIncrement, tr->useFastScaling);	     
+		  break;
+		case GAMMA:
+		case GAMMA_I:		      
+		  makeP(pz, qz, tr->partitionData[model].gammaRates,
+			tr->partitionData[model].EI,
+			tr->partitionData[model].EIGN,
+			4, left, right, SECONDARY_DATA_6, tr->saveMemory, tr->maxCategories);
+		  
+		  newviewGTRGAMMASECONDARY_6(tipCase,
+					     x1_start, x2_start, x3_start,
+					     tr->partitionData[model].EV,
+					     tr->partitionData[model].tipVector,
+					     ex3, tipX1, tipX2,
+					     width, left, right, wgt, &scalerIncrement, tr->useFastScaling);	    
+		  break;
+		default:
+		  assert(0);
+		}
+	      break;
+	    case SECONDARY_DATA_7:
+	      switch(tr->rateHetModel)
+		{
+		case CAT:		      
+		  makeP(pz, qz, tr->partitionData[model].perSiteRates,
+			tr->partitionData[model].EI,
+			tr->partitionData[model].EIGN,
+			tr->partitionData[model].numberOfCategories, left, right, SECONDARY_DATA_7, tr->saveMemory, tr->maxCategories);
+		  
+		  newviewGTRCATSECONDARY_7(tipCase,  tr->partitionData[model].EV, rateCategory,
+					   x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
+					   ex3, tipX1, tipX2, width, left, right, wgt, &scalerIncrement, tr->useFastScaling);	      
+		  break;
+		case GAMMA:
+		case GAMMA_I:	      
+		  makeP(pz, qz, tr->partitionData[model].gammaRates,
+			tr->partitionData[model].EI,
+			tr->partitionData[model].EIGN,
+			4, left, right, SECONDARY_DATA_7, tr->saveMemory, tr->maxCategories);
+		  
+		  newviewGTRGAMMASECONDARY_7(tipCase,
+					     x1_start, x2_start, x3_start,
+					     tr->partitionData[model].EV,
+					     tr->partitionData[model].tipVector,
+					     ex3, tipX1, tipX2,
+					     width, left, right, wgt, &scalerIncrement, tr->useFastScaling);	      
+		  break;
+		default:
+		  assert(0);
+		}
 	      break;
 	    default:
 	      assert(0);
 	    }
-	  break;
-	case SECONDARY_DATA:
-	  switch(tr->rateHetModel)
-	    {
-	    case CAT:	      
-	      makeP(pz, qz, tr->partitionData[model].perSiteRates,
-		    tr->partitionData[model].EI,
-		    tr->partitionData[model].EIGN,
-		    tr->partitionData[model].numberOfCategories, left, right, SECONDARY_DATA, tr->saveMemory, tr->maxCategories);
-
-	      newviewGTRCATSECONDARY(tipCase,  tr->partitionData[model].EV, rateCategory,
-				     x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
-				     ex3, tipX1, tipX2, width, left, right, wgt, &scalerIncrement, tr->useFastScaling);
-	      	      
-	      break;
-	    case GAMMA:
-	    case GAMMA_I:	      
-	      makeP(pz, qz, tr->partitionData[model].gammaRates,
-		    tr->partitionData[model].EI,
-		    tr->partitionData[model].EIGN,
-		    4, left, right, SECONDARY_DATA, tr->saveMemory, tr->maxCategories);
-	      
-	      newviewGTRGAMMASECONDARY(tipCase,
-				       x1_start, x2_start, x3_start,
-				       tr->partitionData[model].EV,
-				       tr->partitionData[model].tipVector,
-				       ex3, tipX1, tipX2,
-				       width, left, right, wgt, &scalerIncrement, tr->useFastScaling);
-	    
-	      break;
-	    default:
-	      assert(0);
-	    }
-	  break;
-	case SECONDARY_DATA_6:
-	  switch(tr->rateHetModel)
-	    {
-	    case CAT:		      
-	      makeP(pz, qz, tr->partitionData[model].perSiteRates,
-		    tr->partitionData[model].EI,
-		    tr->partitionData[model].EIGN,
-		    tr->partitionData[model].numberOfCategories, left, right, SECONDARY_DATA_6, tr->saveMemory, tr->maxCategories);
-	      
-	      newviewGTRCATSECONDARY_6(tipCase,  tr->partitionData[model].EV, rateCategory,
-				       x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
-				       ex3, tipX1, tipX2, width, left, right, wgt, &scalerIncrement, tr->useFastScaling);	     
-	      break;
-	    case GAMMA:
-	    case GAMMA_I:		      
-	      makeP(pz, qz, tr->partitionData[model].gammaRates,
-		    tr->partitionData[model].EI,
-		    tr->partitionData[model].EIGN,
-		    4, left, right, SECONDARY_DATA_6, tr->saveMemory, tr->maxCategories);
-
-	      newviewGTRGAMMASECONDARY_6(tipCase,
-					 x1_start, x2_start, x3_start,
-					 tr->partitionData[model].EV,
-					 tr->partitionData[model].tipVector,
-					 ex3, tipX1, tipX2,
-					 width, left, right, wgt, &scalerIncrement, tr->useFastScaling);	    
-	      break;
-	    default:
-	      assert(0);
-	    }
-	  break;
-	case SECONDARY_DATA_7:
-	  switch(tr->rateHetModel)
-	    {
-	    case CAT:		      
-	      makeP(pz, qz, tr->partitionData[model].perSiteRates,
-		    tr->partitionData[model].EI,
-		    tr->partitionData[model].EIGN,
-		    tr->partitionData[model].numberOfCategories, left, right, SECONDARY_DATA_7, tr->saveMemory, tr->maxCategories);
-	      
-	      newviewGTRCATSECONDARY_7(tipCase,  tr->partitionData[model].EV, rateCategory,
-				       x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
-				       ex3, tipX1, tipX2, width, left, right, wgt, &scalerIncrement, tr->useFastScaling);	      
-	      break;
-	    case GAMMA:
-	    case GAMMA_I:	      
-	      makeP(pz, qz, tr->partitionData[model].gammaRates,
-		    tr->partitionData[model].EI,
-		    tr->partitionData[model].EIGN,
-		    4, left, right, SECONDARY_DATA_7, tr->saveMemory, tr->maxCategories);
-
-	      newviewGTRGAMMASECONDARY_7(tipCase,
-					 x1_start, x2_start, x3_start,
-					 tr->partitionData[model].EV,
-					 tr->partitionData[model].tipVector,
-					 ex3, tipX1, tipX2,
-					 width, left, right, wgt, &scalerIncrement, tr->useFastScaling);	      
-	      break;
-	    default:
-	      assert(0);
-	    }
-	  break;
-	default:
-	  assert(0);
 	}
+
       columnCounter += width;
-      offsetCounter += width * tr->partitionData[model].states * tr->discreteRateCategories;
+      offsetCounter += width * tr->partitionData[model].states * tr->discreteRateCategories;	
     }
+
+#ifdef _DEBUG_MULTI_EPA
+  if(tr->threadID == THREAD_TO_DEBUG)
+    printf("\n");
+#endif
+
+  resetPartitionMask(tr, tr->executeModel);
 }
 
 
 
-void newviewClassify(tree *tr, branchInfo *b, double *z)
+void newviewClassify(tree *tr, branchInfo *b, double *z, int insertion)
 {
   int 
     leftNumber = b->epa->leftNodeNumber,
@@ -10803,17 +10840,17 @@ void newviewClassify(tree *tr, branchInfo *b, double *z)
     }
     
   newviewMultiGrain(tr,  x1_start, x2_start, x3_start, ex1, ex2, ex3, tipX1, tipX2, 
-		    tipCase, z, z);
+		    tipCase, z, z, insertion);
 
 }
 
 
 
 void newviewClassifySpecial(tree *tr, double *x1_start, double *x2_start, double *x3_start, int *ex1, int *ex2, int *ex3,
-			    unsigned char *tipX1,  unsigned char *tipX2, int tipCase, double *pz, double *qz)
+			    unsigned char *tipX1,  unsigned char *tipX2, int tipCase, double *pz, double *qz, int insertion)
 {
   newviewMultiGrain(tr,  x1_start, x2_start, x3_start, ex1, ex2, ex3, tipX1, tipX2, 
-		    tipCase, pz, qz);
+		    tipCase, pz, qz, insertion);
   
 }
 

@@ -84,6 +84,8 @@
 
 #define LIKELIHOOD_EPSILON 0.0000001
 
+#define THREAD_TO_DEBUG 1
+
 #define AA_SCALE 10.0
 #define AA_SCALE_PLUS_EPSILON 10.001
 
@@ -155,8 +157,8 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "RAxML"
-#define programVersion     "7.3.2"
-#define programDate        "June 2012"
+#define programVersion     "7.3.3"
+#define programDate        "September 2012"
 
 
 #define  TREE_EVALUATION            0
@@ -651,6 +653,8 @@ typedef  struct  {
 
   int numberOfBranches;
   int    numberOfTipsForInsertion;
+  int    *readPartition;
+  boolean perPartitionEPA;
   int    *inserts;
   int    branchCounter;
   
@@ -1077,7 +1081,7 @@ extern void findNext(nodeptr p, tree *tr, nodeptr *result);
 extern partitionLengths * getPartitionLengths(pInfo *p);
 extern boolean getSmoothFreqs(int dataType);
 extern const unsigned int *getBitVector(int dataType);
-extern int getUndetermined(int dataType);
+extern unsigned char getUndetermined(int dataType);
 extern int getStates(int dataType);
 extern char getInverseMeaning(int dataType, unsigned char state);
 extern void printModelParams(tree *tr, analdef *adef);
@@ -1328,22 +1332,23 @@ extern boolean computeBootStopMPI(tree *tr, char *bootStrapFileName, analdef *ad
 
 #endif
 
-
+extern void setPartitionMask(tree *tr, int i, boolean *executeModel);
+extern void resetPartitionMask(tree *tr, boolean *executeModel);
 #ifdef _USE_PTHREADS
 
 extern size_t getContiguousVectorLength(tree *tr);
 
 extern void makenewzClassify(tree *tr, int maxiter, double *result, double *z0, double *x1_start, double *x2_start,
-			     unsigned char *tipX1,  unsigned char *tipX2, int tipCase, boolean *partitionConverged);
+			     unsigned char *tipX1,  unsigned char *tipX2, int tipCase, boolean *partitionConverged, int insertion);
 
-extern void    newviewClassify(tree *tr, branchInfo *bInf, double *z);
+extern void    newviewClassify(tree *tr, branchInfo *bInf, double *z, int insertion);
 
 extern void addTraverseRobIterative(tree *tr, int branchNumber);
 extern void insertionsParsimonyIterative(tree *tr, int branchNumber);
 
 extern void newviewClassifySpecial(tree *tr, double *x1_start, double *x2_start, double *x3_start, int *ex1, int *ex2, int *ex3,
-				   unsigned char *tipX1,  unsigned char *tipX2, int tipCase, double *pz, double *qz);
-extern double evalCL(tree *tr, double *x2, int *ex2, unsigned char *tip, double *pz);
+				   unsigned char *tipX1,  unsigned char *tipX2, int tipCase, double *pz, double *qz, int insertion);
+extern double evalCL(tree *tr, double *x2, int *ex2, unsigned char *tip, double *pz, int insertion);
 
 extern void testInsertThoroughIterative(tree *tr, int branchNumber);
 

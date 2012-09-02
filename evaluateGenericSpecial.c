@@ -2970,8 +2970,16 @@ double evaluateIterative(tree *tr,  boolean writeVector)
   if(writeVector)
     assert(!tr->useFastScaling);
 
+#ifdef _DEBUG_MULTI_EPA  
+    printf("EV: ");
+#endif
+
   for(model = 0; model < tr->NumberOfModels; model++)
-    {            
+    {         
+#ifdef _DEBUG_MULTI_EPA  
+      printf("%d ", tr->executeModel[model]);
+#endif
+        
       if(tr->executeModel[model])
 	{	
 	  int 
@@ -3465,7 +3473,9 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 	       
 	}
     }
-      
+#ifdef _DEBUG_MULTI_EPA
+  printf("\n");
+#endif 
   return result;
 }
 
@@ -3804,7 +3814,9 @@ double evaluateIterativeMulti(tree *tr,  boolean writeVector)
 	  tr->perPartitionLH[model] = partitionLikelihood;
 	}            
     }
-      
+
+
+  
   return result;
 }
 
@@ -4154,8 +4166,7 @@ void determineFullTraversalMulti(nodeptr p, tree *tr)
       tr->td[model].count = 1; 
       computeFullTraversalInfoMulti(q, &(tr->td[model].ti[0]),  &(tr->td[model].count), tr->mxtips, model); 
       computeFullTraversalInfoMulti(start, &(tr->td[model].ti[0]),  &(tr->td[model].count), tr->mxtips, model);
-
-      /*printf("%d %d\n", tr->td[model].count - 1, tr->mxtipsVector[model] - 2);*/
+      
       assert(tr->td[model].count -  1 == tr->mxtipsVector[model] - 2);
     }
 }
@@ -4164,7 +4175,7 @@ void determineFullTraversalMulti(nodeptr p, tree *tr)
 
 #ifdef _USE_PTHREADS
 
-double evalCL(tree *tr, double *x2, int *_ex2, unsigned char *_tip, double *pz)
+double evalCL(tree *tr, double *x2, int *_ex2, unsigned char *_tip, double *pz, int insertion)
 {
   double 
     *x1_start = (double*)NULL,   
@@ -4175,243 +4186,268 @@ double evalCL(tree *tr, double *x2, int *_ex2, unsigned char *_tip, double *pz)
      model, 
     columnCounter, 
     offsetCounter;
-
-    
     
   unsigned char 
     *tip = (unsigned char*)NULL;
 
- 
+  setPartitionMask(tr, insertion, tr->executeModel);
 
+#ifdef _DEBUG_MULTI_EPA
+  if(tr->threadID == THREAD_TO_DEBUG)
+    printf("EV %s: ", tr->nameList[tr->inserts[insertion]]);
+#endif
 
   for(model = 0, columnCounter = 0, offsetCounter = 0; model < tr->NumberOfModels; model++)
-    {                 	
+    {   
       int 
-	width = tr->partitionData[model].upper - tr->partitionData[model].lower,	
-	*ex2,
-	*rateCategory, 
-	*wgt,         
-	*invariant;
-		
+	width = tr->partitionData[model].upper - tr->partitionData[model].lower;
 
-      double 
-	*x2_start,
-	z, 
-	partitionLikelihood, 	
-	*diagptable = tr->partitionData[model].left;	 
+#ifdef _DEBUG_MULTI_EPA
+  if(tr->threadID == THREAD_TO_DEBUG)
+    printf("%d", tr->executeModel[model]);
+#endif    
 
-      
-      rateCategory = &tr->contiguousRateCategory[columnCounter];
-      wgt          = &tr->contiguousWgt[columnCounter];
-      invariant    = &tr->contiguousInvariant[columnCounter]; 
-      tip          = &_tip[columnCounter];
-      x2_start     = &x2[offsetCounter];
-      ex2          = &_ex2[columnCounter];
-
-
-
-      if(tr->multiBranch)
-	z = pz[model];
-      else
-	z = pz[0];
-
-      switch(tr->partitionData[model].dataType)
-	{ 
-	case BINARY_DATA:
-	  switch(tr->rateHetModel)
-	    {
-	    case CAT:	    	      	   		    
-	      calcDiagptable(z, BINARY_DATA, tr->partitionData[model].numberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
-		
-	      partitionLikelihood =  evaluateGTRCAT_BINARY(ex1, ex2, rateCategory, wgt,
-							   x1_start, x2_start, tr->partitionData[model].tipVector, 
-							   tip, width, diagptable, tr->useFastScaling);	      	      
-	      break;	  	   
-	    case GAMMA:	   	  
-	      calcDiagptable(z, BINARY_DATA, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable);		    		    
-		
-	      partitionLikelihood = evaluateGTRGAMMA_BINARY(ex1, ex2,wgt,
-							      x1_start, x2_start, tr->partitionData[model].tipVector,
-							      tip, width, diagptable, tr->useFastScaling); 
-	     
-	      break; 
-	    case GAMMA_I:	        		    
-	      calcDiagptable(z, BINARY_DATA, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable);
-		
-	      partitionLikelihood = evaluateGTRGAMMAINVAR_BINARY(ex1, ex2,wgt, invariant,
-								 x1_start, x2_start,
-								 tr->partitionData[model].tipVector, tr->partitionData[model].frequencies, 
-								 tr->partitionData[model].propInvariant,
-								 tip, width, diagptable, tr->useFastScaling);	      
-	      break;
-	    default:
-	      assert(0);
-	    }
-	  break;	   
-	case DNA_DATA:
-	  switch(tr->rateHetModel)
-	    {
-	    case CAT:	     
-	      calcDiagptable(z, DNA_DATA, tr->partitionData[model].numberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
-	      
-	      partitionLikelihood =  evaluateGTRCAT(ex1, ex2, rateCategory,wgt,
-						    x1_start, x2_start, tr->partitionData[model].tipVector, 
-						    tip, width, diagptable, tr->useFastScaling);	      	   	      
-	      break;	  	   
-	    case GAMMA:		 	     		      
-	      calcDiagptable(z, DNA_DATA, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable);		    		    
-		      
-	      partitionLikelihood = evaluateGTRGAMMA(ex1, ex2,wgt,
-						     x1_start, x2_start, tr->partitionData[model].tipVector,
-						     tip, width, diagptable, tr->useFastScaling); 		      	      
-	      break; 
-	    case GAMMA_I:		  
-	      calcDiagptable(z, DNA_DATA, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable);
-
-	      partitionLikelihood = evaluateGTRGAMMAINVAR(ex1, ex2,wgt,invariant,
-							  x1_start, x2_start,
-							  tr->partitionData[model].tipVector, tr->partitionData[model].frequencies, 
-							  tr->partitionData[model].propInvariant,
-							  tip, width, diagptable, tr->useFastScaling);	    	     
-	      break;
-	    default:
-	      assert(0);
-	    }
-	  break;
-	case AA_DATA:
-	  switch(tr->rateHetModel)
-	    {
-	    case CAT:	    		 		   
-	      calcDiagptable(z, AA_DATA, tr->partitionData[model].numberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
-	      
-	      partitionLikelihood = evaluateGTRCATPROT(ex1, ex2, rateCategory,wgt,
-						       x1_start, x2_start, tr->partitionData[model].tipVector,
-						       tip, width, diagptable, tr->useFastScaling);	      
-	      break;	      
-	    case GAMMA:		 
-	      calcDiagptable(z, AA_DATA, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable);
-		      
-	      partitionLikelihood = evaluateGTRGAMMAPROT(ex1, ex2,wgt,
+      if(tr->executeModel[model])
+	{
+	  int 	 
+	    *ex2,
+	    *rateCategory, 
+	    *wgt,         
+	    *invariant;
+	  
+	  double 
+	    *x2_start,
+	    z, 
+	    partitionLikelihood, 	
+	    *diagptable = tr->partitionData[model].left;	 
+	  
+	  
+	  rateCategory = &tr->contiguousRateCategory[columnCounter];
+	  wgt          = &tr->contiguousWgt[columnCounter];
+	  invariant    = &tr->contiguousInvariant[columnCounter]; 
+	  tip          = &_tip[columnCounter];
+	  x2_start     = &x2[offsetCounter];
+	  ex2          = &_ex2[columnCounter];
+	  
+	  if(tr->multiBranch)
+	    z = pz[model];
+	  else
+	    z = pz[0];
+	  
+	  switch(tr->partitionData[model].dataType)
+	    { 
+	    case BINARY_DATA:
+	      switch(tr->rateHetModel)
+		{
+		case CAT:	    	      	   		    
+		  calcDiagptable(z, BINARY_DATA, tr->partitionData[model].numberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
+		  
+		  partitionLikelihood =  evaluateGTRCAT_BINARY(ex1, ex2, rateCategory, wgt,
+							       x1_start, x2_start, tr->partitionData[model].tipVector, 
+							       tip, width, diagptable, tr->useFastScaling);	      	      
+		  break;	  	   
+		case GAMMA:	   	  
+		  calcDiagptable(z, BINARY_DATA, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable);		    		    
+		  
+		  partitionLikelihood = evaluateGTRGAMMA_BINARY(ex1, ex2,wgt,
+								x1_start, x2_start, tr->partitionData[model].tipVector,
+								tip, width, diagptable, tr->useFastScaling); 
+		  
+		  break; 
+		case GAMMA_I:	        		    
+		  calcDiagptable(z, BINARY_DATA, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable);
+		  
+		  partitionLikelihood = evaluateGTRGAMMAINVAR_BINARY(ex1, ex2,wgt, invariant,
+								     x1_start, x2_start,
+								     tr->partitionData[model].tipVector, tr->partitionData[model].frequencies, 
+								     tr->partitionData[model].propInvariant,
+								     tip, width, diagptable, tr->useFastScaling);	      
+		  break;
+		default:
+		  assert(0);
+		}
+	      break;	   
+	    case DNA_DATA:
+	      switch(tr->rateHetModel)
+		{
+		case CAT:	     
+		  calcDiagptable(z, DNA_DATA, tr->partitionData[model].numberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
+		  
+		  partitionLikelihood =  evaluateGTRCAT(ex1, ex2, rateCategory,wgt,
+							x1_start, x2_start, tr->partitionData[model].tipVector, 
+							tip, width, diagptable, tr->useFastScaling);	      	   	      
+		  break;	  	   
+		case GAMMA:		 	     		      
+		  calcDiagptable(z, DNA_DATA, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable);		    		    
+		  
+		  partitionLikelihood = evaluateGTRGAMMA(ex1, ex2,wgt,
 							 x1_start, x2_start, tr->partitionData[model].tipVector,
-							 tip, width, diagptable, tr->useFastScaling);	    	      
-	      break;
-	    case GAMMA_I:		  	    		  
-	      calcDiagptable(z, AA_DATA, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable);
-		    
-	      partitionLikelihood = evaluateGTRGAMMAPROTINVAR(ex1, ex2,wgt,invariant,
-							      x1_start, x2_start, 
+							 tip, width, diagptable, tr->useFastScaling); 		      	      
+		  break; 
+		case GAMMA_I:		  
+		  calcDiagptable(z, DNA_DATA, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable);
+		  
+		  partitionLikelihood = evaluateGTRGAMMAINVAR(ex1, ex2,wgt,invariant,
+							      x1_start, x2_start,
 							      tr->partitionData[model].tipVector, tr->partitionData[model].frequencies, 
-							      tr->partitionData[model].propInvariant, 
-							      tip, width, diagptable, tr->useFastScaling);	  	      
+							      tr->partitionData[model].propInvariant,
+							      tip, width, diagptable, tr->useFastScaling);	    	     
+		  break;
+		default:
+		  assert(0);
+		}
 	      break;
-	    default:
-	      assert(0);
-	    }
-	  break;
-	case SECONDARY_DATA:
-	  switch(tr->rateHetModel)
-	    {
-	    case CAT:	    	      
-	      calcDiagptable(z, SECONDARY_DATA, tr->partitionData[model].numberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
-
-	      partitionLikelihood = evaluateGTRCATSECONDARY(ex1, ex2, rateCategory,wgt,
-							    x1_start, x2_start, tr->partitionData[model].tipVector,
-							    tip, width, diagptable, tr->useFastScaling);		 	      
-	      break;	      
-	    case GAMMA:		  
-	      calcDiagptable(z, SECONDARY_DATA, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable);
-
-	      partitionLikelihood = evaluateGTRGAMMASECONDARY(ex1, ex2,wgt,
-							      x1_start, x2_start, tr->partitionData[model].tipVector,
-							      tip, width, diagptable, tr->useFastScaling);		  	     
+	    case AA_DATA:
+	      switch(tr->rateHetModel)
+		{
+		case CAT:	    		 		   
+		  calcDiagptable(z, AA_DATA, tr->partitionData[model].numberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
+		  
+		  partitionLikelihood = evaluateGTRCATPROT(ex1, ex2, rateCategory,wgt,
+							   x1_start, x2_start, tr->partitionData[model].tipVector,
+							   tip, width, diagptable, tr->useFastScaling);	      
+		  break;	      
+		case GAMMA:		 
+		  calcDiagptable(z, AA_DATA, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable);
+		  
+		  partitionLikelihood = evaluateGTRGAMMAPROT(ex1, ex2,wgt,
+							     x1_start, x2_start, tr->partitionData[model].tipVector,
+							     tip, width, diagptable, tr->useFastScaling);	    	      
+		  break;
+		case GAMMA_I:		  	    		  
+		  calcDiagptable(z, AA_DATA, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable);
+		  
+		  partitionLikelihood = evaluateGTRGAMMAPROTINVAR(ex1, ex2,wgt,invariant,
+								  x1_start, x2_start, 
+								  tr->partitionData[model].tipVector, tr->partitionData[model].frequencies, 
+								  tr->partitionData[model].propInvariant, 
+								  tip, width, diagptable, tr->useFastScaling);	  	      
+		  break;
+		default:
+		  assert(0);
+		}
 	      break;
-	    case GAMMA_I:		  	    		  
-	      calcDiagptable(z, SECONDARY_DATA, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable);
-		    
-	      partitionLikelihood = evaluateGTRGAMMASECONDARYINVAR(ex1, ex2,wgt,invariant,
-								   x1_start, x2_start, 
-								   tr->partitionData[model].tipVector, tr->partitionData[model].frequencies, 
-								   tr->partitionData[model].propInvariant, 
-								   tip, width, diagptable, tr->useFastScaling);			     
-	      break;
-	    default:
-	      assert(0);
-	    }
-	  break;
-	case SECONDARY_DATA_6:
-	  switch(tr->rateHetModel)
-	    {
-	    case CAT:	    		 
-	      calcDiagptable(z, SECONDARY_DATA_6, tr->partitionData[model].numberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
-
-	      partitionLikelihood = evaluateGTRCATSECONDARY_6(ex1, ex2, rateCategory,wgt,
-							      x1_start, x2_start, tr->partitionData[model].tipVector,
-							      tip, width, diagptable, tr->useFastScaling);		  	     	      	      
-	      break;	      
-	    case GAMMA:		  
-	      calcDiagptable(z, SECONDARY_DATA_6, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable);
-
-	      partitionLikelihood = evaluateGTRGAMMASECONDARY_6(ex1, ex2,wgt,
+	    case SECONDARY_DATA:
+	      switch(tr->rateHetModel)
+		{
+		case CAT:	    	      
+		  calcDiagptable(z, SECONDARY_DATA, tr->partitionData[model].numberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
+		  
+		  partitionLikelihood = evaluateGTRCATSECONDARY(ex1, ex2, rateCategory,wgt,
 								x1_start, x2_start, tr->partitionData[model].tipVector,
-								tip, width, diagptable, tr->useFastScaling);		  	      
+								tip, width, diagptable, tr->useFastScaling);		 	      
+		  break;	      
+		case GAMMA:		  
+		  calcDiagptable(z, SECONDARY_DATA, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable);
+		  
+		  partitionLikelihood = evaluateGTRGAMMASECONDARY(ex1, ex2,wgt,
+								  x1_start, x2_start, tr->partitionData[model].tipVector,
+								  tip, width, diagptable, tr->useFastScaling);		  	     
+		  break;
+		case GAMMA_I:		  	    		  
+		  calcDiagptable(z, SECONDARY_DATA, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable);
+		  
+		  partitionLikelihood = evaluateGTRGAMMASECONDARYINVAR(ex1, ex2,wgt,invariant,
+								       x1_start, x2_start, 
+								       tr->partitionData[model].tipVector, tr->partitionData[model].frequencies, 
+								       tr->partitionData[model].propInvariant, 
+								       tip, width, diagptable, tr->useFastScaling);			     
+		  break;
+		default:
+		  assert(0);
+		}
 	      break;
-	    case GAMMA_I:		  	    		  
-	      calcDiagptable(z, SECONDARY_DATA_6, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable);
-	      
-	      partitionLikelihood = evaluateGTRGAMMASECONDARYINVAR_6(ex1, ex2,wgt,invariant,
-								     x1_start, x2_start, 
-								     tr->partitionData[model].tipVector, tr->partitionData[model].frequencies, 
-								     tr->partitionData[model].propInvariant, 
-								     tip, width, diagptable, tr->useFastScaling);			      
+	    case SECONDARY_DATA_6:
+	      switch(tr->rateHetModel)
+		{
+		case CAT:	    		 
+		  calcDiagptable(z, SECONDARY_DATA_6, tr->partitionData[model].numberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
+		  
+		  partitionLikelihood = evaluateGTRCATSECONDARY_6(ex1, ex2, rateCategory,wgt,
+								  x1_start, x2_start, tr->partitionData[model].tipVector,
+								  tip, width, diagptable, tr->useFastScaling);		  	     	      	      
+		  break;	      
+		case GAMMA:		  
+		  calcDiagptable(z, SECONDARY_DATA_6, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable);
+		  
+		  partitionLikelihood = evaluateGTRGAMMASECONDARY_6(ex1, ex2,wgt,
+								    x1_start, x2_start, tr->partitionData[model].tipVector,
+								    tip, width, diagptable, tr->useFastScaling);		  	      
+		  break;
+		case GAMMA_I:		  	    		  
+		  calcDiagptable(z, SECONDARY_DATA_6, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable);
+		  
+		  partitionLikelihood = evaluateGTRGAMMASECONDARYINVAR_6(ex1, ex2,wgt,invariant,
+									 x1_start, x2_start, 
+									 tr->partitionData[model].tipVector, tr->partitionData[model].frequencies, 
+									 tr->partitionData[model].propInvariant, 
+									 tip, width, diagptable, tr->useFastScaling);			      
+		  break;
+		default:
+		  assert(0);
+		}
+	      break;
+	    case SECONDARY_DATA_7:
+	      switch(tr->rateHetModel)
+		{
+		case CAT:	    		  
+		  calcDiagptable(z, SECONDARY_DATA_7, tr->partitionData[model].numberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
+		  
+		  partitionLikelihood = evaluateGTRCATSECONDARY_7(ex1, ex2, rateCategory,wgt,
+								  x1_start, x2_start, tr->partitionData[model].tipVector,
+								  tip, width, diagptable, tr->useFastScaling);	      
+		  break;	      
+		case GAMMA:	      
+		  calcDiagptable(z, SECONDARY_DATA_7, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable);
+		  
+		  partitionLikelihood = evaluateGTRGAMMASECONDARY_7(ex1, ex2,wgt,
+								    x1_start, x2_start, tr->partitionData[model].tipVector,
+								    tip, width, diagptable, tr->useFastScaling);	      
+		  break;
+		case GAMMA_I:		  	    	      
+		  calcDiagptable(z, SECONDARY_DATA_7, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable);
+		  
+		  partitionLikelihood = evaluateGTRGAMMASECONDARYINVAR_7(ex1, ex2,wgt,invariant,
+									 x1_start, x2_start, 
+									 tr->partitionData[model].tipVector, tr->partitionData[model].frequencies, 
+									 tr->partitionData[model].propInvariant, 
+									 tip, width, diagptable, tr->useFastScaling);			     
+		  break;
+		default:
+		  assert(0);
+		}
 	      break;
 	    default:
 	      assert(0);
 	    }
-	  break;
-	case SECONDARY_DATA_7:
-	  switch(tr->rateHetModel)
-	    {
-	    case CAT:	    		  
-	      calcDiagptable(z, SECONDARY_DATA_7, tr->partitionData[model].numberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
-	      
-	      partitionLikelihood = evaluateGTRCATSECONDARY_7(ex1, ex2, rateCategory,wgt,
-							      x1_start, x2_start, tr->partitionData[model].tipVector,
-							      tip, width, diagptable, tr->useFastScaling);	      
-	      break;	      
-	    case GAMMA:	      
-	      calcDiagptable(z, SECONDARY_DATA_7, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable);
+	  
+	  assert(!tr->useFastScaling);
 
-	      partitionLikelihood = evaluateGTRGAMMASECONDARY_7(ex1, ex2,wgt,
-								x1_start, x2_start, tr->partitionData[model].tipVector,
-								tip, width, diagptable, tr->useFastScaling);	      
-	      break;
-	    case GAMMA_I:		  	    	      
-	      calcDiagptable(z, SECONDARY_DATA_7, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable);
-	      
-	      partitionLikelihood = evaluateGTRGAMMASECONDARYINVAR_7(ex1, ex2,wgt,invariant,
-								     x1_start, x2_start, 
-								     tr->partitionData[model].tipVector, tr->partitionData[model].frequencies, 
-								     tr->partitionData[model].propInvariant, 
-								     tip, width, diagptable, tr->useFastScaling);			     
-	      break;
-	    default:
-	      assert(0);
-	    }
-	  break;
-	default:
-	  assert(0);
+	  /* error ? */
+	  
+      	  tr->perPartitionLH[model] = partitionLikelihood; 
+	  
+	  result += partitionLikelihood;	
 	}
-
-      assert(!tr->useFastScaling);
-      	  
-      result += partitionLikelihood;	
-
-      columnCounter += width;
-      offsetCounter += width * tr->partitionData[model].states * tr->discreteRateCategories;	
-    }           
       
-
-  return result;
+      columnCounter += width;
+      offsetCounter += width * tr->partitionData[model].states * tr->discreteRateCategories;       
+    }         
+  
+  resetPartitionMask(tr, tr->executeModel);
+#ifdef _DEBUG_MULTI_EPA
+  if(tr->threadID == THREAD_TO_DEBUG)
+    printf("\n");
+#endif
+  if(tr->perPartitionEPA)
+    {
+   
+      return (tr->perPartitionLH[tr->readPartition[insertion]]);
+    }
+  else
+    {
+      return result;      
+    }
 }
 
 

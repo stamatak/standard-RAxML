@@ -3544,6 +3544,8 @@ void makenewzIterative(tree *tr)
 
   for(model = 0; model < tr->NumberOfModels; model++)
     {
+      /*printf("MNZIterative %d %d\n", model, tr->executeModel[model]);*/
+      
       if(tr->executeModel[model])
 	{
 	  int 
@@ -3738,8 +3740,16 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
   _dlnLdlz[0]   = 0.0;
   _d2lnLdlz2[0] = 0.0;
 
+#ifdef _DEBUG_MULTI_EPA  
+  printf("MNZC: ");
+#endif  
+
   for(model = 0; model < tr->NumberOfModels; model++)
     {
+      
+#ifdef _DEBUG_MULTI_EPA  
+	  printf("%d ", tr->executeModel[model]);
+#endif
       if(tr->executeModel[model])
 	{
 	  int 
@@ -3966,6 +3976,10 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 	}
     }
 
+#ifdef _DEBUG_MULTI_EPA
+  printf("\n");
+#endif 	  
+
 }
 
 
@@ -3995,6 +4009,14 @@ static void topLevelMakenewz(tree *tr, double *z0, int _maxiter, double *result)
       maxiter[i] = _maxiter;
       outerConverged[i] = FALSE;
       tr->curvatOK[i]       = TRUE;
+    }
+
+  if(tr->perPartitionEPA)   
+    {
+      if(tr->multiBranch)
+	for(i = 0; i < numBranches; i++)
+	  if(!(tr->executeModel[i]))
+	    outerConverged[i] = TRUE;
     }
 
   do
@@ -4037,7 +4059,15 @@ static void topLevelMakenewz(tree *tr, double *z0, int _maxiter, double *result)
       else
 	{
 	  for(model = 0; model < tr->NumberOfModels; model++)
-	    tr->executeModel[model] = !tr->curvatOK[0];
+	    {
+	      if(tr->perPartitionEPA)
+		{
+		  if(tr->executeModel[model])
+		    tr->executeModel[model] = !tr->curvatOK[0];
+		}
+	      else
+		tr->executeModel[model] = !tr->curvatOK[0];
+	    }
 	}
 
 
@@ -4165,11 +4195,21 @@ static void sumClassify(tree *tr, int tipCase, double *_x1, double *_x2, unsigne
     *tipX1 = (unsigned char*)NULL,
     *tipX2 = (unsigned char*)NULL;
 
+#ifdef _DEBUG_MULTI_EPA
+  if(tr->threadID == THREAD_TO_DEBUG)
+    printf("MNZS: ");
+#endif
+
   for(model = 0; model < tr->NumberOfModels; model++)
     {
       int 
 	width = tr->partitionData[model].upper - tr->partitionData[model].lower;       
       
+#ifdef _DEBUG_MULTI_EPA
+      if(tr->threadID == THREAD_TO_DEBUG)
+	printf("%d", executeModel[model]);
+#endif       
+
       if(executeModel[model])
 	{
 	  double *sumBuffer = &tr->temporarySumBuffer[offsetCounter];
@@ -4298,6 +4338,10 @@ static void sumClassify(tree *tr, int tipCase, double *_x1, double *_x2, unsigne
       columnCounter += width;
       offsetCounter += width * tr->partitionData[model].states * tr->discreteRateCategories;
     } 
+#ifdef _DEBUG_MULTI_EPA
+  if(tr->threadID == THREAD_TO_DEBUG)
+    printf("\n");
+#endif
 }
 
 static void coreClassify(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2, double *coreLZ, boolean *executeModel)
@@ -4311,12 +4355,27 @@ static void coreClassify(tree *tr, volatile double *_dlnLdlz, volatile double *_
 
   _dlnLdlz[0]   = 0.0;
   _d2lnLdlz2[0] = 0.0;
-
+  
+#ifdef _DEBUG_MULTI_EPA
+  if(tr->threadID == THREAD_TO_DEBUG)
+    printf("MNZC: ");
+#endif 
+  
   for(model = 0; model < tr->NumberOfModels; model++)
     {
       int 
 	width = tr->partitionData[model].upper - tr->partitionData[model].lower;
 
+      if(tr->multiBranch)
+	branchIndex = model;
+      else
+	branchIndex = 0;	
+
+     
+#ifdef _DEBUG_MULTI_EPA
+  if(tr->threadID == THREAD_TO_DEBUG)
+    printf("%d", executeModel[model]);
+#endif    
       if(executeModel[model])
 	{	  
 	  double 
@@ -4506,14 +4565,19 @@ static void coreClassify(tree *tr, volatile double *_dlnLdlz, volatile double *_
 	  _d2lnLdlz2[branchIndex] = _d2lnLdlz2[branchIndex] + d2lnLdlz2;
 	}
 
-      columnCounter += width;
+      columnCounter += width;      
       offsetCounter += width * tr->partitionData[model].states * tr->discreteRateCategories;
     }
+
+#ifdef _DEBUG_MULTI_EPA
+  if(tr->threadID == THREAD_TO_DEBUG)
+    printf("\n");
+#endif
 
 }
 
 void makenewzClassify(tree *tr, int _maxiter, double *result, double *z0, double *x1_start, double *x2_start, unsigned char *tipX1,  
-		      unsigned char *tipX2, int tipCase, boolean *partitionConverged)
+		      unsigned char *tipX2, int tipCase, boolean *partitionConverged, int insertion)
 {
   double   
     z[NUM_BRANCHES], 
@@ -4532,12 +4596,14 @@ void makenewzClassify(tree *tr, int _maxiter, double *result, double *z0, double
     curvatOK[NUM_BRANCHES],
     executeModel[NUM_BRANCHES];
 
+  
+
   if(tr->multiBranch)
     numBranches = tr->NumberOfModels;
   else
     numBranches = 1;
 
-
+  
 
   for(i = 0; i < numBranches; i++)
     {
@@ -4550,7 +4616,19 @@ void makenewzClassify(tree *tr, int _maxiter, double *result, double *z0, double
       else
 	executeModel[i] = TRUE;
     }
+  
+  if(tr->perPartitionEPA)    
+    {
+      setPartitionMask(tr, insertion, executeModel);
 
+      if(tr->multiBranch)
+	for(i = 0; i < numBranches; i++)
+	  if(!executeModel[i])
+	    outerConverged[i] = TRUE;
+    }
+
+      
+  
   do
     {
       for(i = 0; i < numBranches; i++)
@@ -4585,14 +4663,27 @@ void makenewzClassify(tree *tr, int _maxiter, double *result, double *z0, double
 	  for(model = 0; model < tr->NumberOfModels; model++)
 	    {
 	      if(executeModel[model])
-		executeModel[model] = !curvatOK[model];
-	      
+		executeModel[model] = !curvatOK[model];	      
 	    }
 	}
       else
-	{
+	{ 
+	 
 	  for(model = 0; model < tr->NumberOfModels; model++)
-	    executeModel[model] = !curvatOK[0];
+	    {
+	      if(tr->perPartitionEPA)
+		{		 
+		  if(executeModel[model])
+		    {
+		      executeModel[model] = !curvatOK[0];		  		    		     
+		    }
+		  /*else
+		    executeModel[model] = FALSE;*/
+		}
+	      else
+		executeModel[model] = !curvatOK[0];
+	    }
+	  
 	}      
 
       
@@ -4709,7 +4800,7 @@ void makenewzGeneric(tree *tr, nodeptr p, nodeptr q, double *z0, int maxiter, do
 	  originalExecute[i] =  tr->executeModel[i];
 	  tr->td[0].ti[0].qz[i] =  z0[i];
 	  if(mask)
-	    {
+	    {	     
 	      if(tr->partitionConverged[i])
 		tr->executeModel[i] = FALSE;
 	      else
