@@ -2200,11 +2200,8 @@ static void optimizeRateCategories(tree *tr, int _maxCategories)
 	*oldNumbers = (int *)malloc(sizeof(int) * tr->NumberOfModels);
   
       assert(isTip(tr->start->number, tr->rdta->numsp));         
-
-      if(tr->multiGene)
-	determineFullTraversalMulti(tr->start, tr);
-      else
-	determineFullTraversal(tr->start, tr);
+      
+      determineFullTraversal(tr->start, tr);
 
       if(optimizeRateCategoryInvocations == 1)
 	{

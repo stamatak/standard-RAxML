@@ -1270,9 +1270,7 @@ int treeReadLen (FILE *fp, tree *tr, boolean readBranches, boolean readNodeLabel
     tr->start = findAnyTip(p, tr->rdta->numsp);    
   
    if(!topologyOnly || adef->mode == CLASSIFY_MP)
-    {
-      setupPointerMesh(tr);
-
+    {      
       assert(tr->ntips <= tr->mxtips);
       
 
@@ -1578,7 +1576,6 @@ boolean treeReadLenMULT (FILE *fp, tree *tr, analdef *adef)
   if(tr->ntips < tr->mxtips)         
     makeParsimonyTreeIncomplete(tr, adef);          
 
-  setupPointerMesh(tr);
 
   if(!adef->rapidBoot)
     onlyInitrav(tr, tr->start);
@@ -1675,7 +1672,6 @@ void getStartingTree(tree *tr, analdef *adef)
       else   	         
 	printStartingTree(tr, adef, FALSE);     	         
             
-      setupPointerMesh(tr);	  
       
       evaluateGenericInitrav(tr, tr->start);   
 

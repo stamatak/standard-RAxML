@@ -694,8 +694,7 @@ static void traversalInfoAncestralRoot(nodeptr p, traversalInfo *ti, int *counte
 void newviewGenericAncestral (tree *tr, nodeptr p, boolean atRoot)
 {  
   if(atRoot)
-    {
-      assert(!tr->multiGene);
+    {     
       tr->td[0].count = 1;
       traversalInfoAncestralRoot(p, &(tr->td[0].ti[0]), &(tr->td[0].count), tr->mxtips, tr->numBranches);
       
@@ -713,21 +712,17 @@ void newviewGenericAncestral (tree *tr, nodeptr p, boolean atRoot)
       if(isTip(p->number, tr->mxtips))
 	return;
       
-      if(tr->multiGene)       
-	assert(0);     
-      else
+     
+      tr->td[0].count = 1;
+      computeTraversalInfo(p, &(tr->td[0].ti[0]), &(tr->td[0].count), tr->mxtips, tr->numBranches);
+      
+      if(tr->td[0].count > 1)
 	{
-	  tr->td[0].count = 1;
-	  computeTraversalInfo(p, &(tr->td[0].ti[0]), &(tr->td[0].count), tr->mxtips, tr->numBranches);
-	  
-	  if(tr->td[0].count > 1)
-	    {
 #ifdef _USE_PTHREADS
-	      masterBarrier(THREAD_NEWVIEW_ANCESTRAL, tr);
+	  masterBarrier(THREAD_NEWVIEW_ANCESTRAL, tr);
 #else
-	      newviewIterativeAncestral(tr);
-#endif
-	    }
+	  newviewIterativeAncestral(tr);
+#endif	
 	}
     }
 }

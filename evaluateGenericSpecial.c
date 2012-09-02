@@ -3480,345 +3480,7 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 }
 
 
-double evaluateIterativeMulti(tree *tr,  boolean writeVector)
-{
-  double 
-    result = 0.0;  
-  int pNumber, qNumber, model;
-  double *pz; 
 
-  newviewIterativeMulti(tr); 
-
-  if(writeVector)
-    assert(!tr->useFastScaling);
-
-  for(model = 0; model < tr->NumberOfModels; model++)
-    {            
-      if(tr->executeModel[model])
-	{		  
-	  int 
-	    width = tr->partitionData[model].width;
-	  
-	  double 
-	    z, 
-	    partitionLikelihood, 
-	    *_vector;
-	  
-	  int    
-	    *ex1 = (int*)NULL, 
-	    *ex2 = (int*)NULL;
-
-	  double 
-	    *x1_start   = (double*)NULL, 
-	    *x2_start   = (double*)NULL,
-	    *diagptable = (double*)NULL;
-
-	  
-
-
-	  unsigned char 
-	    *tip = (unsigned char*)NULL;
-
-	  pNumber = tr->td[model].ti[0].pNumber;
-	  qNumber = tr->td[model].ti[0].qNumber;
-	  pz      = tr->td[model].ti[0].qz;
-
-	  if(writeVector)
-	    _vector = tr->partitionData[model].perSiteLL;
-	  else
-	    _vector = (double*)NULL;
-
-	 
-	  diagptable = tr->partitionData[model].left;
-
-
-	  if(isTip(pNumber, tr->mxtips) || isTip(qNumber, tr->mxtips))
-	    {	        	    
-	      if(isTip(qNumber, tr->mxtips))
-		{	
-		  
-		  
-		  x2_start = tr->partitionData[model].xVector[pNumber - tr->mxtips -1];
-		 
-
-		  if(!tr->useFastScaling)
-		    ex2      = tr->partitionData[model].expVector[pNumber - tr->mxtips - 1];
-		  
-		  tip = tr->partitionData[model].yVector[qNumber];	 	      
-		}           
-	      else
-		{
-		  
-		  x2_start = tr->partitionData[model].xVector[qNumber - tr->mxtips - 1];
-		  
-
-		  if(!tr->useFastScaling)
-		    ex2      = tr->partitionData[model].expVector[qNumber - tr->mxtips - 1];	 
-		  
-		  tip = tr->partitionData[model].yVector[pNumber];
-		}
-	    }
-	  else
-	    {  
-	      
-	      x1_start = tr->partitionData[model].xVector[pNumber - tr->mxtips - 1];
-	      x2_start = tr->partitionData[model].xVector[qNumber - tr->mxtips - 1];
-	
-	      if(!tr->useFastScaling)
-		{
-		  ex1      = tr->partitionData[model].expVector[pNumber - tr->mxtips - 1];
-		  ex2      = tr->partitionData[model].expVector[qNumber - tr->mxtips - 1];     
-		}
-	    }
-
-
-	  if(tr->multiBranch)
-	    z = pz[model];
-	  else
-	    z = pz[0];
-
-	  switch(tr->partitionData[model].dataType)
-	    { 
-	    case BINARY_DATA:
-	       switch(tr->rateHetModel)
-		{
-		case CAT:	    
-		  {		   		    
-		    calcDiagptable(z, BINARY_DATA, tr->partitionData[model].numberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
-		    
-		    partitionLikelihood =  evaluateGTRCAT_BINARY(ex1, ex2, tr->partitionData[model].rateCategory, tr->partitionData[model].wgt,
-								 x1_start, x2_start, tr->partitionData[model].tipVector, 
-								 tip, width, diagptable, tr->useFastScaling);
-		  }
-		  break;	  	   
-		case GAMMA:	   
-		  {		    		    
-		    calcDiagptable(z, BINARY_DATA, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable);		    		    
-
-		    partitionLikelihood = evaluateGTRGAMMA_BINARY(ex1, ex2, tr->partitionData[model].wgt,
-								  x1_start, x2_start, tr->partitionData[model].tipVector,
-								  tip, width, diagptable, tr->useFastScaling); 		   
-		  }
-		  break; 
-		case GAMMA_I:
-		  {		    		    
-		    calcDiagptable(z, BINARY_DATA, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable);
-
-		    partitionLikelihood = evaluateGTRGAMMAINVAR_BINARY(ex1, ex2, tr->partitionData[model].wgt, tr->partitionData[model].invariant,
-								       x1_start, x2_start,
-								       tr->partitionData[model].tipVector, tr->partitionData[model].frequencies, 
-								       tr->partitionData[model].propInvariant,
-								       tip, width, diagptable, tr->useFastScaling);
-		  }
-		  break;
-		default:
-		  assert(0);
-		}
-	      break;	   
-	    case DNA_DATA:
-	      switch(tr->rateHetModel)
-		{
-		case CAT:		  
-		    {
-		      calcDiagptable(z, DNA_DATA, tr->partitionData[model].numberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
-		      
-		      partitionLikelihood =  evaluateGTRCAT(ex1, ex2, tr->partitionData[model].rateCategory, tr->partitionData[model].wgt,
-							    x1_start, x2_start, tr->partitionData[model].tipVector, 
-							    tip, width, diagptable, tr->useFastScaling);
-		      		      
-		    }
-		  break;	  	   
-		case GAMMA:		 
-		    {		     		      
-		      calcDiagptable(z, DNA_DATA, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable);		    		    
-		      if(tr->useGappedImplementation || tr->saveMemory)
-			assert(0);
-		      else		      
-			partitionLikelihood = evaluateGTRGAMMA(ex1, ex2, tr->partitionData[model].wgt,
-							       x1_start, x2_start, tr->partitionData[model].tipVector,
-							       tip, width, diagptable, tr->useFastScaling); 		      
-		    }
-		  break; 
-		case GAMMA_I:
-		  {
-		    calcDiagptable(z, DNA_DATA, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable);
-
-		    partitionLikelihood = evaluateGTRGAMMAINVAR(ex1, ex2, tr->partitionData[model].wgt, tr->partitionData[model].invariant,
-								x1_start, x2_start,
-								tr->partitionData[model].tipVector, tr->partitionData[model].frequencies, 
-								tr->partitionData[model].propInvariant,
-								tip, width, diagptable, tr->useFastScaling);
-		  }
-		  break;
-		default:
-		  assert(0);
-		}
-	      break;
-	    case AA_DATA:
-	      switch(tr->rateHetModel)
-		{
-		case CAT:	    
-		  {		   
-		    calcDiagptable(z, AA_DATA, tr->partitionData[model].numberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
-
-		    partitionLikelihood = evaluateGTRCATPROT(ex1, ex2, tr->partitionData[model].rateCategory, tr->partitionData[model].wgt,
-							     x1_start, x2_start, tr->partitionData[model].tipVector,
-							     tip, width, diagptable, tr->useFastScaling);		  
-		  }	     	      
-		  break;	      
-		case GAMMA:		  
-		    {
-		      calcDiagptable(z, AA_DATA, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable);
-		      
-		      partitionLikelihood = evaluateGTRGAMMAPROT(ex1, ex2, tr->partitionData[model].wgt,
-								 x1_start, x2_start, tr->partitionData[model].tipVector,
-								 tip, width, diagptable, tr->useFastScaling);
-		    }
-		  break;
-		case GAMMA_I:		  	    
-		  {
-		    calcDiagptable(z, AA_DATA, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable);
-		    
-		    partitionLikelihood = evaluateGTRGAMMAPROTINVAR(ex1, ex2, tr->partitionData[model].wgt, tr->partitionData[model].invariant,
-								    x1_start, x2_start, 
-								    tr->partitionData[model].tipVector, tr->partitionData[model].frequencies, 
-								    tr->partitionData[model].propInvariant, 
-								    tip, width, diagptable, tr->useFastScaling);
-		  }	  
-		  break;
-		default:
-		  assert(0);
-		}
-	      break;
-	    case SECONDARY_DATA:
-	      switch(tr->rateHetModel)
-		{
-		case CAT:	    
-		  {
-		    calcDiagptable(z, SECONDARY_DATA, tr->partitionData[model].numberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
-
-		    partitionLikelihood = evaluateGTRCATSECONDARY(ex1, ex2, tr->partitionData[model].rateCategory, tr->partitionData[model].wgt,
-								  x1_start, x2_start, tr->partitionData[model].tipVector,
-								  tip, width, diagptable, tr->useFastScaling);
-		  }	     	      
-		  break;	      
-		case GAMMA:
-		  {
-		    calcDiagptable(z, SECONDARY_DATA, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable);
-
-		    partitionLikelihood = evaluateGTRGAMMASECONDARY(ex1, ex2, tr->partitionData[model].wgt,
-								    x1_start, x2_start, tr->partitionData[model].tipVector,
-								    tip, width, diagptable, tr->useFastScaling);
-		  }
-		  break;
-		case GAMMA_I:		  	    
-		  {
-		    calcDiagptable(z, SECONDARY_DATA, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable);
-		    
-		    partitionLikelihood = evaluateGTRGAMMASECONDARYINVAR(ex1, ex2, tr->partitionData[model].wgt, tr->partitionData[model].invariant,
-									 x1_start, x2_start, 
-									 tr->partitionData[model].tipVector, tr->partitionData[model].frequencies, 
-									 tr->partitionData[model].propInvariant, 
-									 tip, width, diagptable, tr->useFastScaling);
-		  }	  
-		  break;
-		default:
-		  assert(0);
-		}
-	      break;
-	    case SECONDARY_DATA_6:
-	      switch(tr->rateHetModel)
-		{
-		case CAT:	    
-		  {
-		    calcDiagptable(z, SECONDARY_DATA_6, tr->partitionData[model].numberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
-
-		    partitionLikelihood = evaluateGTRCATSECONDARY_6(ex1, ex2, tr->partitionData[model].rateCategory, tr->partitionData[model].wgt,
-								    x1_start, x2_start, tr->partitionData[model].tipVector,
-								    tip, width, diagptable, tr->useFastScaling);
-		  }	     	      
-		  break;	      
-		case GAMMA:
-		  {
-		    calcDiagptable(z, SECONDARY_DATA_6, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable);
-
-		    partitionLikelihood = evaluateGTRGAMMASECONDARY_6(ex1, ex2, tr->partitionData[model].wgt,
-								    x1_start, x2_start, tr->partitionData[model].tipVector,
-								    tip, width, diagptable, tr->useFastScaling);
-		  }
-		  break;
-		case GAMMA_I:		  	    
-		  {
-		    calcDiagptable(z, SECONDARY_DATA_6, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable);
-		    
-		    partitionLikelihood = evaluateGTRGAMMASECONDARYINVAR_6(ex1, ex2, tr->partitionData[model].wgt, tr->partitionData[model].invariant,
-									   x1_start, x2_start, 
-									   tr->partitionData[model].tipVector, tr->partitionData[model].frequencies, 
-									   tr->partitionData[model].propInvariant, 
-									   tip, width, diagptable, tr->useFastScaling);
-		  }	  
-		  break;
-		default:
-		  assert(0);
-		}
-	      break;
-	    case SECONDARY_DATA_7:
-	      switch(tr->rateHetModel)
-		{
-		case CAT:	    
-		  {
-		    calcDiagptable(z, SECONDARY_DATA_7, tr->partitionData[model].numberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
-
-		    partitionLikelihood = evaluateGTRCATSECONDARY_7(ex1, ex2, tr->partitionData[model].rateCategory, tr->partitionData[model].wgt,
-								    x1_start, x2_start, tr->partitionData[model].tipVector,
-								    tip, width, diagptable, tr->useFastScaling);		   
-		  }	     	      
-		  break;	      
-		case GAMMA:
-		  {
-		    calcDiagptable(z, SECONDARY_DATA_7, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable);
-
-		    partitionLikelihood = evaluateGTRGAMMASECONDARY_7(ex1, ex2, tr->partitionData[model].wgt,
-								      x1_start, x2_start, tr->partitionData[model].tipVector,
-								      tip, width, diagptable, tr->useFastScaling);
-		  }
-		  break;
-		case GAMMA_I:		  	    
-		  {
-		    calcDiagptable(z, SECONDARY_DATA_7, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable);
-		    
-		    partitionLikelihood = evaluateGTRGAMMASECONDARYINVAR_7(ex1, ex2, tr->partitionData[model].wgt, tr->partitionData[model].invariant,
-									   x1_start, x2_start, 
-									   tr->partitionData[model].tipVector, tr->partitionData[model].frequencies, 
-									   tr->partitionData[model].propInvariant, 
-									   tip, width, diagptable, tr->useFastScaling);
-		  }	  
-		  break;
-		default:
-		  assert(0);
-		}
-	      break;
-	    default:
-	      assert(0);
-	    }
-	  
-	  if(tr->useFastScaling)
-	    {	      
-		{
-
-		  partitionLikelihood += (tr->partitionData[model].globalScaler[pNumber] + tr->partitionData[model].globalScaler[qNumber]) * LOG(minlikelihood);
-		}
-	    }
-	  
-	  result += partitionLikelihood;	  
-	  tr->perPartitionLH[model] = partitionLikelihood;
-	}            
-    }
-
-
-  
-  return result;
-}
 
 double evaluateGeneric (tree *tr, nodeptr p)
 {
@@ -3826,174 +3488,103 @@ double evaluateGeneric (tree *tr, nodeptr p)
   nodeptr q = p->back; 
   int i;
   
-  if(tr->multiGene)
-    {     
-      nodeptr startNodes[NUM_BRANCHES];  
-      nodeptr q;
-
-      findNext(p, tr, startNodes);
-      
-      for(i = 0; i < tr->NumberOfModels; i++)
-	{
-	  p = startNodes[i];
-	  q = p->backs[i];
-
-	  tr->td[i].ti[0].pNumber = p->number;
-	  tr->td[i].ti[0].qNumber = q->number;          	  	 
-	  tr->td[i].ti[0].qz[i] =  q->z[i];	  
-	  tr->td[i].count = 1;
-
-	  if(!p->xs[i])
-	    computeTraversalInfoMulti(p, &(tr->td[i].ti[0]), &(tr->td[i].count), tr->mxtips, i);
-	  if(!q->xs[i])
-	    computeTraversalInfoMulti(q, &(tr->td[i].ti[0]), &(tr->td[i].count), tr->mxtips, i);
-	}
-      
-      result = evaluateIterativeMulti(tr, FALSE);
-    }
-  else
-    {
-      tr->td[0].ti[0].pNumber = p->number;
-      tr->td[0].ti[0].qNumber = q->number;          
   
-      for(i = 0; i < tr->numBranches; i++)    
-	tr->td[0].ti[0].qz[i] =  q->z[i];
-  
-      tr->td[0].count = 1;
-      if(!p->x)
-	computeTraversalInfo(p, &(tr->td[0].ti[0]), &(tr->td[0].count), tr->mxtips, tr->numBranches);
-      if(!q->x)
-	computeTraversalInfo(q, &(tr->td[0].ti[0]), &(tr->td[0].count), tr->mxtips, tr->numBranches);  
-      
+  {
+    tr->td[0].ti[0].pNumber = p->number;
+    tr->td[0].ti[0].qNumber = q->number;          
+    
+    for(i = 0; i < tr->numBranches; i++)    
+      tr->td[0].ti[0].qz[i] =  q->z[i];
+    
+    tr->td[0].count = 1;
+    if(!p->x)
+      computeTraversalInfo(p, &(tr->td[0].ti[0]), &(tr->td[0].count), tr->mxtips, tr->numBranches);
+    if(!q->x)
+      computeTraversalInfo(q, &(tr->td[0].ti[0]), &(tr->td[0].count), tr->mxtips, tr->numBranches);  
+    
 #ifdef _USE_PTHREADS 
-      {
-	int j;
-	
-	masterBarrier(THREAD_EVALUATE, tr); 
-	if(tr->NumberOfModels == 1)
-	  {
-	    for(i = 0, result = 0.0; i < NumberOfThreads; i++)          
-	      result += reductionBuffer[i];  	  	     
-	    
-	    tr->perPartitionLH[0] = result;
-	  }
-	else
-	  {
-	    volatile double partitionResult;
-	    
-	    result = 0.0;
-	    
-	    for(j = 0; j < tr->NumberOfModels; j++)
-	      {
-		for(i = 0, partitionResult = 0.0; i < NumberOfThreads; i++)          	      
-		  partitionResult += reductionBuffer[i * tr->NumberOfModels + j];
-		result += partitionResult;
-		tr->perPartitionLH[j] = partitionResult;
-	      }
-	  }
-      }  
+    {
+      int j;
+      
+      masterBarrier(THREAD_EVALUATE, tr); 
+      if(tr->NumberOfModels == 1)
+	{
+	  for(i = 0, result = 0.0; i < NumberOfThreads; i++)          
+	    result += reductionBuffer[i];  	  	     
+	  
+	  tr->perPartitionLH[0] = result;
+	}
+      else
+	{
+	  volatile double partitionResult;
+	  
+	  result = 0.0;
+	  
+	  for(j = 0; j < tr->NumberOfModels; j++)
+	    {
+	      for(i = 0, partitionResult = 0.0; i < NumberOfThreads; i++)          	      
+		partitionResult += reductionBuffer[i * tr->NumberOfModels + j];
+	      result += partitionResult;
+	      tr->perPartitionLH[j] = partitionResult;
+	    }
+	}
+    }  
 #else
-      result = evaluateIterative(tr, FALSE);
+    result = evaluateIterative(tr, FALSE);
 #endif   
-    }
+  }
 
-  tr->likelihood = result;    
-
-  
+  tr->likelihood = result;      
 
   return result;
 }
 
-double evaluateGenericMulti (tree *tr, nodeptr p, int model)
-{
-  volatile double result;
-  nodeptr q = p->back; 
-  
-  if(tr->multiGene)
-    {               
-      int i;
-      
-      for(i = 0; i < tr->NumberOfModels; i++)
-	tr->executeModel[i] = FALSE;
-      tr->executeModel[model] = TRUE;
-        
-      q = p->backs[model];
 
-      assert(q->backs[model] && p->backs[model]);
-      assert(q->backs[model] == p);
-      assert(p->backs[model] == q);
-
-      tr->td[model].ti[0].pNumber = p->number;
-      tr->td[model].ti[0].qNumber = q->number;          	  	 
-      tr->td[model].ti[0].qz[model] =  q->z[model];	  
-      tr->td[model].count = 1;
-
-      if(!p->xs[model])
-	computeTraversalInfoMulti(p, &(tr->td[model].ti[0]), &(tr->td[model].count), tr->mxtips, model);
-      if(!q->xs[model])
-	computeTraversalInfoMulti(q, &(tr->td[model].ti[0]), &(tr->td[model].count), tr->mxtips, model);	
-      
-      result = evaluateIterativeMulti(tr, FALSE);
-
-      for(i = 0; i < tr->NumberOfModels; i++)
-	tr->executeModel[i] = TRUE;      
-    }
-  else
-    assert(0);
-
-  return result;
-}
 
 
 double evaluateGenericInitrav (tree *tr, nodeptr p)
 {
   volatile double result;   
   
-  if(tr->multiGene)
-    {
-      determineFullTraversalMulti(p, tr);
-      result = evaluateIterativeMulti(tr, FALSE);
-    }
-  else
-    {
-      determineFullTraversal(p, tr);
-      
+ 
+  {
+    determineFullTraversal(p, tr);
+    
 #ifdef _USE_PTHREADS 
-      {
-	int i, j;
-    
-	masterBarrier(THREAD_EVALUATE, tr);    
-
-	if(tr->NumberOfModels == 1)
-	  {
-	    for(i = 0, result = 0.0; i < NumberOfThreads; i++)          
-	      result += reductionBuffer[i];  	  	     
+    {
+      int i, j;
       
-	    tr->perPartitionLH[0] = result;
-	  }
-	else
-	  {
-	    volatile double partitionResult;
-	    
-	    result = 0.0;
-	    
-	    for(j = 0; j < tr->NumberOfModels; j++)
-	      {
-		for(i = 0, partitionResult = 0.0; i < NumberOfThreads; i++)          	      
-		  partitionResult += reductionBuffer[i * tr->NumberOfModels + j];
-		result +=  partitionResult;
-		tr->perPartitionLH[j] = partitionResult;
-	      }
-	  }
-    
-      }
+      masterBarrier(THREAD_EVALUATE, tr);    
+      
+      if(tr->NumberOfModels == 1)
+	{
+	  for(i = 0, result = 0.0; i < NumberOfThreads; i++)          
+	    result += reductionBuffer[i];  	  	     
+	  
+	  tr->perPartitionLH[0] = result;
+	}
+      else
+	{
+	  volatile double partitionResult;
+	  
+	  result = 0.0;
+	  
+	  for(j = 0; j < tr->NumberOfModels; j++)
+	    {
+	      for(i = 0, partitionResult = 0.0; i < NumberOfThreads; i++)          	      
+		partitionResult += reductionBuffer[i * tr->NumberOfModels + j];
+	      result +=  partitionResult;
+	      tr->perPartitionLH[j] = partitionResult;
+	    }
+	}
+      
+    }
 #else
-      result = evaluateIterative(tr, FALSE);
+    result = evaluateIterative(tr, FALSE);
 #endif
 
-    }
- 
-
+  }
+  
   tr->likelihood = result;         
 
   return result;
@@ -4004,172 +3595,19 @@ double evaluateGenericInitrav (tree *tr, nodeptr p)
 
 void onlyInitrav(tree *tr, nodeptr p)
 {   
-  if(tr->multiGene)
-    {
-      determineFullTraversalMulti(p, tr);
-      newviewIterativeMulti(tr); 
-    }
-  else
-    {
-      determineFullTraversal(p, tr);  
+  
+  determineFullTraversal(p, tr);  
 
 #ifdef _USE_PTHREADS  
-      masterBarrier(THREAD_NEWVIEW, tr);  	 
+  masterBarrier(THREAD_NEWVIEW, tr);  	 
 #else
-      newviewIterative(tr);   
+  newviewIterative(tr);   
 #endif   
-    }
+   
 }
 
 
 
-
-static void computeFullTraversalInfoMulti(nodeptr p, traversalInfo *ti, int *counter, int maxTips, int model)
-{
-  if(isTip(p->number, maxTips))
-    {
-      assert(p->isPresent[model / MASK_LENGTH] & mask32[model % MASK_LENGTH]);
-      return; 
-    }
-
-  {           
-    if(p->backs[model])
-      {
-	nodeptr q = p->next->backs[model];
-	nodeptr r = p->next->next->backs[model];
-	assert(p == p->next->next->next);
-	p->xs[model] = 1;
-	p->next->xs[model] = 0;
-	p->next->next->xs[model] = 0;
-	
-	if(isTip(r->number, maxTips) && isTip(q->number, maxTips))
-	  {
-	    assert((r->isPresent[model / MASK_LENGTH] & mask32[model % MASK_LENGTH]) && (q->isPresent[model / MASK_LENGTH] & mask32[model % MASK_LENGTH]));
-	  
-	    ti[*counter].tipCase = TIP_TIP; 
-	    ti[*counter].pNumber = p->number;
-	    ti[*counter].qNumber = q->number;
-	    ti[*counter].rNumber = r->number;
-	    	    
-	    {
-	      double z;
-	      z = q->z[model];
-	      z = (z > zmin) ? log(z) : log(zmin);
-	      ti[*counter].qz[model] = z;
-	      
-	      z = r->z[model];
-	      z = (z > zmin) ? log(z) : log(zmin);
-	      ti[*counter].rz[model] = z;	    
-	    }     
-
-	    *counter = *counter + 1;
-	  }  
-	else
-	  {
-	    if(isTip(r->number, maxTips) || isTip(q->number, maxTips))
-	      {		
-		nodeptr tmp;
-		 
-		if(isTip(r->number, maxTips))
-		  {
-		    assert(r->isPresent[model / MASK_LENGTH] & mask32[model % MASK_LENGTH]);
-		    tmp = r;
-		    r = q;
-		    q = tmp;
-		  }
-		else
-		  assert(q->isPresent[model / MASK_LENGTH] & mask32[model % MASK_LENGTH]);
-		
-		computeFullTraversalInfoMulti(r, ti, counter, maxTips, model);	
-		
-		ti[*counter].tipCase = TIP_INNER; 
-		ti[*counter].pNumber = p->number;
-		ti[*counter].qNumber = q->number;
-		ti[*counter].rNumber = r->number;
-		
-	      
-		{
-		  double z;
-		  z = q->z[model];
-		  z = (z > zmin) ? log(z) : log(zmin);
-		  ti[*counter].qz[model] = z;
-		  
-		  z = r->z[model];
-		  z = (z > zmin) ? log(z) : log(zmin);
-		  ti[*counter].rz[model] = z;		
-		}   
-		
-		*counter = *counter + 1;
-	      }
-	    else
-	      {	 	  
-		computeFullTraversalInfoMulti(q, ti, counter, maxTips, model);	       
-		computeFullTraversalInfoMulti(r, ti, counter, maxTips, model);
-		
-		ti[*counter].tipCase = INNER_INNER; 
-		ti[*counter].pNumber = p->number;
-		ti[*counter].qNumber = q->number;
-		ti[*counter].rNumber = r->number;
-	
-		{
-		  double z;
-		  z = q->z[model];
-		  z = (z > zmin) ? log(z) : log(zmin);
-		  ti[*counter].qz[model] = z;
-		  
-		  z = r->z[model];
-		  z = (z > zmin) ? log(z) : log(zmin);
-		  ti[*counter].rz[model] = z;		
-		}   
-		
-		*counter = *counter + 1;
-	      }
-	  }          
-      }
-    else
-      {	
-	p->xs[model] = 0;
-	p->next->xs[model] = 0;
-	p->next->next->xs[model] = 0;
-	assert(p == p->next->next->next);
-
-	computeFullTraversalInfoMulti(p->next->back, ti, counter, maxTips, model);
-	computeFullTraversalInfoMulti(p->next->next->back, ti, counter, maxTips, model);
-      }
-  }
-}
-
-
-
-void determineFullTraversalMulti(nodeptr p, tree *tr)
-{
-  int model;
-
-  assert(p == tr->start);
-
-  for(model = 0; model < tr->NumberOfModels; model++)
-    {
-      nodeptr start = tr->startVector[model];
-      nodeptr q = start->backs[model];
-      
-      assert(start->isPresent[model / MASK_LENGTH] & mask32[model % MASK_LENGTH]);
-      
-      tr->td[model].ti[0].pNumber = start->number;
-      tr->td[model].ti[0].qNumber = q->number;
-      
-      tr->td[model].ti[0].qz[model] = q->z[model];    
-
-      assert(isTip(start->number, tr->mxtips));
-
-      /* entry number zero stores the virtual root */
-
-      tr->td[model].count = 1; 
-      computeFullTraversalInfoMulti(q, &(tr->td[model].ti[0]),  &(tr->td[model].count), tr->mxtips, model); 
-      computeFullTraversalInfoMulti(start, &(tr->td[model].ti[0]),  &(tr->td[model].count), tr->mxtips, model);
-      
-      assert(tr->td[model].count -  1 == tr->mxtipsVector[model] - 2);
-    }
-}
 
 
 
@@ -4471,80 +3909,51 @@ double evaluateGenericVector (tree *tr, nodeptr p)
   nodeptr q = p->back; 
   int i;
   
-  if(tr->multiGene)
-    {   
-      assert(0);
-      
-      /*
-	nodeptr startNodes[NUM_BRANCHES];  
-	nodeptr q;
-	
-	findNext(p, tr, startNodes);
-	
-	for(i = 0; i < tr->NumberOfModels; i++)
-	{
-	p = startNodes[i];
-	q = p->backs[i];
-
-	tr->td[i].ti[0].pNumber = p->number;
-	tr->td[i].ti[0].qNumber = q->number;          	  	 
-	tr->td[i].ti[0].qz[i] =  q->z[i];	  
-	tr->td[i].count = 1;
-	
-	if(!p->xs[i])
-	computeTraversalInfoMulti(p, &(tr->td[i].ti[0]), &(tr->td[i].count), tr->mxtips, i);
-	if(!q->xs[i])
-	    computeTraversalInfoMulti(q, &(tr->td[i].ti[0]), &(tr->td[i].count), tr->mxtips, i);
-	    }
-      
-	    result = evaluateIterativeMulti(tr, FALSE);
-      */
-    }
-  else
-    {
-      tr->td[0].ti[0].pNumber = p->number;
-      tr->td[0].ti[0].qNumber = q->number;          
   
-      for(i = 0; i < tr->numBranches; i++)    
-	tr->td[0].ti[0].qz[i] =  q->z[i];
-  
-      tr->td[0].count = 1;
-      if(!p->x)
-	computeTraversalInfo(p, &(tr->td[0].ti[0]), &(tr->td[0].count), tr->mxtips, tr->numBranches);
-      if(!q->x)
-	computeTraversalInfo(q, &(tr->td[0].ti[0]), &(tr->td[0].count), tr->mxtips, tr->numBranches);  
-      
+  {
+    tr->td[0].ti[0].pNumber = p->number;
+    tr->td[0].ti[0].qNumber = q->number;          
+    
+    for(i = 0; i < tr->numBranches; i++)    
+      tr->td[0].ti[0].qz[i] =  q->z[i];
+    
+    tr->td[0].count = 1;
+    if(!p->x)
+      computeTraversalInfo(p, &(tr->td[0].ti[0]), &(tr->td[0].count), tr->mxtips, tr->numBranches);
+    if(!q->x)
+      computeTraversalInfo(q, &(tr->td[0].ti[0]), &(tr->td[0].count), tr->mxtips, tr->numBranches);  
+    
 #ifdef _USE_PTHREADS 
-      {
-	int j;
-
-	masterBarrier(THREAD_EVALUATE_VECTOR, tr);
-	if(tr->NumberOfModels == 1)
-	  {
-	    for(i = 0, result = 0.0; i < NumberOfThreads; i++)	      	       
-	      result += reductionBuffer[i];  	  	     	     
-	    
-	    tr->perPartitionLH[0] = result;
-	  }
-	else
-	  {
-	    volatile double partitionResult;
-	    
-	    result = 0.0;
-	    
-	    for(j = 0; j < tr->NumberOfModels; j++)
-	      {
-		for(i = 0, partitionResult = 0.0; i < NumberOfThreads; i++)          	      
-		  partitionResult += reductionBuffer[i * tr->NumberOfModels + j];
-		result += partitionResult;
-		tr->perPartitionLH[j] = partitionResult;
-	      }
-	  }
-      }  
+    {
+      int j;
+      
+      masterBarrier(THREAD_EVALUATE_VECTOR, tr);
+      if(tr->NumberOfModels == 1)
+	{
+	  for(i = 0, result = 0.0; i < NumberOfThreads; i++)	      	       
+	    result += reductionBuffer[i];  	  	     	     
+	  
+	  tr->perPartitionLH[0] = result;
+	}
+      else
+	{
+	  volatile double partitionResult;
+	  
+	  result = 0.0;
+	  
+	  for(j = 0; j < tr->NumberOfModels; j++)
+	    {
+	      for(i = 0, partitionResult = 0.0; i < NumberOfThreads; i++)          	      
+		partitionResult += reductionBuffer[i * tr->NumberOfModels + j];
+	      result += partitionResult;
+	      tr->perPartitionLH[j] = partitionResult;
+	    }
+	}
+    }  
 #else
-      result = evaluateIterative(tr, TRUE);
+    result = evaluateIterative(tr, TRUE);
 #endif   
-    }
+  }
 
   tr->likelihood = result;    
   

@@ -9,7 +9,7 @@ LIBRARIES = -lm
 
 RM = rm -f
 
-objs    = axml.o  optimizeModel.o multiple.o searchAlgo.o topologies.o parsePartitions.o treeIO.o models.o bipartitionList.o rapidBootstrap.o evaluatePartialGenericSpecial.o evaluateGenericSpecial.o newviewGenericSpecial.o makenewzGenericSpecial.o   classify.o mesh.o fastDNAparsimony.o fastSearch.o leaveDropping.o rogueEPA.o ancestralStates.o avxLikelihood.o
+objs    = axml.o  optimizeModel.o multiple.o searchAlgo.o topologies.o parsePartitions.o treeIO.o models.o bipartitionList.o rapidBootstrap.o evaluatePartialGenericSpecial.o evaluateGenericSpecial.o newviewGenericSpecial.o makenewzGenericSpecial.o   classify.o fastDNAparsimony.o fastSearch.o leaveDropping.o rogueEPA.o ancestralStates.o avxLikelihood.o
 
 all : raxmlHPC
 
@@ -40,7 +40,6 @@ evaluatePartialGenericSpecial.o : evaluatePartialGenericSpecial.c $(GLOBAL_DEPS)
 evaluateGenericSpecial.o : evaluateGenericSpecial.c $(GLOBAL_DEPS)
 newviewGenericSpecial.o : newviewGenericSpecial.c $(GLOBAL_DEPS)
 makenewzGenericSpecial.o : makenewzGenericSpecial.c $(GLOBAL_DEPS)
-mesh.o : mesh.c $(GLOBAL_DEPS)
 fastSearch.o : fastSearch.c $(GLOBAL_DEPS)
 leaveDropping.o : leaveDropping.c $(GLOBAL_DEPS)
 rogueEPA.o : rogueEPA.c $(GLOBAL_DEPS)

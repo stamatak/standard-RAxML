@@ -3440,13 +3440,7 @@ static void getVects(tree *tr, unsigned char **tipX1, unsigned char **tipX2, dou
   else
     rateHet = 4;
 
-  if(tr->multiGene)
-    {
-      assert(tr->executeModel[model]);
-      pNumber = tr->td[model].ti[0].pNumber;
-      qNumber = tr->td[model].ti[0].qNumber;
-    }
-  else
+  
     {
       pNumber = tr->td[0].ti[0].pNumber;
       qNumber = tr->td[0].ti[0].qNumber;
@@ -3537,10 +3531,8 @@ void makenewzIterative(tree *tr)
     *x2_gap = (unsigned int*)NULL;			      
 
  
-  if(tr->multiGene)
-    newviewIterativeMulti(tr);
-  else
-    newviewIterative(tr);
+ 
+  newviewIterative(tr);
 
   for(model = 0; model < tr->NumberOfModels; model++)
     {
@@ -4752,74 +4744,35 @@ void makenewzGeneric(tree *tr, nodeptr p, nodeptr q, double *z0, int maxiter, do
   int i;
   boolean originalExecute[NUM_BRANCHES];
 
-  if(tr->multiGene)
-    {
-      int sum = 0;
-
-      for(i = 0; i < tr->numBranches; i++)      
-	{           
-	  if(mask)
-	    {
-	      if(tr->partitionConverged[i])
-		tr->executeModel[i] = FALSE;
-	      else
-		tr->executeModel[i] = TRUE;		
-	    }
-	}
-
-      assert(tr->numBranches == tr->NumberOfModels);      
-      for(i = 0; i < tr->numBranches; i++)   
-	sum += tr->executeModel[i];
-      assert(sum == 1);
-      assert(mask);
-      
-      for(i = 0; i < tr->NumberOfModels; i++)
-	{	 
-	  if(tr->executeModel[i])
-	    {
-	      tr->td[i].ti[0].pNumber = p->number;
-	      tr->td[i].ti[0].qNumber = q->number;
-	      tr->td[i].ti[0].qz[i] =  z0[i];
-	      tr->td[i].count = 1;
-
-	      if(!p->xs[i])
-		computeTraversalInfoMulti(p, &(tr->td[i].ti[0]), &(tr->td[i].count), tr->mxtips, i); 
-	      if(!q->xs[i])
-		computeTraversalInfoMulti(q, &(tr->td[i].ti[0]), &(tr->td[i].count), tr->mxtips, i);	     	     
-	    }	
-	  else
-	    tr->td[i].count = 0;
-	}  
-    }
-  else
-    {
-      tr->td[0].ti[0].pNumber = p->number;
-      tr->td[0].ti[0].qNumber = q->number;
-      for(i = 0; i < tr->numBranches; i++)
-	{
-	  originalExecute[i] =  tr->executeModel[i];
-	  tr->td[0].ti[0].qz[i] =  z0[i];
-	  if(mask)
-	    {	     
-	      if(tr->partitionConverged[i])
-		tr->executeModel[i] = FALSE;
-	      else
-		tr->executeModel[i] = TRUE;
-	    }
-	}
-      
-      tr->td[0].count = 1;
-      
-      if(!p->x)
-	computeTraversalInfo(p, &(tr->td[0].ti[0]), &(tr->td[0].count), tr->mxtips, tr->numBranches);
-      if(!q->x)
-	computeTraversalInfo(q, &(tr->td[0].ti[0]), &(tr->td[0].count), tr->mxtips, tr->numBranches);
-    }
-
-
+ 
+  {
+    tr->td[0].ti[0].pNumber = p->number;
+    tr->td[0].ti[0].qNumber = q->number;
+    for(i = 0; i < tr->numBranches; i++)
+      {
+	originalExecute[i] =  tr->executeModel[i];
+	tr->td[0].ti[0].qz[i] =  z0[i];
+	if(mask)
+	  {	     
+	    if(tr->partitionConverged[i])
+	      tr->executeModel[i] = FALSE;
+	    else
+	      tr->executeModel[i] = TRUE;
+	  }
+      }
+    
+    tr->td[0].count = 1;
+    
+    if(!p->x)
+      computeTraversalInfo(p, &(tr->td[0].ti[0]), &(tr->td[0].count), tr->mxtips, tr->numBranches);
+    if(!q->x)
+      computeTraversalInfo(q, &(tr->td[0].ti[0]), &(tr->td[0].count), tr->mxtips, tr->numBranches);
+  }
+  
+  
   
   topLevelMakenewz(tr, z0, maxiter, result);
- 
+  
 
   for(i = 0; i < tr->numBranches; i++)
       tr->executeModel[i] = TRUE;

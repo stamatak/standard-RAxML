@@ -178,7 +178,6 @@
 #define  COMPUTE_RF_DISTANCE        20
 #define  MORPH_CALIBRATOR           21
 #define  CONSENSUS_ONLY             22
-#define  MESH_TREE_SEARCH           23
 #define  FAST_SEARCH                24        
 #define  EPA_SITE_SPECIFIC_BIAS     27
 #define  SH_LIKE_SUPPORTS           28
@@ -466,10 +465,7 @@ typedef struct
 
 
 typedef  struct noderec
-{
-  unsigned int    isPresent[NUM_BRANCHES / MASK_LENGTH];
-  struct noderec  *backs[NUM_BRANCHES];
-  char            xs[NUM_BRANCHES];
+{  
   branchInfo      *bInf;
   double           z[NUM_BRANCHES];
   struct noderec  *next;
@@ -682,7 +678,7 @@ typedef  struct  {
   double           *perPartitionLH;
   double           *storedPerPartitionLH;
 
-  traversalData td[NUM_BRANCHES];
+  traversalData td[1];
 
   unsigned int *parsimonyScore;
 
@@ -703,19 +699,11 @@ typedef  struct  {
   double           brLenScaler;
   double          *storedBrLens;
 
-  int              multiGene;
+  
 
-  nodeptr          startVector[NUM_BRANCHES];
-
-  nodeptr          removeNodes[NUM_BRANCHES];
-  nodeptr          leftNodes[NUM_BRANCHES];
-  nodeptr          rightNodes[NUM_BRANCHES]; 
-  nodeptr          storedBacks[NUM_BRANCHES];
-  lhList          *likelihoodList[NUM_BRANCHES];
  
-  double           zLeft[NUM_BRANCHES];
-  double           zRight[NUM_BRANCHES];
-  double           zDown[NUM_BRANCHES];
+ 
+ 
 
   boolean          useFastScaling;
  
@@ -1014,7 +1002,6 @@ typedef  struct {
   double        externalAAMatrix[420];
   boolean       useFloat;
   boolean       readTaxaOnly;
-  int           meshSearch;  
   boolean       veryFast;
   boolean       useBinaryModelFile;
   boolean       leaveDropMode;
@@ -1066,14 +1053,8 @@ extern void computeRogueTaxa(tree *tr, char* treeSetFileName, analdef *adef);
 extern unsigned int precomputed16_bitcount(unsigned int n);
 
 
-extern double evaluateGenericMulti (tree *tr, nodeptr p, int model);
-extern void setupPointerMesh(tree *tr);
-extern void determineFullTraversalMulti(nodeptr p, tree *tr);
-extern void computeTraversalInfoMulti(nodeptr p, traversalInfo *ti, int *counter, int maxTips, int model);
-extern double evaluateIterativeMulti(tree *, boolean writeVector);
-extern void newviewIterativeMulti (tree *tr);
-extern void getxsnode (nodeptr p, int model);
-extern void findNext(nodeptr p, tree *tr, nodeptr *result);
+
+
 
 
 
@@ -1175,8 +1156,6 @@ extern int determineRearrangementSetting ( tree *tr, analdef *adef, bestlist *be
 extern void computeBIGRAPID ( tree *tr, analdef *adef, boolean estimateModel);
 extern boolean treeEvaluate ( tree *tr, double smoothFactor );
 extern boolean treeEvaluatePartition ( tree *tr, double smoothFactor, int model );
-
-extern void meshTreeSearch(tree *tr, analdef *adef, int thorough);
 
 extern void initTL ( topolRELL_LIST *rl, tree *tr, int n );
 extern void freeTL ( topolRELL_LIST *rl);

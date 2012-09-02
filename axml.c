@@ -554,28 +554,6 @@ boolean isTip(int number, int maxTips)
 
 
 
-void getxsnode (nodeptr p, int model)  
-{  
-  assert(p->xs[model] || p->next->xs[model] || p->next->next->xs[model]);
-  assert(p->xs[model] + p->next->xs[model] + p->next->next->xs[model] == 1);
-  
-  assert(p == p->next->next->next);
-
-  p->xs[model] = 1;
-  
-  if(p->next->xs[model])
-    {      
-      p->next->xs[model] = 0;
-      return;
-    }
-  else
-    {
-      p->next->next->xs[model] = 0;
-      return;
-    }  
-
-  assert(0);
-}
 
 
 
@@ -789,20 +767,9 @@ static boolean setupTree (tree *tr, analdef *adef)
 
   if(!adef->readTaxaOnly)
     {
-      
-      if(tr->multiGene)
-	{
-	  for(i = 0; i < tr->NumberOfModels; i++)
-	    {
-	      tr->td[i].count = 0;
-	      tr->td[i].ti    = (traversalInfo *)malloc(sizeof(traversalInfo) * tr->mxtips);
-	    }
-	}
-      else
-	{
-	  tr->td[0].count = 0;
-	  tr->td[0].ti    = (traversalInfo *)malloc(sizeof(traversalInfo) * tr->mxtips);
-	}
+           
+      tr->td[0].count = 0;
+      tr->td[0].ti    = (traversalInfo *)malloc(sizeof(traversalInfo) * tr->mxtips);	
 
       for(i = 0; i < tr->NumberOfModels; i++)
 	tr->fracchanges[i] = -1.0;
@@ -839,14 +806,9 @@ static boolean setupTree (tree *tr, analdef *adef)
       p->bInf   = (branchInfo *)NULL;
 
       
-      for(k = 0; k < NUM_BRANCHES; k++)
-	{
-	  p->xs[k]    = 0;
-	  p->backs[k] = (nodeptr)NULL;
-	}
+     
 
-      for(k = 0; k < VECTOR_LENGTH; k++)
-	p->isPresent[k] = 0;
+      
 
       tr->nodep[i] = p;
     }
@@ -867,21 +829,9 @@ static boolean setupTree (tree *tr, analdef *adef)
 	  p->back   = (node *) NULL;
 	  p->hash   = 0;
 
-	  if(j == 1)
-	    for(k = 0; k < NUM_BRANCHES; k++)
-	      {
-		p->xs[k]    = 1;
-		p->backs[k] = (nodeptr)NULL;
-	      }
-	  else
-	    for(k = 0; k < NUM_BRANCHES; k++)
-	      {
-		p->xs[k]    = 0;
-		p->backs[k] = (nodeptr)NULL;
-	      }
+	 
 
-	  for(k = 0; k < VECTOR_LENGTH; k++)
-	    p->isPresent[k] = 0;
+	  
 
 
 	  q = p;
@@ -893,8 +843,7 @@ static boolean setupTree (tree *tr, analdef *adef)
   tr->likelihood  = unlikely;
   tr->start       = (node *) NULL;
 
-  for(i = 0; i < NUM_BRANCHES; i++)
-    tr->startVector[i]  = (node *) NULL;
+  
 
   tr->ntips       = 0;
   tr->nextnode    = 0;
@@ -2032,76 +1981,6 @@ static boolean makevalues(rawdata *rdta, cruncheddata *cdta, tree *tr, analdef *
 }
 
 
-static void makeMissingData(tree *tr)
-{
-  if(tr->multiGene)
-    {
-      int 
-	model, 
-	i, 
-	j;
-      
-      double
-	totalWidth = 0.0,
-	missingWidth = 0.0;
-      
-      unsigned char 
-	undetermined;       
-
-#ifdef _USE_PTHREADS
-      assert(0);
-#endif
-
-      assert(tr->NumberOfModels > 1 && tr->numBranches > 1);
-
-      for(model = 0; model < tr->NumberOfModels; model++)
-	{
-	  int 
-	    countMissing = 0,
-	    width = tr->partitionData[model].upper - tr->partitionData[model].lower;	
-
-	  tr->mxtipsVector[model] = 0;
-	  
-	  undetermined = getUndetermined(tr->partitionData[model].dataType);	  
-
-	  for(i = 1; i <= tr->mxtips; i++)
-	    {
-	      unsigned char *tip = tr->partitionData[model].yVector[i];	      
-	      
-
-	      assert(width > 0);
-
-	      for(j = 0; j < width; j++)
-		if(tip[j] != undetermined)
-		  break;
-
-	      if(j == width)				 
-		countMissing++;		
-	      else
-		{
-		  tr->nodep[i]->isPresent[model / MASK_LENGTH] |= mask32[model % MASK_LENGTH];
-		  if(!tr->startVector[model])
-		    {
-		      tr->startVector[model] =  tr->nodep[i];
-		      /*printf("placing VR into terminal branch %d\n", i);*/
-		    }
-		}
-	    }
-
-	  tr->mxtipsVector[model] = tr->mxtips - countMissing;
-	  assert( tr->mxtipsVector[model] + countMissing == tr->mxtips);
-
-	  printBothOpen("Partition %d has %d missing taxa and %d present taxa\n\n", model, countMissing, tr->mxtipsVector[model]);
-	  assert(countMissing < tr->mxtips);
-
-	  totalWidth   += (double)(tr->mxtips) * (double)(width);
-	  missingWidth += (double)(countMissing) * (double)(width);
-	}
-
-      printBothOpen("Percentage of gene-sampling induced gappyness in this alignment: %2.2f%s\n", 100 * (missingWidth / totalWidth), "%");
-
-    }
-}
 
 
 
@@ -2843,8 +2722,7 @@ static void initAdef(analdef *adef)
   adef->computeELW             = FALSE;
   adef->computeDistance        = FALSE;
   adef->compressPatterns       = TRUE; 
-  adef->readTaxaOnly           = FALSE;
-  adef->meshSearch             = 0;
+  adef->readTaxaOnly           = FALSE; 
   adef->useBinaryModelFile     = FALSE;
   adef->leaveDropMode          = FALSE;
   adef->slidingWindowSize      = 100;
@@ -3397,11 +3275,7 @@ static void printMinusFUsage(void)
   printf("              \"-f h\": compute log likelihood test (SH-test) between best tree passed via \"-t\"\n");
   printf("                      and a bunch of other trees passed via \"-z\" \n");  
 
-  printf("              \"-f i\": EXPERIMENTAL do not use for real tree inferences: conducts a single cycle of fast lazy SPR moves\n");
-  printf("                      on a given input tree, to be used in combination with -C and -M \n");
-  
-  printf("              \"-f I\": EXPERIMENTAL do not use for real tree inferences: conducts a single cycle of thorough lazy SPR moves\n");
-  printf("                      on a given input tree, to be used in combination with -C and -M \n");
+ 
 
   printf("              \"-f j\": generate a bunch of bootstrapped alignment files from an original alignemnt file.\n");
   printf("                      You need to specify a seed with \"-b\" and the number of replicates with \"-#\" \n"); 
@@ -3473,9 +3347,9 @@ static void printREADME(void)
   printf("      -s sequenceFileName -n outputFileName -m substitutionModel\n");
   printf("      [-a weightFileName] [-A secondaryStructureSubstModel]\n");
   printf("      [-b bootstrapRandomNumberSeed] [-B wcCriterionThreshold]\n");
-  printf("      [-c numberOfCategories] [-C] [-d] [-D]\n");
+  printf("      [-c numberOfCategories] [-d] [-D]\n");
   printf("      [-e likelihoodEpsilon] [-E excludeFileName]\n");
-  printf("      [-f a|A|b|B|c|d|e|E|F|g|h|i|I|j|J|m|n|o|p|q|r|s|S|t|T|u|v|V|w|x|y] [-F]\n");
+  printf("      [-f a|A|b|B|c|d|e|E|F|g|h|j|J|m|n|o|p|q|r|s|S|t|T|u|v|V|w|x|y] [-F]\n");
   printf("      [-g groupingFileName] [-G placementThreshold] [-h]\n");
   printf("      [-i initialRearrangementSetting] [-I autoFC|autoMR|autoMRE|autoMRE_IGN]\n");
   printf("      [-j] [-J MR|MR_DROP|MRE|STRICT|STRICT_DROP] [-k] [-K] [-M]\n");
@@ -3512,12 +3386,7 @@ static void printREADME(void)
   printf("              categories to accelerate computations. \n");
   printf("\n");
   printf("              DEFAULT: 25\n");
-  printf("\n");
-  printf("      -C      Conduct model parameter optimization on gappy, partitioned multi-gene alignments with per-partition\n");
-  printf("              branch length estimates (-M enabled) using the fast method with pointer meshes described in:\n");
-  printf("              Stamatakis and Ott: \"Efficient computation of the phylogenetic likelihood function on multi-gene alignments and multi-core processors\"\n");
-  printf("              WARNING: We can not conduct useful tree searches using this method yet! Does not work with Pthreads version.\n");
-  printf("\n");
+  printf("\n"); 
   printf("      -d      start ML optimization from random starting tree \n");
   printf("\n");
   printf("              DEFAULT: OFF\n");
@@ -3864,7 +3733,6 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
   tr->secondaryStructureModel = SEC_16; /* default setting */
   tr->searchConvergenceCriterion = FALSE;
   tr->catOnly = FALSE;
-  tr->multiGene = 0;
   tr->useEpaHeuristics = FALSE;
   tr->fastEPAthreshold = -1.0;
   tr->multiStateModel  = GTR_MULTI_STATE;
@@ -3878,7 +3746,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 
 
   while(!bad_opt &&
-	((c = mygetopt(argc,argv,"R:T:E:N:B:L:P:S:Y:A:G:H:I:J:K:W:l:x:z:g:r:e:a:b:c:f:i:m:t:w:s:n:o:q:#:p:vudyjhkMDFCQUXOV", &optind, &optarg))!=-1))
+	((c = mygetopt(argc,argv,"R:T:E:N:B:L:P:S:Y:A:G:H:I:J:K:W:l:x:z:g:r:e:a:b:c:f:i:m:t:w:s:n:o:q:#:p:vudyjhkMDFQUXOV", &optind, &optarg))!=-1))
     {
     switch(c)
       {
@@ -3987,10 +3855,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	    printf("\n\nWARNING, reasonable settings for Bootstopping threshold with MR-based criteria range between 0.01 and 0.05.\n");
 	    printf("You are just setting it to %f, the most reasonable empirically determined setting is 0.03 \n\n", wcThreshold);
 	  }
-	break;
-      case 'C':
-	tr->multiGene = 1;
-	break;
+	break;     
       case 'D':
 	tr->searchConvergenceCriterion = TRUE;
 	break;
@@ -4270,15 +4135,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	    adef->mode = TREE_EVALUATION;
 	    adef->likelihoodTest = TRUE;
 	    tr->useFastScaling = FALSE;
-	    break;
-	  case 'i':
-	    adef->mode = MESH_TREE_SEARCH;
-	    adef->meshSearch = 0;
-	    break;
-	  case 'I':
-	    adef->mode = MESH_TREE_SEARCH;
-	    adef->meshSearch = 1;
-	    break;
+	    break;	 
 	  case 'j':
 	    adef->mode = GENERATE_BS;
 	    adef->generateBS = TRUE;
@@ -5082,10 +4939,7 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
 	  break;
 	case MORPH_CALIBRATOR:
 	  printBoth(infoFile, "\nRAxML morphological calibrator using Maximum Likelihood\n\n");
-	  break;		  
-	case MESH_TREE_SEARCH:
-	  printBoth(infoFile, "\nRAxML experimental mesh tree search\n\n");
-	  break;
+	  break;		  	
 	case FAST_SEARCH:
 	  printBoth(infoFile, "\nRAxML experimental very fast tree search\n\n");
 	  break;
@@ -5262,8 +5116,7 @@ void printResult(tree *tr, analdef *adef, boolean finalPrint)
   strcpy(temporaryFileName, resultFileName);
 
   switch(adef->mode)
-    {    
-    case MESH_TREE_SEARCH:    
+    {          
     case MORPH_CALIBRATOR:
       break;
     case TREE_EVALUATION:
@@ -5519,9 +5372,7 @@ void writeInfoFile(analdef *adef, tree *tr, double t)
 
     {      
       switch(adef->mode)
-	{
-	case MESH_TREE_SEARCH:
-	  break;
+	{	
 	case TREE_EVALUATION:
 	  break;
 	case BIG_RAPID_MODE:
@@ -5796,8 +5647,6 @@ static void finalizeInfoFile(tree *tr, analdef *adef)
 
       switch(adef->mode)
 	{
-	case MESH_TREE_SEARCH:
-	  break;
 	case TREE_EVALUATION :
 	  printBothOpen("\n\nOverall Time for Tree Evaluation %f\n", t);
 	  printBothOpen("Final GAMMA  likelihood: %f\n", tr->likelihood);
@@ -6217,8 +6066,7 @@ static void initPartition(tree *tr, tree *localTree, int tid)
       localTree->NumberOfModels          = tr->NumberOfModels;
       localTree->mxtips                  = tr->mxtips;
       localTree->multiBranch             = tr->multiBranch;
-      localTree->multiGene               = tr->multiGene;
-      assert(localTree->multiGene == 0);
+         
       localTree->nameList                = tr->nameList;
       localTree->numBranches             = tr->numBranches;
       localTree->lhs                     = (double*)malloc(sizeof(double)   * localTree->originalCrunchedLength);
@@ -6342,20 +6190,8 @@ static void allocNodex(tree *tr, int tid, int n)
 
 
 inline static void sendTraversalInfo(tree *localTree, tree *tr)
-{
-  /* the one below is a hack we are re-assigning the local pointer to the global one
-     the memcpy version below is just for testing and preparing the
-     fine-grained MPI BlueGene version */
-
-  if(1)
-    {     
-      localTree->td[0] = tr->td[0];
-    }
-  else
-    {
-      localTree->td[0].count = tr->td[0].count;
-      memcpy(localTree->td[0].ti, tr->td[0].ti, localTree->td[0].count * sizeof(traversalInfo));
-    }
+{   
+  localTree->td[0] = tr->td[0];  
 }
 
 
@@ -9123,8 +8959,6 @@ int main (int argc, char *argv[])
     allocNodex(tr);    
 #endif
 
-  makeMissingData(tr);
-
   printModelAndProgramInfo(tr, adef, argc, argv);
 
   switch(adef->mode)
@@ -9248,13 +9082,7 @@ int main (int argc, char *argv[])
       getStartingTree(tr, adef);
       modOpt(tr, adef, TRUE, adef->likelihoodEpsilon, FALSE);
       morphologicalCalibration(tr, adef);
-      break;    
-    case MESH_TREE_SEARCH:
-      initModel(tr, rdta, cdta, adef); 
-      getStartingTree(tr, adef); 
-      meshTreeSearch(tr, adef, adef->meshSearch);
-      /* TODO */
-      break;
+      break;       
     case FAST_SEARCH:
       fastSearch(tr, adef, rdta, cdta);
       exit(0);
