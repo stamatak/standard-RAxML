@@ -2971,7 +2971,7 @@ double evaluateIterative(tree *tr,  boolean writeVector)
     assert(!tr->useFastScaling);
 
 #ifdef _DEBUG_MULTI_EPA  
-    printf("EV: ");
+  printf("EV: ");
 #endif
 
   for(model = 0; model < tr->NumberOfModels; model++)
@@ -2994,6 +2994,7 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 	  int    
 	    *ex1 = (int*)NULL, 
 	    *ex2 = (int*)NULL;
+	  
 	  unsigned int
 	    *x1_gap = (unsigned int*)NULL,
 	    *x2_gap = (unsigned int*)NULL;
@@ -3003,10 +3004,8 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 	    *x2_start   = (double*)NULL,
 	    *diagptable = (double*)NULL,
 	    *x1_gapColumn = (double*)NULL,
-	    *x2_gapColumn = (double*)NULL;;
-
+	    *x2_gapColumn = (double*)NULL;
 	 
-
 	  unsigned char 
 	    *tip = (unsigned char*)NULL;
 
@@ -3484,56 +3483,63 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 
 double evaluateGeneric (tree *tr, nodeptr p)
 {
-  volatile double result;
-  nodeptr q = p->back; 
-  int i;
+  volatile 
+    double result;
+  
+  nodeptr 
+    q = p->back; 
+  
+  int 
+    i;
   
   
-  {
-    tr->td[0].ti[0].pNumber = p->number;
-    tr->td[0].ti[0].qNumber = q->number;          
-    
-    for(i = 0; i < tr->numBranches; i++)    
-      tr->td[0].ti[0].qz[i] =  q->z[i];
-    
-    tr->td[0].count = 1;
-    if(!p->x)
-      computeTraversalInfo(p, &(tr->td[0].ti[0]), &(tr->td[0].count), tr->mxtips, tr->numBranches);
-    if(!q->x)
-      computeTraversalInfo(q, &(tr->td[0].ti[0]), &(tr->td[0].count), tr->mxtips, tr->numBranches);  
-    
+  tr->td[0].ti[0].pNumber = p->number;
+  tr->td[0].ti[0].qNumber = q->number;          
+  
+  for(i = 0; i < tr->numBranches; i++)    
+    tr->td[0].ti[0].qz[i] =  q->z[i];
+  
+  tr->td[0].count = 1;
+  
+  if(!p->x)
+    computeTraversalInfo(p, &(tr->td[0].ti[0]), &(tr->td[0].count), tr->mxtips, tr->numBranches);
+  
+  if(!q->x)
+    computeTraversalInfo(q, &(tr->td[0].ti[0]), &(tr->td[0].count), tr->mxtips, tr->numBranches);  
+  
 #ifdef _USE_PTHREADS 
-    {
-      int j;
-      
-      masterBarrier(THREAD_EVALUATE, tr); 
-      if(tr->NumberOfModels == 1)
-	{
-	  for(i = 0, result = 0.0; i < NumberOfThreads; i++)          
-	    result += reductionBuffer[i];  	  	     
-	  
-	  tr->perPartitionLH[0] = result;
-	}
-      else
-	{
-	  volatile double partitionResult;
-	  
-	  result = 0.0;
-	  
-	  for(j = 0; j < tr->NumberOfModels; j++)
-	    {
-	      for(i = 0, partitionResult = 0.0; i < NumberOfThreads; i++)          	      
-		partitionResult += reductionBuffer[i * tr->NumberOfModels + j];
-	      result += partitionResult;
-	      tr->perPartitionLH[j] = partitionResult;
-	    }
-	}
-    }  
+  {
+    int j;
+    
+    masterBarrier(THREAD_EVALUATE, tr); 
+    
+    if(tr->NumberOfModels == 1)
+      {
+	for(i = 0, result = 0.0; i < NumberOfThreads; i++)          
+	  result += reductionBuffer[i];  	  	     
+	
+	tr->perPartitionLH[0] = result;
+      }
+    else
+      {
+	volatile 
+	  double partitionResult;
+	
+	result = 0.0;
+	
+	for(j = 0; j < tr->NumberOfModels; j++)
+	  {
+	    for(i = 0, partitionResult = 0.0; i < NumberOfThreads; i++)          	      
+	      partitionResult += reductionBuffer[i * tr->NumberOfModels + j];
+	    result += partitionResult;
+	    tr->perPartitionLH[j] = partitionResult;
+	  }
+      }
+  }  
 #else
-    result = evaluateIterative(tr, FALSE);
+  result = evaluateIterative(tr, FALSE);
 #endif   
-  }
-
+ 
   tr->likelihood = result;      
 
   return result;
@@ -3544,46 +3550,45 @@ double evaluateGeneric (tree *tr, nodeptr p)
 
 double evaluateGenericInitrav (tree *tr, nodeptr p)
 {
-  volatile double result;   
+  volatile double 
+    result;   
   
- 
-  {
-    determineFullTraversal(p, tr);
+  determineFullTraversal(p, tr);
     
 #ifdef _USE_PTHREADS 
-    {
-      int i, j;
+  {
+    int 
+      i, 
+      j;
       
-      masterBarrier(THREAD_EVALUATE, tr);    
+    masterBarrier(THREAD_EVALUATE, tr);    
       
-      if(tr->NumberOfModels == 1)
-	{
-	  for(i = 0, result = 0.0; i < NumberOfThreads; i++)          
-	    result += reductionBuffer[i];  	  	     
+    if(tr->NumberOfModels == 1)
+      {
+	for(i = 0, result = 0.0; i < NumberOfThreads; i++)          
+	  result += reductionBuffer[i];  	  	     
 	  
-	  tr->perPartitionLH[0] = result;
-	}
-      else
-	{
-	  volatile double partitionResult;
+	tr->perPartitionLH[0] = result;
+      }
+    else
+      {
+	volatile double 
+	  partitionResult;
 	  
-	  result = 0.0;
+	result = 0.0;
 	  
-	  for(j = 0; j < tr->NumberOfModels; j++)
-	    {
-	      for(i = 0, partitionResult = 0.0; i < NumberOfThreads; i++)          	      
-		partitionResult += reductionBuffer[i * tr->NumberOfModels + j];
-	      result +=  partitionResult;
-	      tr->perPartitionLH[j] = partitionResult;
-	    }
-	}
-      
+	for(j = 0; j < tr->NumberOfModels; j++)
+	  {
+	    for(i = 0, partitionResult = 0.0; i < NumberOfThreads; i++)          	      
+	      partitionResult += reductionBuffer[i * tr->NumberOfModels + j];
+	    result +=  partitionResult;
+	    tr->perPartitionLH[j] = partitionResult;
+	  }
+      }      
     }
 #else
     result = evaluateIterative(tr, FALSE);
 #endif
-
-  }
   
   tr->likelihood = result;         
 
@@ -3594,16 +3599,14 @@ double evaluateGenericInitrav (tree *tr, nodeptr p)
 
 
 void onlyInitrav(tree *tr, nodeptr p)
-{   
-  
+{     
   determineFullTraversal(p, tr);  
 
 #ifdef _USE_PTHREADS  
   masterBarrier(THREAD_NEWVIEW, tr);  	 
 #else
   newviewIterative(tr);   
-#endif   
-   
+#endif      
 }
 
 

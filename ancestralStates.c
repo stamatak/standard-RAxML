@@ -938,7 +938,7 @@ static char *ancestralTree(char *treestr, tree *tr)
   return  treestr;
 }
 
-void computeAncestralStates(tree *tr, double referenceLikelihood, analdef *adef)
+void computeAncestralStates(tree *tr, double referenceLikelihood)
 {
   int 
     counter = 0;
@@ -956,8 +956,6 @@ void computeAncestralStates(tree *tr, double referenceLikelihood, analdef *adef)
 #ifdef _USE_PTHREADS
   tr->ancestralStates = (double*)malloc(getContiguousVectorLength(tr) * sizeof(double));
 #endif
-
-  /*  assert(!adef->compressPatterns);*/
 
   strcpy(ancestralProbsFileName,         workdir);
   strcpy(ancestralStatesFileName,         workdir);

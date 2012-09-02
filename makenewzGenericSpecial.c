@@ -3429,23 +3429,15 @@ static void getVects(tree *tr, unsigned char **tipX1, unsigned char **tipX2, dou
 {
   int 
     rateHet,
-    states = tr->partitionData[model].states;
-
-  int     
-    pNumber, 
-    qNumber;
+    states = tr->partitionData[model].states,    
+    pNumber = tr->td[0].ti[0].pNumber, 
+    qNumber = tr->td[0].ti[0].qNumber;
 
   if(tr->rateHetModel == CAT)
     rateHet = 1;
   else
     rateHet = 4;
-
-  
-    {
-      pNumber = tr->td[0].ti[0].pNumber;
-      qNumber = tr->td[0].ti[0].qNumber;
-    }
-
+   
   *x1_start = (double*)NULL,
   *x2_start = (double*)NULL;
   *tipX1 = (unsigned char*)NULL,
@@ -3516,21 +3508,17 @@ void makenewzIterative(tree *tr)
 
   double
     *x1_start = (double*)NULL,
-    *x2_start = (double*)NULL;
+    *x2_start = (double*)NULL,
+    *x1_gapColumn = (double*)NULL,
+    *x2_gapColumn = (double*)NULL;
 
   unsigned char
     *tipX1,
-    *tipX2;
-
-  double
-    *x1_gapColumn = (double*)NULL,
-    *x2_gapColumn = (double*)NULL;
+    *tipX2; 
   
   unsigned int
     *x1_gap = (unsigned int*)NULL,
     *x2_gap = (unsigned int*)NULL;			      
-
- 
  
   newviewIterative(tr);
 
@@ -3726,8 +3714,12 @@ void makenewzIterative(tree *tr)
 
 void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 {
-  int model, branchIndex;
-  double lz;
+  int 
+    model, 
+    branchIndex;
+
+  double 
+    lz;
 
   _dlnLdlz[0]   = 0.0;
   _d2lnLdlz2[0] = 0.0;
@@ -3986,14 +3978,10 @@ static void topLevelMakenewz(tree *tr, double *z0, int _maxiter, double *result)
   boolean outerConverged[NUM_BRANCHES];
   boolean loopConverged;
 
-
-
   if(tr->multiBranch)
     numBranches = tr->NumberOfModels;
   else
     numBranches = 1;
-
-
 
   for(i = 0; i < numBranches; i++)
     {
@@ -4151,24 +4139,12 @@ static void topLevelMakenewz(tree *tr, double *z0, int _maxiter, double *result)
     }
   while (!loopConverged);
 
-
   for(model = 0; model < tr->NumberOfModels; model++)
     tr->executeModel[model] = TRUE;
 
   for(i = 0; i < numBranches; i++)
     result[i] = z[i];
 }
-
-
-
-
-
-
-
-
-
-
-
 
 #ifdef _USE_PTHREADS
 
@@ -4741,39 +4717,39 @@ void makenewzClassify(tree *tr, int _maxiter, double *result, double *z0, double
 
 void makenewzGeneric(tree *tr, nodeptr p, nodeptr q, double *z0, int maxiter, double *result, boolean mask)
 {
-  int i;
-  boolean originalExecute[NUM_BRANCHES];
+  int 
+    i;
 
- 
-  {
-    tr->td[0].ti[0].pNumber = p->number;
-    tr->td[0].ti[0].qNumber = q->number;
-    for(i = 0; i < tr->numBranches; i++)
-      {
-	originalExecute[i] =  tr->executeModel[i];
-	tr->td[0].ti[0].qz[i] =  z0[i];
-	if(mask)
-	  {	     
-	    if(tr->partitionConverged[i])
-	      tr->executeModel[i] = FALSE;
-	    else
-	      tr->executeModel[i] = TRUE;
-	  }
-      }
+  boolean 
+    originalExecute[NUM_BRANCHES];
+
+  tr->td[0].ti[0].pNumber = p->number;
+  tr->td[0].ti[0].qNumber = q->number;
+
+  for(i = 0; i < tr->numBranches; i++)
+    {
+      originalExecute[i] =  tr->executeModel[i];
+      tr->td[0].ti[0].qz[i] =  z0[i];
+
+      if(mask)
+	{	     
+	  if(tr->partitionConverged[i])
+	    tr->executeModel[i] = FALSE;
+	  else
+	    tr->executeModel[i] = TRUE;
+	}
+    }
     
-    tr->td[0].count = 1;
+  tr->td[0].count = 1;
     
-    if(!p->x)
-      computeTraversalInfo(p, &(tr->td[0].ti[0]), &(tr->td[0].count), tr->mxtips, tr->numBranches);
-    if(!q->x)
-      computeTraversalInfo(q, &(tr->td[0].ti[0]), &(tr->td[0].count), tr->mxtips, tr->numBranches);
-  }
-  
-  
-  
+  if(!p->x)
+    computeTraversalInfo(p, &(tr->td[0].ti[0]), &(tr->td[0].count), tr->mxtips, tr->numBranches);
+
+  if(!q->x)
+    computeTraversalInfo(q, &(tr->td[0].ti[0]), &(tr->td[0].count), tr->mxtips, tr->numBranches);
+      
   topLevelMakenewz(tr, z0, maxiter, result);
   
-
   for(i = 0; i < tr->numBranches; i++)
       tr->executeModel[i] = TRUE;
 }
@@ -4782,7 +4758,8 @@ void makenewzGeneric(tree *tr, nodeptr p, nodeptr q, double *z0, int maxiter, do
 
 void makenewzGenericDistance(tree *tr, int maxiter, double *z0, double *result, int taxon1, int taxon2)
 {
-  int i;
+  int 
+    i;
 
   assert(taxon1 != taxon2);
   assert(0 < taxon1 && taxon1 <= tr->mxtips);

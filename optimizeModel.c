@@ -1789,15 +1789,17 @@ static void categorizePartition(tree *tr, rateCategorize *rc, int model, int low
 void optRateCatPthreads(tree *tr, double lower_spacing, double upper_spacing, double *lhs, int n, int tid)
 {
   int 
-    model, 
-    localIndex, 
+    model;
+     
+  size_t
+    localIndex,
     i;
 
   for(model = 0; model < tr->NumberOfModels; model++)
     {               
       for(i = tr->partitionData[model].lower, localIndex = 0;  i < tr->partitionData[model].upper; i++)
 	{
-	  if(i % n == tid)
+	  if(i % ((size_t)n) == ((size_t)tid))
 	    {
 	      
 	      double initialRate, initialLikelihood, 

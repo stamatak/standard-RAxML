@@ -676,25 +676,23 @@ void doAllInOne(tree *tr, analdef *adef)
 
       if(adef->bootstrapBranchLengths)
 	{
-	  double lh = tr->likelihood;
-	  int    endsite;
-	 
+	  double 
+	    lh = tr->likelihood;
+	  	 
 	  if(tr->rateHetModel == CAT)
 	    {
 	      copyParams(tr->NumberOfModels, tr->partitionData, gammaParams, tr);	      
-	      /*endsite = tr->cdta->endsite;
-		tr->cdta->endsite = tr->originalCrunchedLength;*/
+	     
 	      catToGamma(tr, adef);
-	      /*tr->cdta->endsite = endsite;*/
+	      
 	      
 	      resetBranches(tr);
 	      onlyInitrav(tr, tr->start);
 	      treeEvaluate(tr, 2.0);
 	  
-	      /*endsite = tr->cdta->endsite;
-		tr->cdta->endsite = tr->originalCrunchedLength;*/
+	     
 	      gammaToCat(tr);
-	      /*tr->cdta->endsite = endsite;	 	    */
+	     
 	
 	      copyParams(tr->NumberOfModels, tr->partitionData, catParams, tr);	      
 	      tr->likelihood = lh;

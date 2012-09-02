@@ -904,7 +904,7 @@ static double localSmoothClassify (tree *tr, int maxtimes, int leftNodeNumber, i
 	  tipX1 = tr->contiguousTips[leftNodeNumber];
 	  tipX2 = tr->contiguousTips[rightNodeNumber];
 
-	  newviewClassifySpecial(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e1, e2, insertions);
+	  newviewMultiGrain(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e1, e2, insertions);
 	}
       else
 	{
@@ -916,7 +916,7 @@ static double localSmoothClassify (tree *tr, int maxtimes, int leftNodeNumber, i
 	      
 	      x2  = b->epa->right;	     
 	      ex2 = b->epa->rightScaling; 	  
-	      newviewClassifySpecial(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e1, e2, insertions);
+	      newviewMultiGrain(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e1, e2, insertions);
 	    }
 	  else 
 	    {
@@ -928,7 +928,7 @@ static double localSmoothClassify (tree *tr, int maxtimes, int leftNodeNumber, i
 	  
 		  x2  = b->epa->left;	 
 		  ex2 = b->epa->leftScaling; 
-		  newviewClassifySpecial(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e2, e1, insertions);
+		  newviewMultiGrain(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e2, e1, insertions);
 		}       
 	      else
 		{
@@ -939,7 +939,7 @@ static double localSmoothClassify (tree *tr, int maxtimes, int leftNodeNumber, i
 		  
 		  x2  = b->epa->right;
 		  ex2 = b->epa->rightScaling;
-		  newviewClassifySpecial(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e1, e2, insertions);
+		  newviewMultiGrain(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e1, e2, insertions);
 		}
 	    }
 	}
@@ -971,7 +971,7 @@ static double localSmoothClassify (tree *tr, int maxtimes, int leftNodeNumber, i
 	  ex2 = b->epa->rightScaling;		  	
 	}
 	
-      newviewClassifySpecial(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e3, e2, insertions);
+      newviewMultiGrain(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e3, e2, insertions);
 
       if(isTip(leftNodeNumber, tr->mxtips))
 	{
@@ -1006,7 +1006,7 @@ static double localSmoothClassify (tree *tr, int maxtimes, int leftNodeNumber, i
 	  ex2 = b->epa->leftScaling;		  	
 	}
 	
-      newviewClassifySpecial(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e3, e1, insertions);
+      newviewMultiGrain(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e3, e1, insertions);
 
       if(isTip(rightNodeNumber, tr->mxtips))
 	{
@@ -1045,7 +1045,7 @@ static double localSmoothClassify (tree *tr, int maxtimes, int leftNodeNumber, i
       tipX1 = tr->contiguousTips[leftNodeNumber];
       tipX2 = tr->contiguousTips[rightNodeNumber];
 
-      newviewClassifySpecial(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e1, e2, insertions);
+      newviewMultiGrain(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e1, e2, insertions);
     }
   else
     {
@@ -1057,7 +1057,7 @@ static double localSmoothClassify (tree *tr, int maxtimes, int leftNodeNumber, i
 
 	  x2  = b->epa->right;	     
 	  ex2 = b->epa->rightScaling; 	  
-	  newviewClassifySpecial(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e1, e2, insertions);
+	  newviewMultiGrain(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e1, e2, insertions);
 	}
       else 
 	{
@@ -1069,7 +1069,7 @@ static double localSmoothClassify (tree *tr, int maxtimes, int leftNodeNumber, i
 	      
 	      x2  = b->epa->left;	 
 	      ex2 = b->epa->leftScaling; 
-	      newviewClassifySpecial(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e2, e1, insertions);
+	      newviewMultiGrain(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e2, e1, insertions);
 	    }       
 	  else
 	    {
@@ -1080,7 +1080,7 @@ static double localSmoothClassify (tree *tr, int maxtimes, int leftNodeNumber, i
 	      
 	      x2  = b->epa->right;
 	      ex2 = b->epa->rightScaling;
-	      newviewClassifySpecial(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e1, e2, insertions);
+	      newviewMultiGrain(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e1, e2, insertions);
 	    }
 	}
     }
@@ -1192,7 +1192,7 @@ void testInsertThoroughIterative(tree *tr, int branchNumber)
 	      tipX1 = tr->contiguousTips[leftNodeNumber];
 	      tipX2 = tr->contiguousTips[rightNodeNumber];
 	      
-	      newviewClassifySpecial(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e1, e2, insertions);	
+	      newviewMultiGrain(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e1, e2, insertions);	
 	    }
 	  else
 	    {
@@ -1204,7 +1204,7 @@ void testInsertThoroughIterative(tree *tr, int branchNumber)
 		  
 		  x2  = b->epa->right;	     
 		  ex2 = b->epa->rightScaling; 
-		  newviewClassifySpecial(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e1, e2, insertions);	
+		  newviewMultiGrain(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e1, e2, insertions);	
 		}
 	      else 
 		{
@@ -1216,7 +1216,7 @@ void testInsertThoroughIterative(tree *tr, int branchNumber)
 		      
 		      x2  = b->epa->left;	 
 		      ex2 = b->epa->leftScaling;
-		      newviewClassifySpecial(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e2, e1, insertions);	
+		      newviewMultiGrain(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e2, e1, insertions);	
 		    }       
 		  else
 		    {
@@ -1227,7 +1227,7 @@ void testInsertThoroughIterative(tree *tr, int branchNumber)
 		      
 		      x2  = b->epa->right;
 		      ex2 = b->epa->rightScaling;
-		      newviewClassifySpecial(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e1, e2, insertions);	
+		      newviewMultiGrain(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e1, e2, insertions);	
 		    }
 		}	      
 	    }
@@ -1667,8 +1667,10 @@ static void analyzeReads(tree *tr)
   
   for(i = 0; i < tr->numberOfTipsForInsertion; i++)
     {
+      size_t
+	j;
+      
       int
-	j,
 	whichPartition = -1,
 	partitionCount = 0,
 	model,
@@ -1699,9 +1701,7 @@ static void analyzeReads(tree *tr)
 	}
       
       assert(partitionCount == 1);
-      assert(whichPartition >= 0 && whichPartition < tr->NumberOfModels);
-
-      //printf("read %d %d partition %d\n", i, nodeNumber, whichPartition);
+      assert(whichPartition >= 0 && whichPartition < tr->NumberOfModels);    
 
       tr->readPartition[i] = whichPartition; 
     }

@@ -1302,7 +1302,7 @@ extern void updatePerSiteRates(tree *tr, boolean scaleRates);
 
 extern void newviewIterativeAncestral(tree *tr);
 extern void newviewGenericAncestral(tree *tr, nodeptr p, boolean atRoot);
-extern void computeAncestralStates(tree *tr, double referenceLikelihood, analdef *adef);
+extern void computeAncestralStates(tree *tr, double referenceLikelihood);
 extern void makeP_Flex(double z1, double z2, double *rptr, double *EI,  double *EIGN, int numberOfCategories, double *left, double *right, const int numStates);
 
 #ifdef _WAYNE_MPI
@@ -1320,13 +1320,14 @@ extern size_t getContiguousVectorLength(tree *tr);
 extern void makenewzClassify(tree *tr, int maxiter, double *result, double *z0, double *x1_start, double *x2_start,
 			     unsigned char *tipX1,  unsigned char *tipX2, int tipCase, boolean *partitionConverged, int insertion);
 
-extern void    newviewClassify(tree *tr, branchInfo *bInf, double *z, int insertion);
+extern void newviewMultiGrain(tree *tr,  double *x1, double *x2, double *x3, int *_ex1, int *_ex2, int *_ex3, unsigned char *_tipX1, unsigned char *_tipX2, 
+			      int tipCase, double *_pz, double *_qz, int insertion);
 
 extern void addTraverseRobIterative(tree *tr, int branchNumber);
 extern void insertionsParsimonyIterative(tree *tr, int branchNumber);
 
-extern void newviewClassifySpecial(tree *tr, double *x1_start, double *x2_start, double *x3_start, int *ex1, int *ex2, int *ex3,
-				   unsigned char *tipX1,  unsigned char *tipX2, int tipCase, double *pz, double *qz, int insertion);
+extern void newviewClassify(tree *tr, branchInfo *b, double *z, int insertion);
+
 extern double evalCL(tree *tr, double *x2, int *ex2, unsigned char *tip, double *pz, int insertion);
 
 extern void testInsertThoroughIterative(tree *tr, int branchNumber);
@@ -1443,5 +1444,11 @@ void newviewGTRGAMMAPROT_AVX(int tipCase,
 			     double *x1, double *x2, double *x3, double *extEV, double *tipVector,
 			     int *ex3, unsigned char *tipX1, unsigned char *tipX2, int n, 
 			     double *left, double *right, int *wgt, int *scalerIncrement, const boolean useFastScaling);
+
+void newviewGTRCATPROT_AVX(int tipCase, double *extEV,
+			       int *cptr,
+			       double *x1, double *x2, double *x3, double *tipVector,
+			       int *ex3, unsigned char *tipX1, unsigned char *tipX2,
+			   int n, double *left, double *right, int *wgt, int *scalerIncrement, const boolean useFastScaling);
 
 #endif

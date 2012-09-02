@@ -700,8 +700,7 @@ static boolean setupTree (tree *tr, analdef *adef)
   nodeptr  p0, p, q;
   int
     i,
-    j,
-    k,
+    j,  
     tips,
     inter; 
   
@@ -5935,16 +5934,18 @@ static void finalizeInfoFile(tree *tr, analdef *adef)
 
 static void computeFraction(tree *localTree, int tid, int n)
 {
-  int
-    i,
+  int  
     model;
+
+  size_t
+    i;
 
   for(model = 0; model < localTree->NumberOfModels; model++)
     {
       int width = 0;
 
       for(i = localTree->partitionData[model].lower; i < localTree->partitionData[model].upper; i++)
-	if(i % n == tid)
+	if(i % (size_t)n == (size_t)tid)
 	      width++;
 
       localTree->partitionData[model].width = width;
@@ -6130,9 +6131,7 @@ static void allocNodex(tree *tr, int tid, int n)
   for(model = 0; model < (size_t)tr->NumberOfModels; model++)
     {
       size_t 
-	width = tr->partitionData[model].width;
-
-      int 
+	width = tr->partitionData[model].width,
 	i;
 
       myLength += width;
@@ -6197,13 +6196,17 @@ inline static void sendTraversalInfo(tree *localTree, tree *tr)
 
 static void collectDouble(double *dst, double *src, tree *tr, int n, int tid)
 {
-  int model, i;
+  int 
+    model;
+  
+  size_t
+    i;
 
   for(model = 0; model < tr->NumberOfModels; model++)
     {
       for(i = tr->partitionData[model].lower; i < tr->partitionData[model].upper; i++)
 	{
-	  if(i % n == tid)
+	  if(i % (size_t)n == (size_t)tid)
 	    dst[i] = src[i];
 	}
     }
@@ -6232,10 +6235,12 @@ static void broadcastPerSiteRates(tree *tr, tree *localTree)
 static void execFunction(tree *tr, tree *localTree, int tid, int n)
 {
   double volatile result;
-  int
-    i,
+
+  size_t
+    i;
+
+  int 
     currentJob,
-    parsimonyResult,
     model,
     localCounter,
     globalCounter;
@@ -6309,7 +6314,7 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 	  }
 	else
 	  {
-	    for(i = 0; i < localTree->NumberOfModels; i++)
+	    for(i = 0; i < (size_t)localTree->NumberOfModels; i++)
 	      {
 		reductionBuffer[tid * localTree->NumberOfModels + i]    = dlnLdlz[i];
 		reductionBufferTwo[tid * localTree->NumberOfModels + i] = d2lnLdlz2[i];
@@ -6341,7 +6346,7 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 	  }
 	else
 	  {
-	    for(i = 0; i < localTree->NumberOfModels; i++)
+	    for(i = 0; i < (size_t)localTree->NumberOfModels; i++)
 	      {
 		reductionBuffer[tid * localTree->NumberOfModels + i]    = dlnLdlz[i];
 		reductionBufferTwo[tid * localTree->NumberOfModels + i] = d2lnLdlz2[i];
@@ -6527,9 +6532,11 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 
        for(model = 0; model < localTree->NumberOfModels; model++)
 	 {
-	   int localIndex;
+	   int 
+	     localIndex;
+	   
 	   for(i = localTree->partitionData[model].lower, localIndex = 0; i <  localTree->partitionData[model].upper; i++)
-	     if(i % n == tid)
+	     if(i % (size_t)n == (size_t)tid)
 	       {
 		 localTree->partitionData[model].wgt[localIndex]          = tr->cdta->aliaswgt[i];				 		
 		 localTree->partitionData[model].invariant[localIndex]    = tr->invariant[i];		
@@ -6569,7 +6576,7 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 
 	  for(localCounter = 0, i = localTree->partitionData[model].lower;  i < localTree->partitionData[model].upper; i++)
 	    {
-	      if(i % n == tid)
+	      if(i % (size_t)n == (size_t)tid)
 		{		 
 		  localTree->partitionData[model].rateCategory[localCounter] = tr->cdta->rateCategory[i];
 		  localTree->partitionData[model].wr[localCounter]             = tr->wr[i];
@@ -6612,7 +6619,7 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 	{
 	  for(localCounter = 0, i = localTree->partitionData[model].lower;  i < localTree->partitionData[model].upper; i++)
 	    {
-	      if(i % n == tid)
+	      if(i % (size_t)n == (size_t)tid)
 		{
 		  tr->perSiteLL[globalCounter] =  localTree->partitionData[model].perSiteLL[localCounter];
 		  localCounter++;
@@ -6701,12 +6708,13 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
       
 	int
 	  *leftContigousScalingVector = localTree->bInf[branchCounter].epa->leftScaling,
-	  *rightContigousScalingVector = localTree->bInf[branchCounter].epa->rightScaling,	
-	  globalColumnCount = 0,
-	  globalCount       = 0,
+	  *rightContigousScalingVector = localTree->bInf[branchCounter].epa->rightScaling,		
 	  rightNumber = localTree->bInf[branchCounter].epa->rightNodeNumber,
 	  leftNumber  = localTree->bInf[branchCounter].epa->leftNodeNumber;	
 
+	size_t
+	  globalColumnCount = 0,
+	  globalCount       = 0;
 
 	for(model = 0; model < localTree->NumberOfModels; model++)
 	  {
@@ -6719,8 +6727,9 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 
 	    int
 	      *leftStridedScalingVector  =  (int *)NULL,
-	      *rightStridedScalingVector =  (int *)NULL,
-	     
+	      *rightStridedScalingVector =  (int *)NULL;
+
+	    size_t
 	      localColumnCount = 0,
 	      localCount = 0;	   
 
@@ -6742,7 +6751,7 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 
 	    for(globalColumnCount = localTree->partitionData[model].lower; globalColumnCount < localTree->partitionData[model].upper; globalColumnCount++)
 	      {	
-		if(globalColumnCount % n == tid)
+		if(globalColumnCount % (size_t)n == (size_t)tid)
 		  {		    
 		    if(leftStridedVector)
 		      {
@@ -6922,7 +6931,7 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 		    
 		    int k; 
 
-		    if(!(tr->mr_thresh < currentEntry->supportFromTreeset[0])) 
+		    if(!((unsigned int)tr->mr_thresh < currentEntry->supportFromTreeset[0])) 
 		      {
 			for(k = *(tr->len); k > 0; k--)
 			  {
@@ -6975,7 +6984,7 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 		/* try to finish */
 		if( tmpCounter >= tr->maxBips || 
 		    (highestToCheck == tr->bipStatusLen	/* end of buffer that is examined */
-		     && tr->sectionEnd == tr->h->entryCount /* the end of the buffer is also the hashtable  */
+		     && (unsigned int)tr->sectionEnd == tr->h->entryCount /* the end of the buffer is also the hashtable  */
 		     && tr->bipStatus[highestToCheck-1] > MRE_POSSIBLE_CANDIDATE))
 		  { 
 		    /* the last entry in buffer was already processed */
@@ -7011,7 +7020,7 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 			  int 
 			    tmp = MAX((2 * tmpCounter * SECTION_CONSTANT / (NumberOfThreads * density)), /* the above discussed formula */
 				      NumberOfThreads * MRE_MIN_AMOUNT_JOBS_PER_THREAD ); /* we need at least a bit work  */
-			  newSectionEnd  = MIN(tr->sectionEnd + tmp, tr->h->entryCount);
+			  newSectionEnd  = MIN(tr->sectionEnd + tmp, (int)(tr->h->entryCount));
 			}
 		      else
 			newSectionEnd = tr->h->entryCount; 
@@ -7060,7 +7069,7 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 	double
 	  *contigousVector = tr->ancestralStates;
       
-	int	 
+	size_t	 
 	  globalColumnCount = 0,
 	  globalCount       = 0;	
 
@@ -7071,7 +7080,7 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 	      blockRequirements;
 	    
 	   
-	    int	     	     
+	    size_t
 	      localColumnCount = 0,
 	      localCount = 0;	   
 
@@ -7087,7 +7096,7 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 
 	    for(globalColumnCount = localTree->partitionData[model].lower; globalColumnCount < localTree->partitionData[model].upper; globalColumnCount++)
 	      {	
-		if(globalColumnCount % n == tid)
+		if(globalColumnCount % (size_t)n == (size_t)tid)
 		  {
 		    memcpy(&contigousVector[globalCount], &stridedVector[localCount], sizeof(double) * blockRequirements);		
 		    		   		   
@@ -8528,7 +8537,7 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
     groupSize[4];
   
   double
-    fraction,
+    fraction = 0.0,
     t;
 
   unsigned long int
@@ -8602,11 +8611,13 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
       printBothOpen("There are %u quartet sets for which RAxML will evaluate all %u quartet trees\n", numberOfQuartets, numberOfQuartets * 3);
       break;
     case RANDOM_QUARTETS:
-      printBothOpen("There are %u quartet sets for which RAxML will randomly sub-sambple %u sets (%f\%), i.e., compute %u quartet trees\n", numberOfQuartets, randomQuartets, 100 * fraction, randomQuartets * 3);
+      printBothOpen("There are %u quartet sets for which RAxML will randomly sub-sambple %u sets (%f per cent), i.e., compute %u quartet trees\n", numberOfQuartets, randomQuartets, 100 * fraction, randomQuartets * 3);
       break;
     case GROUPED_QUARTETS:           
       printBothOpen("There are 4 quartet groups from which RAxML will evaluate all %u quartet trees\n", (unsigned int)groupSize[0] * (unsigned int)groupSize[1] * (unsigned int)groupSize[2] * (unsigned int)groupSize[3] * 3);
       break;
+    default:
+      assert(0);
     }
 
   /* print taxon name to taxon number correspondance table to output file */
@@ -9052,7 +9063,7 @@ int main (int argc, char *argv[])
        
       evaluateGenericInitrav(tr, tr->start);                                       	                  
       
-      computeAncestralStates(tr, tr->likelihood, adef);
+      computeAncestralStates(tr, tr->likelihood);
       break;
     case  QUARTET_CALCULATION:                                             	                        
       computeQuartets(tr, adef, rdta, cdta);

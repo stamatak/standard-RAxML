@@ -4125,8 +4125,12 @@ static void setupSecondaryStructureSymmetries(tree *tr)
 
 void initModel(tree *tr, rawdata *rdta, cruncheddata *cdta, analdef *adef)
 {  
-  int model, i, j;
-  double  temp;  
+  int 
+    model, 
+    j;
+  
+  double  
+    temp;  
      
   optimizeRateCategoryInvocations = 1;      
   tr->numberOfInvariableColumns = 0;
@@ -4157,6 +4161,9 @@ void initModel(tree *tr, rawdata *rdta, cruncheddata *cdta, analdef *adef)
     {               
       if(adef->useInvariant)
 	{      
+	  size_t
+	    i;
+	  
 	  int 
 	    count = 0,
 	    total = 0,

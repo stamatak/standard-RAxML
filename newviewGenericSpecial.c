@@ -2943,17 +2943,16 @@ static void newviewGTRGAMMA(int tipCase,
 		 __m128d uX2_k2_sse = _mm_load_pd( &uX2[j * 4 + 2] );
  		 
 
-		 //
-		 // multiply left * right
-		 //
+		
+		 /* multiply left * right */		
 		 
 		 __m128d x1px2_k0 = _mm_mul_pd( uX1_k0_sse, uX2_k0_sse );
 		 __m128d x1px2_k2 = _mm_mul_pd( uX1_k2_sse, uX2_k2_sse );
 		 
 		 
-		 //
-		 // multiply with EV matrix (!?)
-		 //
+		 
+		 /* multiply with EV matrix (!?) */
+		
 		 
 		 __m128d EV_t_l0_k0 = EVV[0];
 		 __m128d EV_t_l0_k2 = EVV[1];
@@ -3028,9 +3027,9 @@ static void newviewGTRGAMMA(int tipCase,
 	     for (j = 0; j < 4; j++)
 	       {
 
-		 //
-		 // multiply/add right side
-		 //
+		 
+		 /* multiply/add right side */
+		 
 		 double *x2_p = &x2[j*4];
 		 double *right_k0_p = &right[j*16];
 		 double *right_k1_p = &right[j*16 + 1*4];
@@ -3073,25 +3072,24 @@ static void newviewGTRGAMMA(int tipCase,
 		 right_k2_0 = _mm_hadd_pd( right_k2_0, right_k3_0);
 
 		 {
-		   //
-		   // load left side from tip vector
-		   //
+		  
+		   /* load left side from tip vector */
+		  
 		   
 		   __m128d uX1_k0_sse = _mm_load_pd( &uX1[j * 4] );
 		   __m128d uX1_k2_sse = _mm_load_pd( &uX1[j * 4 + 2] );
 		 
 		 
-		   //
-		   // multiply left * right
-		   //
+		   
+		   /* multiply left * right */
+		  
 		   
 		   __m128d x1px2_k0 = _mm_mul_pd( uX1_k0_sse, right_k0_0 );
 		   __m128d x1px2_k2 = _mm_mul_pd( uX1_k2_sse, right_k2_0 );
 		   
 		   
-		   //
-		   // multiply with EV matrix (!?)
-		   //		   		  
+		   
+		   /* multiply with EV matrix (!?) */		 
 
 		   __m128d EV_t_l0_k0 = EVV[0];
 		   __m128d EV_t_l0_k2 = EVV[1];
@@ -3220,9 +3218,9 @@ static void newviewGTRGAMMA(int tipCase,
 	     left_k2_0 = _mm_hadd_pd( left_k2_0, left_k3_0);
 	     
 	     
-	     //
-	     // multiply/add right side
-	     //
+	     
+	     /* multiply/add right side */
+	     
 	     double *x2_p = &x2[j*4];
 	     double *right_k0_p = &right[j*16];
 	     double *right_k1_p = &right[j*16 + 1*4];
@@ -3261,17 +3259,16 @@ static void newviewGTRGAMMA(int tipCase,
 	     right_k3_0 = _mm_hadd_pd( right_k3_0, right_k3_2);
 	     right_k2_0 = _mm_hadd_pd( right_k2_0, right_k3_0);	   
 
-             //
-             // multiply left * right
-             //
+             
+             /* multiply left * right */
+            
 
 	     __m128d x1px2_k0 = _mm_mul_pd( left_k0_0, right_k0_0 );
 	     __m128d x1px2_k2 = _mm_mul_pd( left_k2_0, right_k2_0 );
 
 
-             //
-             // multiply with EV matrix (!?)
-             //	     
+             
+             /* multiply with EV matrix (!?) */            
 
 	     __m128d EV_t_l0_k0 = EVV[0];
 	     __m128d EV_t_l0_k2 = EVV[1];
@@ -3519,19 +3516,13 @@ static void newviewGTRGAMMA_GAPPED(int tipCase,
 		    
 		    __m128d uX2_k0_sse = _mm_load_pd( &uX2[j * 4] );
 		    __m128d uX2_k2_sse = _mm_load_pd( &uX2[j * 4 + 2] );
-		    
-		    
-		    //
-		    // multiply left * right
-		    //
+		    		    		   
+		    /* multiply left * right */		   
 		    
 		    __m128d x1px2_k0 = _mm_mul_pd( uX1_k0_sse, uX2_k0_sse );
 		    __m128d x1px2_k2 = _mm_mul_pd( uX1_k2_sse, uX2_k2_sse );
-		    
-		    
-		    //
-		    // multiply with EV matrix (!?)
-		    //
+		    		    		   
+		    /* multiply with EV matrix (!?) */		   
 		    
 		    __m128d EV_t_l0_k0 = EVV[0];
 		    __m128d EV_t_l0_k2 = EVV[1];
@@ -3789,25 +3780,19 @@ static void newviewGTRGAMMA_GAPPED(int tipCase,
 		     right_k2_0 = _mm_hadd_pd( right_k2_0, right_k3_0);
 		     
 		     {
-		       //
-		       // load left side from tip vector
-		       //
+		      
+		       /* load left side from tip vector */
+		      
 		       
 		       __m128d uX1_k0_sse = _mm_load_pd( &uX1[j * 4] );
 		       __m128d uX1_k2_sse = _mm_load_pd( &uX1[j * 4 + 2] );
-		       
-		       
-		       //
-		       // multiply left * right
-			   //
+		       		       		      
+		       /* multiply left * right */		       
 		       
 		       __m128d x1px2_k0 = _mm_mul_pd( uX1_k0_sse, right_k0_0 );
 		       __m128d x1px2_k2 = _mm_mul_pd( uX1_k2_sse, right_k2_0 );
-		       
-		       
-		       //
-		       // multiply with EV matrix (!?)
-		       //		   		  
+		       		       		      
+		       /* multiply with EV matrix (!?) */		        
 		       
 		       __m128d EV_t_l0_k0 = EVV[0];
 		       __m128d EV_t_l0_k2 = EVV[1];
@@ -4118,9 +4103,9 @@ static void newviewGTRGAMMA_GAPPED(int tipCase,
 		 left_k2_0 = _mm_hadd_pd( left_k2_0, left_k3_0);
 		 
 		 
-		 //
-		 // multiply/add right side
-		 //
+		 
+		 /* multiply/add right side */
+		
 		 double *x2_p = &x2[j*4];
 		 double *right_k0_p = &right[j*16];
 		 double *right_k1_p = &right[j*16 + 1*4];
@@ -4158,18 +4143,13 @@ static void newviewGTRGAMMA_GAPPED(int tipCase,
 		 right_k2_0 = _mm_hadd_pd( right_k2_0, right_k2_2);
 		 right_k3_0 = _mm_hadd_pd( right_k3_0, right_k3_2);
 		 right_k2_0 = _mm_hadd_pd( right_k2_0, right_k3_0);	   
-		 
-		 //
-		 // multiply left * right
-		 //
-		 
+		 		 
+		 /* multiply left * right */
+				 
 		 __m128d x1px2_k0 = _mm_mul_pd( left_k0_0, right_k0_0 );
 		 __m128d x1px2_k2 = _mm_mul_pd( left_k2_0, right_k2_0 );
-		 
-		 
-		 //
-		 // multiply with EV matrix (!?)
-		 //	     
+		 		 		
+		 /* multiply with EV matrix (!?) */		
 		 
 		 __m128d EV_t_l0_k0 = EVV[0];
 		 __m128d EV_t_l0_k2 = EVV[1];
@@ -4404,19 +4384,14 @@ static void newviewGTRGAMMA_GAPPED_SAVE(int tipCase,
 		    
 		    __m128d uX2_k0_sse = _mm_load_pd( &uX2[j * 4] );
 		    __m128d uX2_k2_sse = _mm_load_pd( &uX2[j * 4 + 2] );
-		    
-		    
-		    //
-		    // multiply left * right
-		    //
+		    		    		    
+		    /* multiply left * right */		   
 		    
 		    __m128d x1px2_k0 = _mm_mul_pd( uX1_k0_sse, uX2_k0_sse );
 		    __m128d x1px2_k2 = _mm_mul_pd( uX1_k2_sse, uX2_k2_sse );
 		    
-		    
-		    //
-		    // multiply with EV matrix (!?)
-		    //
+		    		   
+		    /* multiply with EV matrix (!?) */		   
 		    
 		    __m128d EV_t_l0_k0 = EVV[0];
 		    __m128d EV_t_l0_k2 = EVV[1];
@@ -4689,7 +4664,7 @@ static void newviewGTRGAMMA_GAPPED_SAVE(int tipCase,
 		       
 		       //
 		       // multiply left * right
-			   //
+		       //
 		       
 		       __m128d x1px2_k0 = _mm_mul_pd( uX1_k0_sse, right_k0_0 );
 		       __m128d x1px2_k2 = _mm_mul_pd( uX1_k2_sse, right_k2_0 );
@@ -9256,7 +9231,7 @@ void newviewIterative (tree *tr)
 		*tipX2 = (unsigned char *)NULL;
 	    	      
 	      size_t
-		gapOffset,
+		gapOffset = 0,
 		rateHet,
 		states = (size_t)tr->partitionData[model].states,
 		width = tr->partitionData[model].width,
@@ -9281,7 +9256,7 @@ void newviewIterative (tree *tr)
 		     j,
 		     setBits = 0;
 		   
-		   gapOffset = gapOffset = states * (size_t)getUndetermined(tr->partitionData[model].dataType);
+		   gapOffset = states * (size_t)getUndetermined(tr->partitionData[model].dataType);
 
 		   availableLength = tr->partitionData[model].xSpaceVector[(tInfo->pNumber - tr->mxtips - 1)];
 		   
@@ -9340,6 +9315,8 @@ void newviewIterative (tree *tr)
 		  
 		  if(tr->useGappedImplementation || tr->saveMemory)
 		    {
+		      assert(gapOffset > 0);
+
 		      x1_gapColumn   = &(tr->partitionData[model].tipVector[gapOffset]);
 		      x2_gapColumn   = &(tr->partitionData[model].tipVector[gapOffset]);
 		      x3_gapColumn   = &tr->partitionData[model].gapColumn[(tInfo->pNumber - tr->mxtips - 1) * states * rateHet];
@@ -9360,6 +9337,8 @@ void newviewIterative (tree *tr)
 		 		  
 		  if(tr->useGappedImplementation || tr->saveMemory)
 		    {
+		      assert(gapOffset > 0);
+		      
 		      x1_gapColumn   = &(tr->partitionData[model].tipVector[gapOffset]);
 		      x2_gapColumn   = &tr->partitionData[model].gapColumn[(tInfo->rNumber - tr->mxtips - 1) * states * rateHet];
 		      x3_gapColumn   = &tr->partitionData[model].gapColumn[(tInfo->pNumber - tr->mxtips - 1) * states * rateHet];
@@ -9826,20 +9805,17 @@ void newviewGeneric (tree *tr, nodeptr p)
   if(isTip(p->number, tr->mxtips))
     return;
 
-  
-  {
-    tr->td[0].count = 1;
-    computeTraversalInfo(p, &(tr->td[0].ti[0]), &(tr->td[0].count), tr->mxtips, tr->numBranches);
+  tr->td[0].count = 1;
+  computeTraversalInfo(p, &(tr->td[0].ti[0]), &(tr->td[0].count), tr->mxtips, tr->numBranches);
     
-    if(tr->td[0].count > 1)
-      {
+  if(tr->td[0].count > 1)
+    {
 #ifdef _USE_PTHREADS
-	masterBarrier(THREAD_NEWVIEW, tr);
+      masterBarrier(THREAD_NEWVIEW, tr);
 #else
-	newviewIterative(tr);
+      newviewIterative(tr);
 #endif
-      }
-  }
+    }
 }
 
 
@@ -9884,8 +9860,8 @@ void newviewGenericMasked(tree *tr, nodeptr p)
 
 #ifdef  _USE_PTHREADS
 
-static void newviewMultiGrain(tree *tr,  double *x1, double *x2, double *x3, int *_ex1, int *_ex2, int *_ex3, unsigned char *_tipX1, unsigned char *_tipX2, 
-			      int tipCase, double *_pz, double *_qz, int insertion)
+void newviewMultiGrain(tree *tr,  double *x1, double *x2, double *x3, int *_ex1, int *_ex2, int *_ex3, unsigned char *_tipX1, unsigned char *_tipX2, 
+		       int tipCase, double *_pz, double *_qz, int insertion)
 {
   int    
     scalerIncrement = 0,   
@@ -10310,13 +10286,7 @@ void newviewClassify(tree *tr, branchInfo *b, double *z, int insertion)
 
 
 
-void newviewClassifySpecial(tree *tr, double *x1_start, double *x2_start, double *x3_start, int *ex1, int *ex2, int *ex3,
-			    unsigned char *tipX1,  unsigned char *tipX2, int tipCase, double *pz, double *qz, int insertion)
-{
-  newviewMultiGrain(tr,  x1_start, x2_start, x3_start, ex1, ex2, ex3, tipX1, tipX2, 
-		    tipCase, pz, qz, insertion);
-  
-}
+
 
 
 
