@@ -3234,7 +3234,7 @@ static void parseOutgroups(char *outgr, tree *tr)
 
 static void printVersionInfo(void)
 {
-  printf("\n\nThis is %s version %s released by Alexandros Stamatakis in %s.\n\n",  programName, programVersion, programDate);
+  printf("\n\nThis is %s version %s released by Alexandros Stamatakis on %s.\n\n",  programName, programVersion, programDate);
   printf("With greatly appreciated code contributions by:\n");
   printf("Andre Aberer (HITS)\n");     
   printf("Simon Berger (HITS)\n"); 
@@ -4856,7 +4856,7 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
 	    strcpy(modelType, "GAMMA");
 	}
      
-      printBoth(infoFile, "\n\nThis is %s version %s released by Alexandros Stamatakis in %s.\n\n",  programName, programVersion, programDate);
+      printBoth(infoFile, "\n\nThis is %s version %s released by Alexandros Stamatakis on %s.\n\n",  programName, programVersion, programDate);
       printBoth(infoFile, "With greatly appreciated code contributions by:\n");
       printBoth(infoFile, "Andre Aberer (HITS)\n");     
       printBoth(infoFile, "Simon Berger (HITS)\n");     
