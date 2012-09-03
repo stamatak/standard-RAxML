@@ -9248,6 +9248,8 @@ void newviewIterative (tree *tr)
 		  x1_gap = &(tr->partitionData[model].gapVector[tInfo->qNumber * tr->partitionData[model].gapVectorLength]);
 		  x2_gap = &(tr->partitionData[model].gapVector[tInfo->rNumber * tr->partitionData[model].gapVectorLength]);
 		  x3_gap = &(tr->partitionData[model].gapVector[tInfo->pNumber * tr->partitionData[model].gapVectorLength]);
+
+		  gapOffset = states * (size_t)getUndetermined(tr->partitionData[model].dataType);
 		}
 	      
 	      if(tr->saveMemory)
@@ -9255,9 +9257,7 @@ void newviewIterative (tree *tr)
 		   size_t
 		     j,
 		     setBits = 0;
-		   
-		   gapOffset = states * (size_t)getUndetermined(tr->partitionData[model].dataType);
-
+		   		  
 		   availableLength = tr->partitionData[model].xSpaceVector[(tInfo->pNumber - tr->mxtips - 1)];
 		   
 		   for(j = 0; j < (size_t)tr->partitionData[model].gapVectorLength; j++)

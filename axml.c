@@ -8218,7 +8218,9 @@ void testGapped(tree *tr)
       
       double 
 	gappedTime,
-	ungappedTime;
+	ungappedTime,
+	gappedLH,
+	ungappedLH;
       
       printBothOpen("Testing which likelihood implementation to use\n");
       
@@ -8226,6 +8228,7 @@ void testGapped(tree *tr)
       ungappedTime = gettime();
       for(i = 0; i < 8; i++)
 	evaluateGenericInitrav(tr, tr->start);
+      ungappedLH = tr->likelihood;
       ungappedTime = gettime() - ungappedTime;
       
       tr->useGappedImplementation = TRUE;
@@ -8236,10 +8239,12 @@ void testGapped(tree *tr)
       
       gappedTime = gettime();
       for(i = 0; i < 8; i++)
-	evaluateGenericInitrav(tr, tr->start);
+	evaluateGenericInitrav(tr, tr->start); 
+      gappedLH = tr->likelihood;
       gappedTime = gettime() - gappedTime;
       
-      
+      assert(ABS(gappedLH - ungappedLH) < 0.01);
+
       printBothOpen("Standard Implementation full tree traversal time: %f\n", ungappedTime);
       
       printBothOpen("Subtree Equality Vectors for gap columns full tree traversal time: %f\n", gappedTime);
