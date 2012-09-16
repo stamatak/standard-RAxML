@@ -2421,11 +2421,20 @@ static void splitMultiGene(tree *tr, rawdata *rdta)
   for(i = 0; i < tr->NumberOfModels; i++)
     {
       strcpy(outFileName, seq_file);
-      sprintf(buf, "%d", i);
-      strcat(outFileName, ".GENE.");
-      strcat(outFileName, buf);
+
+      /*sprintf(buf, "%d", i);*/
+      /*strcat(outFileName, ".GENE.");*/
+      
+      strcat(outFileName, ".");
+      strcat(outFileName, tr->partitionData[i].partitionName);
+      strcat(outFileName, ".phy");
+      
+      /*strcat(outFileName, buf);*/
+      
       outf = myfopen(outFileName, "wb");
+      
       length = 0;
+      
       for(k = 1; k < n; k++)
 	{
 	  if(tr->model[k] == i)
