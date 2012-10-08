@@ -60,7 +60,7 @@ if($#ARGV == 1)
   {
     print "Splitting up multi-gene alignment\n";
     $partition =  $ARGV[1];
-    $cmd = $raxmlExecutable." -f s -m PROTCATJTT -O -p 12345 -s ".$alignmentName." -q ".$partition." -n SPLIT_".$alignmentName." \> SPLIT_".$alignmentName."_out";
+    $cmd = $raxmlExecutable." -f s -m PROTCATJTT -p 12345 -s ".$alignmentName." -q ".$partition." -n SPLIT_".$alignmentName." \> SPLIT_".$alignmentName."_out";
     system($cmd);
     $count = 0;
     while(open(CPF, $alignmentName.".GENE.".$count))
@@ -76,7 +76,7 @@ else
   {
     #print "Determining AA model data\n";
     #print "Computing randomized stepwise addition starting tree number :".$i."\n";
-    $cmd = $raxmlExecutable." -O -y -p 12345 -m PROTCATJTT -s ".$alignmentName." -n ST_".$alignmentName." \> ST_".$alignmentName."_out";
+    $cmd = $raxmlExecutable."  -y -p 12345 -m PROTCATJTT -s ".$alignmentName." -n ST_".$alignmentName." \> ST_".$alignmentName."_out";
     system($cmd);
     
     $numberOfModels = @AA_Models;
@@ -84,7 +84,7 @@ else
     for($i = 0; $i < $numberOfModels; $i++)
       {
 	$aa = "PROTGAMMA".$AA_Models[$i];
-	$cmd = $raxmlExecutable." -O -f e -m ".$aa." -s ".$alignmentName." -t RAxML_parsimonyTree.ST_".$alignmentName." -n ".$AA_Models[$i]."_".$alignmentName."_EVAL \> ".$AA_Models[$i]."_".$alignmentName."_EVAL.out\n";  
+	$cmd = $raxmlExecutable."  -f e -m ".$aa." -s ".$alignmentName." -t RAxML_parsimonyTree.ST_".$alignmentName." -n ".$AA_Models[$i]."_".$alignmentName."_EVAL \> ".$AA_Models[$i]."_".$alignmentName."_EVAL.out\n";  
 	#print($cmd);
 	system($cmd);
       }
