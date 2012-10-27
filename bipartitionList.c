@@ -106,6 +106,9 @@ entry *initEntry(void)
   return e;
 } 
 
+
+
+
 hashtable *initHashTable(hashNumberType n)
 {
   /* 
@@ -2025,10 +2028,12 @@ boolean compatible(entry* e1, entry* e2, unsigned int bvlen)
 
 static int sortByWeight(const void *a, const void *b, int which)
 {
-  //recall, we want to sort descending, instead of ascending
+  /* recall, we want to sort descending, instead of ascending */
+     
   int 
     ca,
     cb;
+    
   ca = ((*((entry **)a))->supportFromTreeset)[which];
   cb = ((*((entry **)b))->supportFromTreeset)[which];
   
@@ -2054,11 +2059,12 @@ static int _sortByWeight1(const void *a, const void *b)
   return sortByWeight(a,b,1);
 }
 
-boolean issubset(unsigned int* bipA, unsigned int* bipB, unsigned int vectorLen)
+boolean issubset(unsigned int* bipA, unsigned int* bipB, unsigned int vectorLen, unsigned int firstIndex)
 {
-  unsigned int i;
+  unsigned int 
+    i;
   
-  for(i = 0; i < vectorLen; i++)
+  for(i = firstIndex; i < vectorLen; i++)
     if((bipA[i] & bipB[i]) != bipA[i])    
       return FALSE;
         
@@ -2296,7 +2302,7 @@ static void printBipsRecursive(FILE *outf, int consensusBipLen, entry **consensu
 
 
 
-static void printSortedBips(entry **consensusBips, const int consensusBipLen, const int numTips, const int vectorLen, 
+static void printSortedBips(entry **consensusBips, const int consensusBipLen, const int numTips, const unsigned int vectorLen, 
 			    const int numberOfTrees, FILE *outf, char **nameList , tree *tr, unsigned int *printCounter)
 {
   int 
@@ -2360,35 +2366,58 @@ static void printSortedBips(entry **consensusBips, const int consensusBipLen, co
   hasAncestor = tr->hasAncestor;
   listOfDirectChildren = tr->listOfDirectChildren; 
 #else 
-  for(i = 0; i < consensusBipLen; i++)
-    {
-      int j;
-      
-      for(j = i+1; j < consensusBipLen; j++)
-	{
-	  if((unsigned int)consensusBips[i]->amountTips < (unsigned int)consensusBips[j]->amountTips
-	     && issubset(consensusBips[i]->bitVector, consensusBips[j]->bitVector, vectorLen))
-	    { 
-	      /* i is child of j */
-	      /* insert */	
-	      
-	      List 
-		*elem = (List*) malloc(sizeof(List));
-	      
-	      /* elem->value = &i; */
-	      
-	      elem->value = calloc(1, sizeof(int));
-	      
-	      *(int*)elem->value = i; 
-	      elem->next = (listOfDirectChildren[j])
-		?listOfDirectChildren[j]
-		:NULL;
-	      listOfDirectChildren[j] = elem;
-	      hasAncestor[i] = TRUE;
-	      break;
-	    }
-	}
-    }
+  {
+    List 
+      *elems = (List*)malloc((size_t)consensusBipLen *  sizeof(List));
+    
+    int 
+      j,
+      *intList = (int*)malloc(sizeof(int) * (size_t)consensusBipLen),
+      highestId = 0; 
+
+    for(i = 0; i < consensusBipLen; i++)
+      {
+	entry 
+	  *bipA = consensusBips[i]; 
+	
+	/* find first index  */
+	unsigned int 
+	  firstIndex = 0;
+	
+	while(firstIndex < vectorLen && bipA->bitVector[firstIndex] == 0 )
+	  firstIndex++;
+	
+	for(j = i + 1; j < consensusBipLen; j++)
+	  {		    
+	    if((unsigned int)consensusBips[i]->amountTips < (unsigned int)consensusBips[j]->amountTips
+	       && issubset(consensusBips[i]->bitVector, consensusBips[j]->bitVector, vectorLen, firstIndex))
+	      { 	      
+		List 
+		  *elem = &(elems[highestId]); 
+		
+		int 
+		  *nmbr = &(intList[highestId]); 
+		
+		highestId++; 
+		
+		elem->value = calloc(1, sizeof(int));
+		
+		*nmbr = i; 
+		elem->value = nmbr; 
+		elem->next = (listOfDirectChildren[j])
+		  ?listOfDirectChildren[j]
+		  :NULL;
+		listOfDirectChildren[j] = elem;
+		hasAncestor[i] = TRUE;
+		break;
+	      }
+	  }
+      }
+
+    free(elems);
+    free(intList);
+    
+  }
 #endif
 
   /****************************************************************/
@@ -2446,7 +2475,7 @@ static void printSortedBips(entry **consensusBips, const int consensusBipLen, co
 void computeConsensusOnly(tree *tr, char *treeSetFileName, analdef *adef)
 {        
   hashtable 
-    *h = initHashTable(tr->mxtips * FC_INIT * 10);;
+    *h = initHashTable(tr->mxtips * FC_INIT * 10);
 
   hashNumberType
     entries = 0;
@@ -2673,9 +2702,11 @@ static void mre(hashtable *h, boolean icp, entry*** sbi, int* len, int which, in
 	  /*if(sbw[i]->supportFromTreeset[which] <= mr_thresh) */
 	    for(k = ((unsigned int)(*len)); k > 0; k--)
 	      {
-		//k indexes sbi
-		//j indexes sbw
-		//need to compare the two
+		/*
+		  k indexes sbi
+		  j indexes sbw
+		  need to compare the two
+		*/
 		
 		if(!compatible((*sbi)[k-1], sbw[i], vectorLength))		
 		  {

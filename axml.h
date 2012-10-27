@@ -157,8 +157,8 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "RAxML"
-#define programVersion     "7.3.5"
-#define programDate        "September 16 2012"
+#define programVersion     "7.3.6"
+#define programDate        "October 27 2012"
 
 
 #define  TREE_EVALUATION            0
@@ -1291,7 +1291,7 @@ extern void treeEvaluateProgressive(tree *tr);
 
 extern void testGapped(tree *tr);
 
-extern boolean issubset(unsigned int* bipA, unsigned int* bipB, unsigned int vectorLen);
+extern boolean issubset(unsigned int* bipA, unsigned int* bipB, unsigned int vectorLen, unsigned int firstIndex);
 extern boolean compatible(entry* e1, entry* e2, unsigned int bvlen);
 
 extern void nniSmooth(tree *tr, nodeptr p, int maxtimes);

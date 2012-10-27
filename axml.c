@@ -2416,7 +2416,8 @@ static void splitMultiGene(tree *tr, rawdata *rdta)
   unsigned char *tip;
   FILE *outf;
   char outFileName[2048];
-  char buf[16];
+  
+  /* char buf[16]; */
 
   for(i = 0; i < tr->NumberOfModels; i++)
     {
@@ -2476,7 +2477,8 @@ static void splitMultiGene(tree *tr, rawdata *rdta)
 
 static int countTaxaInTopology(void)
 {
-  FILE *f = myfopen(tree_file, "rb");   
+  FILE 
+    *f = myfopen(tree_file, "rb");   
 
   int
     c,   
@@ -6836,8 +6838,8 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
     case THREAD_PREPARE_BIPS_FOR_PRINT:
       {       
 	int 
-	  i, 
-	  j;	
+	  i = 0, 
+	  j = 0;	
 	
 	boolean 
 	  done = FALSE;
@@ -6858,13 +6860,25 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 
 	    if( ! done)	      
 	      {
-		for(j = i+1; j < tr->consensusBipLen; j++)
+		entry 
+		  *bipA = tr->consensusBips[i],
+		  *bipB = tr->consensusBips[j]; 
+
+		unsigned int 
+		  firstIndex = 0;
+		
+		while(firstIndex < tr->bitVectorLength && bipA->bitVector[firstIndex] == 0 )
+		  firstIndex++;		
+
+
+		for(j = i + 1; j < tr->consensusBipLen; j++)
 		  {
-		    if(tr->consensusBips[i]->amountTips < tr->consensusBips[j]->amountTips &&
-		       issubset(tr->consensusBips[i]->bitVector, tr->consensusBips[j]->bitVector, tr->bitVectorLength))
+		    if(bipA->amountTips < bipB->amountTips &&
+		       issubset(bipA->bitVector, bipB->bitVector, tr->bitVectorLength, firstIndex))
 		      { 
 			/* i is child of j */		    
-			List *elem = (List*) malloc(sizeof(List));
+			List 
+			  *elem = (List*) malloc(sizeof(List));
 			
 			elem->value = calloc(1, sizeof(int));
 			
@@ -8016,9 +8030,23 @@ static void morphologicalCalibration(tree *tr, analdef *adef)
 
 
 
+static int sortLex(const void *a, const void *b)
+{
+  int 
+    i = 0; 
+  
+  char 
+    *aPtr = *(char**)a,
+    *bPtr = *(char**)b; 
+  
+  while((aPtr[i] != '\0') && (bPtr[i] != '\0') && (aPtr[i] == bPtr[i]))
+    i++;
 
-
-
+  if((aPtr[i] == '\0') || (bPtr[i] == '\0'))
+    return (bPtr[i] == '\0');
+  
+  return (aPtr[i] > bPtr[i]);   
+}
 
 
 static void extractTaxaFromTopology(tree *tr, rawdata *rdta, cruncheddata *cdta)
@@ -8056,15 +8084,6 @@ static void extractTaxaFromTopology(tree *tr, rawdata *rdta, cruncheddata *cdta)
 	      while(c != ':' && c != ')' && c != ',');
 	      buffer[i] = '\0';	    
 
-	      for(i = 0; i < taxaCount; i++)
-		{
-		  if(strcmp(buffer, nameList[i]) == 0)
-		    {
-		      printf("A taxon labelled by %s appears twice in the first tree of tree collection %s, exiting ...\n", buffer, bootStrapFile);
-		      exit(-1);
-		    }
-		}	     
-	     
 	      if(taxaCount == taxaSize)
 		{		  
 		  taxaSize *= 2;
@@ -8080,6 +8099,29 @@ static void extractTaxaFromTopology(tree *tr, rawdata *rdta, cruncheddata *cdta)
 	    }
 	}   
     }
+
+
+  /* BEGIN ensuring no taxon occurs twice */
+  {
+    char 
+      **taxList = (char **)malloc(sizeof(char *) * (size_t)taxaCount); 
+    
+    for(i = 0; i < taxaCount; ++i)
+      taxList[i] = nameList[i]; 
+  
+    qsort(taxList, taxaCount, sizeof(char**), sortLex); 
+    
+    for(i = 1; i < taxaCount; ++i)
+      if(strcmp(taxList[i], taxList[i-1]) == 0)
+	{
+	  printf("A taxon labelled by %s appears twice in the first tree of tree collection %s, exiting ...\n", buffer, bootStrapFile);
+	  exit(-1);
+	}
+
+    free(taxList);
+  }
+  /* END */
+
   
   printf("Found a total of %d taxa in first tree of tree collection %s\n", taxaCount, bootStrapFile);
   printf("Expecting all remaining trees in collection to have the same taxon set\n");
