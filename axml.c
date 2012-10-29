@@ -6861,8 +6861,7 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 	    if( ! done)	      
 	      {
 		entry 
-		  *bipA = tr->consensusBips[i],
-		  *bipB = tr->consensusBips[j]; 
+		  *bipA = tr->consensusBips[i] ; 
 
 		unsigned int 
 		  firstIndex = 0;
@@ -6873,6 +6872,9 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 
 		for(j = i + 1; j < tr->consensusBipLen; j++)
 		  {
+		    entry
+		      *bipB = tr->consensusBips[j]; 
+		    
 		    if(bipA->amountTips < bipB->amountTips &&
 		       issubset(bipA->bitVector, bipB->bitVector, tr->bitVectorLength, firstIndex))
 		      { 

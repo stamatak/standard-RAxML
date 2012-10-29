@@ -2318,6 +2318,13 @@ static void printSortedBips(entry **consensusBips, const int consensusBipLen, co
   entry 
     *topBip; 
 
+#ifndef _USE_PTHREADS
+  List 
+    *elems = (List*)malloc((size_t)consensusBipLen *  sizeof(List));
+  int 
+    *intList = (int*)malloc(sizeof(int) * (size_t)consensusBipLen); 
+#endif 
+
   /* sort the consensusBips by the amount of tips they contain */
   
   for( i = 0; i < consensusBipLen; i++)
@@ -2367,12 +2374,8 @@ static void printSortedBips(entry **consensusBips, const int consensusBipLen, co
   listOfDirectChildren = tr->listOfDirectChildren; 
 #else 
   {
-    List 
-      *elems = (List*)malloc((size_t)consensusBipLen *  sizeof(List));
-    
     int 
       j,
-      *intList = (int*)malloc(sizeof(int) * (size_t)consensusBipLen),
       highestId = 0; 
 
     for(i = 0; i < consensusBipLen; i++)
@@ -2412,11 +2415,7 @@ static void printSortedBips(entry **consensusBips, const int consensusBipLen, co
 		break;
 	      }
 	  }
-      }
-
-    free(elems);
-    free(intList);
-    
+      }    
   }
 #endif
 
@@ -2450,6 +2449,12 @@ static void printSortedBips(entry **consensusBips, const int consensusBipLen, co
   free(topBip);
   free(printed);
   free(hasAncestor);
+
+#ifndef _USE_PTHREADS
+  free(elems);
+  free(intList);
+#endif
+
 
   /* here is a bug, when I try to free the memory on the veryBig (55K)
      dataset. When freeing the toplevel bips
