@@ -4959,7 +4959,6 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
 	case EPA_SITE_SPECIFIC_BIAS:
 	  printBoth(infoFile, "\nRAxML exprimental site-specfific phylogenetic placement bias analysis algorithm\n\n");
 	  break;
-
 	case ANCESTRAL_STATES:
 	  printBoth(infoFile, "\nRAxML marginal ancestral state computation\n\n");
 	  break;
@@ -5657,8 +5656,14 @@ static void finalizeInfoFile(tree *tr, analdef *adef)
 
       switch(adef->mode)
 	{
-	case TREE_EVALUATION :
-	  printBothOpen("\n\nOverall Time for Tree Evaluation %f\n", t);
+	case TREE_EVALUATION :	
+	case OPTIMIZE_BR_LEN_SCALER:
+	  
+	  if(adef->mode == OPTIMIZE_BR_LEN_SCALER)
+	    printBothOpen("\n\nOverall Time for Tree Evaluation with branch length scalers: %f\n", t);
+	  else	    
+	    printBothOpen("\n\nOverall Time for Tree Evaluation %f\n", t);
+	  
 	  printBothOpen("Final GAMMA  likelihood: %f\n", tr->likelihood);
 
 	  {
@@ -5808,11 +5813,19 @@ static void finalizeInfoFile(tree *tr, analdef *adef)
 	    if(linkedProteinGTR)
 	      params += 189;
 
-	    if(tr->multiBranch)
-	      paramsBrLen = params + tr->NumberOfModels * (2 * tr->mxtips - 3);
+	    if(adef->mode == TREE_EVALUATION)
+	      {
+		if(tr->multiBranch)
+		  paramsBrLen = params + tr->NumberOfModels * (2 * tr->mxtips - 3);
+		else
+		  paramsBrLen = params + 2 * tr->mxtips - 3;
+	      }
 	    else
-	      paramsBrLen = params + 2 * tr->mxtips - 3;
-
+	      {
+		assert(tr->NumberOfModels > 1);		
+		paramsBrLen = params + (tr->NumberOfModels - 1) + (2 * tr->mxtips - 3);		
+	      }
+	    
 	    printBothOpen("\n");
 
 	   
@@ -5824,8 +5837,11 @@ static void finalizeInfoFile(tree *tr, analdef *adef)
 	    
 	    printModelParams(tr, adef);
 	    
-	    printBothOpen("Final tree written to:                 %s\n", resultFileName);
-	    printBothOpen("Execution Log File written to:         %s\n", logFileName);
+	    if(adef->mode == TREE_EVALUATION)
+	      {
+		printBothOpen("Final tree written to:                 %s\n", resultFileName);
+		printBothOpen("Execution Log File written to:         %s\n", logFileName);
+	      }
 	 
 	  }
 	  break;
@@ -5921,9 +5937,6 @@ static void finalizeInfoFile(tree *tr, analdef *adef)
 	  break;
 	case THOROUGH_OPTIMIZATION:
 	  printBothOpen("\n\nTime for thorough tree optimization: %f\n\n", t);
-	  break;
-	case OPTIMIZE_BR_LEN_SCALER:
-	  printBothOpen("\n\nTime for branch length scaler and remaining model parameters optimization: %f\n\n", t);
 	  break;
 	default:
 	  assert(0);
