@@ -437,6 +437,9 @@ static void evaluateChange(tree *tr, int rateNumber, double *value, double *resu
 
       assert(pos == numberOfModels);
 
+      if(tr->useBrLenScaler)
+	determineFullTraversal(tr->start, tr);
+
 #ifdef _USE_PTHREADS
       {
 	volatile double result;
@@ -495,7 +498,8 @@ static void evaluateChange(tree *tr, int rateNumber, double *value, double *resu
       assert(pos == numberOfModels);
       break;
     case SCALER_F: 
-      assert(ll->entries == 1);
+      assert(ll->entries == tr->NumberOfModels);
+      assert(ll->entries == tr->numBranches);
       for(i = 0; i < ll->entries; i++)
 	{
 	  if(converged[i])
@@ -507,9 +511,11 @@ static void evaluateChange(tree *tr, int rateNumber, double *value, double *resu
 	    {
 	      for(k = 0; k < ll->ld[i].partitions; k++)
 		{
-		  int index = ll->ld[i].partitionList[k];
+		  int 
+		    index = ll->ld[i].partitionList[k];
+		  
 		  tr->executeModel[index] = TRUE;
-		  tr->brLenScaler = value[i];		  
+		  tr->partitionData[index].brLenScaler = value[i];		  
 		  scaleBranches(tr, FALSE);		  
 		}
 	    }
@@ -517,7 +523,13 @@ static void evaluateChange(tree *tr, int rateNumber, double *value, double *resu
       
 #ifdef _USE_PTHREADS   
       {
-	volatile double result;
+	volatile 
+	  double result;
+	
+	/* need to call this here because we need to copy the changed branch lengths 
+	   (due to changed) scalers into the traversal descriptor */
+
+	determineFullTraversal(tr->start, tr);
 	
 	masterBarrier(THREAD_OPT_SCALER, tr);
 	if(tr->NumberOfModels == 1)
@@ -2381,12 +2393,24 @@ void resetBranches(tree *tr)
     }
 }
 
+static double fixZ(double z)
+{
+  if(z > zmax)
+    return zmax;
+  
+  if(z < zmin)
+    return zmin;
+  
+  return z;
+}
+
 void scaleBranches(tree *tr, boolean fromFile)
 {
   nodeptr  
     p;
   
   int  
+    model,
     i,
     nodes, 
     count = 0;
@@ -2397,7 +2421,7 @@ void scaleBranches(tree *tr, boolean fromFile)
   if(!tr->storedBrLens)
     tr->storedBrLens = (double *)malloc(sizeof(double) * (2 * tr->mxtips - 3) * 2);
 
-  assert(tr->numBranches == 1);
+  assert(tr->numBranches == tr->NumberOfModels);
   
   nodes = tr->mxtips  +  tr->mxtips - 2;
   p = tr->nodep[1];
@@ -2405,16 +2429,33 @@ void scaleBranches(tree *tr, boolean fromFile)
   for(i = 1; i <= nodes; i++)
     {      
       p = tr->nodep[i];
-   
+      
       if(fromFile)
 	{
 	  tr->storedBrLens[count] = p->z[0];
-	  p->z[0] = exp(-p->z[0] / tr->fracchange);
+	  
+	  for(model = 0; model < tr->NumberOfModels; model++)
+	    {
+	      z = exp(-p->z[model] / tr->fracchanges[model]);
+
+	      z = fixZ(z);	     
+
+	      p->z[model] = z;
+
+	    }
 	}
       else
 	{	
-	  z = tr->brLenScaler * tr->storedBrLens[count];
-	  p->z[0] = exp(-z / tr->fracchange);
+	  for(model = 0; model < tr->NumberOfModels; model++)
+	    {
+	      z = tr->partitionData[model].brLenScaler * tr->storedBrLens[count];
+	     
+	      z = exp(-z / tr->fracchanges[model]);
+	      
+	      z = fixZ(z);
+
+	      p->z[model] = z;
+	    }
 	}
       count++;
 	
@@ -2424,37 +2465,62 @@ void scaleBranches(tree *tr, boolean fromFile)
 	  if(fromFile)
 	    {
 	      tr->storedBrLens[count] = p->next->z[0];
-	      p->next->z[0] = exp(-p->next->z[0] / tr->fracchange);
+	      
+	      for(model = 0; model < tr->NumberOfModels; model++)
+		{
+		  z = exp(-p->next->z[model] / tr->fracchanges[model]);
+		  
+		  z = fixZ(z);
+
+		  p->next->z[model] = z;
+
+		}
 	    }
 	  else
 	    {	      
-	      z = tr->brLenScaler * tr->storedBrLens[count];
-	      p->next->z[0] = exp(-z / tr->fracchange);
+	      for(model = 0; model < tr->NumberOfModels; model++)
+		{
+		  z = tr->partitionData[model].brLenScaler * tr->storedBrLens[count];
+		  z = exp(-z / tr->fracchanges[model]);		  		 
+
+		  z = fixZ(z);
+
+		  p->next->z[model] = z;
+		}
 	    }
 	  count++;
 	  
 	  if(fromFile)
 	    {
 	      tr->storedBrLens[count] = p->next->next->z[0];
-	      p->next->next->z[0] = exp(-p->next->next->z[0] / tr->fracchange);
+	      
+	      for(model = 0; model < tr->NumberOfModels; model++)
+		{
+		  z = exp(-p->next->next->z[model] / tr->fracchanges[model]);
+		  
+		  z = fixZ(z);		  
+		  
+		  p->next->next->z[model] = z;
+		}
 	    }
 	  else	  
 	    {	     
-	      z = tr->brLenScaler * tr->storedBrLens[count];
-	      p->next->next->z[0] = exp(-z / tr->fracchange);
+	       for(model = 0; model < tr->NumberOfModels; model++)
+		{
+		  z = tr->partitionData[model].brLenScaler * tr->storedBrLens[count];
+		  
+		  z = exp(-z / tr->fracchanges[model]);		 
+
+		  z = fixZ(z);
+
+		  p->next->next->z[model] = z;
+		}
 	    }
 	  count++;
 	}	  
     }
-
-  /*printf("%d %d\n", count, (2 * tr->mxtips - 3) * 2);*/
-
+  
   assert(count == (2 * tr->mxtips - 3) * 2);
-
-#ifdef _USE_PTHREADS
-  if(!fromFile)
-    determineFullTraversal(tr->start, tr);
-#endif
 }
 
 
@@ -2573,7 +2639,7 @@ static void optScaler(tree *tr, double modelEpsilon, linkageList *ll)
     *_x         = (double *)malloc(sizeof(double) * numberOfModels);   
 
 
-   assert(numberOfModels == 1);
+  assert(numberOfModels == tr->numBranches);
    
    
   evaluateGenericInitrav(tr, tr->start);
@@ -2582,7 +2648,7 @@ static void optScaler(tree *tr, double modelEpsilon, linkageList *ll)
     {
       assert(ll->ld[i].valid);
 
-      startAlpha[i] = tr->brLenScaler;
+      startAlpha[i] = tr->partitionData[ll->ld[i].partitionList[0]].brLenScaler;
       _a[i] = startAlpha[i] + 0.1;
       _b[i] = startAlpha[i] - 0.1;      
       if(_b[i] < lim_inf) 
@@ -2597,9 +2663,9 @@ static void optScaler(tree *tr, double modelEpsilon, linkageList *ll)
   brakGeneric(_param, _a, _b, _c, _fa, _fb, _fc, lim_inf, lim_sup, numberOfModels, -1, SCALER_F, tr, ll);       
   brentGeneric(_a, _b, _c, _fb, modelEpsilon, _x, result, numberOfModels, SCALER_F, -1, tr, ll, lim_inf, lim_sup);
 
-  for(i = 0; i < numberOfModels; i++)
+  for(i = 0; i < numberOfModels; i++)    
     endAlpha[i] = result[i];
- 
+    
 
   for(i = 0; i < numberOfModels; i++)
     {
@@ -2607,7 +2673,7 @@ static void optScaler(tree *tr, double modelEpsilon, linkageList *ll)
 	{    	  
 	  for(k = 0; k < ll->ld[i].partitions; k++)
 	    {	      
-	      tr->brLenScaler = startAlpha[i]; 	      	      
+	      tr->partitionData[ll->ld[i].partitionList[k]].brLenScaler = startAlpha[i];	      	      
 	      scaleBranches(tr, FALSE);	     
 	    }
 	}  
@@ -2667,7 +2733,7 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
   alphaList = initLinkageList(unlinked, tr);
   invarList = initLinkageList(unlinked, tr);
   rateList  = initLinkageListGTR(tr);
-  scalerList = initLinkageList(linked, tr);
+  scalerList = initLinkageList(unlinked, tr);
     
   if(!(adef->mode == CLASSIFY_ML))
     tr->start = tr->nodep[1];
@@ -2863,11 +2929,13 @@ static double branchLength(int model, double *z, tree *tr)
   x = z[model];
   assert(x > 0);
   if (x < zmin) 
-    x = zmin; 
-
+    x = zmin;  
+  
+ 
   assert(x <= zmax);
-  if(!tr->multiBranch)
-    x = -log(x) * tr->fracchange;
+  
+  if(!tr->multiBranch)             
+    x = -log(x) * tr->fracchange;       
   else
     x = -log(x) * tr->fracchanges[model];
 
@@ -2878,7 +2946,8 @@ static double branchLength(int model, double *z, tree *tr)
 
 static double treeLengthRec(nodeptr p, tree *tr, int model)
 {  
-  double x = branchLength(model, p->z, tr);
+  double 
+    x = branchLength(model, p->z, tr);
 
   if(isTip(p->number, tr->rdta->numsp))  
     return x;    
@@ -2901,6 +2970,8 @@ static double treeLengthRec(nodeptr p, tree *tr, int model)
 
 double treeLength(tree *tr, int model)
 { 
+  /* printf("SCALER: %f\n", tr->partitionData[model].brLenScaler); */
+
   return treeLengthRec(tr->start->back, tr, model);
 }
 

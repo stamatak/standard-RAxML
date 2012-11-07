@@ -1431,8 +1431,8 @@ boolean treeEvaluate (tree *tr, double smoothFactor)       /* Evaluate a user tr
 {
   boolean result;
  
-
-
+  if(tr->useBrLenScaler)
+    assert(0);
  
   result = smoothTree(tr, (int)((double)smoothings * smoothFactor));
   

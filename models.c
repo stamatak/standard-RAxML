@@ -3059,6 +3059,8 @@ static void initProtMat(double f[20], int proteinMatrix, double *ext_initialRate
     }             
 }
 
+
+
 static void updateFracChange(tree *tr)
 {   
   if(tr->NumberOfModels == 1)    
@@ -3069,9 +3071,13 @@ static void updateFracChange(tree *tr)
     }      
   else
     {
-      int model, i;
-      double *modelWeights = (double *)calloc(tr->NumberOfModels, sizeof(double));
-      double wgtsum = 0.0;  
+      int 
+	model, 
+	i;
+      
+      double 
+	*modelWeights = (double *)calloc(tr->NumberOfModels, sizeof(double)),
+	wgtsum = 0.0;  
      
       assert(tr->NumberOfModels > 1);
 
@@ -3089,6 +3095,9 @@ static void updateFracChange(tree *tr)
 	  tr->fracchange +=  tr->partitionContributions[model] * tr->fracchanges[model];
 	}	      
     
+      if(tr->useBrLenScaler)
+	scaleBranches(tr, FALSE);	  	
+
       free(modelWeights);
     }
 }
@@ -4196,6 +4205,7 @@ void initModel(tree *tr, rawdata *rdta, cruncheddata *cdta, analdef *adef)
   for(model = 0; model < tr->NumberOfModels; model++)
     {
       tr->partitionData[model].alpha = 1.0;                
+      tr->partitionData[model].brLenScaler = 1.0;
       initReversibleGTR(tr, model);               
       makeGammaCats(tr->partitionData[model].alpha, tr->partitionData[model].gammaRates, 4, tr->useGammaMedian); 
     }   

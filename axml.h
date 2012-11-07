@@ -157,8 +157,8 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "RAxML"
-#define programVersion     "7.3.7"
-#define programDate        "November 6 2012"
+#define programVersion     "7.3.8"
+#define programDate        "November 7 2012"
 
 
 #define  TREE_EVALUATION            0
@@ -579,7 +579,7 @@ typedef struct {
   
 
   unsigned int    *globalScaler;
-  double          *globalScalerDouble;
+ 
   int    *perSiteAAModel;
   int    *wgt;
   int    *invariant;
@@ -598,6 +598,8 @@ typedef struct {
 
   size_t parsimonyLength;
   parsimonyNumber *parsVect; 
+
+  double brLenScaler;
 
 } pInfo;
 
@@ -696,9 +698,9 @@ typedef  struct  {
   int              consensusType;
   double           wcThreshold;
 
-  double           brLenScaler;
+ 
   double          *storedBrLens;
-
+  boolean         useBrLenScaler;
   
 
  

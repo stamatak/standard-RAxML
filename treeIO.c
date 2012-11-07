@@ -1639,7 +1639,7 @@ void getStartingTree(tree *tr, analdef *adef)
 	{
 	  if(adef->mode == OPTIMIZE_BR_LEN_SCALER)
 	    {
-	      assert(tr->numBranches == 1);
+	      assert(tr->numBranches == tr->NumberOfModels);
 	      scaleBranches(tr, TRUE);
 	      evaluateGenericInitrav(tr, tr->start); 				      
 	    }

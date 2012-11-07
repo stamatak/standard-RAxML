@@ -704,7 +704,8 @@ static boolean setupTree (tree *tr, analdef *adef)
     tips,
     inter; 
   
-  tr->brLenScaler = 1.0;
+  
+  
   tr->storedBrLens = (double*)NULL;
 
   if(!adef->readTaxaOnly)
@@ -3752,6 +3753,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
   tr->useGammaMedian = FALSE;
   tr->noRateHet = FALSE;
   tr->perPartitionEPA = FALSE;
+  tr->useBrLenScaler = FALSE;
   /********* tr inits end*************/
 
 
@@ -4117,7 +4119,9 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	    adef->mode = CALC_BIPARTITIONS;
 	    break;
 	  case 'B':
-	    adef->mode = OPTIMIZE_BR_LEN_SCALER;
+	    adef->mode = OPTIMIZE_BR_LEN_SCALER;	
+	    adef->perGeneBranchLengths = TRUE;
+	    tr->useBrLenScaler = TRUE;
 	    break;
 	  case 'c':
 	    adef->mode = CHECK_ALIGNMENT;
@@ -4334,6 +4338,19 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
     }
 
 
+  if(tr->useBrLenScaler)
+    {
+      if(processID == 0) 
+	{
+	  if(!adef->useMultipleModel)
+	    {
+	      printf("Error, you must specify a partition file via \"-q\" when intending to optimize per-partition branch length scalers with \"-f b\"\n");
+	      errorExit(-1);
+	    }
+	  
+	}
+    }
+  
   if(adef->computeELW)
     {
       if(processID == 0)
@@ -5554,6 +5571,9 @@ void printModelParams(tree *tr, analdef *adef)
       if(adef->useInvariant)
 	printBothOpen("invar: %f\n", tr->partitionData[model].propInvariant);
 
+      if(tr->useBrLenScaler)
+	printBothOpen("Branch length scaler: %f\n", tr->partitionData[model].brLenScaler);
+
       if(adef->perGeneBranchLengths)
 	tl = treeLength(tr, model);
       else
@@ -5823,7 +5843,7 @@ static void finalizeInfoFile(tree *tr, analdef *adef)
 	    else
 	      {
 		assert(tr->NumberOfModels > 1);		
-		paramsBrLen = params + (tr->NumberOfModels - 1) + (2 * tr->mxtips - 3);		
+		paramsBrLen = params + tr->NumberOfModels + (2 * tr->mxtips - 3);		
 	      }
 	    
 	    printBothOpen("\n");
@@ -6519,6 +6539,7 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 
 	      memcpy(localTree->partitionData[model].gammaRates, tr->partitionData[model].gammaRates, sizeof(double) * 4);
 	      localTree->partitionData[model].alpha = tr->partitionData[model].alpha;
+	      localTree->partitionData[model].brLenScaler = tr->partitionData[model].brLenScaler;
 	      localTree->partitionData[model].propInvariant = tr->partitionData[model].propInvariant;
 	    }
 	}
@@ -6543,6 +6564,7 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 
 	      memcpy(localTree->partitionData[model].gammaRates, tr->partitionData[model].gammaRates, sizeof(double) * 4);
 	      localTree->partitionData[model].alpha = tr->partitionData[model].alpha;
+	      localTree->partitionData[model].brLenScaler = tr->partitionData[model].brLenScaler;
 	      localTree->partitionData[model].propInvariant = tr->partitionData[model].propInvariant;
 	      localTree->partitionData[model].lower      = tr->partitionData[model].lower;
 	      localTree->partitionData[model].upper      = tr->partitionData[model].upper;
@@ -7151,8 +7173,13 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
       }      
       break;
     case THREAD_OPT_SCALER:
-      if(tid > 0)	
-	memcpy(localTree->executeModel, tr->executeModel, localTree->NumberOfModels * sizeof(boolean));	 
+      if(tid > 0)		
+	{
+	  memcpy(localTree->executeModel, tr->executeModel, localTree->NumberOfModels * sizeof(boolean));	 	 
+	
+	  for(model = 0; model < localTree->NumberOfModels; model++)	    	      
+	    localTree->partitionData[model].brLenScaler = tr->partitionData[model].brLenScaler;
+	}
 	
       result = evaluateIterative(localTree, FALSE);
 
