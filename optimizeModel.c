@@ -2404,6 +2404,14 @@ static double fixZ(double z)
   return z;
 }
 
+static double getFracChange(tree *tr, int model)
+{
+  if(tr->NumberOfModels == 1)
+    return tr->fracchange;
+  else
+    return tr->fracchanges[model];
+}
+
 void scaleBranches(tree *tr, boolean fromFile)
 {
   nodeptr  
@@ -2436,7 +2444,7 @@ void scaleBranches(tree *tr, boolean fromFile)
 	  
 	  for(model = 0; model < tr->NumberOfModels; model++)
 	    {
-	      z = exp(-p->z[model] / tr->fracchanges[model]);
+	      z = exp(-p->z[model] / getFracChange(tr, model));
 
 	      z = fixZ(z);	     
 
@@ -2450,7 +2458,7 @@ void scaleBranches(tree *tr, boolean fromFile)
 	    {
 	      z = tr->partitionData[model].brLenScaler * tr->storedBrLens[count];
 	     
-	      z = exp(-z / tr->fracchanges[model]);
+	      z = exp(-z / getFracChange(tr, model));
 	      
 	      z = fixZ(z);
 
@@ -2468,7 +2476,7 @@ void scaleBranches(tree *tr, boolean fromFile)
 	      
 	      for(model = 0; model < tr->NumberOfModels; model++)
 		{
-		  z = exp(-p->next->z[model] / tr->fracchanges[model]);
+		  z = exp(-p->next->z[model] / getFracChange(tr, model));
 		  
 		  z = fixZ(z);
 
@@ -2481,7 +2489,7 @@ void scaleBranches(tree *tr, boolean fromFile)
 	      for(model = 0; model < tr->NumberOfModels; model++)
 		{
 		  z = tr->partitionData[model].brLenScaler * tr->storedBrLens[count];
-		  z = exp(-z / tr->fracchanges[model]);		  		 
+		  z = exp(-z / getFracChange(tr, model));		  		 
 
 		  z = fixZ(z);
 
@@ -2496,7 +2504,7 @@ void scaleBranches(tree *tr, boolean fromFile)
 	      
 	      for(model = 0; model < tr->NumberOfModels; model++)
 		{
-		  z = exp(-p->next->next->z[model] / tr->fracchanges[model]);
+		  z = exp(-p->next->next->z[model] / getFracChange(tr, model));
 		  
 		  z = fixZ(z);		  
 		  
@@ -2509,7 +2517,7 @@ void scaleBranches(tree *tr, boolean fromFile)
 		{
 		  z = tr->partitionData[model].brLenScaler * tr->storedBrLens[count];
 		  
-		  z = exp(-z / tr->fracchanges[model]);		 
+		  z = exp(-z / getFracChange(tr, model));		 
 
 		  z = fixZ(z);
 

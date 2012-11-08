@@ -4338,17 +4338,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
     }
 
 
-  if(tr->useBrLenScaler)
-    {
-      if(processID == 0) 
-	{
-	  if(!adef->useMultipleModel)
-	    {
-	      printf("Error, you must specify a partition file via \"-q\" when intending to optimize per-partition branch length scalers with \"-f b\"\n");
-	      errorExit(-1);
-	    }	  
-	}
-    }
+ 
   
   if(adef->computeELW)
     {
@@ -5840,8 +5830,7 @@ static void finalizeInfoFile(tree *tr, analdef *adef)
 		  paramsBrLen = params + 2 * tr->mxtips - 3;
 	      }
 	    else
-	      {		
-		assert(tr->NumberOfModels > 1);
+	      {			
 		paramsBrLen = params + tr->NumberOfModels;		
 	      }
 	    
