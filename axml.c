@@ -94,13 +94,15 @@ double FABS(double x)
 
 void *malloc_aligned(size_t size) 
 {
-  void *ptr = (void *)NULL;
-  int res;
+  void 
+    *ptr = (void *)NULL;
   
-
-#if defined (__APPLE__)
+  int 
+    res;
+  
+#if (defined(__APPLE__) && (!defined(__AVX)))
   /* 
-     presumably malloc on MACs always returns 
+     malloc on MACs always returns 
      a 16-byte aligned pointer
   */
 
@@ -124,9 +126,7 @@ void *malloc_aligned(size_t size)
     // or i+=PAGE_SIZE
     huge[i] = 0.0; // mapping takes place here!
     
-
    */
-
    
   return ptr;
 }
@@ -4346,8 +4346,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	    {
 	      printf("Error, you must specify a partition file via \"-q\" when intending to optimize per-partition branch length scalers with \"-f b\"\n");
 	      errorExit(-1);
-	    }
-	  
+	    }	  
 	}
     }
   
@@ -5841,9 +5840,9 @@ static void finalizeInfoFile(tree *tr, analdef *adef)
 		  paramsBrLen = params + 2 * tr->mxtips - 3;
 	      }
 	    else
-	      {
-		assert(tr->NumberOfModels > 1);		
-		paramsBrLen = params + tr->NumberOfModels + (2 * tr->mxtips - 3);		
+	      {		
+		assert(tr->NumberOfModels > 1);
+		paramsBrLen = params + tr->NumberOfModels;		
 	      }
 	    
 	    printBothOpen("\n");
