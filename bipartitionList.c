@@ -786,12 +786,13 @@ static void linkBipartitions(nodeptr p, tree *tr, branchInfo *bInf, int *counter
 
 
 
-static void readSingleTree(tree *tr, char *fileName, analdef *adef, boolean readBranches, boolean readNodeLabels, boolean completeTree)
+static int readSingleTree(tree *tr, char *fileName, analdef *adef, boolean readBranches, boolean readNodeLabels, boolean completeTree)
 { 
   FILE 
     *f = myfopen(fileName, "r");
 
   int 
+    numberOfTaxa,
     ch,
     trees = 0;
 
@@ -807,7 +808,11 @@ static void readSingleTree(tree *tr, char *fileName, analdef *adef, boolean read
 
   treeReadLen(f, tr, readBranches, readNodeLabels, TRUE, adef, completeTree);
   
+  numberOfTaxa = tr->ntips;
+
   fclose(f);
+
+  return numberOfTaxa;
 }
 
 void calcBipartitions(tree *tr, analdef *adef, char *bestTreeFileName, char *bootStrapFileName)
@@ -817,6 +822,7 @@ void calcBipartitions(tree *tr, analdef *adef, char *bestTreeFileName, char *boo
   unsigned int vLength;
 
   int 
+    numberOfTaxa = 0,
     branchCounter = 0,
     counter = 0,  
     numberOfTrees = 0,
@@ -831,11 +837,18 @@ void calcBipartitions(tree *tr, analdef *adef, char *bestTreeFileName, char *boo
   FILE 
     *treeFile; 
   
-  readSingleTree(tr, bestTreeFileName, adef, FALSE, FALSE, TRUE);    
+  numberOfTaxa = readSingleTree(tr, bestTreeFileName, adef, FALSE, FALSE, TRUE);    
   
   bInf = (branchInfo*)malloc(sizeof(branchInfo) * (tr->mxtips - 3));
 
   bitVectorInitravSpecial(bitVectors, tr->nodep[1]->back, tr->mxtips, vLength, h, 0, GET_BIPARTITIONS_BEST, bInf, &branchCounter, 0, FALSE, FALSE);   
+
+  if(numberOfTaxa != tr->mxtips)
+    {
+      printBothOpen("The number of taxa in the reference tree file \"%s\" is %d and\n",  bestTreeFileName, numberOfTaxa);
+      printBothOpen("is not equal to the number of taxa in the bootstrap tree file \"%s\" which is %d.\n", bootStrapFileName, tr->mxtips);
+      printBothOpen("RAxML will exit now with an error ....\n\n");
+    }
  
   assert((int)h->entryCount == (tr->mxtips - 3));  
   assert(branchCounter == (tr->mxtips - 3));
