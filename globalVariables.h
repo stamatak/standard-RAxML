@@ -33,7 +33,7 @@
 
 
 
-#ifdef _WAYNE_MPI
+#if (defined(_WAYNE_MPI) || defined (_QUARTET_MPI))
 int processes;
 #endif
 

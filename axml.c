@@ -48,7 +48,7 @@
 #include <stdarg.h>
 #include <limits.h>
 
-#ifdef  _WAYNE_MPI
+#if (defined(_WAYNE_MPI) || defined (_QUARTET_MPI))
 #include <mpi.h>
 #endif
 
@@ -174,18 +174,23 @@ static void printBoth(FILE *f, const char* format, ... )
 
 void printBothOpen(const char* format, ... )
 {
-  FILE *f = myfopen(infoFileName, "ab");
-
-  va_list args;
-  va_start(args, format);
-  vfprintf(f, format, args );
-  va_end(args);
-
-  va_start(args, format);
-  vprintf(format, args );
-  va_end(args);
-
-  fclose(f);
+#ifdef _QUARTET_MPI
+  if(processID == 0)
+#endif
+    {
+      FILE *f = myfopen(infoFileName, "ab");
+      
+      va_list args;
+      va_start(args, format);
+      vfprintf(f, format, args );
+      va_end(args);
+      
+      va_start(args, format);
+      vprintf(format, args );
+      va_end(args);
+      
+      fclose(f);
+    }     
 }
 
 void printBothOpenMPI(const char* format, ... )
@@ -4309,7 +4314,18 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
     }
 #endif
 
- 
+#ifdef _QUARTET_MPI
+  if(adef->mode != QUARTET_CALCULATION)
+    {
+      if(processID == 0)
+	{
+	  printf("you are using the dedicated RAxML MPI version for parallel quartet computations\n");
+	  printf("However you are not using the quartet option \"-f q\", raxml will exit now ...\n");
+	}
+      
+      errorExit(-1);
+    }
+#endif
 
   if(bSeedSet && xSeedSet)
     {
@@ -4736,7 +4752,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 void errorExit(int e)
 {
 
-#ifdef _WAYNE_MPI
+#if (defined(_WAYNE_MPI) || defined (_QUARTET_MPI))
   MPI_Finalize();
 #endif
 
@@ -8562,6 +8578,79 @@ static double quartetLikelihood(tree *tr, nodeptr p1, nodeptr p2, nodeptr p3, no
   return (tr->likelihood);
 }
 
+#ifdef _QUARTET_MPI
+
+typedef struct 
+{
+  int a1;
+  int b1;
+  int c1; 
+  int d1;
+  
+  int a2;
+  int b2;
+  int c2; 
+  int d2;
+
+  int a3;
+  int b3;
+  int c3; 
+  int d3;
+
+  double l1;
+  double l2;
+  double l3;
+} quartetResult;
+
+#define QUARTET_MESSAGE_SIZE sizeof(quartetResult)  
+#define QUARTET_MESSAGE 0
+#define I_AM_DONE       1
+
+static void startQuartetMaster(tree *tr, FILE *f)
+{
+  quartetResult 
+    *qr = (quartetResult *)malloc(sizeof(quartetResult));
+  
+  MPI_Status 
+    status,
+    recvStatus;
+
+  int 
+    dummy,
+    workersDone = 0;
+  
+  assert(processID == 0);
+
+  while(1)
+    {
+      MPI_Probe(MPI_ANY_SOURCE,  MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+
+      switch(status.MPI_TAG)
+	{
+	case QUARTET_MESSAGE:
+	  MPI_Recv((void *)(qr), QUARTET_MESSAGE_SIZE, MPI_BYTE, status.MPI_SOURCE, QUARTET_MESSAGE, MPI_COMM_WORLD, &recvStatus);
+	  fprintf(f, "%d %d | %d %d: %f\n", qr->a1, qr->b1, qr->c1, qr->d1, qr->l1);
+	  fprintf(f, "%d %d | %d %d: %f\n", qr->a2, qr->b2, qr->c2, qr->d2, qr->l2);
+	  fprintf(f, "%d %d | %d %d: %f\n", qr->a3, qr->b3, qr->c3, qr->d3, qr->l3);
+	  break;
+	case I_AM_DONE:
+	  MPI_Recv(&dummy, 1, MPI_INT, status.MPI_SOURCE, I_AM_DONE, MPI_COMM_WORLD, &recvStatus);
+	  workersDone++;
+	  if(workersDone == processes -1)
+	    goto END_IT;
+	  break;
+	default:
+	  assert(0);
+	}
+    }
+    
+ END_IT:
+  free(qr);
+  return;      
+}
+
+#endif
+
 static void computeAllThreeQuartets(tree *tr, nodeptr q1, nodeptr q2, int t1, int t2, int t3, int t4, FILE *f)
 {
   /* set the tip nodes to different sequences 
@@ -8575,30 +8664,62 @@ static void computeAllThreeQuartets(tree *tr, nodeptr q1, nodeptr q2, int t1, in
   
   double 
     l;
+
+#ifdef _QUARTET_MPI
+  quartetResult 
+    *qr = (quartetResult *)malloc(sizeof(quartetResult));
+#endif
   
   /* first quartet */	    
   
   /* compute the likelihood of tree ((p1, p2), (p3, p4)) */
   
   l = quartetLikelihood(tr, p1, p2, p3, p4, q1, q2);
-  
+ 
+#ifndef _QUARTET_MPI
   fprintf(f, "%d %d | %d %d: %f\n", p1->number, p2->number, p3->number, p4->number, l);
-  
+#else
+  qr->a1 = p1->number;
+  qr->b1 = p2->number;
+  qr->c1 = p3->number;
+  qr->d1 = p4->number;
+  qr->l1 = l;
+#endif
   /* second quartet */	    
   
   /* compute the likelihood of tree ((p1, p3), (p2, p4)) */
   
   l = quartetLikelihood(tr, p1, p3, p2, p4, q1, q2);
-  
+
+#ifndef _QUARTET_MPI  
   fprintf(f, "%d %d | %d %d: %f\n", p1->number, p3->number, p2->number, p4->number, l);
-  
+#else
+  qr->a2 = p1->number;
+  qr->b2 = p3->number;
+  qr->c2 = p2->number;
+  qr->d2 = p4->number;
+  qr->l2 = l;
+#endif
   /* third quartet */	    
   
   /* compute the likelihood of tree ((p1, p4), (p2, p3)) */
   
   l = quartetLikelihood(tr, p1, p4, p2, p3, q1, q2);
   
+#ifndef _QUARTET_MPI
   fprintf(f, "%d %d | %d %d: %f\n", p1->number, p4->number, p2->number, p3->number, l);	    	   
+#else
+  qr->a3 = p1->number;
+  qr->b3 = p4->number;
+  qr->c3 = p2->number;
+  qr->d3 = p3->number;
+  qr->l3 = l;
+
+  MPI_Send((void *)qr, QUARTET_MESSAGE_SIZE, MPI_BYTE, 0, QUARTET_MESSAGE, MPI_COMM_WORLD);
+
+  assert(processID > 0);
+  free(qr);
+#endif
 }
 
 /* the three quartet options: all quartets, randomly sub-sample a certain number n of quartets, 
@@ -8607,6 +8728,8 @@ static void computeAllThreeQuartets(tree *tr, nodeptr q1, nodeptr q2, int t1, in
 #define ALL_QUARTETS 0
 #define RANDOM_QUARTETS 1
 #define GROUPED_QUARTETS 2
+
+
 
 static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
 {
@@ -8642,8 +8765,7 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
 
   FILE 
     *f;
-    
-   
+       
   /* build output file name */
     
   strcpy(quartetFileName,         workdir);
@@ -8652,21 +8774,42 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
   
   /* open output file */
 
-  f = myfopen(quartetFileName, "w");
+ 
+
+#ifdef _QUARTET_MPI
+  if(processID == 0)
+#endif
+    f = myfopen(quartetFileName, "w");
 
   /* initialize model parameters */
 
   initModel(tr, rdta, cdta, adef);
-      
-  /* get a starting tree: either reads in a tree or computes a randomized stepwise addition parsimony tree */
 
-  getStartingTree(tr, adef);
+  
+
+  if(!adef->useBinaryModelFile)
+    {
+#ifdef _QUARTET_MPI
+      assert(0);
+#endif
+
+      /* get a starting tree: either reads in a tree or computes a randomized stepwise addition parsimony tree */
+
+      getStartingTree(tr, adef);
    
-  /* optimize model parameters on that comprehensive tree that can subsequently be used for qyartet building */
+      /* optimize model parameters on that comprehensive tree that can subsequently be used for qyartet building */
 
-  modOpt(tr, adef, TRUE, adef->likelihoodEpsilon, FALSE);
+      modOpt(tr, adef, TRUE, adef->likelihoodEpsilon, FALSE);
 
-  printBothOpen("Time for parsing input tree or building parsimony tree and optimizing model parameters: %f\n\n", gettime() - masterTime); 
+      printBothOpen("Time for parsing input tree or building parsimony tree and optimizing model parameters: %f\n\n", gettime() - masterTime); 
+    }
+  else
+    {
+      readBinaryModel(tr);
+
+      printBothOpen("Time for reading model parameters: %f\n\n", gettime() - masterTime); 
+    }
+
 
   /* figure out which flavor of quartets we want to compute */
 
@@ -8707,16 +8850,21 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
     }
 
   /* print taxon name to taxon number correspondance table to output file */
-
-  fprintf(f, "Taxon names and indices:\n\n");
-
-  for(i = 1; i <= tr->mxtips; i++)
+#ifdef _QUARTET_MPI
+  if(processID == 0)   
+#endif
     {
-      fprintf(f, "%s %d\n", tr->nameList[i], i);
-      assert(tr->nodep[i]->number == i);
+      fprintf(f, "Taxon names and indices:\n\n");
+
+      for(i = 1; i <= tr->mxtips; i++)
+	{
+	  fprintf(f, "%s %d\n", tr->nameList[i], i);
+	  assert(tr->nodep[i]->number == i);
+	}
+      
+      fprintf(f, "\n\n");
     }
 
-  fprintf(f, "\n\n");
 
   t = gettime();
   
@@ -8727,86 +8875,113 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
      tr->mxtips is the maximum number of tips in the alignment/tree
   */
 
-  switch(flavor)
+#ifdef _QUARTET_MPI
+  if(processID > 0)   
+#endif
     {
-    case ALL_QUARTETS:
-      {
-	assert(randomQuartets == 1);
-
-	/* compute all possible quartets */
-	  
-	for(t1 = 1; t1 <= tr->mxtips; t1++)
-	  for(t2 = t1 + 1; t2 <= tr->mxtips; t2++)
-	    for(t3 = t2 + 1; t3 <= tr->mxtips; t3++)
-	      for(t4 = t3 + 1; t4 <= tr->mxtips; t4++)
-		{
-		  computeAllThreeQuartets(tr, q1, q2, t1, t2, t3, t4, f);
-		  quartetCounter++;
-		}
-	
-	assert(quartetCounter == numberOfQuartets);
-      }
-      break;
-    case RANDOM_QUARTETS:
-      {
-	/* randomly sub-sample a fraction of all quartets */
-
-	for(t1 = 1; t1 <= tr->mxtips; t1++)
-	  for(t2 = t1 + 1; t2 <= tr->mxtips; t2++)
-	    for(t3 = t2 + 1; t3 <= tr->mxtips; t3++)
-	      for(t4 = t3 + 1; t4 <= tr->mxtips; t4++)
-		{
-		  double
-		    r = randum(&adef->parsimonySeed);
-		  
-		  if(r < fraction)
+      switch(flavor)
+	{
+	case ALL_QUARTETS:
+	  {
+	    assert(randomQuartets == 1);
+	    
+	    /* compute all possible quartets */
+	    
+	    for(t1 = 1; t1 <= tr->mxtips; t1++)
+	      for(t2 = t1 + 1; t2 <= tr->mxtips; t2++)
+		for(t3 = t2 + 1; t3 <= tr->mxtips; t3++)
+		  for(t4 = t3 + 1; t4 <= tr->mxtips; t4++)
 		    {
-		      computeAllThreeQuartets(tr, q1, q2, t1, t2, t3, t4, f);
+#ifdef _QUARTET_MPI
+		      if((quartetCounter % (unsigned long int)(processes - 1)) == (unsigned long int)(processID - 1))
+#endif
+			computeAllThreeQuartets(tr, q1, q2, t1, t2, t3, t4, f);
 		      quartetCounter++;
 		    }
-		  
-		  if(quartetCounter == randomQuartets)
-		    goto DONE;
-		}
-      
-      DONE:
-	assert(quartetCounter == randomQuartets);
-      }
-      break;
-    case GROUPED_QUARTETS:
-      {
-	/* compute all quartets that can be built out of the four pre-defined groups */
-
-	for(t1 = 0; t1 < groupSize[0]; t1++)
-	  for(t2 = 0; t2 < groupSize[1]; t2++)
-	    for(t3 = 0; t3 < groupSize[2]; t3++)
-	      for(t4 = 0; t4 < groupSize[3]; t4++)
-		{
-		  int
-		    i1 = groups[0][t1],
-		    i2 = groups[1][t2],
-		    i3 = groups[2][t3],
-		    i4 = groups[3][t4];
-		  
-		  
-		  computeAllThreeQuartets(tr, q1, q2, i1, i2, i3, i4, f);
-		  quartetCounter++;
-		}
-
-	printBothOpen("\nComputed all %u possible grouped quartets\n", quartetCounter);
-      }
-      break;
-    default:
-      assert(0);
+	    
+	    assert(quartetCounter == numberOfQuartets);
+	  }
+	  break;
+	case RANDOM_QUARTETS:
+	  {
+	    /* randomly sub-sample a fraction of all quartets */
+	    
+	    for(t1 = 1; t1 <= tr->mxtips; t1++)
+	      for(t2 = t1 + 1; t2 <= tr->mxtips; t2++)
+		for(t3 = t2 + 1; t3 <= tr->mxtips; t3++)
+		  for(t4 = t3 + 1; t4 <= tr->mxtips; t4++)
+		    {
+		      double
+			r = randum(&adef->parsimonySeed);
+		      
+		      if(r < fraction)
+			{
+#ifdef _QUARTET_MPI
+			  if((quartetCounter % (unsigned long int)(processes - 1)) == (unsigned long int)(processID - 1))
+#endif
+			    computeAllThreeQuartets(tr, q1, q2, t1, t2, t3, t4, f);
+			  quartetCounter++;
+			}
+		      
+		      if(quartetCounter == randomQuartets)
+			goto DONE;
+		    }
+	    	  
+	  DONE:
+	    assert(quartetCounter == randomQuartets);
+	  }
+	  break;
+	case GROUPED_QUARTETS:
+	  {
+	    /* compute all quartets that can be built out of the four pre-defined groups */
+	    
+	    for(t1 = 0; t1 < groupSize[0]; t1++)
+	      for(t2 = 0; t2 < groupSize[1]; t2++)
+		for(t3 = 0; t3 < groupSize[2]; t3++)
+		  for(t4 = 0; t4 < groupSize[3]; t4++)
+		    {
+		      int
+			i1 = groups[0][t1],
+			i2 = groups[1][t2],
+			i3 = groups[2][t3],
+			i4 = groups[3][t4];
+		      
+#ifdef _QUARTET_MPI
+		      if((quartetCounter % (unsigned long int)(processes - 1)) == (unsigned long int)(processID - 1))
+#endif
+			computeAllThreeQuartets(tr, q1, q2, i1, i2, i3, i4, f);
+		      quartetCounter++;
+		    }
+	    
+	    printBothOpen("\nComputed all %u possible grouped quartets\n", quartetCounter);
+	  }
+	  break;
+	default:
+	  assert(0);
+	}
     }
-
+#ifdef _QUARTET_MPI
+  if(processID == 0)
+    startQuartetMaster(tr, f);
+  else
+    {
+      int 
+	dummy;
+      
+      MPI_Send(&dummy, 1, MPI_INT, 0, I_AM_DONE, MPI_COMM_WORLD);
+    }
+#endif
+  
   t = gettime() - t;
 
   printBothOpen("\nPure quartet computation time: %f secs\n", t);
   
   printBothOpen("\nAll quartets and corresponding likelihoods written to file %s\n", quartetFileName);
 
-  fclose(f);
+#ifdef _QUARTET_MPI
+  if(processID == 0)
+#endif
+    fclose(f);
 }
 
 static void thoroughTreeOptimization(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
@@ -8864,7 +9039,7 @@ int main (int argc, char *argv[])
   pinToCore(0);
 #endif 
  
-#ifdef _WAYNE_MPI
+#if (defined(_WAYNE_MPI) || defined (_QUARTET_MPI))
   MPI_Init(&argc, &argv);
   MPI_Comm_rank(MPI_COMM_WORLD, &processID);
   MPI_Comm_size(MPI_COMM_WORLD, &processes);
@@ -8905,6 +9080,8 @@ int main (int argc, char *argv[])
   initAdef(adef);
   get_args(argc,argv, adef, tr); 
   
+
+
   if(adef->readTaxaOnly)  
     extractTaxaFromTopology(tr, rdta, cdta);   
  
@@ -8913,9 +9090,11 @@ int main (int argc, char *argv[])
   checkOutgroups(tr, adef);
   makeFileNames();
 
-#ifdef _WAYNE_MPI
+#if (defined(_WAYNE_MPI) || defined (_QUARTET_MPI))
   MPI_Barrier(MPI_COMM_WORLD);
 #endif
+
+  
 
   if(adef->useInvariant && adef->likelihoodEpsilon > 0.001)
     {
@@ -9208,7 +9387,7 @@ int main (int argc, char *argv[])
 
   finalizeInfoFile(tr, adef);
 
-#ifdef _WAYNE_MPI
+#if (defined(_WAYNE_MPI) || defined (_QUARTET_MPI))
   MPI_Finalize();
 #endif
 
