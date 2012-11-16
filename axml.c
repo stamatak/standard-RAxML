@@ -604,14 +604,113 @@ void hookupDefault (nodeptr p, nodeptr q, int numBranches)
 
 /***********************reading and initializing input ******************/
 
-static void getnums (rawdata *rdta)
+static void getnums (rawdata *rdta, analdef *adef)
 {
-  if (fscanf(INFILE, "%d %d", & rdta->numsp, & rdta->sites) != 2)
-    {
+  if(fscanf(INFILE, "%d %d", & rdta->numsp, & rdta->sites) != 2)
+    {      
+      char 
+	*line = NULL;
+
+      size_t 
+	len = 0;
+
+      ssize_t 
+	read;     
+
+      int
+	sequenceLength,       
+	sequences = 0,
+	taxa = 0,
+	sites;
+      
       if(processID == 0)
-	printf("ERROR: Problem reading number of species and sites\n");
-      errorExit(-1);
+	{
+	  printf("\nRAxML can't, parse the alignment file as phylip file \n");
+	  printf("it will now try to parse it as FASTA file\n\n");
+	}
+
+      while((read = getline(&line, &len, INFILE)) != -1) 
+	{
+	  ssize_t
+	    i = 0;
+	  	  	  
+	  while((i < read - 1) && (line[i] == ' ' || line[i] == '\t'))
+	    i++;
+	
+	  if(line[i] == '>')
+	    {	      
+	      if(taxa == 1)   		
+		sequenceLength = sites;
+	       
+	      if(taxa > 0)
+		{
+		  if(sites == 0 && processID == 0)
+		    {
+		      printf("Fasta parsing error, RAxML was expecting sequence data before: %s\n", line);
+		      errorExit(-1);
+		    }
+		  assert(sites > 0);
+		  sequences++;		 
+		}
+	      
+	      if(taxa > 0)
+		{
+		  if(sequenceLength != sites && processID == 0)
+		    {
+		      printf("Fasta parsing error, RAxML expects an alignment.\n");
+		      printf("the sequence before taxon %s: seems to have a different length\n", line);
+		      errorExit(-1);
+		    }
+		  assert(sequenceLength == sites);	     
+		}
+	      
+	      taxa++;
+	     
+	      sites = 0;
+	    }
+	  else
+	    {	     
+	      while(i < read - 1)
+		{
+		  if(!(line[i] == ' ' || line[i] == '\t'))
+		    {		    
+		      sites++;
+		    }
+		  i++;
+		}
+	    }	  
+	}
+
+      if(sites > 0)
+	sequences++;
+      if(taxa != sequences && processID == 0)
+	{
+	  printf("Fasta parsing error, the number of taxa %d and sequences %d are not equal!\n", taxa, sequences);
+	  errorExit(-1);
+	}
+      assert(taxa == sequences);
+      
+      if(sequenceLength != sites && processID == 0)
+	{
+	  printf("Fasta parsing error, RAxML expects an alignment.\n");
+	  printf("the last sequence in the alignment seems to have a different length\n", line);
+	  errorExit(-1);
+	}
+      
+      assert(sites == sequenceLength);
+
+      if(line)
+	free(line);
+
+      rewind(INFILE);
+
+      adef->alignmentFileType = FASTA;
+
+      rdta->numsp = taxa;
+      rdta->sites = sites;
     }
+   
+ 
 
   if (rdta->numsp < 4)
     {
@@ -1208,6 +1307,324 @@ static boolean getdata(analdef *adef, rawdata *rdta, tree *tr)
   return  TRUE;
 }
 
+static void parseFasta(analdef *adef, rawdata *rdta, tree *tr)
+{
+  int 
+    index,
+    meaning,
+    meaningAA[256], 
+    meaningDNA[256], 
+    meaningBINARY[256],
+    meaningGeneric32[256],
+    meaningGeneric64[256];
+    
+  char 
+    buffer[nmlngth + 2];
+  
+  unsigned char
+    genericChars32[32] = {'0', '1', '2', '3', '4', '5', '6', '7', 
+			  '8', '9', 'A', 'B', 'C', 'D', 'E', 'F',
+			  'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N',
+			  'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V'};  
+  unsigned long 
+    total = 0,
+    gaps  = 0;
+
+  for(index = 0; index < 256; index++)
+    {      
+      meaningAA[index]          = -1;
+      meaningDNA[index]         = -1;
+      meaningBINARY[index]      = -1;
+      meaningGeneric32[index]   = -1;
+      meaningGeneric64[index]   = -1;
+    }
+
+  /* generic 32 data */
+
+  for(index = 0; index < 32; index++)
+    meaningGeneric32[genericChars32[index]] = index;
+  
+  meaningGeneric32['-'] = getUndetermined(GENERIC_32);
+  meaningGeneric32['?'] = getUndetermined(GENERIC_32);
+
+  /* AA data */
+
+  meaningAA['A'] =  0;  /* alanine */
+  meaningAA['R'] =  1;  /* arginine */
+  meaningAA['N'] =  2;  /*  asparagine*/
+  meaningAA['D'] =  3;  /* aspartic */
+  meaningAA['C'] =  4;  /* cysteine */
+  meaningAA['Q'] =  5;  /* glutamine */
+  meaningAA['E'] =  6;  /* glutamic */
+  meaningAA['G'] =  7;  /* glycine */
+  meaningAA['H'] =  8;  /* histidine */
+  meaningAA['I'] =  9;  /* isoleucine */
+  meaningAA['L'] =  10; /* leucine */
+  meaningAA['K'] =  11; /* lysine */
+  meaningAA['M'] =  12; /* methionine */
+  meaningAA['F'] =  13; /* phenylalanine */
+  meaningAA['P'] =  14; /* proline */
+  meaningAA['S'] =  15; /* serine */
+  meaningAA['T'] =  16; /* threonine */
+  meaningAA['W'] =  17; /* tryptophan */
+  meaningAA['Y'] =  18; /* tyrosine */
+  meaningAA['V'] =  19; /* valine */
+  meaningAA['B'] =  20; /* asparagine, aspartic 2 and 3*/
+  meaningAA['Z'] =  21; /*21 glutamine glutamic 5 and 6*/
+
+  meaningAA['X'] = 
+    meaningAA['?'] = 
+    meaningAA['*'] = 
+    meaningAA['-'] = 
+    getUndetermined(AA_DATA);
+
+  /* DNA data */
+
+  meaningDNA['A'] =  1;
+  meaningDNA['B'] = 14;
+  meaningDNA['C'] =  2;
+  meaningDNA['D'] = 13;
+  meaningDNA['G'] =  4;
+  meaningDNA['H'] = 11;
+  meaningDNA['K'] = 12;
+  meaningDNA['M'] =  3;  
+  meaningDNA['R'] =  5;
+  meaningDNA['S'] =  6;
+  meaningDNA['T'] =  8;
+  meaningDNA['U'] =  8;
+  meaningDNA['V'] =  7;
+  meaningDNA['W'] =  9; 
+  meaningDNA['Y'] = 10;
+
+  meaningDNA['N'] = 
+    meaningDNA['O'] = 
+    meaningDNA['X'] = 
+    meaningDNA['-'] = 
+    meaningDNA['?'] = 
+    getUndetermined(DNA_DATA);
+
+  /* BINARY DATA */
+
+  meaningBINARY['0'] = 1;
+  meaningBINARY['1'] = 2;
+  
+  meaningBINARY['-'] = 
+    meaningBINARY['?'] = 
+    getUndetermined(BINARY_DATA);
+
+
+  /*******************************************************************/
+
+  {
+    char 
+      *line = NULL;
+
+    size_t 
+      len = 0;
+    
+    ssize_t 
+      read;     
+    
+    int
+      sequenceLength,       
+      sequences = 0,
+      taxa = 0,
+      sites;
+    
+         
+    while((read = getline(&line, &len, INFILE)) != -1) 
+	{
+	  ssize_t
+	    i = 0;
+	  	  	  	  
+	  while((i < read - 1) && (line[i] == ' ' || line[i] == '\t'))
+	    i++;
+	
+	  if(line[i] == '>')
+	    {
+	      int
+		nameCount = 0,
+		nameLength;
+
+	      
+	      
+	      if(taxa == 1)   		
+		sequenceLength = sites;
+	       
+	      if(taxa > 0)
+		{
+		  assert(sites > 0);
+		  sequences++;		 
+		}
+	      
+	      if(taxa > 0)
+		assert(sequenceLength == sites);	     
+	      
+	      taxa++;
+	     
+	      i++;
+	      
+	      while((i < read - 1) && (line[i] == ' ' || line[i] == '\t'))
+		i++;
+
+	      while((i < read - 1) && !(line[i] == ' ' || line[i] == '\t'))
+		{		  
+		  buffer[nameCount] = line[i];
+		  nameCount++;
+		  i++;
+		}
+
+	      if(nameCount >= nmlngth)
+		{
+		  if(processID == 0)
+		    {
+		      printf("Taxon Name to long at taxon %d, adapt constant nmlngth in\n", taxa);
+		      printf("axml.h, current setting %d\n", nmlngth);
+		    }
+		  errorExit(-1);
+		}
+
+	      buffer[nameCount] = '\0';	      
+	      nameLength = strlen(buffer) + 1;
+	      checkTaxonName(buffer, nameLength);
+	      tr->nameList[taxa] = (char *)malloc(sizeof(char) * nameLength);
+	      strcpy(tr->nameList[taxa], buffer);
+
+	      sites = 0;
+	    }
+	  else
+	    {	     
+	      while(i < read - 1)
+		{
+		  if(!(line[i] == ' ' || line[i] == '\t'))
+		    {	
+		      int 
+			ch = line[i];
+		      
+		      uppercase(&ch);
+
+		      assert(tr->dataVector[sites + 1] != -1);
+		      
+		      switch(tr->dataVector[sites + 1])
+			{
+			case BINARY_DATA:
+			  meaning = meaningBINARY[ch];
+			  break;
+			case DNA_DATA:
+			case SECONDARY_DATA:
+			case SECONDARY_DATA_6:
+			case SECONDARY_DATA_7:			 
+			  meaning = meaningDNA[ch];
+			  break;
+			case AA_DATA:
+			  meaning = meaningAA[ch];
+			  break;
+			case GENERIC_32:
+			  meaning = meaningGeneric32[ch];
+			  break;
+			case GENERIC_64:
+			  meaning = meaningGeneric64[ch];
+			  break;
+			default:
+			  assert(0);
+			}
+
+		      if (meaning != -1)						 
+			rdta->y[taxa][sites + 1] = ch;		 			
+		      else
+			{
+			  if(processID == 0)
+			    {
+			      printf("ERROR: Bad base (%c) at site %d of sequence %d\n",
+				     ch, sites + 1, taxa);
+			    }
+			  errorExit(-1);
+			}		    	       	   
+
+		      sites++;
+		    }
+		  i++;
+		}
+	    }	  
+	}
+
+      if(sites > 0)
+	sequences++;
+
+      /* the assertions below should never fail, the have already been checked in getNums */
+
+      assert(taxa == sequences);    
+      assert(sites == sequenceLength);
+
+      if(line)
+	free(line);
+  }
+
+
+  {
+    int 
+      i,
+      j;
+
+    for(j = 1; j <= tr->mxtips; j++)
+      for(i = 1; i <= rdta->sites; i++)
+	{
+	  assert(tr->dataVector[i] != -1);
+	  
+	  switch(tr->dataVector[i])
+	    {
+	    case BINARY_DATA:
+	      meaning = meaningBINARY[rdta->y[j][i]];
+	      if(meaning == getUndetermined(BINARY_DATA))
+		gaps++;
+	      break;
+	      
+	    case SECONDARY_DATA:
+	    case SECONDARY_DATA_6:
+	    case SECONDARY_DATA_7:
+	      assert(tr->secondaryStructurePairs[i - 1] != -1);
+	      assert(i - 1 == tr->secondaryStructurePairs[tr->secondaryStructurePairs[i - 1]]);
+	      /*
+		don't worry too much about undetermined column count here for sec-struct, just count
+		DNA/RNA gaps here and worry about the rest later-on, falling through to DNA again :-)
+	      */
+	    case DNA_DATA:
+	      meaning = meaningDNA[rdta->y[j][i]];
+	      if(meaning == getUndetermined(DNA_DATA))
+		gaps++;
+	      break;
+	      
+	    case AA_DATA:
+	      meaning = meaningAA[rdta->y[j][i]];
+	      if(meaning == getUndetermined(AA_DATA))
+		gaps++;
+	      break;
+	      
+	    case GENERIC_32:
+	      meaning = meaningGeneric32[rdta->y[j][i]];
+	      if(meaning == getUndetermined(GENERIC_32))
+		gaps++;
+	      break;
+	      
+	    case GENERIC_64:
+	      meaning = meaningGeneric64[rdta->y[j][i]];
+	      if(meaning == getUndetermined(GENERIC_64))
+		gaps++;
+	      break;
+	    default:
+	      assert(0);
+	    }
+	  
+	  total++;
+	  rdta->y[j][i] = meaning;
+	}
+  }
+    
+  adef->gapyness = (double)gaps / (double)total;
+    
+  return;
+}
+
 
 
 static void inputweights (rawdata *rdta)
@@ -1256,7 +1673,7 @@ static void getinput(analdef *adef, rawdata *rdta, cruncheddata *cdta, tree *tr)
     {
       INFILE = myfopen(seq_file, "rb");
   
-      getnums(rdta);
+      getnums(rdta, adef);
     }
 
   tr->mxtips            = rdta->numsp;
@@ -1404,11 +1821,22 @@ static void getinput(analdef *adef, rawdata *rdta, cruncheddata *cdta, tree *tr)
 
   if(!adef->readTaxaOnly)
     {
-      if(!getdata(adef, rdta, tr))
+      switch(adef->alignmentFileType)
 	{
-	  printf("Problem reading alignment file \n");
-	  errorExit(1);
+	case PHYLIP:
+	  if(!getdata(adef, rdta, tr))
+	    {
+	      printf("Problem reading alignment file \n");
+	      errorExit(1);
+	    }
+	  break;
+	case FASTA:
+	  parseFasta(adef, rdta, tr);
+	  break;
+	default:
+	  assert(0);
 	}
+      
       tr->nameHash = initStringHashTable(10 * tr->mxtips);
       for(i = 1; i <= tr->mxtips; i++)
 	addword(tr->nameList[i], tr->nameHash, i);
@@ -2744,6 +3172,7 @@ static void initAdef(analdef *adef)
   adef->slidingWindowSize      = 100;
   adef->checkForUndeterminedSequences = TRUE;
   adef->useQuartetGrouping = FALSE;
+  adef->alignmentFileType = PHYLIP;
 }
 
 

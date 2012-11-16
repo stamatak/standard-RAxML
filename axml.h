@@ -157,8 +157,8 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "RAxML"
-#define programVersion     "7.4.0"
-#define programDate        "November 15 2012"
+#define programVersion     "7.4.1"
+#define programDate        "November 16 2012"
 
 
 #define  TREE_EVALUATION            0
@@ -960,6 +960,9 @@ typedef struct {
     boolean          improved;
     } bestlist;
 
+#define PHYLIP 0
+#define FASTA  1
+
 typedef  struct {
   int              categories;
   int              model;
@@ -1010,6 +1013,7 @@ typedef  struct {
   int           slidingWindowSize;
   boolean       checkForUndeterminedSequences;
   boolean       useQuartetGrouping;
+  int           alignmentFileType;
 } analdef;
 
 
@@ -1454,3 +1458,6 @@ void newviewGTRCATPROT_AVX(int tipCase, double *extEV,
 			   int n, double *left, double *right, int *wgt, int *scalerIncrement, const boolean useFastScaling);
 
 #endif
+
+
+
