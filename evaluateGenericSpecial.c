@@ -189,153 +189,6 @@ static double evaluateCatFlex(int *ex1, int *ex2, int *cptr, int *wptr,
   return  sum;         
 } 
 
-static double evaluateGammaFlex_GAPPED(int *ex1, int *ex2, int *wptr,
-				       double *x1_start, double *x2_start,  
-				       double *tipVector, 
-				       unsigned char *tipX1, int n, double *diagptable, double *vector, boolean writeVector, const boolean fastScaling, const int numStates,
-				       double *x1_gapColumn, double *x2_gapColumn, unsigned int *x1_gap, unsigned int *x2_gap)
-{
-  double   
-    sum = 0.0, 
-    term,
-    *left, 
-    *right,
-    *x1,
-    *x2;
-  
-  int     
-    i, 
-    j, 
-    l; 
-
-  const int 
-    gammaStates = numStates * 4;
-            
-  if(tipX1)
-    {          
-      if(writeVector)
-	for (i = 0; i < n; i++) 
-	  {
-	    left = &(tipVector[numStates * tipX1[i]]);	  	  
-	    
-	    if(x2_gap[i / 32] & mask32[i % 32])
-	      x2 = x2_gapColumn;
-	    else
-	      x2 = &x2_start[gammaStates * i];
-
-	    for(j = 0, term = 0.0; j < 4; j++)
-	      {
-		right = &(x2[numStates * j]);
-		
-		for(l = 0; l < numStates; l++)
-		  term += left[l] * right[l] * diagptable[j * numStates + l];	      
-	      }	 
-	    
-	    if(fastScaling)
-	      term = LOG(0.25 * FABS(term));
-	    else
-	      term = LOG(0.25 * FABS(term)) + (ex2[i] * LOG(minlikelihood));	   
-	    	    
-	    vector[i] = term;
-	    
-	    sum += wptr[i] * term;
-	  }         
-      else
-	{       
-	  for (i = 0; i < n; i++) 
-	    {	     
-	      left = &(tipVector[numStates * tipX1[i]]);	 
-
-	      if(x2_gap[i / 32] & mask32[i % 32])
-		x2 = x2_gapColumn;
-	      else
-		x2 = &x2_start[gammaStates * i];
-
-	      
-	      for(j = 0, term = 0.0; j < 4; j++)
-		{
-		  right = &(x2[numStates * j]);
-		  
-		  for(l = 0; l < numStates; l++)
-		    term += left[l] * right[l] * diagptable[j * numStates + l];	      
-		}
-	      
-	      if(fastScaling)
-		term = LOG(0.25 * FABS(term));
-	      else
-		term = LOG(0.25 * FABS(term)) + (ex2[i] * LOG(minlikelihood));	   
-	      
-	      sum += wptr[i] * term;
-	    }     	 
-	}
-    }              
-  else
-    {
-      if(writeVector)
-	for (i = 0; i < n; i++) 
-	{	
-	  if(x1_gap[i / 32] & mask32[i % 32])
-	    x1 = x1_gapColumn;
-	  else
-	    x1 = &x1_start[gammaStates * i];
-  	 	             
-	  if(x2_gap[i / 32] & mask32[i % 32])
-	    x2 = x2_gapColumn;
-	  else
-	    x2 = &x2_start[gammaStates * i];
-
-
-	  for(j = 0, term = 0.0; j < 4; j++)
-	    {
-	      left  = &(x1[numStates * j]);
-	      right = &(x2[numStates * j]);	    
-	      
-	      for(l = 0; l < numStates; l++)
-		term += left[l] * right[l] * diagptable[j * numStates + l];	
-	    }
-	  
-	  if(fastScaling)
-	    term = LOG(0.25 * FABS(term));
-	  else
-	    term = LOG(0.25 * FABS(term)) + ((ex1[i] + ex2[i])*LOG(minlikelihood));
-	
-	  vector[i] = term;
-  
-	  sum += wptr[i] * term;
-	}         
-      else
-	for (i = 0; i < n; i++) 
-	  {	  	 	             
-	    if(x1_gap[i / 32] & mask32[i % 32])
-	      x1 = x1_gapColumn;
-	    else
-	      x1 = &x1_start[gammaStates * i];
-	    
-	    if(x2_gap[i / 32] & mask32[i % 32])
-	      x2 = x2_gapColumn;
-	    else
-	      x2 = &x2_start[gammaStates * i];
-	    
-	    for(j = 0, term = 0.0; j < 4; j++)
-	      {
-		left  = &(x1[numStates * j]);
-		right = &(x2[numStates * j]);	    
-		
-		for(l = 0; l < numStates; l++)
-		  term += left[l] * right[l] * diagptable[j * numStates + l];	
-	      }
-	    
-	    if(fastScaling)
-	      term = LOG(0.25 * FABS(term));
-	    else
-	      term = LOG(0.25 * FABS(term)) + ((ex1[i] + ex2[i])*LOG(minlikelihood));
-	    
-	    sum += wptr[i] * term;
-	  }         
-    }
-         
-  return  sum;
-}
 
 
 
@@ -1560,119 +1413,6 @@ static double evaluateGTRCAT (int *ex1, int *ex2, int *cptr, int *wptr,
 
 #ifdef __SIM_SSE3
 
-static double evaluateGTRGAMMA_GAPPED(int *ex1, int *ex2, int *wptr,
-				      double *x1_start, double *x2_start, 
-				      double *tipVector, 
-				      unsigned char *tipX1, const int n, double *diagptable, const boolean fastScaling,
-				      double *x1_gapColumn, double *x2_gapColumn, unsigned int *x1_gap, unsigned int *x2_gap)
-{
-  double   sum = 0.0, term;    
-  int     i, j;
-  double  *x1, *x2;             
-
- 
-
-  if(tipX1)
-    {          	
-      for (i = 0; i < n; i++)
-	{
-	  double t[2] __attribute__ ((aligned (BYTE_ALIGNMENT)));
-	  __m128d termv, x1v, x2v, dv;
-
-	  x1 = &(tipVector[4 * tipX1[i]]);	 
-	  if(x2_gap[i / 32] & mask32[i % 32])
-	    x2 = x2_gapColumn;
-	  else
-	    x2 = &x2_start[16 * i];	 
-	  
-	
-	  termv = _mm_set1_pd(0.0);	    	   
-	  
-	  for(j = 0; j < 4; j++)
-	    {
-	      x1v = _mm_load_pd(&x1[0]);
-	      x2v = _mm_load_pd(&x2[j * 4]);
-	      dv   = _mm_load_pd(&diagptable[j * 4]);
-	      
-	      x1v = _mm_mul_pd(x1v, x2v);
-	      x1v = _mm_mul_pd(x1v, dv);
-	      
-	      termv = _mm_add_pd(termv, x1v);
-	      
-	      x1v = _mm_load_pd(&x1[2]);
-	      x2v = _mm_load_pd(&x2[j * 4 + 2]);
-	      dv   = _mm_load_pd(&diagptable[j * 4 + 2]);
-	      
-	      x1v = _mm_mul_pd(x1v, x2v);
-	      x1v = _mm_mul_pd(x1v, dv);
-	      
-	      termv = _mm_add_pd(termv, x1v);
-	    }
-	  
-	  _mm_store_pd(t, termv);	  	 
-
-	  if(fastScaling)
-	    term = LOG(0.25 * FABS(t[0] + t[1]));
-	  else
-	    term = LOG(0.25 * FABS(t[0] + t[1])) + (ex2[i] * LOG(minlikelihood));	  
-	  
-	  sum += wptr[i] * term;
-	}     
-    }
-  else
-    {        
-      for (i = 0; i < n; i++) 
-	{
-
-	  double t[2] __attribute__ ((aligned (BYTE_ALIGNMENT)));
-	  __m128d termv, x1v, x2v, dv;
-
-	  if(x1_gap[i / 32] & mask32[i % 32])
-	    x1 = x1_gapColumn;
-	  else
-	    x1 = &x1_start[16 * i]; 	  	  
-	 	      
-	  if(x2_gap[i / 32] & mask32[i % 32])
-	    x2 = x2_gapColumn;
-	  else
-	    x2 = &x2_start[16 * i];
-	
-	  termv = _mm_set1_pd(0.0);	  	 
-	  
-	  for(j = 0; j < 4; j++)
-	    {
-	      x1v = _mm_load_pd(&x1[j * 4]);
-	      x2v = _mm_load_pd(&x2[j * 4]);
-	      dv   = _mm_load_pd(&diagptable[j * 4]);
-	      
-	      x1v = _mm_mul_pd(x1v, x2v);
-	      x1v = _mm_mul_pd(x1v, dv);
-	      
-	      termv = _mm_add_pd(termv, x1v);
-	      
-	      x1v = _mm_load_pd(&x1[j * 4 + 2]);
-	      x2v = _mm_load_pd(&x2[j * 4 + 2]);
-	      dv   = _mm_load_pd(&diagptable[j * 4 + 2]);
-	      
-	      x1v = _mm_mul_pd(x1v, x2v);
-	      x1v = _mm_mul_pd(x1v, dv);
-	      
-	      termv = _mm_add_pd(termv, x1v);
-	    }
-	  
-	  _mm_store_pd(t, termv);
-
-	  if(fastScaling)
-	    term = LOG(0.25 * FABS(t[0] + t[1]));
-	  else
-	    term = LOG(0.25 * FABS(t[0] + t[1])) + ((ex1[i] + ex2[i]) * LOG(minlikelihood));	  
-	  
-	  sum += wptr[i] * term;
-	}                      	
-    }
-
-  return sum;
-} 
 
 
 static double evaluateGTRGAMMA_GAPPED_SAVE(int *ex1, int *ex2, int *wptr,
@@ -1807,72 +1547,6 @@ static double evaluateGTRGAMMA_GAPPED_SAVE(int *ex1, int *ex2, int *wptr,
 
 #else
 
-static double evaluateGTRGAMMA_GAPPED(int *ex1, int *ex2, int *wptr,
-				      double *x1_start, double *x2_start, 
-				      double *tipVector, 
-				      unsigned char *tipX1, const int n, double *diagptable, const boolean fastScaling,
-				      double *x1_gapColumn, double *x2_gapColumn, unsigned int *x1_gap, unsigned int *x2_gap)
-{
-  double   sum = 0.0, term;    
-  int     i, j, k;
-  double  *x1, *x2;             
-
- 
-
-  if(tipX1)
-    {          	
-      for (i = 0; i < n; i++)
-	{
-
-	  x1 = &(tipVector[4 * tipX1[i]]);
-	  
-	  if(x2_gap[i / 32] & mask32[i % 32])
-	    x2 = x2_gapColumn;
-	  else
-	    x2 = &x2_start[16 * i];	 	  
-
-	  for(j = 0, term = 0.0; j < 4; j++)
-	    for(k = 0; k < 4; k++)
-	      term += x1[k] * x2[j * 4 + k] * diagptable[j * 4 + k];	          	  	  	    	    	  
-	  
-	  if(fastScaling)
-	    term = LOG(0.25 * FABS(term));
-	  else
-	    term = LOG(0.25 * FABS(term)) + ex2[i] * LOG(minlikelihood);	 
-	  
-	  sum += wptr[i] * term;
-	}     
-    }
-  else
-    {        
-      for (i = 0; i < n; i++) 
-	{	  	 	  	  
-	  if(x1_gap[i / 32] & mask32[i % 32])
-	    x1 = x1_gapColumn;
-	  else
-	    x1 = &x1_start[16 * i]; 	  	  
-	 	      
-	  if(x2_gap[i / 32] & mask32[i % 32])
-	    x2 = x2_gapColumn;
-	  else
-	    x2 = &x2_start[16 * i];
-	
-
-	  for(j = 0, term = 0.0; j < 4; j++)
-	    for(k = 0; k < 4; k++)
-	      term += x1[j * 4 + k] * x2[j * 4 + k] * diagptable[j * 4 + k];
-	  
-	  if(fastScaling)
-	    term = LOG(0.25 * FABS(term));
-	  else
-	    term = LOG(0.25 * FABS(term)) + (ex1[i] + ex2[i]) * LOG(minlikelihood);
-	  
-	  sum += wptr[i] * term;
-	}                      	
-    }
-
-  return sum;
-} 
 
 
 #endif
@@ -2185,117 +1859,7 @@ static double evaluateGTRGAMMAPROT (int *ex1, int *ex2, int *wptr,
 }
 
 
-static double evaluateGTRGAMMAPROT_GAPPED (int *ex1, int *ex2, int *wptr,
-					   double *x1, double *x2,  
-					   double *tipVector, 
-					   unsigned char *tipX1, int n, double *diagptable, const boolean fastScaling,
-					   double *x1_gapColumn, double *x2_gapColumn, unsigned int *x1_gap, unsigned int *x2_gap)					   
-{
-  double   sum = 0.0, term;        
-  int     i, j, l;   
-  double  
-    *left, 
-    *right,
-    *x1v,
-    *x2v;              
-  
-  if(tipX1)
-    {               
-      for (i = 0; i < n; i++) 
-	{
-	  if(x2_gap[i / 32] & mask32[i % 32])
-	    x2v = x2_gapColumn;
-	  else
-	    x2v = &x2[80 * i];
 
-#ifdef __SIM_SSE3
-	  __m128d tv = _mm_setzero_pd();
-	  left = &(tipVector[20 * tipX1[i]]);	  	  
-	  
-	  for(j = 0, term = 0.0; j < 4; j++)
-	    {
-	      double *d = &diagptable[j * 20];
-	      right = &(x2v[20 * j]);
-	      for(l = 0; l < 20; l+=2)
-		{
-		  __m128d mul = _mm_mul_pd(_mm_load_pd(&left[l]), _mm_load_pd(&right[l]));
-		  tv = _mm_add_pd(tv, _mm_mul_pd(mul, _mm_load_pd(&d[l])));		   
-		}		 		
-	    }
-	  tv = _mm_hadd_pd(tv, tv);
-	  _mm_storel_pd(&term, tv);
-	  
-#else
-	  left = &(tipVector[20 * tipX1[i]]);	  	  
-	  
-	  for(j = 0, term = 0.0; j < 4; j++)
-	    {
-	      right = &(x2v[20 * j]);
-	      for(l = 0; l < 20; l++)
-		term += left[l] * right[l] * diagptable[j * 20 + l];	      
-	    }	  
-#endif	 
-	  if(fastScaling)
-	    term = LOG(0.25 * FABS(term));
-	  else
-	    term = LOG(0.25 * FABS(term)) + (ex2[i] * LOG(minlikelihood));	   
-	  
-	  sum += wptr[i] * term;
-	}    	        
-    }              
-  else
-    {
-      for (i = 0; i < n; i++) 
-	{
-	  if(x1_gap[i / 32] & mask32[i % 32])
-	    x1v = x1_gapColumn;
-	  else
-	    x1v = &x1[80 * i];
-
-	  if(x2_gap[i / 32] & mask32[i % 32])
-	    x2v = x2_gapColumn;
-	  else
-	    x2v = &x2[80 * i];
-	  	 	             
-#ifdef __SIM_SSE3
-	  __m128d tv = _mm_setzero_pd();	 	  	  
-	      
-	  for(j = 0, term = 0.0; j < 4; j++)
-	    {
-	      double *d = &diagptable[j * 20];
-	      left  = &(x1v[20 * j]);
-	      right = &(x2v[20 * j]);
-	      
-	      for(l = 0; l < 20; l+=2)
-		{
-		  __m128d mul = _mm_mul_pd(_mm_load_pd(&left[l]), _mm_load_pd(&right[l]));
-		  tv = _mm_add_pd(tv, _mm_mul_pd(mul, _mm_load_pd(&d[l])));		   
-		}		 		
-	    }
-	  tv = _mm_hadd_pd(tv, tv);
-	  _mm_storel_pd(&term, tv);	  
-#else
-	  for(j = 0, term = 0.0; j < 4; j++)
-	    {
-	      left  = &(x1v[20 * j]);
-	      right = &(x2v[20 * j]);	    
-	      
-	      for(l = 0; l < 20; l++)
-		term += left[l] * right[l] * diagptable[j * 20 + l];	
-	    }
-#endif
-	  
-	  if(fastScaling)
-	    term = LOG(0.25 * FABS(term));
-	  else
-	    term = LOG(0.25 * FABS(term)) + ((ex1[i] + ex2[i])*LOG(minlikelihood));
-	  
-	  sum += wptr[i] * term;
-	}         
-    }
-       
-  return  sum;
-}
 
 #ifdef __SIM_SSE3
 
@@ -2952,7 +2516,7 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 		  if(!tr->useFastScaling)
 		    ex2      = tr->partitionData[model].expVector[pNumber - tr->mxtips - 1];
 
-		  if(tr->useGappedImplementation || tr->saveMemory)
+		  if(tr->saveMemory)
 		    {
 		      x2_gap = &(tr->partitionData[model].gapVector[pNumber * tr->partitionData[model].gapVectorLength]);
 		      x2_gapColumn   = &tr->partitionData[model].gapColumn[(pNumber - tr->mxtips - 1) * states * rateHet];
@@ -2969,7 +2533,7 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 		  if(!tr->useFastScaling)
 		    ex2      = tr->partitionData[model].expVector[qNumber - tr->mxtips - 1];
 
-		  if(tr->useGappedImplementation || tr->saveMemory)
+		  if(tr->saveMemory)
 		    {
 		      x2_gap = &(tr->partitionData[model].gapVector[qNumber * tr->partitionData[model].gapVectorLength]);
 		      x2_gapColumn   = &tr->partitionData[model].gapColumn[(qNumber - tr->mxtips - 1) * states * rateHet];
@@ -2980,7 +2544,7 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 	    }
 	  else
 	    {  
-	      if(tr->useGappedImplementation || tr->saveMemory)
+	      if(tr->saveMemory)
 	      {
 		x1_gap = &(tr->partitionData[model].gapVector[pNumber * tr->partitionData[model].gapVectorLength]);
 		x2_gap = &(tr->partitionData[model].gapVector[qNumber * tr->partitionData[model].gapVectorLength]);
@@ -3020,16 +2584,10 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 		case GAMMA:
 		  {		    		    
 		    calcDiagptableFlex(z, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable, states);
-		     
-		    if(tr->useGappedImplementation)
-		      partitionLikelihood = evaluateGammaFlex_GAPPED(ex1, ex2, tr->partitionData[model].wgt,
-								     x1_start, x2_start, tr->partitionData[model].tipVector,
-								     tip, width, diagptable, _vector, writeVector, tr->useFastScaling, states,
-								     x1_gapColumn, x2_gapColumn, x1_gap, x2_gap); 
-		    else
-		      partitionLikelihood = evaluateGammaFlex(ex1, ex2, tr->partitionData[model].wgt,
-							      x1_start, x2_start, tr->partitionData[model].tipVector,
-							      tip, width, diagptable, _vector, writeVector, tr->useFastScaling, states);		   
+		     		    
+		    partitionLikelihood = evaluateGammaFlex(ex1, ex2, tr->partitionData[model].wgt,
+							    x1_start, x2_start, tr->partitionData[model].tipVector,
+							    tip, width, diagptable, _vector, writeVector, tr->useFastScaling, states);		   
 		  }
 		  break;
 		case GAMMA_I:		  	    
@@ -3119,17 +2677,10 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 									   x1_gapColumn, x2_gapColumn, x1_gap, x2_gap);			
 		      else
 #endif
-			{
-			  if(tr->useGappedImplementation)
-			    partitionLikelihood = evaluateGTRGAMMA_GAPPED(ex1, ex2, tr->partitionData[model].wgt,
-									  x1_start, x2_start, tr->partitionData[model].tipVector,
-									  tip, width, diagptable, tr->useFastScaling,
-									  x1_gapColumn, x2_gapColumn, x1_gap, x2_gap); 
-			  else
-			    partitionLikelihood = evaluateGTRGAMMA(ex1, ex2, tr->partitionData[model].wgt,
-								   x1_start, x2_start, tr->partitionData[model].tipVector,
-								   tip, width, diagptable, tr->useFastScaling); 		
-			}			
+		
+			partitionLikelihood = evaluateGTRGAMMA(ex1, ex2, tr->partitionData[model].wgt,
+							       x1_start, x2_start, tr->partitionData[model].tipVector,
+							       tip, width, diagptable, tr->useFastScaling); 					
 		      break; 
 		    case GAMMA_I:
 		      {
@@ -3176,18 +2727,10 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 									       tip, width, diagptable, tr->useFastScaling,
 									       x1_gapColumn, x2_gapColumn, x1_gap, x2_gap);
 		      else
-#endif
-			{
-			  if(tr->useGappedImplementation)
-			    partitionLikelihood = evaluateGTRGAMMAPROT_GAPPED(ex1, ex2, tr->partitionData[model].wgt,
-									      x1_start, x2_start, tr->partitionData[model].tipVector,
-									      tip, width, diagptable, tr->useFastScaling,
-									      x1_gapColumn, x2_gapColumn, x1_gap, x2_gap);
-			  else
-			    partitionLikelihood = evaluateGTRGAMMAPROT(ex1, ex2, tr->partitionData[model].wgt,
-								       x1_start, x2_start, tr->partitionData[model].tipVector,
-								       tip, width, diagptable, tr->useFastScaling);
-			}		    
+#endif		
+			partitionLikelihood = evaluateGTRGAMMAPROT(ex1, ex2, tr->partitionData[model].wgt,
+								   x1_start, x2_start, tr->partitionData[model].tipVector,
+								   tip, width, diagptable, tr->useFastScaling);			
 		      break;
 		    case GAMMA_I:		  	    
 		      {

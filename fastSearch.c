@@ -1201,7 +1201,7 @@ void fastSearch(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
       treeEvaluate(tr, 2);
     }
  else
-   modOpt(tr, adef, FALSE, 10.0, TRUE);
+   modOpt(tr, adef, FALSE, 10.0);
   
   printBothOpen("Time after init, starting tree, mod opt: %f\n", gettime() - masterTime);
 
@@ -1319,7 +1319,7 @@ void shSupports(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
       treeEvaluate(tr, 2);
     }
   else
-    modOpt(tr, adef, FALSE, 10.0, TRUE);
+    modOpt(tr, adef, FALSE, 10.0);
   
   printBothOpen("Time after model optimization: %f\n", gettime() - masterTime);
   

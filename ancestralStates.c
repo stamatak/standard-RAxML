@@ -502,7 +502,6 @@ void newviewIterativeAncestral(tree *tr)
     i, 
     model;
   
-  assert(!tr->useGappedImplementation);
   assert(!tr->saveMemory);
   
   for(i = 1; i < tr->td[0].count; i++)

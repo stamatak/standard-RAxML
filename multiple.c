@@ -109,9 +109,6 @@ static void singleBootstrap(tree *tr, int i, analdef *adef, rawdata *rdta, crunc
          
   getStartingTree(tr, adef);
 
-  if(i == 0)
-    testGapped(tr);
-
   computeBIGRAPID(tr, adef, TRUE);
 
   if(adef->bootstrapBranchLengths)
@@ -120,16 +117,16 @@ static void singleBootstrap(tree *tr, int i, analdef *adef, rawdata *rdta, crunc
 	{
 	case GAMMA:	  
 	case GAMMA_I:      
-	  modOpt(tr, adef, TRUE, adef->likelihoodEpsilon, FALSE);		      	    	    
+	  modOpt(tr, adef, TRUE, adef->likelihoodEpsilon);		      	    	    
 	  break;
 	case CAT:    	      	 		  
 	  tr->likelihood = unlikely;	       
 	  catToGamma(tr, adef);	  
 	  initModel(tr, rdta, cdta, adef);
 	  if(i == 0)
-	    modOpt(tr, adef, TRUE, adef->likelihoodEpsilon, TRUE);	 
+	    modOpt(tr, adef, TRUE, adef->likelihoodEpsilon);	 
 	  else
-	    modOpt(tr, adef, TRUE, adef->likelihoodEpsilon, FALSE);
+	    modOpt(tr, adef, TRUE, adef->likelihoodEpsilon);
 	  gammaToCat(tr); 		  	      	        	
 	  break;
 	default:
@@ -657,7 +654,7 @@ void doAllInOne(tree *tr, analdef *adef)
 	     	      
 	      t = gettime();    	      
 
-	      modOpt(tr, adef, FALSE, 5.0, TRUE);	    
+	      modOpt(tr, adef, FALSE, 5.0);	    
 #ifdef _WAYNE_MPI
 	      printBothOpen("\nTime for BS model parameter optimization on Process %d: %f seconds\n", processID, gettime() - t);	     
 #else
@@ -674,7 +671,7 @@ void doAllInOne(tree *tr, analdef *adef)
 		      copyParams(tr->NumberOfModels, catParams, tr->partitionData, tr);		      
 		      assert(tr->cdta->endsite == tr->originalCrunchedLength);		 
 		      catToGamma(tr, adef);		      
-		      modOpt(tr, adef, TRUE, adef->likelihoodEpsilon, TRUE);
+		      modOpt(tr, adef, TRUE, adef->likelihoodEpsilon);
 		      copyParams(tr->NumberOfModels, gammaParams, tr->partitionData, tr);		      
 		      gammaToCat(tr);
 		      copyParams(tr->NumberOfModels, tr->partitionData, catParams, tr);		      
@@ -897,7 +894,7 @@ void doAllInOne(tree *tr, analdef *adef)
 
   
 
-  modOpt(tr, adef, TRUE, adef->likelihoodEpsilon, FALSE);  
+  modOpt(tr, adef, TRUE, adef->likelihoodEpsilon);  
 
 #ifdef _WAYNE_MPI
   
@@ -976,7 +973,7 @@ void doAllInOne(tree *tr, analdef *adef)
 
   evaluateGenericInitrav(tr, tr->start);
 
-  modOpt(tr, adef, TRUE, adef->likelihoodEpsilon, FALSE);     
+  modOpt(tr, adef, TRUE, adef->likelihoodEpsilon);     
   
   slowSearches = bootstrapsPerformed / 5;
   if(bootstrapsPerformed % 5 != 0)
@@ -1027,7 +1024,7 @@ void doAllInOne(tree *tr, analdef *adef)
   if(tr->rateHetModel == CAT) 
     {      
       catToGamma(tr, adef);    
-      modOpt(tr, adef, TRUE, adef->likelihoodEpsilon, TRUE); 
+      modOpt(tr, adef, TRUE, adef->likelihoodEpsilon); 
     }
 
   bestIndex = -1;
@@ -1098,7 +1095,7 @@ void doAllInOne(tree *tr, analdef *adef)
   treeOptimizeThorough(tr, 1, 10);
   evaluateGenericInitrav(tr, tr->start);
   
-  modOpt(tr, adef, TRUE, adef->likelihoodEpsilon, FALSE);
+  modOpt(tr, adef, TRUE, adef->likelihoodEpsilon);
   t = gettime() - t;
 
 #ifdef _WAYNE_MPI
@@ -1428,9 +1425,6 @@ void doInference(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
 	printBaseFrequencies(tr);
      
       getStartingTree(tr, adef); 
-
-      if(i == 0)
-	testGapped(tr);
                        
       computeBIGRAPID(tr, adef, TRUE);  
 
@@ -1491,7 +1485,7 @@ void doInference(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
 	  restoreTL(rl, tr, best);
 	  onlyInitrav(tr, tr->start);
 	  if(!adef->useBinaryModelFile)
-	    modOpt(tr, adef, FALSE, adef->likelihoodEpsilon, FALSE); 
+	    modOpt(tr, adef, FALSE, adef->likelihoodEpsilon); 
 	  else
 	    {
 	      readBinaryModel(tr);
@@ -1576,7 +1570,7 @@ void doInference(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
 	  
 	  resetBranches(tr);
 	  onlyInitrav(tr, tr->start);
-	  modOpt(tr, adef, TRUE, adef->likelihoodEpsilon, TRUE);      
+	  modOpt(tr, adef, TRUE, adef->likelihoodEpsilon);      
 	  tr->likelihoods[best] = tr->likelihood;
 	  bestLH = tr->likelihood;     
 	  saveTL(rl, tr, best);

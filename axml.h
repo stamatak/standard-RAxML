@@ -641,7 +641,7 @@ typedef struct {
 typedef  struct  {
   boolean optimizeAllTrees;
 
-  boolean useGappedImplementation;
+ 
   boolean saveMemory;
   
   int    *resample;
@@ -1109,7 +1109,7 @@ extern void doBootstrap ( tree *tr, analdef *adef, rawdata *rdta, cruncheddata *
 extern void doInference ( tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta );
 extern void resetBranches ( tree *tr );
 extern void scaleBranches(tree *tr, boolean fromFile);
-extern void modOpt ( tree *tr, analdef *adef , boolean resetModel, double likelihoodEpsilon, boolean testGappedImplementation);
+extern void modOpt ( tree *tr, analdef *adef , boolean resetModel, double likelihoodEpsilon);
 
 
 extern void parsePartitions ( analdef *adef, rawdata *rdta, tree *tr);
@@ -1295,7 +1295,7 @@ extern void readBinaryModel(tree *tr);
 extern void treeEvaluateRandom (tree *tr, double smoothFactor);
 extern void treeEvaluateProgressive(tree *tr);
 
-extern void testGapped(tree *tr);
+
 
 extern boolean issubset(unsigned int* bipA, unsigned int* bipB, unsigned int vectorLen, unsigned int firstIndex);
 extern boolean compatible(entry* e1, entry* e2, unsigned int bvlen);
@@ -1380,7 +1380,6 @@ extern void testInsertThoroughIterative(tree *tr, int branchNumber);
 #define THREAD_PARSIMONY_INSERTIONS         34
 #define THREAD_PREPARE_EPA_PARSIMONY        35
 #define THREAD_CLEANUP_EPA_PARSIMONY        36
-#define THREAD_USE_GAPPED                   38
 #define THREAD_PREPARE_BIPS_FOR_PRINT       39
 #define THREAD_MRE_COMPUTE                  40
 #define THREAD_NEWVIEW_ANCESTRAL            41

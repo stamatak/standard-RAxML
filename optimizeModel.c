@@ -2704,7 +2704,7 @@ static void optScaler(tree *tr, double modelEpsilon, linkageList *ll)
 
 }
 
-void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilon, boolean testGappedImplementation)
+void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilon)
 { 
   int i, model, catOpt = 0; 
   double 
@@ -2785,16 +2785,11 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
       
       evaluateGenericInitrav(tr, tr->start); 
       
-      if(testGappedImplementation)
-	testGapped(tr);
+      
 
       treeEvaluate(tr, 0.25);     
     }
-  else
-    {
-      if(testGappedImplementation)
-	testGapped(tr);
-    }
+  
   
   
   /* no need for individual models here, just an init on params equal for all partitions*/

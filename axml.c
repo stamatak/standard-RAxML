@@ -4288,7 +4288,6 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
   tr->useEpaHeuristics = FALSE;
   tr->fastEPAthreshold = -1.0;
   tr->multiStateModel  = GTR_MULTI_STATE;
-  tr->useGappedImplementation = FALSE;
   tr->saveMemory = FALSE;
   tr->useGammaMedian = FALSE;
   tr->noRateHet = FALSE;
@@ -4905,6 +4904,21 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
     }
 
 #endif
+  
+  if(tr->catOnly && adef->rapidBoot)
+    {
+      printf("Error, you can not use \"-F\" in conjunction with the rapid bootstrapping option!\n");
+      printf("it will only work with standard ML tree searches\n");
+      errorExit(-1);
+    }
+
+  if(tr->catOnly && adef->boot)
+    {
+      printf("Error, you can not use \"-F\" in conjunction with the standard bootstrapping option!\n");
+      printf("it will only work with standard ML tree searches\n");
+      errorExit(-1);
+    }
+     
 
   if(bSeedSet && xSeedSet)
     {
@@ -6679,8 +6693,7 @@ static void initPartition(tree *tr, tree *localTree, int tid)
       int totalLength = 0;
       
       localTree->useGammaMedian          = tr->useGammaMedian;
-      localTree->saveMemory              = tr->saveMemory;
-      localTree->useGappedImplementation = tr->useGappedImplementation;
+      localTree->saveMemory              = tr->saveMemory;      
       localTree->innerNodes              = tr->innerNodes;
       localTree->useFastScaling          = tr->useFastScaling;
       localTree->perPartitionEPA         = tr->perPartitionEPA;
@@ -7444,10 +7457,7 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 	      }	    
 	    }
       }
-      break;
-    case  THREAD_USE_GAPPED:
-      localTree->useGappedImplementation = tr->useGappedImplementation;
-      break;     
+      break;      
     case THREAD_PREPARE_BIPS_FOR_PRINT:
       {       
 	int 
@@ -7965,7 +7975,7 @@ static void computeLHTest(tree *tr, analdef *adef, char *bootStrapFileName)
   for(i = 0; i < tr->cdta->endsite; i++)
     weightSum += (double)(tr->cdta->aliaswgt[i]);
 
-  modOpt(tr, adef, TRUE, adef->likelihoodEpsilon, TRUE);
+  modOpt(tr, adef, TRUE, adef->likelihoodEpsilon);
   printBothOpen("Model optimization, best Tree: %f\n", tr->likelihood);
   bestLH = tr->likelihood;  
 
@@ -7990,7 +8000,7 @@ static void computeLHTest(tree *tr, analdef *adef, char *bootStrapFileName)
       if(tr->optimizeAllTrees)
 	{
 	  treeEvaluate(tr, 1);
-	  modOpt(tr, adef, FALSE, adef->likelihoodEpsilon, FALSE);
+	  modOpt(tr, adef, FALSE, adef->likelihoodEpsilon);
 	}
       else
 	treeEvaluate(tr, 2);
@@ -8065,14 +8075,14 @@ static void computePerSiteLLs(tree *tr, analdef *adef, char *bootStrapFileName)
 	      treeEvaluate(tr, 2);
 	    }
 	  else
-	    modOpt(tr, adef, TRUE, adef->likelihoodEpsilon, TRUE);	
+	    modOpt(tr, adef, TRUE, adef->likelihoodEpsilon);	
 	}
       else
 	{
 	  if(tr->optimizeAllTrees)
 	    {
 	      treeEvaluate(tr, 1);
-	      modOpt(tr, adef, FALSE, adef->likelihoodEpsilon, FALSE);
+	      modOpt(tr, adef, FALSE, adef->likelihoodEpsilon);
 	    }
 	  else
 	    treeEvaluate(tr, 2);     
@@ -8184,8 +8194,7 @@ static void computeAllLHs(tree *tr, analdef *adef, char *bootStrapFileName)
       resetBranches(tr); 
       
       if(i == 0)
-	{
-	  testGapped(tr);
+	{	
 
 	  if(adef->useBinaryModelFile)
 	    {
@@ -8194,7 +8203,7 @@ static void computeAllLHs(tree *tr, analdef *adef, char *bootStrapFileName)
 	      treeEvaluate(tr, 2);
 	    }
 	  else
-	    modOpt(tr, adef, TRUE, adef->likelihoodEpsilon, FALSE);
+	    modOpt(tr, adef, TRUE, adef->likelihoodEpsilon);
 	  
 	  printBothOpen("Model optimization on first Tree: %f\n", tr->likelihood);	  	 
 	}
@@ -8209,7 +8218,7 @@ static void computeAllLHs(tree *tr, analdef *adef, char *bootStrapFileName)
 	  if(tr->optimizeAllTrees)
 	    {
 	      treeEvaluate(tr, 1);
-	      modOpt(tr, adef, FALSE, adef->likelihoodEpsilon, FALSE);
+	      modOpt(tr, adef, FALSE, adef->likelihoodEpsilon);
 	    }
 	  else
 	    treeEvaluate(tr, 2);
@@ -8321,7 +8330,7 @@ static void computeELW(tree *tr, analdef *adef, char *bootStrapFileName)
   
   treeReadLen(treeFile, tr, FALSE, FALSE, FALSE, adef, TRUE);   
   
-  modOpt(tr, adef, TRUE, adef->likelihoodEpsilon, TRUE);
+  modOpt(tr, adef, TRUE, adef->likelihoodEpsilon);
   rewind(treeFile);
 
   printBothOpen("Model optimization, first Tree: %f\n", tr->likelihood);
@@ -8354,7 +8363,7 @@ static void computeELW(tree *tr, analdef *adef, char *bootStrapFileName)
       if(tr->optimizeAllTrees)
 	{
 	  treeEvaluate(tr, 1);
-	  modOpt(tr, adef, FALSE, adef->likelihoodEpsilon, FALSE);
+	  modOpt(tr, adef, FALSE, adef->likelihoodEpsilon);
 	}
       else
 	treeEvaluate(tr, 2.0);
@@ -8548,7 +8557,7 @@ static void computeDistances(tree *tr, analdef *adef)
 
   out = myfopen(distanceFileName, "wb"); 
   
-  modOpt(tr, adef, TRUE, adef->likelihoodEpsilon, TRUE);
+  modOpt(tr, adef, TRUE, adef->likelihoodEpsilon);
 
   printBothOpen("\nLog Likelihood Score after parameter optimization: %f\n\n", tr->likelihood);
   printBothOpen("\nComputing pairwise ML-distances ...\n");
@@ -8909,62 +8918,7 @@ void readBinaryModel(tree *tr)
 }
   
 
-void testGapped(tree *tr)
-{
-  if((!tr->saveMemory) && tr->rateHetModel == GAMMA && tr->useGappedImplementation == FALSE)
-    {
-      int 
-	i;
-      
-      double 
-	gappedTime,
-	ungappedTime,
-	gappedLH,
-	ungappedLH;
-      
-      printBothOpen("Testing which likelihood implementation to use\n");
-      
-      tr->useGappedImplementation = FALSE;
-      ungappedTime = gettime();
-      for(i = 0; i < 8; i++)
-	evaluateGenericInitrav(tr, tr->start);
-      ungappedLH = tr->likelihood;
-      ungappedTime = gettime() - ungappedTime;
-      
-      tr->useGappedImplementation = TRUE;
-      
-#ifdef _USE_PTHREADS
-      masterBarrier(THREAD_USE_GAPPED, tr);
-#endif
-      
-      gappedTime = gettime();
-      for(i = 0; i < 8; i++)
-	evaluateGenericInitrav(tr, tr->start); 
-      gappedLH = tr->likelihood;
-      gappedTime = gettime() - gappedTime;
-      
-      assert(ABS(gappedLH - ungappedLH) < 0.01);
 
-      printBothOpen("Standard Implementation full tree traversal time: %f\n", ungappedTime);
-      
-      printBothOpen("Subtree Equality Vectors for gap columns full tree traversal time: %f\n", gappedTime);
-      
-      if((0.8 * ungappedTime) <= gappedTime) /* purely empirical */
-	{
-	  tr->useGappedImplementation = FALSE;
-	  printBothOpen("... using standard implementation\n\n");
-	}
-      else
-	{
-	  tr->useGappedImplementation = TRUE;
-	  printBothOpen("... using SEV-based implementation\n\n");
-	}
-      
-#ifdef _USE_PTHREADS
-      masterBarrier(THREAD_USE_GAPPED, tr);
-#endif
-    }
-}
 
 static int iterated_bitcount(unsigned int n)
 {
@@ -9406,7 +9360,7 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
    
       /* optimize model parameters on that comprehensive tree that can subsequently be used for qyartet building */
 
-      modOpt(tr, adef, TRUE, adef->likelihoodEpsilon, FALSE);
+      modOpt(tr, adef, TRUE, adef->likelihoodEpsilon);
 
       printBothOpen("Time for parsing input tree or building parsimony tree and optimizing model parameters: %f\n\n", gettime() - masterTime); 
     }
@@ -9603,7 +9557,7 @@ static void thoroughTreeOptimization(tree *tr, analdef *adef, rawdata *rdta, cru
       
   getStartingTree(tr, adef);  
 
-  modOpt(tr, adef, TRUE, adef->likelihoodEpsilon, FALSE);
+  modOpt(tr, adef, TRUE, adef->likelihoodEpsilon);
 
   Thorough = 1;
   tr->doCutoff = FALSE;  
@@ -9613,7 +9567,7 @@ static void thoroughTreeOptimization(tree *tr, analdef *adef, rawdata *rdta, cru
   treeOptimizeThorough(tr, 1, 10);
   evaluateGenericInitrav(tr, tr->start);
   
-  modOpt(tr, adef, TRUE, adef->likelihoodEpsilon, FALSE);
+  modOpt(tr, adef, TRUE, adef->likelihoodEpsilon);
 
   printBothOpen("End likelihood: %f\n\n", tr->likelihood);
 
@@ -9918,7 +9872,7 @@ int main (int argc, char *argv[])
 	    }
 	  else
 	    {
-	      modOpt(tr, adef, TRUE, adef->likelihoodEpsilon, TRUE);	  
+	      modOpt(tr, adef, TRUE, adef->likelihoodEpsilon);	  
 	      writeBinaryModel(tr);
 	    }
 	  
@@ -9931,7 +9885,7 @@ int main (int argc, char *argv[])
       initModel(tr, rdta, cdta, adef);
       
       getStartingTree(tr, adef);
-      modOpt(tr, adef, TRUE, adef->likelihoodEpsilon, FALSE);
+      modOpt(tr, adef, TRUE, adef->likelihoodEpsilon);
        
       evaluateGenericInitrav(tr, tr->start);                                       	                  
       
@@ -9963,7 +9917,7 @@ int main (int argc, char *argv[])
     case MORPH_CALIBRATOR:
       initModel(tr, rdta, cdta, adef);
       getStartingTree(tr, adef);
-      modOpt(tr, adef, TRUE, adef->likelihoodEpsilon, FALSE);
+      modOpt(tr, adef, TRUE, adef->likelihoodEpsilon);
       morphologicalCalibration(tr, adef);
       break;       
     case FAST_SEARCH:
@@ -9975,7 +9929,7 @@ int main (int argc, char *argv[])
     case EPA_SITE_SPECIFIC_BIAS:
       initModel(tr, rdta, cdta, adef);
       getStartingTree(tr, adef);
-      modOpt(tr, adef, TRUE, adef->likelihoodEpsilon, FALSE);
+      modOpt(tr, adef, TRUE, adef->likelihoodEpsilon);
       computePlacementBias(tr, adef);
       break;
     case OPTIMIZE_BR_LEN_SCALER:
@@ -9983,7 +9937,7 @@ int main (int argc, char *argv[])
       
       getStartingTree(tr, adef);      
             	 	 
-      modOpt(tr, adef, FALSE, adef->likelihoodEpsilon, FALSE);	  
+      modOpt(tr, adef, FALSE, adef->likelihoodEpsilon);	  
       
       printBothOpen("Likelihood: %f\n", tr->likelihood);
 

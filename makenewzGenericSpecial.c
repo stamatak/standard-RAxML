@@ -1610,84 +1610,6 @@ static void sumGAMMA_BINARY(int tipCase, double *sumtable, double *x1_start, dou
     }
 }
 
-static void sumGAMMA_GAPPED(int tipCase, double *sumtable, double *x1_start, double *x2_start, double *tipVector,
-			    unsigned char *tipX1, unsigned char *tipX2, int n, 
-			    double *x1_gapColumn, double *x2_gapColumn, unsigned int *x1_gap, unsigned int *x2_gap)
-{
-  double *x1, *x2, *sum;
-  int i, j, k; 
-
-  switch(tipCase)
-    {
-    case TIP_TIP:     
-      for (i = 0; i < n; i++)
-	{
-	  x1 = &(tipVector[4 * tipX1[i]]);
-	  x2 = &(tipVector[4 * tipX2[i]]);
-	  sum = &sumtable[i * 16];
-#ifndef __SIM_SSE3
-	  for(j = 0; j < 4; j++)	    
-	    for(k = 0; k < 4; k++)
-	      sum[j * 4 + k] = x1[k] * x2[k];
-#else
-	  for(j = 0; j < 4; j++)	    
-	    for(k = 0; k < 4; k+=2)
-	      _mm_store_pd( &sum[j*4 + k], _mm_mul_pd( _mm_load_pd( &x1[k] ), _mm_load_pd( &x2[k] )));
-#endif
-	}
-      break;
-    case TIP_INNER:
-      for (i = 0; i < n; i++)
-	{
-	  x1  = &(tipVector[4 * tipX1[i]]);
-	  
-	  if(x2_gap[i / 32] & mask32[i % 32])
-	    x2 = x2_gapColumn;
-	  else
-	    x2  = &x2_start[16 * i];
-	  
-	  sum = &sumtable[16 * i];
-#ifndef __SIM_SSE3
-	  for(j = 0; j < 4; j++)
-	    for(k = 0; k < 4; k++)
-	      sum[j * 4 + k] = x1[k] * x2[j * 4 + k];
-#else
-	  for(j = 0; j < 4; j++)	    
-	    for(k = 0; k < 4; k+=2)
-	      _mm_store_pd( &sum[j*4 + k], _mm_mul_pd( _mm_load_pd( &x1[k] ), _mm_load_pd( &x2[j * 4 + k] )));
-#endif
-	}
-      break;
-    case INNER_INNER:
-      for (i = 0; i < n; i++)
-	{
-	  if(x1_gap[i / 32] & mask32[i % 32])
-	    x1 = x1_gapColumn;
-	  else
-	    x1 = &x1_start[16 * i]; 	  	  
-	 	      
-	  if(x2_gap[i / 32] & mask32[i % 32])
-	    x2 = x2_gapColumn;
-	  else
-	    x2 = &x2_start[16 * i];
-	  
-	  sum = &sumtable[16 * i];
-	  
-#ifndef __SIM_SSE3
-	  for(j = 0; j < 4; j++)
-	    for(k = 0; k < 4; k++)
-	      sum[j * 4 + k] = x1[j * 4 + k] * x2[j * 4 + k];
-#else
-	   for(j = 0; j < 4; j++)	    
-	    for(k = 0; k < 4; k+=2)
-	      _mm_store_pd( &sum[j*4 + k], _mm_mul_pd( _mm_load_pd( &x1[j * 4 + k] ), _mm_load_pd( &x2[j * 4 + k] )));
-#endif
-	}
-      break;
-    default:
-      assert(0);
-    }
-}
 
 
 static void sumGAMMA_GAPPED_SAVE(int tipCase, double *sumtable, double *x1_start, double *x2_start, double *tipVector,
@@ -2248,109 +2170,6 @@ static void sumGAMMAPROT(int tipCase, double *sumtable, double *x1, double *x2, 
 }
 
 
-static void sumGAMMAPROT_GAPPED(int tipCase, double *sumtable, double *x1, double *x2, double *tipVector,
-				unsigned char *tipX1, unsigned char *tipX2, int n, 
-				double *x1_gapColumn, double *x2_gapColumn, unsigned int *x1_gap, unsigned int *x2_gap)
-{
-  int i, l, k;
-  double 
-    *left, 
-    *right, 
-    *sum,
-    *x1v,
-    *x2v;
-
-  switch(tipCase)
-    {
-    case TIP_TIP:
-      for(i = 0; i < n; i++)
-	{
-	  left  = &(tipVector[20 * tipX1[i]]);
-	  right = &(tipVector[20 * tipX2[i]]);
-
-	  for(l = 0; l < 4; l++)
-	    {
-	      sum = &sumtable[i * 80 + l * 20];
-#ifdef __SIM_SSE3
-	      for(k = 0; k < 20; k+=2)
-		{
-		  __m128d sumv = _mm_mul_pd(_mm_load_pd(&left[k]), _mm_load_pd(&right[k]));
-		  
-		  _mm_store_pd(&sum[k], sumv);		 
-		}
-#else
-	      for(k = 0; k < 20; k++)
-		sum[k] = left[k] * right[k];
-#endif
-	    }
-	}
-      break;
-    case TIP_INNER:
-      for(i = 0; i < n; i++)
-	{
-	  left = &(tipVector[20 * tipX1[i]]);
-	   
-	  if(x2_gap[i / 32] & mask32[i % 32])
-	    x2v = x2_gapColumn;
-	  else
-	    x2v = &x2[80 * i];
-	  
-
-	  for(l = 0; l < 4; l++)
-	    {
-	      right = &(x2v[l * 20]);
-	      sum = &sumtable[i * 80 + l * 20];
-#ifdef __SIM_SSE3
-	      for(k = 0; k < 20; k+=2)
-		{
-		  __m128d sumv = _mm_mul_pd(_mm_load_pd(&left[k]), _mm_load_pd(&right[k]));
-		  
-		  _mm_store_pd(&sum[k], sumv);		 
-		}
-#else
-	      for(k = 0; k < 20; k++)
-		sum[k] = left[k] * right[k];
-#endif
-	    }
-	}
-      break;
-    case INNER_INNER:
-      for(i = 0; i < n; i++)
-	{
-	  if(x1_gap[i / 32] & mask32[i % 32])
-	    x1v = x1_gapColumn;
-	  else
-	    x1v  = &x1[80 * i];
-
-	   if(x2_gap[i / 32] & mask32[i % 32])
-	    x2v = x2_gapColumn;
-	  else
-	    x2v  = &x2[80 * i];
-
-	  for(l = 0; l < 4; l++)
-	    {
-	      left  = &(x1v[l * 20]);
-	      right = &(x2v[l * 20]);
-	      sum   = &(sumtable[i * 80 + l * 20]);
-
-#ifdef __SIM_SSE3
-	      for(k = 0; k < 20; k+=2)
-		{
-		  __m128d sumv = _mm_mul_pd(_mm_load_pd(&left[k]), _mm_load_pd(&right[k]));
-		  
-		  _mm_store_pd(&sum[k], sumv);		 
-		}
-#else
-	      for(k = 0; k < 20; k++)
-		sum[k] = left[k] * right[k];
-#endif
-	    }
-	}
-      break;
-    default:
-      assert(0);
-    }
-}
 
 #ifdef __SIM_SSE3
 static void sumGAMMAPROT_GAPPED_SAVE(int tipCase, double *sumtable, double *x1, double *x2, double *tipVector,
@@ -3308,7 +3127,7 @@ static void getVects(tree *tr, unsigned char **tipX1, unsigned char **tipX2, dou
 	      *tipX1 = tr->partitionData[model].yVector[qNumber];
 	      *x2_start = tr->partitionData[model].xVector[pNumber - tr->mxtips - 1];
 	      
-	      if(tr->useGappedImplementation || tr->saveMemory)
+	      if(tr->saveMemory)
 		{
 		  *x2_gap = &(tr->partitionData[model].gapVector[pNumber * tr->partitionData[model].gapVectorLength]);
 		  *x2_gapColumn   = &tr->partitionData[model].gapColumn[(pNumber - tr->mxtips - 1) * states * rateHet];  
@@ -3319,7 +3138,7 @@ static void getVects(tree *tr, unsigned char **tipX1, unsigned char **tipX2, dou
 	      *tipX1 = tr->partitionData[model].yVector[pNumber];
 	      *x2_start = tr->partitionData[model].xVector[qNumber - tr->mxtips - 1];
 	      
-	      if(tr->useGappedImplementation || tr->saveMemory)
+	      if(tr->saveMemory)
 		{
 		  *x2_gap = &(tr->partitionData[model].gapVector[qNumber * tr->partitionData[model].gapVectorLength]);
 		  *x2_gapColumn   = &tr->partitionData[model].gapColumn[(qNumber - tr->mxtips - 1) * states * rateHet];
@@ -3340,7 +3159,7 @@ static void getVects(tree *tr, unsigned char **tipX1, unsigned char **tipX2, dou
       *x1_start = tr->partitionData[model].xVector[pNumber - tr->mxtips - 1];
       *x2_start = tr->partitionData[model].xVector[qNumber - tr->mxtips - 1];
       
-      if(tr->useGappedImplementation || tr->saveMemory)
+      if(tr->saveMemory)
 	{
 	  *x1_gap = &(tr->partitionData[model].gapVector[pNumber * tr->partitionData[model].gapVectorLength]);
 	  *x1_gapColumn   = &tr->partitionData[model].gapColumn[(pNumber - tr->mxtips - 1) * states * rateHet]; 
@@ -3431,15 +3250,9 @@ void makenewzIterative(tree *tr)
 			if(tr->saveMemory)
 			  sumGAMMA_GAPPED_SAVE(tipCase, tr->partitionData[model].sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector, tipX1, tipX2,
 					       width, x1_gapColumn, x2_gapColumn, x1_gap, x2_gap);
-			else
-			  {
-			    if(tr->useGappedImplementation)			  
-			      sumGAMMA_GAPPED(tipCase, tr->partitionData[model].sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector, tipX1, tipX2,
-					      width, x1_gapColumn, x2_gapColumn, x1_gap, x2_gap);
-			    else
-			      sumGAMMA(tipCase, tr->partitionData[model].sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector, tipX1, tipX2,
-				       width);
-			  }
+			else			  
+			  sumGAMMA(tipCase, tr->partitionData[model].sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector, tipX1, tipX2,
+				   width);			  
 		      }
 		  break;
 		default:
@@ -3466,15 +3279,9 @@ void makenewzIterative(tree *tr)
 		    sumGAMMAPROT_GAPPED_SAVE(tipCase, tr->partitionData[model].sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector, tipX1, tipX2,
 					     width, x1_gapColumn, x2_gapColumn, x1_gap, x2_gap);
 		  else
-#endif
-		    {
-		      if(tr->useGappedImplementation)
-			sumGAMMAPROT_GAPPED(tipCase, tr->partitionData[model].sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector, tipX1, tipX2,
-						width, x1_gapColumn, x2_gapColumn, x1_gap, x2_gap);
-		      else
-			sumGAMMAPROT(tipCase,  tr->partitionData[model].sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector,
-				     tipX1, tipX2, width);
-		    }		    
+#endif		  
+		    sumGAMMAPROT(tipCase,  tr->partitionData[model].sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector,
+				 tipX1, tipX2, width);		       
 		  break;
 		default:
 		  assert(0);
