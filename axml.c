@@ -3757,15 +3757,30 @@ static void parseOutgroups(char *outgr, tree *tr)
 /*********************************** OUTGROUP STUFF END *********************************************************/
 
 
-static void printVersionInfo(void)
+static void printVersionInfo(boolean terminal, FILE *infoFile)
 {
-  printf("\n\nThis is %s version %s released by Alexandros Stamatakis on %s.\n\n",  programName, programVersion, programDate);
-  printf("With greatly appreciated code contributions by:\n");
-  printf("Andre Aberer (HITS)\n");     
-  printf("Simon Berger (HITS)\n"); 
-  printf("Nick Pattengale (Sandia)\n"); 
-  printf("Wayne Pfeiffer (SDSC)\n");
-  printf("Akifumi S. Tanabe (Univ. Tsukuba)\n\n");
+  char 
+    text[7][1024];
+
+  int 
+    i;
+
+  sprintf(text[0], "\n\nThis is %s version %s released by Alexandros Stamatakis on %s.\n\n",  programName, programVersion, programDate);
+  sprintf(text[1], "With greatly appreciated code contributions by:\n");
+  sprintf(text[2], "Andre Aberer (HITS)\n");     
+  sprintf(text[3], "Simon Berger (HITS)\n"); 
+  sprintf(text[4], "Nick Pattengale (Sandia)\n"); 
+  sprintf(text[5], "Wayne Pfeiffer (SDSC)\n");
+  sprintf(text[6], "Akifumi S. Tanabe (NRIFS)\n\n");
+
+  for(i = 0; i < 7; i++)
+    {
+      if(terminal)    
+	printf("%s", text[i]);
+      else     
+	printBoth(infoFile, text[i]);
+    }
+  
 }
 
 static void printMinusFUsage(void)
@@ -3881,7 +3896,7 @@ static void printMinusFUsage(void)
 
 static void printREADME(void)
 {
-  printVersionInfo();
+  printVersionInfo(TRUE, (FILE*)NULL);
   printf("\n");
   printf("Please also consult the RAxML-manual\n");
   printf("\nTo report bugs send an email to stamatak@cs.tum.edu\n");
@@ -4599,7 +4614,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	multipleRunsSet = TRUE;
 	break;
       case 'v':
-	printVersionInfo();
+	printVersionInfo(TRUE, (FILE*)NULL);
 	errorExit(0);
       case 'y':
 	adef->startingTreeOnly = 1;
@@ -5442,13 +5457,9 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
 	    strcpy(modelType, "GAMMA");
 	}
      
-      printBoth(infoFile, "\n\nThis is %s version %s released by Alexandros Stamatakis on %s.\n\n",  programName, programVersion, programDate);
-      printBoth(infoFile, "With greatly appreciated code contributions by:\n");
-      printBoth(infoFile, "Andre Aberer (HITS)\n");     
-      printBoth(infoFile, "Simon Berger (HITS)\n");     
-      printBoth(infoFile, "Nick Pattengale (Sandia)\n"); 
-      printBoth(infoFile, "Wayne Pfeiffer (SDSC)\n");
-      printBoth(infoFile, "Akifumi S. Tanabe (Univ. Tsukuba)\n\n");
+      printVersionInfo(FALSE, infoFile);
+
+      
       
       if(!adef->readTaxaOnly)
 	{
