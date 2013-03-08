@@ -1215,7 +1215,7 @@ static boolean getdata(analdef *adef, rawdata *rdta, tree *tr)
 		    {
 		      if(processID == 0)
 			{
-			  printf("Taxon Name to long at taxon %d, adapt constant nmlngth in\n", i);
+			  printf("Taxon Name too long at taxon %d, adapt constant nmlngth in\n", i);
 			  printf("axml.h, current setting %d\n", nmlngth);
 			}
 		      errorExit(-1);
@@ -1548,7 +1548,7 @@ static void parseFasta(analdef *adef, rawdata *rdta, tree *tr)
 		{
 		  if(processID == 0)
 		    {
-		      printf("Taxon Name to long at taxon %d, adapt constant nmlngth in\n", taxa);
+		      printf("Taxon Name too long at taxon %d, adapt constant nmlngth in\n", taxa);
 		      printf("axml.h, current setting %d\n", nmlngth);
 		    }
 		  errorExit(-1);
@@ -1750,7 +1750,7 @@ static void getinput(analdef *adef, rawdata *rdta, cruncheddata *cdta, tree *tr)
   
   if(!adef->readTaxaOnly)
     {
-      rdta->wgt             = (int *)    malloc((rdta->sites + 1) * sizeof(int));
+      rdta->wgt             = (int *)    malloc((rdta->sites + 1) * sizeof(int)); 
       cdta->alias           = (int *)    malloc((rdta->sites + 1) * sizeof(int));
       cdta->aliaswgt        = (int *)    malloc((rdta->sites + 1) * sizeof(int));
       cdta->rateCategory    = (int *)    malloc((rdta->sites + 1) * sizeof(int));
@@ -2159,7 +2159,7 @@ static void adaptRdataToSecondary(tree *tr, rawdata *rdta)
       assert(alias[i] != -1);
       tr->model[i+1]    = tr->model[alias[i]+1];
       tr->dataVector[i+1] = tr->dataVector[alias[i]+1];
-      rdta->wgt[i+1] =  rdta->wgt[alias[i]+1];
+      rdta->wgt[i+1] =  rdta->wgt[alias[i]+1];      
 
       for(j = 1; j <= rdta->numsp; j++)
 	rdta->y[j][i+1] = rdta->y[j][alias[i]+1];
@@ -2244,11 +2244,22 @@ static void sitesort(rawdata *rdta, cruncheddata *cdta, tree *tr, analdef *adef)
 
 static void sitecombcrunch (rawdata *rdta, cruncheddata *cdta, tree *tr, analdef *adef)
 {
-  int  i, sitei, j, sitej, k;
-  boolean  tied;
-  int 
+  boolean  
+    tied;
+  
+  int   
+    i, 
+    sitei, 
+    j, 
+    sitej, 
+    k,
     *aliasModel = (int*)NULL,
     *aliasSuperModel = (int*)NULL;
+
+  tr->origNumSitePerModel = (int*)calloc(tr->NumberOfModels, sizeof(int));
+ 
+  for(i = 1; i <= rdta->sites; i++)
+    tr->origNumSitePerModel[tr->model[i]]++;
 
   if(adef->useMultipleModel)
     {
@@ -2304,11 +2315,12 @@ static void sitecombcrunch (rawdata *rdta, cruncheddata *cdta, tree *tr, analdef
 	    {
 	      tr->patternPosition[j - 1] = i;
 	      tr->columnPosition[j - 1] = sitej;
-	      /*printf("Pattern %d from column %d also at site %d\n", i, sitei, sitej);*/
+	      /* printf("Pattern %d from column %d also at site %d\n", i, sitei, sitej); */
 	    }
 
 
 	  cdta->aliaswgt[i] += rdta->wgt[sitej];
+
 	  if(adef->useMultipleModel)
 	    {
 	      aliasModel[i]      = tr->model[sitej];
@@ -2358,7 +2370,7 @@ static void sitecombcrunch (rawdata *rdta, cruncheddata *cdta, tree *tr, analdef
 	{
 	  tr->model[i]      = aliasModel[i];
 	  tr->dataVector[i] = aliasSuperModel[i];
-	}
+	}      
     }
 
   if(adef->useMultipleModel)
@@ -2470,6 +2482,7 @@ static boolean makevalues(rawdata *rdta, cruncheddata *cdta, tree *tr, analdef *
   memcpy(tr->originalModel, tr->model,            cdta->endsite * sizeof(int));
   memcpy(tr->originalDataVector, tr->dataVector,  cdta->endsite * sizeof(int));
   memcpy(tr->originalWeights, tr->cdta->aliaswgt, cdta->endsite * sizeof(int));
+
 
   tr->originalCrunchedLength = tr->cdta->endsite;
   for(i = 0; i < tr->cdta->endsite; i++)
@@ -2862,8 +2875,12 @@ static void checkSequences(tree *tr, rawdata *rdta, analdef *adef)
 
 static void generateBS(tree *tr, analdef *adef)
 {
-  int i, j, k, w;
-  int count;
+  int 
+    i, 
+    j, 
+    k, 
+    w;
+  
   char outName[1024], buf[16];
   FILE *of;
 
@@ -2871,6 +2888,9 @@ static void generateBS(tree *tr, analdef *adef)
 
   for(i = 0; i < adef->multipleRuns; i++)
     {
+      int 
+	count = 0;
+
       computeNextReplicate(tr, &adef->boot, (int*)NULL, (int*)NULL, FALSE, FALSE);
 
       count = 0;
@@ -3029,31 +3049,20 @@ static void allocPartitions(tree *tr)
     i,
     maxCategories = tr->maxCategories;
 
- 
-
-
   for(i = 0; i < tr->NumberOfModels; i++)
     {
-      const partitionLengths *pl = getPartitionLengths(&(tr->partitionData[i]));
+      const partitionLengths 
+	*pl = getPartitionLengths(&(tr->partitionData[i]));
 
       size_t
 	k,
-	width = tr->partitionData[i].width;      
-
-      tr->partitionData[i].perSiteAAModel = (int *)malloc(sizeof(int) * width);
-      for(k = 0; k < width; k++)
-	tr->partitionData[i].perSiteAAModel[k] = WAG;
+	width = tr->partitionData[i].width;           
       
-
       tr->partitionData[i].wr = (double *)malloc(sizeof(double) * width);
       tr->partitionData[i].wr2 = (double *)malloc(sizeof(double) * width);
 
-     
-
-      if(tr->useFastScaling)
-	{
-	  tr->partitionData[i].globalScaler    = (unsigned int *)calloc(2 * tr->mxtips, sizeof(unsigned int));  	  
-	}
+      if(tr->useFastScaling)	
+	tr->partitionData[i].globalScaler    = (unsigned int *)calloc(2 * tr->mxtips, sizeof(unsigned int));  	         
 
       tr->partitionData[i].left              = (double *)malloc_aligned(pl->leftLength * (maxCategories + 1) * sizeof(double));
       tr->partitionData[i].right             = (double *)malloc_aligned(pl->rightLength * (maxCategories + 1) * sizeof(double));
@@ -3780,17 +3789,28 @@ static void printMinusFUsage(void)
 
   printf("              \"-f e\": optimize model+branch lengths for given input tree under GAMMA/GAMMAI only\n");
 
+  
+
   printf("              \"-f E\": execute very fast experimental tree search, at present only for testing\n");
 
   printf("              \"-f F\": execute fast experimental tree search, at present only for testing\n");
 
   printf("              \"-f g\": compute per site log Likelihoods for one ore more trees passed via\n");
   printf("                      \"-z\" and write them to a file that can be read by CONSEL\n");
+  printf("                      The model parameters will be estimated on the first tree only!\n");
+  
+  printf("              \"-f G\": compute per site log Likelihoods for one ore more trees passed via\n");
+  printf("                      \"-z\" and write them to a file that can be read by CONSEL.\n");
+  printf("                      The model parameters will be re-estimated for each tree\n");
  
   printf("              \"-f h\": compute log likelihood test (SH-test) between best tree passed via \"-t\"\n");
   printf("                      and a bunch of other trees passed via \"-z\" \n");  
+  printf("                      The model parameters will be estimated on the first tree only!\n");
 
- 
+  printf("              \"-f H\": compute log likelihood test (SH-test) between best tree passed via \"-t\"\n");
+  printf("                      and a bunch of other trees passed via \"-z\" \n");  
+  printf("                      The model parameters will be re-estimated for each tree\n");
+
 
   printf("              \"-f j\": generate a bunch of bootstrapped alignment files from an original alignemnt file.\n");
   printf("                      You need to specify a seed with \"-b\" and the number of replicates with \"-#\" \n"); 
@@ -3804,6 +3824,12 @@ static void printMinusFUsage(void)
 
   printf("              \"-f n\": compute the log likelihood score of all trees contained in a tree file provided by\n");
   printf("                      \"-z\" under GAMMA or GAMMA+P-Invar\n");
+  printf("                      The model parameters will be estimated on the first tree only!\n");
+
+  printf("              \"-f N\": compute the log likelihood score of all trees contained in a tree file provided by\n");
+  printf("                      \"-z\" under GAMMA or GAMMA+P-Invar\n");
+  printf("                      The model parameters will be re-estimated for each tree\n");
+
 
   printf("              \"-f o\": old and slower rapid hill-climbing without heuristic cutoff\n");
 
@@ -3834,6 +3860,10 @@ static void printMinusFUsage(void)
   printf("                      WARNING: this is a test implementation for more efficient handling of multi-gene/whole-genome datasets!\n");
 
   printf("              \"-f w\": compute ELW test on a bunch of trees passed via \"-z\" \n");
+  printf("                      The model parameters will be estimated on the first tree only!\n");
+
+  printf("              \"-f w\": compute ELW test on a bunch of trees passed via \"-z\" \n");
+  printf("                      The model parameters will be re-estimated for each tree\n");
 
   printf("              \"-f x\": compute pair-wise ML distances, ML model parameters will be estimated on an MP \n");
   printf("                      starting tree or a user-defined tree passed via \"-t\", only allowed for GAMMA-based\n");
@@ -3864,16 +3894,16 @@ static void printREADME(void)
   printf("      [-b bootstrapRandomNumberSeed] [-B wcCriterionThreshold]\n");
   printf("      [-c numberOfCategories] [-d] [-D]\n");
   printf("      [-e likelihoodEpsilon] [-E excludeFileName]\n");
-  printf("      [-f a|A|b|B|c|d|e|E|F|g|h|j|J|m|n|o|p|q|r|s|S|t|T|u|v|V|w|x|y] [-F]\n");
+  printf("      [-f a|A|b|B|c|d|e|E|F|g|G|h|H|j|J|m|n|N|o|p|q|r|s|S|t|T|u|v|V|w|W|x|y] [-F]\n");
   printf("      [-g groupingFileName] [-G placementThreshold] [-h]\n");
   printf("      [-i initialRearrangementSetting] [-I autoFC|autoMR|autoMRE|autoMRE_IGN]\n");
-  printf("      [-j] [-J MR|MR_DROP|MRE|STRICT|STRICT_DROP] [-k] [-K] [-M]\n");
+  printf("      [-j] [-J MR|MR_DROP|MRE|STRICT|STRICT_DROP|T_<PERCENT>] [-k] [-K] [-M]\n");
   printf("      [-o outGroupName1[,outGroupName2[,...]]][-O]\n");
   printf("      [-p parsimonyRandomSeed] [-P proteinModel]\n");
   printf("      [-q multipleModelFileName] [-r binaryConstraintTree]\n");
   printf("      [-R binaryModelParamFile] [-S secondaryStructureFile] [-t userStartingTree]\n");
   printf("      [-T numberOfThreads] [-u] [-U] [-v] [-V] [-w outputDirectory] [-W slidingWindowSize]\n");
-  printf("      [-x rapidBootstrapRandomNumberSeed] [-X] [-y] [-Y quartetGroupingFileName]\n");
+  printf("      [-x rapidBootstrapRandomNumberSeed] [-y] [-Y quartetGroupingFileName]\n");
   printf("      [-z multipleTreesFile] [-#|-N numberOfRuns|autoFC|autoMR|autoMRE|autoMRE_IGN]\n");
   printf("\n");
   printf("      -a      Specify a column weight file name to assign individual weights to each column of \n");
@@ -3962,7 +3992,7 @@ static void printREADME(void)
   printf("              DEFAULT: OFF\n");
   printf("\n");
   printf("      -J      Compute majority rule consensus tree with \"-J MR\" or extended majority rule consensus tree with \"-J MRE\"\n");
-  printf("              or strict consensus tree with \"-J STRICT\".\n");
+  printf("              or strict consensus tree with \"-J STRICT\". For a custom consensus treshold >= 50%%, specify T_<NUM>, where 100 >= NUM >= 50.\n");
   printf("              Options \"-J STRICT_DROP\" and \"-J MR_DROP\" will execute an algorithm that identifies dropsets which contain\n");
   printf("              rogue taxa as proposed by Pattengale et al. in the paper \"Uncovering hidden phylogenetic consensus\".\n");
   printf("              You will also need to provide a tree file containing several UNROOTED trees via \"-z\"\n");
@@ -4118,14 +4148,6 @@ static void printREADME(void)
   printf("              CAUTION: unlike in version 7.0.4 RAxML will conduct rapid BS replicates under \n");
   printf("              the model of rate heterogeneity you specified via \"-m\" and not by default under CAT\n");
   printf("\n");
-  printf("      -X      EXPERIMENTAL OPTION: This option will do a per-site estimate of protein substitution models\n");
-  printf("              by looping over all given, fixed models LG, WAG, JTT, etc and using their respective base frequencies to independently\n");
-  printf("              assign a prot subst. model to each site via ML optimization\n");
-  printf("              At present this option only works with the GTR+GAMMA model, unpartitioned datasets, and in the sequential\n");
-  printf("              version only.\n");
-  printf("\n");
-  printf("              DEFAULT: OFF\n");
-  printf("\n");
   printf("      -y      If you want to only compute a parsimony starting tree with RAxML specify \"-y\",\n");
   printf("              the program will exit after computation of the starting tree\n");
   printf("\n");
@@ -4253,7 +4275,6 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
   tr->multiStateModel  = GTR_MULTI_STATE;
   tr->useGappedImplementation = FALSE;
   tr->saveMemory = FALSE;
-  tr->estimatePerSiteAA = FALSE;
   tr->useGammaMedian = FALSE;
   tr->noRateHet = FALSE;
   tr->perPartitionEPA = FALSE;
@@ -4262,7 +4283,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 
 
   while(!bad_opt &&
-	((c = mygetopt(argc,argv,"R:T:E:N:B:L:P:S:Y:A:G:H:I:J:K:W:l:x:z:g:r:e:a:b:c:f:i:m:t:w:s:n:o:q:#:p:vudyjhkMDFQUXOV", &optind, &optarg))!=-1))
+	((c = mygetopt(argc,argv,"R:T:E:N:B:L:P:S:Y:A:G:H:I:J:K:W:l:x:z:g:r:e:a:b:c:f:i:m:t:w:s:n:o:q:#:p:vudyjhkMDFQUOV", &optind, &optarg))!=-1))
     {
     switch(c)
       {
@@ -4278,11 +4299,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	break;
       case 'O':
 	adef->checkForUndeterminedSequences = FALSE;
-	break;
-      case 'X':
-	tr->estimatePerSiteAA = TRUE;
-	tr->useFastScaling    = FALSE;
-	break;
+	break;      
       case 'W':
 	sscanf(optarg,"%d", &(adef->slidingWindowSize));
 	if(adef->slidingWindowSize <= 0)
@@ -4454,11 +4471,24 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	  }
 	else
 	  {
-	    if(processID == 0)	      
-	      printf("Use -J consensus tree option either as \"-J MR\" or \"-J MRE\" or \"-J STRICT\" or \"-J MR_DROP\"  or \"-J STRICT_DROP\"\n");	       	      
-	    errorExit(0);
-	  }	
-	      
+	    if( (sscanf( optarg, "%s", aut) > 0)  && optarg[0] == 'T' && optarg[1] == '_')
+	      {
+		tr->consensusType = USER_DEFINED;
+		sscanf(optarg + 2,"%d", &tr->consensusUserThreshold);
+		
+		if(tr->consensusUserThreshold < 50 || tr->consensusUserThreshold > 100)
+		  {
+		    printf("Please specify a custom threshold c, with 50 <= c <= 100\n" );
+		    errorExit(0); 
+		  }
+	      }
+	    else
+	      {
+		if(processID == 0)	      
+		  printf("Use -J consensus tree option either as \"-J MR\" or \"-J MRE\" or \"-J STRICT\" or \"-J MR_DROP\"  or \"-J STRICT_DROP\" or T_<NUM>, where NUM >= 50\n");
+		  errorExit(0);
+	      }	
+	  }	     
 	break;
       case 'M':
 	adef->perGeneBranchLengths = TRUE;
@@ -4647,13 +4677,26 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	    break;
 	  case 'g':
 	    tr->useFastScaling = FALSE;
+	    tr->optimizeAllTrees = FALSE;    
+	    adef->mode = PER_SITE_LL;
+	    break;
+	  case 'G':
+	    tr->useFastScaling = FALSE;
+	    tr->optimizeAllTrees = TRUE;
 	    adef->mode = PER_SITE_LL;
 	    break;
 	  case 'h':
+	    tr->optimizeAllTrees = FALSE;
 	    adef->mode = TREE_EVALUATION;
 	    adef->likelihoodTest = TRUE;
 	    tr->useFastScaling = FALSE;
 	    break;	 
+	  case 'H': 
+	    tr->optimizeAllTrees = TRUE;
+	    adef->mode = TREE_EVALUATION;
+	    adef->likelihoodTest = TRUE;
+	    tr->useFastScaling = FALSE;
+	    break;
 	  case 'j':
 	    adef->mode = GENERATE_BS;
 	    adef->generateBS = TRUE;
@@ -4666,9 +4709,14 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	    adef->readTaxaOnly = TRUE;	    
 	    adef->mode = COMPUTE_BIPARTITION_CORRELATION;
 	    break;
-	  case 'n':
+	  case 'n': 
+	    tr->optimizeAllTrees = FALSE;
 	    adef->mode = COMPUTE_LHS;
 	    break;
+	  case 'N':
+	    tr->optimizeAllTrees = TRUE;
+	    adef->mode = COMPUTE_LHS;
+	    break;	    
 	  case 'o':
 	    adef->mode = BIG_RAPID_MODE;
 	    tr->doCutoff = FALSE;
@@ -4734,6 +4782,12 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	  case 'w':	    
 	    adef->mode = COMPUTE_ELW;
 	    adef->computeELW = TRUE;
+	    tr->optimizeAllTrees = FALSE;
+	    break;
+	  case 'W':
+	    adef->mode = COMPUTE_ELW;
+	    adef->computeELW = TRUE;
+	    tr->optimizeAllTrees = TRUE;
 	    break;
 	  case 'x':
 	    adef->mode = DISTANCE_MODE;
@@ -6559,7 +6613,7 @@ static void threadFixModelIndices(tree *tr, tree *localTree, int tid, int n)
 	{
 	  if(i % (size_t)n == (size_t)tid)
 	    {
-	      localTree->partitionData[model].wgt[localCounter]          = tr->cdta->aliaswgt[globalCounter];	      
+	      localTree->partitionData[model].wgt[localCounter]          = tr->cdta->aliaswgt[globalCounter]; 
 	      localTree->partitionData[model].invariant[localCounter]    = tr->invariant[globalCounter];
 	      localTree->partitionData[model].rateCategory[localCounter] = tr->cdta->rateCategory[globalCounter];	      
 
@@ -6662,8 +6716,6 @@ static void initPartition(tree *tr, tree *localTree, int tid)
 }
 
 
-
-
 static void allocNodex(tree *tr, int tid, int n)
 {
   size_t   
@@ -6674,6 +6726,7 @@ static void allocNodex(tree *tr, int tid, int n)
   computeFraction(tr, tid, n);
 
   allocPartitions(tr);
+
 
   for(model = 0; model < (size_t)tr->NumberOfModels; model++)
     {
@@ -7087,7 +7140,7 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 	   for(i = localTree->partitionData[model].lower, localIndex = 0; i <  localTree->partitionData[model].upper; i++)
 	     if(i % (size_t)n == (size_t)tid)
 	       {
-		 localTree->partitionData[model].wgt[localIndex]          = tr->cdta->aliaswgt[i];				 		
+		 localTree->partitionData[model].wgt[localIndex]          = tr->cdta->aliaswgt[i]; 
 		 localTree->partitionData[model].invariant[localIndex]    = tr->invariant[i];		
 
 		 localIndex++;
@@ -7911,7 +7964,15 @@ static void computeLHTest(tree *tr, analdef *adef, char *bootStrapFileName)
 
       treeReadLen(treeFile, tr, FALSE, FALSE, FALSE, adef, TRUE);
      
-      treeEvaluate(tr, 2);
+
+      if(tr->optimizeAllTrees)
+	{
+	  treeEvaluate(tr, 1);
+	  modOpt(tr, adef, FALSE, adef->likelihoodEpsilon, FALSE);
+	}
+      else
+	treeEvaluate(tr, 2);
+      
       tr->start = tr->nodep[1];      
 
       currentLH = tr->likelihood;
@@ -7985,7 +8046,15 @@ static void computePerSiteLLs(tree *tr, analdef *adef, char *bootStrapFileName)
 	    modOpt(tr, adef, TRUE, adef->likelihoodEpsilon, TRUE);	
 	}
       else
-	treeEvaluate(tr, 2);     
+	{
+	  if(tr->optimizeAllTrees)
+	    {
+	      treeEvaluate(tr, 1);
+	      modOpt(tr, adef, FALSE, adef->likelihoodEpsilon, FALSE);
+	    }
+	  else
+	    treeEvaluate(tr, 2);     
+	}
 
       tr->start = tr->nodep[1];     
       
@@ -8115,8 +8184,13 @@ static void computeAllLHs(tree *tr, analdef *adef, char *bootStrapFileName)
 	    treeEvaluateProgressive(tr);
 	    treeEvaluateRandom(tr, 2);      
 	  */
-	  
-	  treeEvaluate(tr, 2);
+	  if(tr->optimizeAllTrees)
+	    {
+	      treeEvaluate(tr, 1);
+	      modOpt(tr, adef, FALSE, adef->likelihoodEpsilon, FALSE);
+	    }
+	  else
+	    treeEvaluate(tr, 2);
 	}            
 
       list[i].tree = i;
@@ -8253,8 +8327,16 @@ static void computeELW(tree *tr, analdef *adef, char *bootStrapFileName)
 
       /* read in new tree */
      
-      treeReadLen(treeFile, tr, FALSE, FALSE, FALSE, adef, TRUE); 
-      treeEvaluate(tr, 2.0);
+      treeReadLen(treeFile, tr, FALSE, FALSE, FALSE, adef, TRUE);  
+      
+      if(tr->optimizeAllTrees)
+	{
+	  treeEvaluate(tr, 1);
+	  modOpt(tr, adef, FALSE, adef->likelihoodEpsilon, FALSE);
+	}
+      else
+	treeEvaluate(tr, 2.0);
+      
       printBothOpen("Original tree %d likelihood %f\n", i, tr->likelihood);
 
       if(tr->likelihood > best)
@@ -8807,7 +8889,7 @@ void readBinaryModel(tree *tr)
 
 void testGapped(tree *tr)
 {
-  if((!tr->saveMemory) && (!tr->estimatePerSiteAA) && tr->rateHetModel == GAMMA && tr->useGappedImplementation == FALSE)
+  if((!tr->saveMemory) && tr->rateHetModel == GAMMA && tr->useGappedImplementation == FALSE)
     {
       int 
 	i;
@@ -9731,7 +9813,7 @@ int main (int argc, char *argv[])
     masterBarrier(THREAD_ALLOC_LIKELIHOOD, tr);
 #else
   if(!adef->readTaxaOnly)  
-    allocNodex(tr);    
+    allocNodex(tr); 
 #endif
 
   printModelAndProgramInfo(tr, adef, argc, argv);

@@ -504,7 +504,6 @@ void newviewIterativeAncestral(tree *tr)
   
   assert(!tr->useGappedImplementation);
   assert(!tr->saveMemory);
-  assert(!tr->estimatePerSiteAA);
   
   for(i = 1; i < tr->td[0].count; i++)
     {

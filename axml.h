@@ -29,6 +29,7 @@
  *  Bioinformatics 2006; doi: 10.1093/bioinformatics/btl446
  */
 
+
 #include <assert.h>
 #include <stdint.h>
 
@@ -253,6 +254,7 @@
 #define MR_CONSENSUS 0
 #define MRE_CONSENSUS 1
 #define STRICT_CONSENSUS 2
+#define USER_DEFINED 3
 
 
 
@@ -576,11 +578,8 @@ typedef struct {
   double *wr;
   double *wr2;
 
-  
-
   unsigned int    *globalScaler;
  
-  int    *perSiteAAModel;
   int    *wgt;
   int    *invariant;
   int    *rateCategory;
@@ -640,9 +639,7 @@ typedef struct {
 } siteAAModels;
 
 typedef  struct  {
-  siteAAModels siteProtModel[2 * (NUM_PROT_MODELS - 3)];
-
-  boolean estimatePerSiteAA;
+  boolean optimizeAllTrees;
 
   boolean useGappedImplementation;
   boolean saveMemory;
@@ -696,6 +693,7 @@ typedef  struct  {
   int              numBranches;
   int              bootStopCriterion;
   int              consensusType;
+  int              consensusUserThreshold;
   double           wcThreshold;
 
  
@@ -890,6 +888,8 @@ typedef  struct  {
 
 #endif
 
+
+  int *origNumSitePerModel;
 
 } tree;
 

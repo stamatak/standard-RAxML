@@ -4210,40 +4210,7 @@ void initModel(tree *tr, rawdata *rdta, cruncheddata *cdta, analdef *adef)
       makeGammaCats(tr->partitionData[model].alpha, tr->partitionData[model].gammaRates, 4, tr->useGammaMedian); 
     }   
                 
-  if(tr->estimatePerSiteAA)
-    {
-      int i;
-
-      assert(tr->NumberOfModels == 1);
-      
-      for(i = 0; i < NUM_PROT_MODELS - 3; i++)
-	{
-	  double 
-	    f[20];
-	  int 
-	    l;
-	  
-	  /*printf("Initializing prot model with model-based freqs: %s\n", protModels[i]);*/
-
-	  initProtMat(f, i, tr->siteProtModel[i].substRates, 0, tr);
-	  
-	  for(l = 0; l < 20; l++)		
-	    tr->siteProtModel[i].frequencies[l] = f[l];
-
-	  initGeneric(20, 
-		      bitVectorAA, 
-		      23, 
-		      tr->siteProtModel[i].fracchange,
-		      tr->siteProtModel[i].EIGN, 
-		      tr->siteProtModel[i].EV, 
-		      tr->siteProtModel[i].EI, 
-		      tr->siteProtModel[i].frequencies, 
-		      tr->siteProtModel[i].substRates,
-		      tr->siteProtModel[i].tipVector, 
-		      0); 
-	}
-
-    }
+ 
                        
   if(tr->NumberOfModels > 1)
     {

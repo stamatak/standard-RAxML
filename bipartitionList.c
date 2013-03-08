@@ -2516,6 +2516,7 @@ void computeConsensusOnly(tree *tr, char *treeSetFileName, analdef *adef)
     **consensusBips;
 
   char 
+    someChar[1024],
     consensusFileName[1024];   
   
   FILE 
@@ -2548,10 +2549,8 @@ void computeConsensusOnly(tree *tr, char *treeSetFileName, analdef *adef)
     }
   
   fclose(treeFile);
-
   
-
-  if(tr->consensusType == MR_CONSENSUS || tr->consensusType == STRICT_CONSENSUS)
+  if(tr->consensusType == MR_CONSENSUS || tr->consensusType == STRICT_CONSENSUS || tr->consensusType == USER_DEFINED)
     {
       consensusBips = (entry **)calloc(tr->mxtips - 3, sizeof(entry *));
       consensusBipsLen = 0;   
@@ -2567,25 +2566,15 @@ void computeConsensusOnly(tree *tr, char *treeSetFileName, analdef *adef)
 	    {	
 	      unsigned int 
 		cnt = genericBitCount(e->treeVector, treeVectorLength);
-	      
-	      if(tr->consensusType == MR_CONSENSUS)
+
+		if((tr->consensusType == MR_CONSENSUS     && cnt > (unsigned int)tr->mr_thresh) || 
+		 (tr->consensusType == STRICT_CONSENSUS && cnt == numberOfTrees) ||
+		 (tr->consensusType ==  USER_DEFINED    && cnt > (numberOfTrees * tr->consensusUserThreshold) / 100))
 		{
-		  if(cnt > (unsigned int)tr->mr_thresh)
-		    {
-		      consensusBips[consensusBipsLen] = e;
-		      consensusBipsLen++;
-		    }
+		  consensusBips[consensusBipsLen] = e;
+		  consensusBipsLen++;
 		}
-	      
-	      if(tr->consensusType == STRICT_CONSENSUS)
-		{
-		  if(cnt == numberOfTrees)
-		    {
-		      consensusBips[consensusBipsLen] = e;
-		      consensusBipsLen++;
-		    }
-		}
-	      
+
 	      e->supportFromTreeset[0] = cnt;
 	      e = e->next;
 	      entries++;
@@ -2596,7 +2585,7 @@ void computeConsensusOnly(tree *tr, char *treeSetFileName, analdef *adef)
   
   assert(h->entryCount == entries);
   
-  if(tr->consensusType == MR_CONSENSUS || tr->consensusType == STRICT_CONSENSUS)
+  if(tr->consensusType == MR_CONSENSUS || tr->consensusType == STRICT_CONSENSUS || tr->consensusType == USER_DEFINED)
     assert(consensusBipsLen <= (tr->mxtips - 3));
    
   if(tr->consensusType == MRE_CONSENSUS)   
@@ -2617,6 +2606,10 @@ void computeConsensusOnly(tree *tr, char *treeSetFileName, analdef *adef)
     case STRICT_CONSENSUS:
       strcat(consensusFileName,         "RAxML_StrictConsensusTree.");
       break;
+    case USER_DEFINED :        
+      sprintf(someChar,         "RAxML_Threshold-%d-ConsensusTree.", tr->consensusUserThreshold);
+      strcat(consensusFileName, someChar);       
+      break; 
     default:
       assert(0);
     }
@@ -2645,6 +2638,9 @@ void computeConsensusOnly(tree *tr, char *treeSetFileName, analdef *adef)
     case STRICT_CONSENSUS:
       printBothOpen("RAxML strict consensus tree written to file: %s\n", consensusFileName);
       break;
+    case USER_DEFINED: 
+      printBothOpen("RAxML consensus tree with threshold %d written to file: %s\n", tr->consensusUserThreshold,  consensusFileName);
+      break;
     default:
       assert(0);
     }
@@ -2653,7 +2649,7 @@ void computeConsensusOnly(tree *tr, char *treeSetFileName, analdef *adef)
   free(bitVectors);
   freeHashTable(h);
   free(h);
-  free(consensusBips);  
+  free(consensusBips);
 
   exit(0);   
 }

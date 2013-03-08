@@ -267,65 +267,86 @@ void reductionCleanup(tree *tr, int *originalRateCategories, int *originalInvari
 
 void computeNextReplicate(tree *tr, long *randomSeed, int *originalRateCategories, int *originalInvariant, boolean isRapid, boolean fixRates)
 { 
-  int pos, nonzero, j, model, w;   
-  int *weightBuffer, endsite;                
-  int *weights, i, l;  
-
+  int 
+    j, 
+    count = 0, 
+    model,
+    *weightBuffer, 
+    endsite,
+    *weights, 
+    i, 
+    l;  
 
   for(j = 0; j < tr->originalCrunchedLength; j++)
     tr->cdta->aliaswgt[j] = 0;
 
-      	  
-  for(model = 0; model < tr->NumberOfModels; model++)
+  for(model = 0; model < tr->NumberOfModels; ++model)
     {
-      nonzero = 0;        	 
-      
-      for (j = 0; j < tr->originalCrunchedLength; j++)  
+      int
+	ctr = 0,
+	totalWeight = 0,
+	realNumSites = tr->origNumSitePerModel[model],	
+	*wgtVirtualAln = (int*) calloc(realNumSites, sizeof(int)); 
+
+      for(j = 0; j < tr->originalCrunchedLength; ++j)
 	{
 	  if(tr->originalModel[j] == model)
-	    nonzero += tr->originalWeights[j];
-	}				          
+	    {
+	      wgtVirtualAln[ctr++] = tr->originalWeights[j]; 
+	      totalWeight += tr->originalWeights[j] ; 
+	    }
+	}
+
+      weightBuffer = (int *)calloc(realNumSites, sizeof(int));
       
-      weightBuffer = (int *)calloc(nonzero, sizeof(int));	 
-     
-      for (j = 0; j < nonzero; j++)
-	weightBuffer[(int) (nonzero*randum(randomSeed))]++;                  
+      j = 0; 
       
-      pos = 0;	      
-      
-      for(j = 0; j < tr->originalCrunchedLength; j++) 
+      while( j < realNumSites )
+	{
+	  int 
+	    pos = (int) (realNumSites * randum(randomSeed)); 
+	  
+	  if((int) (totalWeight * randum(randomSeed)) < wgtVirtualAln[pos] )
+	    {
+	      weightBuffer[pos]++; 
+	      j++; 
+	    }
+	}
+
+      ctr = 0; 
+      for(j = 0; j < tr->originalCrunchedLength; ++j)
 	{
 	  if(model == tr->originalModel[j])
 	    {
-	      for(w = 0; w < tr->originalWeights[j]; w++)	  	  	 
-		{
-		  tr->cdta->aliaswgt[j] += weightBuffer[pos];
-		  pos++;		      
-		}				   
+	      tr->cdta->aliaswgt[j] = weightBuffer[ctr];
+	      ctr++; 
 	    }
-	}  
+	}
 
-      free(weightBuffer);	  
-      
-    }       
+       free(weightBuffer);
+       free(wgtVirtualAln);
+    }
 
-  endsite = 0;
-  
-  for (j = 0; j < tr->originalCrunchedLength; j++)         
-    if(tr->cdta->aliaswgt[j] > 0)
-      endsite++;    
-  
-  weights = tr->cdta->aliaswgt;
+   endsite = 0;
 
-  for(i = 0; i < tr->rdta->numsp; i++)
-    {     
-      unsigned char *yPos    = &(tr->rdta->y0[((size_t)tr->originalCrunchedLength) * ((size_t)i)]);
-      unsigned char *origSeq = &(tr->rdta->yBUF[((size_t)tr->originalCrunchedLength) * ((size_t)i)]);
-      int l, j;
-      
-      for(j = 0, l = 0; j < tr->originalCrunchedLength; j++)      
-	if(tr->cdta->aliaswgt[j] > 0)	  	    
-	  yPos[l++] = origSeq[j];	                   
+   for (j = 0; j < tr->originalCrunchedLength; j++)      
+     if(tr->cdta->aliaswgt[j] > 0)
+       endsite++; 
+
+   weights = tr->cdta->aliaswgt;
+
+   for(i = 0; i < tr->rdta->numsp; i++)
+     {     
+       unsigned char
+	 *yPos    = &(tr->rdta->y0[((size_t)tr->originalCrunchedLength) * ((size_t)i)]),
+	 *origSeq = &(tr->rdta->yBUF[((size_t)tr->originalCrunchedLength) * ((size_t)i)]);
+       int 
+	 l, 
+	 j;
+
+       for(j = 0, l = 0; j < tr->originalCrunchedLength; j++)      
+	 if(tr->cdta->aliaswgt[j] > 0)	  	    
+	   yPos[l++] = origSeq[j];	                  
     }
 
   for(j = 0, l = 0; j < tr->originalCrunchedLength; j++)
@@ -347,6 +368,14 @@ void computeNextReplicate(tree *tr, long *randomSeed, int *originalRateCategorie
 
   tr->cdta->endsite = endsite;
   fixModelIndices(tr, endsite, fixRates);
+
+  count = 0;
+  for(j = 0; j < tr->cdta->endsite; j++)
+    count += tr->cdta->aliaswgt[j];  
+
+  if(count != tr->rdta->sites)
+    printf("count=%d\ttr->rdta->sites=%d\n",count, tr->rdta->sites );
+  assert(count == tr->rdta->sites);
 }
 
 

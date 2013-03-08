@@ -438,178 +438,6 @@ static void newviewFlexGamma(int tipCase,
 
 
 
-static void newviewFlexGamma_perSite(int tipCase,
-				     double *x1, double *x2, double *x3, 
-				     int *perSiteAA, 
-				     siteAAModels *siteProtModel,
-				     int *ex3, 
-				     unsigned char *tipX1, 
-				     unsigned char *tipX2,
-				     int n, 				     
-				     int *wgt, 
-				     int *scalerIncrement, 
-				     const boolean useFastScaling, 
-				     const int numStates)
-{
-  double  *v;
-  double x1px2;
-  int  i, j, l, k, scale, addScale = 0;
-  double *vl, *vr, al, ar;
-
-  const int     
-    statesSquare = numStates * numStates,  
-    gammaStates  = 4 * numStates;
-
-  switch(tipCase)
-    {
-    case TIP_TIP:
-      {
-	for(i = 0; i < n; i++)
-	  {
-	    double 
-	      *tipVector = siteProtModel[perSiteAA[i]].tipVector,
-	      *extEV     = siteProtModel[perSiteAA[i]].EV,
-	      *left      = siteProtModel[perSiteAA[i]].left,
-	      *right     = siteProtModel[perSiteAA[i]].right;
-
-	    for(k = 0; k < 4; k++)
-	      {
-		vl = &(tipVector[numStates * tipX1[i]]);
-		vr = &(tipVector[numStates * tipX2[i]]);
-		v =  &(x3[gammaStates * i + numStates * k]);
-
-		for(l = 0; l < numStates; l++)
-		  v[l] = 0;
-
-		for(l = 0; l < numStates; l++)
-		  {
-		    al = 0.0;
-		    ar = 0.0;
-		    for(j = 0; j < numStates; j++)
-		      {
-			al += vl[j] * left[k * statesSquare + l * numStates + j];
-			ar += vr[j] * right[k * statesSquare + l * numStates + j];
-		      }
-
-		    x1px2 = al * ar;
-		    for(j = 0; j < numStates; j++)
-		      v[j] += x1px2 * extEV[numStates * l + j];
-		  }
-	      }	    
-	  }
-      }
-      break;
-    case TIP_INNER:
-      {
-	for (i = 0; i < n; i++)
-	  {
-	    double 
-	      *tipVector = siteProtModel[perSiteAA[i]].tipVector,
-	      *extEV     = siteProtModel[perSiteAA[i]].EV,
-	      *left      = siteProtModel[perSiteAA[i]].left,
-	      *right     = siteProtModel[perSiteAA[i]].right;
-
-	    for(k = 0; k < 4; k++)
-	      {
-		vl = &(tipVector[numStates * tipX1[i]]);
-		vr = &(x2[gammaStates * i + numStates * k]);
-		v =  &(x3[gammaStates * i + numStates * k]);
-
-		for(l = 0; l < numStates; l++)
-		  v[l] = 0;
-
-		for(l = 0; l < numStates; l++)
-		  {
-		    al = 0.0;
-		    ar = 0.0;
-		    for(j = 0; j < numStates; j++)
-		      {
-			al += vl[j] * left[k * statesSquare + l * numStates + j];
-			ar += vr[j] * right[k * statesSquare + l * numStates + j];
-		      }
-
-		    x1px2 = al * ar;
-		    for(j = 0; j < numStates; j++)
-		      v[j] += x1px2 * extEV[numStates * l + j];
-		  }
-	      }
-	   
-	    v = &x3[gammaStates * i];
-	    scale = 1;
-	    for(l = 0; scale && (l < gammaStates); l++)
-	      scale = (ABS(v[l]) <  minlikelihood);
-
-	    if(scale)
-	      {
-		for(l = 0; l < gammaStates; l++)
-		  v[l] *= twotothe256;
-
-		if(useFastScaling)
-		  addScale += wgt[i];
-		else
-		  ex3[i]  += 1;	      
-	      }
-	  }
-      }
-      break;
-    case INNER_INNER:
-      for (i = 0; i < n; i++)
-       {
-	 double 	   
-	   *extEV     = siteProtModel[perSiteAA[i]].EV,
-	   *left      = siteProtModel[perSiteAA[i]].left,
-	   *right     = siteProtModel[perSiteAA[i]].right;
-
-	 for(k = 0; k < 4; k++)
-	   {
-	     vl = &(x1[gammaStates * i + numStates * k]);
-	     vr = &(x2[gammaStates * i + numStates * k]);
-	     v =  &(x3[gammaStates * i + numStates * k]);
-
-	     for(l = 0; l < numStates; l++)
-	       v[l] = 0;
-
-	     for(l = 0; l < numStates; l++)
-	       {
-		 al = 0.0;
-		 ar = 0.0;
-		 for(j = 0; j < numStates; j++)
-		   {
-		     al += vl[j] * left[k * statesSquare + l * numStates + j];
-		     ar += vr[j] * right[k * statesSquare + l * numStates + j];
-		   }
-
-		 x1px2 = al * ar;
-		 for(j = 0; j < numStates; j++)
-		   v[j] += x1px2 * extEV[numStates * l + j];
-	       }
-	   }
-	 
-	 v = &(x3[gammaStates * i]);
-	 scale = 1;
-	 for(l = 0; scale && (l < gammaStates); l++)
-	   scale = ((ABS(v[l]) <  minlikelihood));
-
-	 if (scale)
-	   {
-	     for(l = 0; l < gammaStates; l++)
-	       v[l] *= twotothe256;
-
-	     if(useFastScaling)
-	       addScale += wgt[i];
-	     else
-	       ex3[i]  += 1;	    
-	   }
-       }
-      break;
-    default:
-      assert(0);
-    }
-
-  if(useFastScaling)
-    *scalerIncrement = addScale;
-
-}
 
 
 static void makeP(double z1, double z2, double *rptr, double *EI,  double *EIGN, int numberOfCategories, double *left, double *right, int data, boolean saveMem, int maxCat)
@@ -9557,74 +9385,50 @@ void newviewIterative (tree *tr)
 		      break;
 		    case GAMMA:
 		    case GAMMA_I:		     		      
-			{
-			  if(tr->estimatePerSiteAA)
-			    {
-			      int 
-				p;
-			   
-			      for(p = 0; p < (NUM_PROT_MODELS - 3); p++)				
-				  makeP(qz, rz, tr->partitionData[model].gammaRates,
-					tr->siteProtModel[p].EI,
-					tr->siteProtModel[p].EIGN,
-					4, 
-					tr->siteProtModel[p].left, 
-					tr->siteProtModel[p].right, 
-					AA_DATA, tr->saveMemory, tr->maxCategories);				
-			      
-			      newviewFlexGamma_perSite(tInfo->tipCase,
-						       x1_start, x2_start, x3_start,
-						       tr->partitionData[model].perSiteAAModel,
-						       tr->siteProtModel,						      
-						       ex3, tipX1, tipX2,
-						       width, wgt, &scalerIncrement, tr->useFastScaling, 20);			      			      
-			    }
-			  else
-			    {
-			      makeP(qz, rz, tr->partitionData[model].gammaRates,
-				    tr->partitionData[model].EI,
-				    tr->partitionData[model].EIGN,
-				    4, left, right, AA_DATA, tr->saveMemory, tr->maxCategories);
+			{			 
+			  makeP(qz, rz, tr->partitionData[model].gammaRates,
+				tr->partitionData[model].EI,
+				tr->partitionData[model].EIGN,
+				4, left, right, AA_DATA, tr->saveMemory, tr->maxCategories);
 #ifdef __SIM_SSE3
-			      if(tr->saveMemory)
-				newviewGTRGAMMAPROT_GAPPED_SAVE(tInfo->tipCase,
-								x1_start, x2_start, x3_start,
-								tr->partitionData[model].EV,
-								tr->partitionData[model].tipVector,
-								ex3, tipX1, tipX2,
-								width, left, right, wgt, &scalerIncrement, tr->useFastScaling,
-								x1_gap, x2_gap, x3_gap,
-								x1_gapColumn, x2_gapColumn, x3_gapColumn);
-			      else
-#endif
-				{
-				  if(tr->useGappedImplementation)
-				    newviewGTRGAMMAPROT_GAPPED(tInfo->tipCase,
-							       x1_start, x2_start, x3_start,
-							       tr->partitionData[model].EV,
-							       tr->partitionData[model].tipVector,
-							       ex3, tipX1, tipX2,
-							       width, left, right, wgt, &scalerIncrement, tr->useFastScaling,
-							       x1_gap, x2_gap, x3_gap, tr->partitionData[model].gapVectorLength, 
-							       x1_gapColumn, x2_gapColumn, x3_gapColumn);
-				  else
-#ifdef __AVX
-				    newviewGTRGAMMAPROT_AVX(tInfo->tipCase,
+			  if(tr->saveMemory)
+			    newviewGTRGAMMAPROT_GAPPED_SAVE(tInfo->tipCase,
 							    x1_start, x2_start, x3_start,
 							    tr->partitionData[model].EV,
 							    tr->partitionData[model].tipVector,
 							    ex3, tipX1, tipX2,
-							    width, left, right, wgt, &scalerIncrement, tr->useFastScaling);
-#else
-				    newviewGTRGAMMAPROT(tInfo->tipCase,
+							    width, left, right, wgt, &scalerIncrement, tr->useFastScaling,
+							    x1_gap, x2_gap, x3_gap,
+							    x1_gapColumn, x2_gapColumn, x3_gapColumn);
+			  else
+#endif
+			    {
+			      if(tr->useGappedImplementation)
+				newviewGTRGAMMAPROT_GAPPED(tInfo->tipCase,
+							   x1_start, x2_start, x3_start,
+							   tr->partitionData[model].EV,
+							   tr->partitionData[model].tipVector,
+							   ex3, tipX1, tipX2,
+							   width, left, right, wgt, &scalerIncrement, tr->useFastScaling,
+							   x1_gap, x2_gap, x3_gap, tr->partitionData[model].gapVectorLength, 
+							   x1_gapColumn, x2_gapColumn, x3_gapColumn);
+			      else
+#ifdef __AVX
+				newviewGTRGAMMAPROT_AVX(tInfo->tipCase,
 							x1_start, x2_start, x3_start,
 							tr->partitionData[model].EV,
 							tr->partitionData[model].tipVector,
 							ex3, tipX1, tipX2,
 							width, left, right, wgt, &scalerIncrement, tr->useFastScaling);
+#else
+			      newviewGTRGAMMAPROT(tInfo->tipCase,
+						  x1_start, x2_start, x3_start,
+						  tr->partitionData[model].EV,
+						  tr->partitionData[model].tipVector,
+						  ex3, tipX1, tipX2,
+						  width, left, right, wgt, &scalerIncrement, tr->useFastScaling);
 #endif
-				}
-			    }
+			    }			
 			}
 		      break;
 		    default:
