@@ -4893,6 +4893,17 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
       
       errorExit(-1);
     }
+  if(!adef->useBinaryModelFile)
+    {
+       if(processID == 0)
+	{
+	  printf("you are using the dedicated RAxML MPI version for parallel quartet computations\n");
+	  printf("However you must provide a binary model file via \"-R\" when using the MPI version, raxml will exit now ...\n");
+	}
+      
+      errorExit(-1);
+    }
+
 #endif
 
   if(bSeedSet && xSeedSet)
@@ -9017,6 +9028,8 @@ static void groupingParser(char *quartetGroupFileName, int *groups[4], int group
     ch,
     i;
 
+  printf("%s\n", quartetGroupFileName);
+
   for(i = 0; i < 4; i++)
     {
       groups[i] = (int*)malloc(sizeof(int) * (tr->mxtips + 1));
@@ -9037,6 +9050,8 @@ static void groupingParser(char *quartetGroupFileName, int *groups[4], int group
 	    case 1:
 	      ungetc(ch, f);
 	      n = treeFindTipName(f, tr, FALSE);  
+	      if(n <= 0 || n > tr->mxtips)		
+		printf("parsing error, raxml is expecting to read a taxon name, found \"%c\" instead\n", ch);		
 	      assert(n > 0 && n <= tr->mxtips);	     
 	      taxonCounter++;
 	      groups[groupCounter][groupSize[groupCounter]] = n;
