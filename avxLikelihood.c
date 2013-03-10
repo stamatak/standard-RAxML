@@ -19,6 +19,8 @@
 #define FMAMACC(a,b,c) _mm256_macc_pd(b,c,a)
 #endif
 
+extern const unsigned int mask32[32];
+
 const union __attribute__ ((aligned (BYTE_ALIGNMENT)))
 {
   uint64_t i[4];
@@ -306,6 +308,497 @@ void  newviewGTRGAMMA_AVX(int tipCase,
 	    _mm256_store_pd(&x3[16 * i + 4],  xv[1]);
 	    _mm256_store_pd(&x3[16 * i + 8],  xv[2]);
 	    _mm256_store_pd(&x3[16 * i + 12], xv[3]);
+	  }
+      }
+      break;
+    default:
+      assert(0);
+    }
+
+  if(useFastScaling)
+    *scalerIncrement = addScale;
+  
+}
+
+void  newviewGTRGAMMA_AVX_GAPPED_SAVE(int tipCase,
+				      double *x1_start, double *x2_start, double *x3_start,
+				      double *extEV, double *tipVector,
+				      int *ex3, unsigned char *tipX1, unsigned char *tipX2,
+				      const int n, double *left, double *right, int *wgt, int *scalerIncrement, const boolean useFastScaling,
+				      unsigned int *x1_gap, unsigned int *x2_gap, unsigned int *x3_gap, 
+				      double *x1_gapColumn, double *x2_gapColumn, double *x3_gapColumn
+				      )
+{
+ 
+  int  
+    i, 
+    k, 
+    scale,
+    scaleGap,
+    addScale = 0;
+ 
+  __m256d 
+    minlikelihood_avx = _mm256_set1_pd( minlikelihood ),
+    twoto = _mm256_set1_pd(twotothe256);
+ 
+  double
+    *x1,
+    *x2,
+    *x3,
+    *x1_ptr = x1_start,
+    *x2_ptr = x2_start;
+
+  switch(tipCase)
+    {
+    case TIP_TIP:
+      {
+	double 
+	  *uX1, 
+	  umpX1[1024] __attribute__ ((aligned (BYTE_ALIGNMENT))), 
+	  *uX2, 
+	  umpX2[1024] __attribute__ ((aligned (BYTE_ALIGNMENT)));
+
+	for (i = 1; i < 16; i++)
+	  {
+	    __m256d 
+	      tv = _mm256_load_pd(&(tipVector[i * 4]));
+
+	    int 
+	      j;
+	    
+	    for (j = 0; j < 4; j++)
+	      for (k = 0; k < 4; k++)
+		{		 
+		  __m256d 
+		    left1 = _mm256_load_pd(&left[j * 16 + k * 4]);		  		  		  
+
+		  left1 = _mm256_mul_pd(left1, tv);		  
+		  left1 = hadd3(left1);
+		  		  		  
+		  _mm256_store_pd(&umpX1[i * 64 + j * 16 + k * 4], left1);
+		}
+	  
+	    for (j = 0; j < 4; j++)
+	      for (k = 0; k < 4; k++)
+		{		 
+		  __m256d 
+		    left1 = _mm256_load_pd(&right[j * 16 + k * 4]);		  		  		  
+
+		  left1 = _mm256_mul_pd(left1, tv);		  
+		  left1 = hadd3(left1);
+		  		  		  
+		  _mm256_store_pd(&umpX2[i * 64 + j * 16 + k * 4], left1);
+		}	    
+	  }   	
+	  
+	x3 = x3_gapColumn;
+
+	{
+	  uX1 = &umpX1[960];
+	  uX2 = &umpX2[960];		  
+	  
+	  for(k = 0; k < 4; k++)
+	    {
+	      __m256d	   
+		xv = _mm256_setzero_pd();
+	      
+	      int 
+		l;
+	      
+	      for(l = 0; l < 4; l++)
+		{	       	     				      	      																	   
+		  __m256d
+		    x1v =  _mm256_mul_pd(_mm256_load_pd(&uX1[k * 16 + l * 4]), _mm256_load_pd(&uX2[k * 16 + l * 4]));
+		  
+		  __m256d 
+		    evv = _mm256_load_pd(&extEV[l * 4]);
+#ifdef _FMA
+		  xv = FMAMACC(xv,x1v,evv);
+#else						  
+		  xv = _mm256_add_pd(xv, _mm256_mul_pd(x1v, evv));
+#endif
+		}
+		    
+	      _mm256_store_pd(&x3[4 * k], xv);
+	    }
+	}
+	
+	x3 = x3_start;
+
+	for(i = 0; i < n; i++)
+	  {		    	    	
+	    if(!(x3_gap[i / 32] & mask32[i % 32]))	     
+	      {
+		uX1 = &umpX1[64 * tipX1[i]];
+		uX2 = &umpX2[64 * tipX2[i]];		  
+	    
+		for(k = 0; k < 4; k++)
+		  {
+		    __m256d	   
+		      xv = _mm256_setzero_pd();
+	       
+		    int 
+		      l;
+		
+		    for(l = 0; l < 4; l++)
+		      {	       	     				      	      																	   
+			__m256d
+			  x1v =  _mm256_mul_pd(_mm256_load_pd(&uX1[k * 16 + l * 4]), _mm256_load_pd(&uX2[k * 16 + l * 4]));
+			
+			__m256d 
+			  evv = _mm256_load_pd(&extEV[l * 4]);
+#ifdef _FMA
+			xv = FMAMACC(xv,x1v,evv);
+#else						  
+			xv = _mm256_add_pd(xv, _mm256_mul_pd(x1v, evv));
+#endif
+		      }
+		    
+		    _mm256_store_pd(&x3[4 * k], xv);
+		  }
+
+		x3 += 16;
+	      }
+	  }
+      }
+      break;
+    case TIP_INNER:
+      {
+	double 
+	  *uX1, 
+	  umpX1[1024] __attribute__ ((aligned (BYTE_ALIGNMENT)));
+       
+	for (i = 1; i < 16; i++)
+	  {
+	    __m256d 
+	      tv = _mm256_load_pd(&(tipVector[i*4]));
+
+	    int 
+	      j;
+	    
+	    for (j = 0; j < 4; j++)
+	      for (k = 0; k < 4; k++)
+		{		 
+		  __m256d 
+		    left1 = _mm256_load_pd(&left[j * 16 + k * 4]);		  		  		  
+
+		  left1 = _mm256_mul_pd(left1, tv);		  
+		  left1 = hadd3(left1);
+		  		  		  
+		  _mm256_store_pd(&umpX1[i * 64 + j * 16 + k * 4], left1);
+		}	 	   
+	  }	
+
+	{ 
+	  __m256d
+	    xv[4];
+	  
+	  scaleGap = 1;
+	  uX1 = &umpX1[960];
+
+	  x2 = x2_gapColumn;			 
+	  x3 = x3_gapColumn;
+
+	  for(k = 0; k < 4; k++)
+	    {
+	      __m256d	   		 
+		xvr = _mm256_load_pd(&(x2[k * 4]));
+
+	      int 
+		l;
+
+	      xv[k]  = _mm256_setzero_pd();
+		  
+	      for(l = 0; l < 4; l++)
+		{	       	     				      	      															
+		  __m256d  
+		    x1v = _mm256_load_pd(&uX1[k * 16 + l * 4]),		     
+		    x2v = _mm256_mul_pd(xvr, _mm256_load_pd(&right[k * 16 + l * 4]));			    
+			
+		  x2v = hadd3(x2v);
+		  x1v = _mm256_mul_pd(x1v, x2v);			
+		
+		  __m256d 
+		    evv = _mm256_load_pd(&extEV[l * 4]);
+			
+#ifdef _FMA
+		  xv[k] = FMAMACC(xv[k],x1v,evv);
+#else			  
+		  xv[k] = _mm256_add_pd(xv[k], _mm256_mul_pd(x1v, evv));
+#endif
+		}
+		    
+	      if(scaleGap)
+		{
+		  __m256d 	     
+		    v1 = _mm256_and_pd(xv[k], absMask_AVX.m);
+		  
+		  v1 = _mm256_cmp_pd(v1,  minlikelihood_avx, _CMP_LT_OS);
+		    
+		  if(_mm256_movemask_pd( v1 ) != 15)
+		    scaleGap = 0;
+		}
+	    }
+	
+	  if(scaleGap)
+	    {
+	      xv[0] = _mm256_mul_pd(xv[0], twoto);
+	      xv[1] = _mm256_mul_pd(xv[1], twoto);
+	      xv[2] = _mm256_mul_pd(xv[2], twoto);
+	      xv[3] = _mm256_mul_pd(xv[3], twoto);	    
+	    }
+
+	  _mm256_store_pd(&x3[0],      xv[0]);
+	  _mm256_store_pd(&x3[4],  xv[1]);
+	  _mm256_store_pd(&x3[8],  xv[2]);
+	  _mm256_store_pd(&x3[12], xv[3]);
+	}
+	
+	x3 = x3_start;
+	
+	for(i = 0; i < n; i++)
+	  {
+	    if((x3_gap[i / 32] & mask32[i % 32]))
+	      {
+		if(scaleGap)
+		  {
+		    if(useFastScaling)
+		      addScale += wgt[i];
+		    else
+		      ex3[i]  += 1;
+		  }
+	      }
+	    else
+	      {
+		if(x2_gap[i / 32] & mask32[i % 32])
+		  x2 = x2_gapColumn;
+		else
+		  {
+		    x2 = x2_ptr;
+		    x2_ptr += 16;
+		  }
+		
+		__m256d
+		  xv[4];	    	   
+		
+		scale = 1;
+		uX1 = &umpX1[64 * tipX1[i]];
+		
+		for(k = 0; k < 4; k++)
+		  {
+		    __m256d	   		 
+		      xvr = _mm256_load_pd(&(x2[k * 4]));
+		    
+		    int 
+		      l;
+		    
+		    xv[k]  = _mm256_setzero_pd();
+		    
+		    for(l = 0; l < 4; l++)
+		      {	       	     				      	      															
+			__m256d  
+			  x1v = _mm256_load_pd(&uX1[k * 16 + l * 4]),		     
+			  x2v = _mm256_mul_pd(xvr, _mm256_load_pd(&right[k * 16 + l * 4]));			    
+			
+			x2v = hadd3(x2v);
+			x1v = _mm256_mul_pd(x1v, x2v);			
+			
+			__m256d 
+			  evv = _mm256_load_pd(&extEV[l * 4]);
+			
+#ifdef _FMA
+			xv[k] = FMAMACC(xv[k],x1v,evv);
+#else			  
+			xv[k] = _mm256_add_pd(xv[k], _mm256_mul_pd(x1v, evv));
+#endif
+		      }
+		    
+		    if(scale)
+		      {
+			__m256d 	     
+			  v1 = _mm256_and_pd(xv[k], absMask_AVX.m);
+			
+			v1 = _mm256_cmp_pd(v1,  minlikelihood_avx, _CMP_LT_OS);
+			
+			if(_mm256_movemask_pd( v1 ) != 15)
+			  scale = 0;
+		      }
+		  }	    
+	      
+		if(scale)
+		  {
+		    xv[0] = _mm256_mul_pd(xv[0], twoto);
+		    xv[1] = _mm256_mul_pd(xv[1], twoto);
+		    xv[2] = _mm256_mul_pd(xv[2], twoto);
+		    xv[3] = _mm256_mul_pd(xv[3], twoto);
+		    addScale += wgt[i];
+		  }
+	      
+		_mm256_store_pd(&x3[0],      xv[0]);
+		_mm256_store_pd(&x3[4],  xv[1]);
+		_mm256_store_pd(&x3[8],  xv[2]);
+		_mm256_store_pd(&x3[12], xv[3]);
+	      
+		x3 += 16;
+	      }
+	  }
+      }
+      break;
+    case INNER_INNER:
+      {          
+	{		
+	  x1 = x1_gapColumn;	     	    
+	  x2 = x2_gapColumn;	    
+	  x3 = x3_gapColumn;
+
+	  __m256d
+	    xv[4];
+	    
+	  scaleGap = 1;
+
+	  for(k = 0; k < 4; k++)
+	    {
+	      __m256d	   
+		
+		xvl = _mm256_load_pd(&(x1[k * 4])),
+		xvr = _mm256_load_pd(&(x2[k * 4]));
+
+	      int 
+		l;
+
+	      xv[k] = _mm256_setzero_pd();
+
+	      for(l = 0; l < 4; l++)
+		{	       	     				      	      															
+		  __m256d 
+		    x1v = _mm256_mul_pd(xvl, _mm256_load_pd(&left[k * 16 + l * 4])),
+		    x2v = _mm256_mul_pd(xvr, _mm256_load_pd(&right[k * 16 + l * 4]));			    
+		  
+		  x1v = hadd4(x1v, x2v);			
+		  
+		  __m256d 
+		    evv = _mm256_load_pd(&extEV[l * 4]);
+		  
+		  xv[k] = _mm256_add_pd(xv[k], _mm256_mul_pd(x1v, evv));
+		}
+		
+	      if(scaleGap)
+		  {
+		    __m256d 	     
+		      v1 = _mm256_and_pd(xv[k], absMask_AVX.m);
+
+		    v1 = _mm256_cmp_pd(v1,  minlikelihood_avx, _CMP_LT_OS);
+		    
+		    if(_mm256_movemask_pd( v1 ) != 15)
+		      scaleGap = 0;
+		  }
+	    }
+
+	  if(scaleGap)
+	    {
+	      xv[0] = _mm256_mul_pd(xv[0], twoto);
+	      xv[1] = _mm256_mul_pd(xv[1], twoto);
+	      xv[2] = _mm256_mul_pd(xv[2], twoto);
+	      xv[3] = _mm256_mul_pd(xv[3], twoto);	       
+	    }
+		
+	  _mm256_store_pd(&x3[0],  xv[0]);
+	  _mm256_store_pd(&x3[4],  xv[1]);
+	  _mm256_store_pd(&x3[8],  xv[2]);
+	  _mm256_store_pd(&x3[12], xv[3]);
+	}	  
+      
+	x3 = x3_start;
+
+	for(i = 0; i < n; i++)
+	  {
+	    if(x3_gap[i / 32] & mask32[i % 32])
+	      {	     
+		if(scaleGap)
+		  {
+		    if(useFastScaling)
+		      addScale += wgt[i];
+		    else
+		      ex3[i]  += 1; 	       
+		  }
+	      }
+	    else
+	      {	
+		if(x1_gap[i / 32] & mask32[i % 32])
+		  x1 = x1_gapColumn;
+		else
+		  {
+		    x1 = x1_ptr;
+		    x1_ptr += 16;
+		  }
+	     
+		if(x2_gap[i / 32] & mask32[i % 32])
+		  x2 = x2_gapColumn;
+		else
+		  {
+		    x2 = x2_ptr;
+		    x2_ptr += 16;
+		  }
+
+		__m256d
+		  xv[4];
+	    
+		scale = 1;
+
+		for(k = 0; k < 4; k++)
+		  {
+		    __m256d	   
+		      
+		      xvl = _mm256_load_pd(&(x1[k * 4])),
+		      xvr = _mm256_load_pd(&(x2[k * 4]));
+		    
+		    int 
+		      l;
+		    
+		    xv[k] = _mm256_setzero_pd();
+		    
+		    for(l = 0; l < 4; l++)
+		      {	       	     				      	      															
+			__m256d 
+			  x1v = _mm256_mul_pd(xvl, _mm256_load_pd(&left[k * 16 + l * 4])),
+			  x2v = _mm256_mul_pd(xvr, _mm256_load_pd(&right[k * 16 + l * 4]));			    
+			
+			x1v = hadd4(x1v, x2v);			
+			
+			__m256d 
+			  evv = _mm256_load_pd(&extEV[l * 4]);
+			
+			xv[k] = _mm256_add_pd(xv[k], _mm256_mul_pd(x1v, evv));
+		      }
+		    
+		    if(scale)
+		      {
+			__m256d 	     
+			  v1 = _mm256_and_pd(xv[k], absMask_AVX.m);
+			
+			v1 = _mm256_cmp_pd(v1,  minlikelihood_avx, _CMP_LT_OS);
+			
+			if(_mm256_movemask_pd( v1 ) != 15)
+			  scale = 0;
+		      }
+		  }
+
+		if(scale)
+		  {
+		    xv[0] = _mm256_mul_pd(xv[0], twoto);
+		    xv[1] = _mm256_mul_pd(xv[1], twoto);
+		    xv[2] = _mm256_mul_pd(xv[2], twoto);
+		    xv[3] = _mm256_mul_pd(xv[3], twoto);
+		    addScale += wgt[i];
+		  }
+		
+		_mm256_store_pd(&x3[0],      xv[0]);
+		_mm256_store_pd(&x3[4],  xv[1]);
+		_mm256_store_pd(&x3[8],  xv[2]);
+		_mm256_store_pd(&x3[12], xv[3]);
+	      
+		x3 += 16;
+	      }
 	  }
       }
       break;

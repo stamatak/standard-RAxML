@@ -2900,18 +2900,12 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 	    {
 	      assert(partitionLikelihood < 0.0);
 	  
-	      if(tr->useFastScaling)
-		{	     	      		 
-		    {
-	      		      
-		      partitionLikelihood += (tr->partitionData[model].globalScaler[pNumber] + tr->partitionData[model].globalScaler[qNumber]) * LOG(minlikelihood);
-		    }
-		}
+	      if(tr->useFastScaling)		    	      		      
+		partitionLikelihood += (tr->partitionData[model].globalScaler[pNumber] + tr->partitionData[model].globalScaler[qNumber]) * LOG(minlikelihood);		    		
 	    }
 	  
 	  result += partitionLikelihood;	  
-	  tr->perPartitionLH[model] = partitionLikelihood; 
-	       
+	  tr->perPartitionLH[model] = partitionLikelihood; 	       
 	}
     }
 #ifdef _DEBUG_MULTI_EPA
