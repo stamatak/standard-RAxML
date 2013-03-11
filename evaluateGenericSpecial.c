@@ -2660,12 +2660,10 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 			  calcDiagptable(z, DNA_DATA, tr->partitionData[model].numberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
 #ifdef __SIM_SSE3
 			  if(tr->saveMemory)
-			    {
-			      assert(tr->useFastScaling);
-			      
+			    {			     			      
 			      partitionLikelihood = evaluateGTRCAT_SAVE(ex1, ex2, tr->partitionData[model].rateCategory, tr->partitionData[model].wgt,
 									    x1_start, x2_start, tr->partitionData[model].tipVector,
-									    tip, width, diagptable, TRUE,  x1_gapColumn, x2_gapColumn, x1_gap, x2_gap);
+									    tip, width, diagptable, tr->useFastScaling,  x1_gapColumn, x2_gapColumn, x1_gap, x2_gap);
 			    }
 			  else
 #endif
@@ -2712,11 +2710,10 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 		      calcDiagptable(z, AA_DATA, tr->partitionData[model].numberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
 #ifdef __SIM_SSE3
 		      if(tr->saveMemory)
-			{
-			  assert(tr->useFastScaling);
+			{			 
 			  partitionLikelihood = evaluateGTRCATPROT_SAVE(ex1, ex2, tr->partitionData[model].rateCategory, tr->partitionData[model].wgt,
 									x1_start, x2_start, tr->partitionData[model].tipVector,
-									tip, width, diagptable, TRUE,  x1_gapColumn, x2_gapColumn, x1_gap, x2_gap);
+									tip, width, diagptable, tr->useFastScaling,  x1_gapColumn, x2_gapColumn, x1_gap, x2_gap);
 			}
 		      else
 #endif			  
