@@ -68,12 +68,12 @@ extern pthread_mutex_t          mutex;
 
 extern const unsigned int mask32[32];
 
-static inline boolean isGap(unsigned int *x, int pos)
+inline boolean isGap(unsigned int *x, int pos)
 {
   return (x[pos / 32] & mask32[pos % 32]);
 }
 
-static inline boolean noGap(unsigned int *x, int pos)
+inline boolean noGap(unsigned int *x, int pos)
 {
   return (!(x[pos / 32] & mask32[pos % 32]));
 }
@@ -1906,8 +1906,13 @@ static void newviewGTRCAT_SAVE( int tipCase,  double *EV,  int *cptr,
       { 
         if(isGap(x3_gap, i))
         {
-          if(scaleGap)		   		    
-            addScale += wgt[i];
+          if(scaleGap)
+	    {
+	      if(useFastScaling)
+		addScale += wgt[i];
+	      else
+		ex3[i] += 1;
+	    }           
         }
         else
         {	      
@@ -2049,7 +2054,10 @@ static void newviewGTRCAT_SAVE( int tipCase,  double *EV,  int *cptr,
             _mm_store_pd(&x3[0], _mm_mul_pd(EV_t_l0_k0, sc));
             _mm_store_pd(&x3[2], _mm_mul_pd(EV_t_l2_k0, sc));	      	      
 
-            addScale += wgt[i];	  
+	    if(useFastScaling)
+	      addScale += wgt[i];
+	    else
+	      ex3[i] += 1;            
           }	
           else
           {
@@ -2067,8 +2075,13 @@ static void newviewGTRCAT_SAVE( int tipCase,  double *EV,  int *cptr,
       { 
         if(isGap(x3_gap, i))
         {
-          if(scaleGap)		   		    
-            addScale += wgt[i];
+          if(scaleGap)
+	    {
+	      if(useFastScaling)
+		addScale += wgt[i];
+	      else
+		ex3[i] += 1;
+            }
         }
         else
         {	     
@@ -2214,15 +2227,12 @@ static void newviewGTRCAT_SAVE( int tipCase,  double *EV,  int *cptr,
             _mm_store_pd(&x3[0], _mm_mul_pd(EV_t_l0_k0, sc));
             _mm_store_pd(&x3[2], _mm_mul_pd(EV_t_l2_k0, sc));	      	      
 
-            addScale += wgt[i];	  
+	    if(useFastScaling)
+	      addScale += wgt[i];
+	    else
+	      ex3[i] += 1;            
           }	
-          else
-          {
-            _mm_store_pd(x3, EV_t_l0_k0);
-            _mm_store_pd(&x3[2], EV_t_l2_k0);
-          }
-
-          x3_ptr += 4;
+          else x3_ptr += 4;
         }
       }
       break;
@@ -2230,8 +2240,8 @@ static void newviewGTRCAT_SAVE( int tipCase,  double *EV,  int *cptr,
       assert(0);
   }
 
-
-  *scalerIncrement = addScale;
+  if(useFastScaling)
+    *scalerIncrement = addScale;
 }
 
 
@@ -4454,8 +4464,13 @@ static void newviewGTRCATPROT_SAVE(int tipCase, double *extEV,
         {
           if(isGap(x3_gap, i))
           {
-            if(scaleGap)		   		    
-              addScale += wgt[i];
+            if(scaleGap)
+	      {
+		if(useFastScaling)
+		  addScale += wgt[i];
+		else
+		  ex3[i] += 1;
+	      }             
           }
           else
           {	 
@@ -4537,7 +4552,10 @@ static void newviewGTRCATPROT_SAVE(int tipCase, double *extEV,
                 _mm_store_pd(&v[l], _mm_mul_pd(ex3v,twoto));		    
               }
 
-              addScale += wgt[i];	  
+	      if(useFastScaling)
+		addScale += wgt[i];
+	      else
+		ex3[i] += 1;              
             }
             x3_ptr += 20;
           }
@@ -4549,8 +4567,13 @@ static void newviewGTRCATPROT_SAVE(int tipCase, double *extEV,
       { 
         if(isGap(x3_gap, i))
         {
-          if(scaleGap)		   		    
-            addScale += wgt[i];
+          if(scaleGap)
+	    {
+	      if(useFastScaling)
+		addScale += wgt[i];
+	      else
+		ex3[i] += 1;
+	    }           
         }
         else
         {	  	     
@@ -4635,8 +4658,11 @@ static void newviewGTRCATPROT_SAVE(int tipCase, double *extEV,
               __m128d ex3v = _mm_load_pd(&v[l]);		  
               _mm_store_pd(&v[l], _mm_mul_pd(ex3v,twoto));	
             }		   		  
-
-            addScale += wgt[i];	   
+	    
+	    if(useFastScaling)
+	      addScale += wgt[i];
+	    else
+	      ex3[i] += 1;         
           }
           x3_ptr += 20;
         }
@@ -4645,10 +4671,10 @@ static void newviewGTRCATPROT_SAVE(int tipCase, double *extEV,
     default:
       assert(0);
   }
+  
 
-
-  *scalerIncrement = addScale;
-
+  if(useFastScaling)
+    *scalerIncrement = addScale;
 }
 
 
@@ -7184,15 +7210,22 @@ void newviewIterative (tree *tr)
 				tr->partitionData[model].EIGN, tr->partitionData[model].numberOfCategories,
 				left, right, DNA_DATA, tr->saveMemory, tr->maxCategories);
 
-#ifdef __SIM_SSE3
+#if (defined(__SIM_SSE3) || defined(__AVX))
 			  if(tr->saveMemory)
-			    {
-			      assert(tr->useFastScaling);			      
+			    {			   		      
+#ifdef __AVX
+			      newviewGTRCAT_AVX_GAPPED_SAVE(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
+							     x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
+							     ex3, tipX1, tipX2,
+							     width, left, right, wgt, &scalerIncrement, tr->useFastScaling, x1_gap, x2_gap, x3_gap,
+							     x1_gapColumn, x2_gapColumn, x3_gapColumn, tr->maxCategories);
+#else
 			      newviewGTRCAT_SAVE(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
 						 x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
 						 ex3, tipX1, tipX2,
-						 width, left, right, wgt, &scalerIncrement, TRUE, x1_gap, x2_gap, x3_gap,
+						 width, left, right, wgt, &scalerIncrement, tr->useFastScaling, x1_gap, x2_gap, x3_gap,
 						 x1_gapColumn, x2_gapColumn, x3_gapColumn, tr->maxCategories);
+#endif
 			    }
 			  else
 #endif
@@ -7274,12 +7307,19 @@ void newviewIterative (tree *tr)
 				tr->partitionData[model].EIGN,
 				tr->partitionData[model].numberOfCategories, left, right, AA_DATA, tr->saveMemory, tr->maxCategories);
 
-#ifdef __SIM_SSE3
+#if  (defined(__SIM_SSE3) || defined(__AVX))
 			  if(tr->saveMemory)
+#ifdef __AVX
+			    newviewGTRCATPROT_AVX_GAPPED_SAVE(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
+							      x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
+							      ex3, tipX1, tipX2, width, left, right, wgt, &scalerIncrement, tr->useFastScaling, x1_gap, x2_gap, x3_gap,
+							      x1_gapColumn, x2_gapColumn, x3_gapColumn, tr->maxCategories);
+#else
 			    newviewGTRCATPROT_SAVE(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
 						   x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
-						   ex3, tipX1, tipX2, width, left, right, wgt, &scalerIncrement, TRUE, x1_gap, x2_gap, x3_gap,
+						   ex3, tipX1, tipX2, width, left, right, wgt, &scalerIncrement, tr->useFastScaling, x1_gap, x2_gap, x3_gap,
 						   x1_gapColumn, x2_gapColumn, x3_gapColumn, tr->maxCategories);
+#endif
 			  else
 #endif
 			    {

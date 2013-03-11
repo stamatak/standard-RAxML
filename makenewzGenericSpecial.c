@@ -57,10 +57,7 @@ extern volatile int NumberOfThreads;
 
 extern const unsigned int mask32[32];
 
-static inline boolean isGap(unsigned int *x, int pos)
-{
-  return (x[pos / 32] & mask32[pos % 32]);
-}
+
 /*******************/
 
 static void sumCAT_BINARY(int tipCase, double *sum, double *x1_start, double *x2_start, double *tipVector,

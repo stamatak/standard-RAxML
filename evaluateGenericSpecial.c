@@ -562,10 +562,7 @@ void calcDiagptable(double z, int data, int numberOfCategories, double *rptr, do
 
 #ifdef __SIM_SSE3
 
-static inline boolean isGap(unsigned int *x, int pos)
-{
-  return (x[pos / 32] & mask32[pos % 32]);
-}
+
 
 
 static double evaluateGTRCATPROT_SAVE (int *ex1, int *ex2, int *cptr, int *wptr,

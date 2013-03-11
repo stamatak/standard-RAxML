@@ -238,7 +238,11 @@ void  newviewGTRGAMMA_AVX(int tipCase,
 		xv[1] = _mm256_mul_pd(xv[1], twoto);
 		xv[2] = _mm256_mul_pd(xv[2], twoto);
 		xv[3] = _mm256_mul_pd(xv[3], twoto);
-		addScale += wgt[i];
+
+		if(useFastScaling)
+		  addScale += wgt[i];
+		else
+		  ex3[i] += 1;
 	      }
 
 	    _mm256_store_pd(&x3[16 * i],      xv[0]);
@@ -301,7 +305,11 @@ void  newviewGTRGAMMA_AVX(int tipCase,
 		xv[1] = _mm256_mul_pd(xv[1], twoto);
 		xv[2] = _mm256_mul_pd(xv[2], twoto);
 		xv[3] = _mm256_mul_pd(xv[3], twoto);
-		addScale += wgt[i];
+
+		if(useFastScaling)
+		  addScale += wgt[i];
+		else
+		  ex3[i] += 1;		
 	      }
 		
 	    _mm256_store_pd(&x3[16 * i],      xv[0]);
@@ -631,7 +639,11 @@ void  newviewGTRGAMMA_AVX_GAPPED_SAVE(int tipCase,
 		    xv[1] = _mm256_mul_pd(xv[1], twoto);
 		    xv[2] = _mm256_mul_pd(xv[2], twoto);
 		    xv[3] = _mm256_mul_pd(xv[3], twoto);
-		    addScale += wgt[i];
+
+		    if(useFastScaling)
+		      addScale += wgt[i];
+		    else
+		      ex3[i] += 1;		   
 		  }
 	      
 		_mm256_store_pd(&x3[0],      xv[0]);
@@ -789,7 +801,11 @@ void  newviewGTRGAMMA_AVX_GAPPED_SAVE(int tipCase,
 		    xv[1] = _mm256_mul_pd(xv[1], twoto);
 		    xv[2] = _mm256_mul_pd(xv[2], twoto);
 		    xv[3] = _mm256_mul_pd(xv[3], twoto);
-		    addScale += wgt[i];
+		    
+		    if(useFastScaling)
+		      addScale += wgt[i];
+		    else
+		      ex3[i] += 1;
 		  }
 		
 		_mm256_store_pd(&x3[0],      xv[0]);
@@ -915,7 +931,11 @@ void newviewGTRCAT_AVX(int tipCase,  double *EV,  int *cptr,
 	  if(_mm256_movemask_pd( v1 ) == 15)
 	    {	     	      
 	      vv = _mm256_mul_pd(vv, twoto);	      
-	      addScale += wgt[i];
+	      
+	      if(useFastScaling)
+		addScale += wgt[i];
+	      else
+		ex3[i] += 1;	      	     
 	    }       
 	  
 	  _mm256_store_pd(&x3_start[4 * i], vv);	 	  	  
@@ -962,8 +982,12 @@ void newviewGTRCAT_AVX(int tipCase,  double *EV,  int *cptr,
 	    
 	  if(_mm256_movemask_pd( v1 ) == 15)
 	    {	
-	      vv = _mm256_mul_pd(vv, twoto);	      
-	      addScale += wgt[i];
+	      vv = _mm256_mul_pd(vv, twoto);
+	      
+	      if(useFastScaling)
+		addScale += wgt[i];
+	      else
+		ex3[i] += 1;	   
 	    }	
 
 	  _mm256_store_pd(&x3_start[4 * i], vv);
@@ -974,8 +998,311 @@ void newviewGTRCAT_AVX(int tipCase,  double *EV,  int *cptr,
       assert(0);
     }
 
+  if(useFastScaling)
+    *scalerIncrement = addScale;
+}
+
+
+void newviewGTRCAT_AVX_GAPPED_SAVE(int tipCase,  double *EV,  int *cptr,
+				   double *x1_start, double *x2_start,  double *x3_start, double *tipVector,
+				   int *ex3, unsigned char *tipX1, unsigned char *tipX2,
+				   int n,  double *left, double *right, int *wgt, int *scalerIncrement, const boolean useFastScaling,
+				   unsigned int *x1_gap, unsigned int *x2_gap, unsigned int *x3_gap,
+				   double *x1_gapColumn, double *x2_gapColumn, double *x3_gapColumn, const int maxCats)
+{
+  double
+    *le,
+    *ri,
+    *x1,
+    *x2, 
+    *x3,
+    *x1_ptr = x1_start,
+    *x2_ptr = x2_start, 
+    *x3_ptr = x3_start;
   
-  *scalerIncrement = addScale;
+  int 
+    i, 
+    j, 
+    scaleGap = 0,
+    addScale = 0;
+   
+  __m256d 
+    minlikelihood_avx = _mm256_set1_pd( minlikelihood ),
+    twoto = _mm256_set1_pd(twotothe256);
+  
+
+  {
+    int 
+      l;
+
+    x1 = x1_gapColumn;	      
+    x2 = x2_gapColumn;
+    x3 = x3_gapColumn;    	 
+	  	  
+    le =  &left[maxCats * 16];
+    ri =  &right[maxCats * 16];
+
+    __m256d	   
+      vv = _mm256_setzero_pd();
+	  
+    for(l = 0; l < 4; l++)
+      {	       	     				      	      															
+	__m256d 
+	  x1v = _mm256_mul_pd(_mm256_load_pd(x1), _mm256_load_pd(&le[l * 4])),
+	  x2v = _mm256_mul_pd(_mm256_load_pd(x2), _mm256_load_pd(&ri[l * 4]));			    
+	
+	x1v = hadd4(x1v, x2v);			
+	
+	__m256d 
+	  evv = _mm256_load_pd(&EV[l * 4]);
+#ifdef _FMA
+	vv = FMAMACC(vv,x1v,evv);
+#else						
+	vv = _mm256_add_pd(vv, _mm256_mul_pd(x1v, evv));						      	
+#endif
+      }	  		  
+
+    if(tipCase != TIP_TIP)
+      {
+	__m256d 	     
+	  v1 = _mm256_and_pd(vv, absMask_AVX.m);
+    
+	v1 = _mm256_cmp_pd(v1,  minlikelihood_avx, _CMP_LT_OS);
+    
+	if(_mm256_movemask_pd( v1 ) == 15)
+	  {
+	    vv = _mm256_mul_pd(vv, twoto);	      	 
+	    scaleGap = 1;
+	  }
+      }
+    
+    _mm256_store_pd(x3, vv);    
+  }
+
+  switch(tipCase)
+    {
+    case TIP_TIP:      
+      for (i = 0; i < n; i++)
+	{ 
+	  if(noGap(x3_gap, i))
+	    {	 
+	      int 
+		l;
+	      
+	      x1 = &(tipVector[4 * tipX1[i]]);
+	      x2 = &(tipVector[4 * tipX2[i]]);
+
+	      x3 = x3_ptr;
+
+	      if(isGap(x1_gap, i))
+		le =  &left[maxCats * 16];
+	      else	  	  
+		le =  &left[cptr[i] * 16];	  
+	      
+	      if(isGap(x2_gap, i))
+		ri =  &right[maxCats * 16];
+	      else	 	  
+		ri =  &right[cptr[i] * 16];
+	  	  
+	      __m256d	   
+		vv = _mm256_setzero_pd();
+	      
+	      for(l = 0; l < 4; l++)
+		{	       	     				      	      															
+		  __m256d 
+		    x1v = _mm256_mul_pd(_mm256_load_pd(x1), _mm256_load_pd(&le[l * 4])),
+		    x2v = _mm256_mul_pd(_mm256_load_pd(x2), _mm256_load_pd(&ri[l * 4]));			    
+		  
+		  x1v = hadd4(x1v, x2v);			
+		  
+		  __m256d 
+		    evv = _mm256_load_pd(&EV[l * 4]);
+#ifdef _FMA
+		  vv = FMAMACC(vv,x1v,evv);
+#else				
+		  vv = _mm256_add_pd(vv, _mm256_mul_pd(x1v, evv));						      	
+#endif
+		}	  		  
+
+	      _mm256_store_pd(x3, vv);	 
+	      
+	      x3_ptr += 4;
+	    }
+	}
+      break;
+    case TIP_INNER:      
+      for (i = 0; i < n; i++)
+	{ 
+	  if(isGap(x3_gap, i))
+	    {
+	      if(scaleGap)
+		{
+		  if(useFastScaling)
+		    addScale += wgt[i];
+		  else
+		    ex3[i] += 1;		   		    
+		}	       
+	    }
+	  else
+	    {
+	      int 
+		l;
+
+	      x1 = &(tipVector[4 * tipX1[i]]);    
+	      x3 = x3_ptr;
+
+	      if(isGap(x1_gap, i))
+		le =  &left[maxCats * 16];
+	      else
+		le =  &left[cptr[i] * 16];
+	  
+	      if(isGap(x2_gap, i))
+		{		 
+		  ri =  &right[maxCats * 16];
+		  x2 = x2_gapColumn;
+		}
+	      else
+		{
+		  ri =  &right[cptr[i] * 16];
+		  x2 = x2_ptr;
+		  x2_ptr += 4;
+		}	  	 
+
+	      __m256d	   
+		vv = _mm256_setzero_pd();
+	      
+	      for(l = 0; l < 4; l++)
+		{	       	     				      	      															
+		  __m256d 
+		    x1v = _mm256_mul_pd(_mm256_load_pd(x1), _mm256_load_pd(&le[l * 4])),
+		    x2v = _mm256_mul_pd(_mm256_load_pd(x2), _mm256_load_pd(&ri[l * 4]));			    
+		  
+		  x1v = hadd4(x1v, x2v);			
+		  
+		  __m256d 
+		    evv = _mm256_load_pd(&EV[l * 4]);
+		  
+#ifdef _FMA
+		  vv = FMAMACC(vv,x1v,evv);
+#else	      
+		  vv = _mm256_add_pd(vv, _mm256_mul_pd(x1v, evv));
+#endif
+		}	  		  
+	  
+	  
+	      __m256d 	     
+		v1 = _mm256_and_pd(vv, absMask_AVX.m);
+	      
+	      v1 = _mm256_cmp_pd(v1,  minlikelihood_avx, _CMP_LT_OS);
+	      
+	      if(_mm256_movemask_pd( v1 ) == 15)
+		{	     	      
+		  vv = _mm256_mul_pd(vv, twoto);	      
+		  
+		  if(useFastScaling)
+		    addScale += wgt[i];
+		  else
+		    ex3[i] += 1;		 
+		}       
+	  
+	      _mm256_store_pd(x3, vv);	 	  	  
+
+	      x3_ptr += 4;
+	    }
+	}
+      break;
+    case INNER_INNER:
+      for (i = 0; i < n; i++)
+	{
+	  if(isGap(x3_gap, i))
+	    {
+	      if(scaleGap)		   		    
+		{
+		  if(useFastScaling)
+		    addScale += wgt[i];
+		  else
+		    ex3[i] += 1;
+		}	      
+	    }
+	  else
+	    {
+	      int 
+		l;
+	      
+	      x3 = x3_ptr;
+	      
+	      if(isGap(x1_gap, i))
+		{
+		  x1 = x1_gapColumn;
+		  le =  &left[maxCats * 16];
+		}
+	      else
+		{
+		  le =  &left[cptr[i] * 16];
+		  x1 = x1_ptr;
+		  x1_ptr += 4;
+		}
+
+	      if(isGap(x2_gap, i))	
+		{
+		  x2 = x2_gapColumn;
+		  ri =  &right[maxCats * 16];	    
+		}
+	      else
+		{
+		  ri =  &right[cptr[i] * 16];
+		  x2 = x2_ptr;
+		  x2_ptr += 4;
+		}	 	  	  	  
+	  
+	      __m256d	   
+		vv = _mm256_setzero_pd();
+	      
+	      for(l = 0; l < 4; l++)
+		{	       	     				      	      															
+		  __m256d 
+		    x1v = _mm256_mul_pd(_mm256_load_pd(x1), _mm256_load_pd(&le[l * 4])),
+		    x2v = _mm256_mul_pd(_mm256_load_pd(x2), _mm256_load_pd(&ri[l * 4]));			    
+		  
+		  x1v = hadd4(x1v, x2v);			
+		  
+		  __m256d 
+		    evv = _mm256_load_pd(&EV[l * 4]);
+#ifdef _FMA
+		  vv = FMAMACC(vv,x1v,evv);
+#else						
+		  vv = _mm256_add_pd(vv, _mm256_mul_pd(x1v, evv));						      	
+#endif
+		}	  		  
+	      
+	      
+	      __m256d 	     
+		v1 = _mm256_and_pd(vv, absMask_AVX.m);
+	      
+	      v1 = _mm256_cmp_pd(v1,  minlikelihood_avx, _CMP_LT_OS);
+	      
+	      if(_mm256_movemask_pd( v1 ) == 15)
+		{	
+		  vv = _mm256_mul_pd(vv, twoto);	      
+		  
+		  if(useFastScaling)
+		    addScale += wgt[i];
+		  else
+		    ex3[i] += 1;		
+		}	
+	      
+	      _mm256_store_pd(x3, vv);
+	      
+	      x3_ptr += 4;
+	    }	  	  
+	}
+      break;
+    default:
+      assert(0);
+    }
+
+  if(useFastScaling)
+    *scalerIncrement = addScale;
 }
 
 void newviewGTRCATPROT_AVX(int tipCase, double *extEV,
@@ -1297,6 +1624,525 @@ void newviewGTRCATPROT_AVX(int tipCase, double *extEV,
 	  _mm256_store_pd(&v[16], vv[4]);
 	 
 	}
+      break;
+    default:
+      assert(0);
+    }
+  
+  if(useFastScaling)
+    *scalerIncrement = addScale;
+}
+
+void newviewGTRCATPROT_AVX_GAPPED_SAVE(int tipCase, double *extEV,
+				       int *cptr,
+				       double *x1, double *x2, double *x3, double *tipVector,
+				       int *ex3, unsigned char *tipX1, unsigned char *tipX2,
+				       int n, double *left, double *right, int *wgt, int *scalerIncrement, const boolean useFastScaling,
+				       unsigned int *x1_gap, unsigned int *x2_gap, unsigned int *x3_gap,
+				       double *x1_gapColumn, double *x2_gapColumn, double *x3_gapColumn, const int maxCats)
+{
+  double
+    *le, 
+    *ri, 
+    *v, 
+    *vl, 
+    *vr,
+    *x1_ptr = x1,
+    *x2_ptr = x2, 
+    *x3_ptr = x3;
+  
+  int 
+    i, 
+    l, 
+    j, 
+    scale, 
+    addScale = 0,
+    scaleGap = 0;
+
+#ifdef _FMA
+  int k;
+#endif
+
+  {
+    le = &left[maxCats * 400];
+    ri = &right[maxCats * 400];
+    
+    vl = x1_gapColumn;
+    vr = x2_gapColumn;
+    v  = x3_gapColumn;
+
+    __m256d vv[5];
+    
+    vv[0] = _mm256_setzero_pd();
+    vv[1] = _mm256_setzero_pd();
+    vv[2] = _mm256_setzero_pd();
+    vv[3] = _mm256_setzero_pd();
+    vv[4] = _mm256_setzero_pd();
+    
+    for(l = 0; l < 20; l++)
+      {	       
+	__m256d 
+	  x1v = _mm256_setzero_pd(),
+	  x2v = _mm256_setzero_pd();	
+	
+	double 
+	  *ev = &extEV[l * 20],
+	  *lv = &le[l * 20],
+	  *rv = &ri[l * 20];														
+	
+	x1v = _mm256_add_pd(x1v, _mm256_mul_pd(_mm256_load_pd(&vl[0]), _mm256_load_pd(&lv[0])));
+	x1v = _mm256_add_pd(x1v, _mm256_mul_pd(_mm256_load_pd(&vl[4]), _mm256_load_pd(&lv[4])));
+	x1v = _mm256_add_pd(x1v, _mm256_mul_pd(_mm256_load_pd(&vl[8]), _mm256_load_pd(&lv[8])));
+	x1v = _mm256_add_pd(x1v, _mm256_mul_pd(_mm256_load_pd(&vl[12]), _mm256_load_pd(&lv[12])));
+	x1v = _mm256_add_pd(x1v, _mm256_mul_pd(_mm256_load_pd(&vl[16]), _mm256_load_pd(&lv[16])));
+	
+	x2v = _mm256_add_pd(x2v,  _mm256_mul_pd(_mm256_load_pd(&vr[0]), _mm256_load_pd(&rv[0])));			    
+	x2v = _mm256_add_pd(x2v,  _mm256_mul_pd(_mm256_load_pd(&vr[4]), _mm256_load_pd(&rv[4])));				    
+	x2v = _mm256_add_pd(x2v,  _mm256_mul_pd(_mm256_load_pd(&vr[8]), _mm256_load_pd(&rv[8])));			    
+	x2v = _mm256_add_pd(x2v,  _mm256_mul_pd(_mm256_load_pd(&vr[12]), _mm256_load_pd(&rv[12])));				    
+	x2v = _mm256_add_pd(x2v,  _mm256_mul_pd(_mm256_load_pd(&vr[16]), _mm256_load_pd(&rv[16])));
+	
+	x1v = hadd4(x1v, x2v);			
+#ifdef _FMA
+	for(k = 0; k < 5; k++) 
+	  {
+	    __m256d evv = _mm256_load_pd(&ev[k*4]);
+	    vv[k] = FMAMACC(vv[k],x1v,evv);
+	  }
+#else	      
+	__m256d 
+	  evv[5];
+	
+	evv[0] = _mm256_load_pd(&ev[0]);
+	evv[1] = _mm256_load_pd(&ev[4]);
+	evv[2] = _mm256_load_pd(&ev[8]);
+	evv[3] = _mm256_load_pd(&ev[12]);
+	evv[4] = _mm256_load_pd(&ev[16]);		
+	
+	vv[0] = _mm256_add_pd(vv[0], _mm256_mul_pd(x1v, evv[0]));
+	vv[1] = _mm256_add_pd(vv[1], _mm256_mul_pd(x1v, evv[1]));
+	vv[2] = _mm256_add_pd(vv[2], _mm256_mul_pd(x1v, evv[2]));
+	vv[3] = _mm256_add_pd(vv[3], _mm256_mul_pd(x1v, evv[3]));
+	vv[4] = _mm256_add_pd(vv[4], _mm256_mul_pd(x1v, evv[4]));				      	
+#endif
+      }	  
+
+
+     if(tipCase != TIP_TIP)
+       {
+	 __m256d minlikelihood_avx = _mm256_set1_pd( minlikelihood );
+	  
+	 scale = 1;
+	  
+	 for(l = 0; scale && (l < 20); l += 4)
+	   {	       
+	     __m256d 
+	       v1 = _mm256_and_pd(vv[l / 4], absMask_AVX.m);
+	     v1 = _mm256_cmp_pd(v1,  minlikelihood_avx, _CMP_LT_OS);
+	     
+	     if(_mm256_movemask_pd( v1 ) != 15)
+	       scale = 0;
+	   }	    	  	  
+
+	 if(scale)
+	   {
+	      __m256d 
+		twoto = _mm256_set1_pd(twotothe256);
+	      
+	      for(l = 0; l < 20; l += 4)
+		vv[l / 4] = _mm256_mul_pd(vv[l / 4] , twoto);		    		 	      	     	      
+	   
+	      scaleGap = 1;
+	   }
+       }
+
+     _mm256_store_pd(&v[0], vv[0]);
+     _mm256_store_pd(&v[4], vv[1]);
+     _mm256_store_pd(&v[8], vv[2]);
+     _mm256_store_pd(&v[12], vv[3]);
+     _mm256_store_pd(&v[16], vv[4]);     
+  }
+
+
+
+  switch(tipCase)
+    {
+    case TIP_TIP:
+      {
+	for (i = 0; i < n; i++)
+	  {
+	    if(noGap(x3_gap, i))	   
+	      {	    
+		vl = &(tipVector[20 * tipX1[i]]);
+		vr = &(tipVector[20 * tipX2[i]]);
+		v  = x3_ptr;	    	    	   	    
+
+		if(isGap(x1_gap, i))
+		  le =  &left[maxCats * 400];
+		else	  	  
+		  le =  &left[cptr[i] * 400];	  
+		
+		if(isGap(x2_gap, i))
+		  ri =  &right[maxCats * 400];
+		else	 	  
+		  ri =  &right[cptr[i] * 400];
+
+		__m256d vv[5];
+		
+		vv[0] = _mm256_setzero_pd();
+		vv[1] = _mm256_setzero_pd();
+		vv[2] = _mm256_setzero_pd();
+		vv[3] = _mm256_setzero_pd();
+		vv[4] = _mm256_setzero_pd();	   	    
+		
+		for(l = 0; l < 20; l++)
+		  {	       
+		    __m256d 
+		      x1v = _mm256_setzero_pd(),
+		      x2v = _mm256_setzero_pd();	
+		    
+		    double 
+		      *ev = &extEV[l * 20],
+		      *lv = &le[l * 20],
+		      *rv = &ri[l * 20];														
+		    
+#ifdef _FMA		
+		    for(k = 0; k < 20; k += 4) 
+		      {
+			__m256d vlv = _mm256_load_pd(&vl[k]);
+			__m256d lvv = _mm256_load_pd(&lv[k]);
+			x1v = FMAMACC(x1v,vlv,lvv);
+			__m256d vrv = _mm256_load_pd(&vr[k]);
+			__m256d rvv = _mm256_load_pd(&rv[k]);
+			x2v = FMAMACC(x2v,vrv,rvv);
+		      }
+#else		
+		    x1v = _mm256_add_pd(x1v, _mm256_mul_pd(_mm256_load_pd(&vl[0]), _mm256_load_pd(&lv[0])));
+		    x1v = _mm256_add_pd(x1v, _mm256_mul_pd(_mm256_load_pd(&vl[4]), _mm256_load_pd(&lv[4])));
+		    x1v = _mm256_add_pd(x1v, _mm256_mul_pd(_mm256_load_pd(&vl[8]), _mm256_load_pd(&lv[8])));
+		    x1v = _mm256_add_pd(x1v, _mm256_mul_pd(_mm256_load_pd(&vl[12]), _mm256_load_pd(&lv[12])));
+		    x1v = _mm256_add_pd(x1v, _mm256_mul_pd(_mm256_load_pd(&vl[16]), _mm256_load_pd(&lv[16])));
+		    
+		    x2v = _mm256_add_pd(x2v,  _mm256_mul_pd(_mm256_load_pd(&vr[0]), _mm256_load_pd(&rv[0])));			    
+		    x2v = _mm256_add_pd(x2v,  _mm256_mul_pd(_mm256_load_pd(&vr[4]), _mm256_load_pd(&rv[4])));				    
+		    x2v = _mm256_add_pd(x2v,  _mm256_mul_pd(_mm256_load_pd(&vr[8]), _mm256_load_pd(&rv[8])));			    
+		    x2v = _mm256_add_pd(x2v,  _mm256_mul_pd(_mm256_load_pd(&vr[12]), _mm256_load_pd(&rv[12])));				    
+		    x2v = _mm256_add_pd(x2v,  _mm256_mul_pd(_mm256_load_pd(&vr[16]), _mm256_load_pd(&rv[16])));	
+#endif
+		    
+		    x1v = hadd4(x1v, x2v);			
+#ifdef _FMA
+		    for(k = 0; k < 5; k++) 
+		      {
+			__m256d evv = _mm256_load_pd(&ev[k*4]);
+			vv[k] = FMAMACC(vv[k],x1v,evv);
+		      }	  
+#else		
+		    __m256d 
+		      evv[5];
+		    
+		    evv[0] = _mm256_load_pd(&ev[0]);
+		    evv[1] = _mm256_load_pd(&ev[4]);
+		    evv[2] = _mm256_load_pd(&ev[8]);
+		    evv[3] = _mm256_load_pd(&ev[12]);
+		    evv[4] = _mm256_load_pd(&ev[16]);		
+		    
+		    vv[0] = _mm256_add_pd(vv[0], _mm256_mul_pd(x1v, evv[0]));
+		    vv[1] = _mm256_add_pd(vv[1], _mm256_mul_pd(x1v, evv[1]));
+		    vv[2] = _mm256_add_pd(vv[2], _mm256_mul_pd(x1v, evv[2]));
+		    vv[3] = _mm256_add_pd(vv[3], _mm256_mul_pd(x1v, evv[3]));
+		    vv[4] = _mm256_add_pd(vv[4], _mm256_mul_pd(x1v, evv[4]));				      		      	  
+#endif
+		  }
+		
+		_mm256_store_pd(&v[0], vv[0]);
+		_mm256_store_pd(&v[4], vv[1]);
+		_mm256_store_pd(&v[8], vv[2]);
+		_mm256_store_pd(&v[12], vv[3]);
+		_mm256_store_pd(&v[16], vv[4]);
+
+		x3_ptr += 20;
+	      }
+	  }
+      }
+      break;
+    case TIP_INNER:      	
+      for (i = 0; i < n; i++)
+	{
+	  if(isGap(x3_gap, i))
+	    {
+	      if(scaleGap)
+		{
+		  if(useFastScaling)
+		    addScale += wgt[i];
+		  else
+		    ex3[i] += 1;		   		    
+		}	     
+	    }
+	  else
+	    {
+	      vl = &(tipVector[20 * tipX1[i]]);
+
+	      vr = x2_ptr;
+	      v = x3_ptr;
+	      
+	      if(isGap(x1_gap, i))
+		le =  &left[maxCats * 400];
+	      else
+		le =  &left[cptr[i] * 400];
+	      
+	      if(isGap(x2_gap, i))
+		{		 
+		  ri =  &right[maxCats * 400];
+		  vr = x2_gapColumn;
+		}
+	      else
+		{
+		  ri =  &right[cptr[i] * 400];
+		  vr = x2_ptr;
+		  x2_ptr += 20;
+		}	  	  
+	  
+	      __m256d vv[5];
+	      
+	      vv[0] = _mm256_setzero_pd();
+	      vv[1] = _mm256_setzero_pd();
+	      vv[2] = _mm256_setzero_pd();
+	      vv[3] = _mm256_setzero_pd();
+	      vv[4] = _mm256_setzero_pd();
+	      	      	      
+	      for(l = 0; l < 20; l++)
+		{	       
+		  __m256d 
+		    x1v = _mm256_setzero_pd(),
+		    x2v = _mm256_setzero_pd();	
+		  
+		  double 
+		    *ev = &extEV[l * 20],
+		    *lv = &le[l * 20],
+		    *rv = &ri[l * 20];														
+#ifdef _FMA
+		  for(k = 0; k < 20; k += 4) 
+		    {
+		      __m256d vlv = _mm256_load_pd(&vl[k]);
+		      __m256d lvv = _mm256_load_pd(&lv[k]);
+		      x1v = FMAMACC(x1v,vlv,lvv);
+		      __m256d vrv = _mm256_load_pd(&vr[k]);
+		      __m256d rvv = _mm256_load_pd(&rv[k]);
+		      x2v = FMAMACC(x2v,vrv,rvv);
+		    }
+#else	      
+		  x1v = _mm256_add_pd(x1v, _mm256_mul_pd(_mm256_load_pd(&vl[0]), _mm256_load_pd(&lv[0])));
+		  x1v = _mm256_add_pd(x1v, _mm256_mul_pd(_mm256_load_pd(&vl[4]), _mm256_load_pd(&lv[4])));
+		  x1v = _mm256_add_pd(x1v, _mm256_mul_pd(_mm256_load_pd(&vl[8]), _mm256_load_pd(&lv[8])));
+		  x1v = _mm256_add_pd(x1v, _mm256_mul_pd(_mm256_load_pd(&vl[12]), _mm256_load_pd(&lv[12])));
+		  x1v = _mm256_add_pd(x1v, _mm256_mul_pd(_mm256_load_pd(&vl[16]), _mm256_load_pd(&lv[16])));
+		  
+		  x2v = _mm256_add_pd(x2v,  _mm256_mul_pd(_mm256_load_pd(&vr[0]), _mm256_load_pd(&rv[0])));			    
+		  x2v = _mm256_add_pd(x2v,  _mm256_mul_pd(_mm256_load_pd(&vr[4]), _mm256_load_pd(&rv[4])));				    
+		  x2v = _mm256_add_pd(x2v,  _mm256_mul_pd(_mm256_load_pd(&vr[8]), _mm256_load_pd(&rv[8])));			    
+		  x2v = _mm256_add_pd(x2v,  _mm256_mul_pd(_mm256_load_pd(&vr[12]), _mm256_load_pd(&rv[12])));				    
+		  x2v = _mm256_add_pd(x2v,  _mm256_mul_pd(_mm256_load_pd(&vr[16]), _mm256_load_pd(&rv[16])));
+#endif
+		  
+		  x1v = hadd4(x1v, x2v);			
+		  
+		  __m256d 
+		    evv[5];
+		  
+		  evv[0] = _mm256_load_pd(&ev[0]);
+		  evv[1] = _mm256_load_pd(&ev[4]);
+		  evv[2] = _mm256_load_pd(&ev[8]);
+		  evv[3] = _mm256_load_pd(&ev[12]);
+		  evv[4] = _mm256_load_pd(&ev[16]);		
+		  
+#ifdef _FMA
+		  for(k = 0; k < 5; k++)
+		    vv[k] = FMAMACC(vv[k],x1v,evv[k]);		 
+#else	      
+		  vv[0] = _mm256_add_pd(vv[0], _mm256_mul_pd(x1v, evv[0]));
+		  vv[1] = _mm256_add_pd(vv[1], _mm256_mul_pd(x1v, evv[1]));
+		  vv[2] = _mm256_add_pd(vv[2], _mm256_mul_pd(x1v, evv[2]));
+		  vv[3] = _mm256_add_pd(vv[3], _mm256_mul_pd(x1v, evv[3]));
+		  vv[4] = _mm256_add_pd(vv[4], _mm256_mul_pd(x1v, evv[4]));				      	
+#endif
+		}	  
+
+	   	     
+	      __m256d minlikelihood_avx = _mm256_set1_pd( minlikelihood );
+	  
+	      scale = 1;
+	      
+	      for(l = 0; scale && (l < 20); l += 4)
+		{	       
+		  __m256d 
+		    v1 = _mm256_and_pd(vv[l / 4], absMask_AVX.m);
+		  v1 = _mm256_cmp_pd(v1,  minlikelihood_avx, _CMP_LT_OS);
+		  
+		  if(_mm256_movemask_pd( v1 ) != 15)
+		    scale = 0;
+		}	    	  	  
+	 
+	      if(scale)
+		{
+		  __m256d 
+		    twoto = _mm256_set1_pd(twotothe256);
+		  
+		  for(l = 0; l < 20; l += 4)
+		    vv[l / 4] = _mm256_mul_pd(vv[l / 4] , twoto);		    		 
+		  
+		  if(useFastScaling)
+		    addScale += wgt[i];
+		  else
+		    ex3[i]  += 1;	      
+		}
+
+	      _mm256_store_pd(&v[0], vv[0]);
+	      _mm256_store_pd(&v[4], vv[1]);
+	      _mm256_store_pd(&v[8], vv[2]);
+	      _mm256_store_pd(&v[12], vv[3]);
+	      _mm256_store_pd(&v[16], vv[4]);	       
+	      
+	      x3_ptr += 20;
+	    }
+	}    
+      break;
+    case INNER_INNER:
+      for(i = 0; i < n; i++)
+	{
+	   if(isGap(x3_gap, i))
+	     {
+	       if(scaleGap)		   		    
+		 {
+		   if(useFastScaling)
+		     addScale += wgt[i];
+		   else
+		     ex3[i] += 1;
+		 }		 	       
+	     }
+	   else
+	     {
+
+	        v = x3_ptr;
+
+		if(isGap(x1_gap, i))
+		  {
+		    vl = x1_gapColumn;
+		    le =  &left[maxCats * 400];
+		  }
+		else
+		  {
+		    le =  &left[cptr[i] * 400];
+		    vl = x1_ptr;
+		    x1_ptr += 20;
+		  }
+		
+		if(isGap(x2_gap, i))	
+		  {
+		    vr = x2_gapColumn;
+		    ri =  &right[maxCats * 400];	    
+		  }
+		else
+		  {
+		    ri =  &right[cptr[i] * 400];
+		    vr = x2_ptr;
+		    x2_ptr += 20;
+		  }	 	  	 
+		
+		__m256d vv[5];
+		
+		vv[0] = _mm256_setzero_pd();
+		vv[1] = _mm256_setzero_pd();
+		vv[2] = _mm256_setzero_pd();
+		vv[3] = _mm256_setzero_pd();
+		vv[4] = _mm256_setzero_pd();
+		
+		for(l = 0; l < 20; l++)
+		  {	       
+		    __m256d 
+		      x1v = _mm256_setzero_pd(),
+		      x2v = _mm256_setzero_pd();	
+		    
+		    double 
+		      *ev = &extEV[l * 20],
+		      *lv = &le[l * 20],
+		      *rv = &ri[l * 20];														
+		    
+		    x1v = _mm256_add_pd(x1v, _mm256_mul_pd(_mm256_load_pd(&vl[0]), _mm256_load_pd(&lv[0])));
+		    x1v = _mm256_add_pd(x1v, _mm256_mul_pd(_mm256_load_pd(&vl[4]), _mm256_load_pd(&lv[4])));
+		    x1v = _mm256_add_pd(x1v, _mm256_mul_pd(_mm256_load_pd(&vl[8]), _mm256_load_pd(&lv[8])));
+		    x1v = _mm256_add_pd(x1v, _mm256_mul_pd(_mm256_load_pd(&vl[12]), _mm256_load_pd(&lv[12])));
+		    x1v = _mm256_add_pd(x1v, _mm256_mul_pd(_mm256_load_pd(&vl[16]), _mm256_load_pd(&lv[16])));
+		    
+		    x2v = _mm256_add_pd(x2v,  _mm256_mul_pd(_mm256_load_pd(&vr[0]), _mm256_load_pd(&rv[0])));			    
+		    x2v = _mm256_add_pd(x2v,  _mm256_mul_pd(_mm256_load_pd(&vr[4]), _mm256_load_pd(&rv[4])));				    
+		    x2v = _mm256_add_pd(x2v,  _mm256_mul_pd(_mm256_load_pd(&vr[8]), _mm256_load_pd(&rv[8])));			    
+		    x2v = _mm256_add_pd(x2v,  _mm256_mul_pd(_mm256_load_pd(&vr[12]), _mm256_load_pd(&rv[12])));				    
+		    x2v = _mm256_add_pd(x2v,  _mm256_mul_pd(_mm256_load_pd(&vr[16]), _mm256_load_pd(&rv[16])));
+		    
+		    x1v = hadd4(x1v, x2v);			
+#ifdef _FMA
+		    for(k = 0; k < 5; k++) 
+		      {
+			__m256d evv = _mm256_load_pd(&ev[k*4]);
+			vv[k] = FMAMACC(vv[k],x1v,evv);
+		      }
+#else	      
+		    __m256d 
+		      evv[5];
+		    
+		    evv[0] = _mm256_load_pd(&ev[0]);
+		    evv[1] = _mm256_load_pd(&ev[4]);
+		    evv[2] = _mm256_load_pd(&ev[8]);
+		    evv[3] = _mm256_load_pd(&ev[12]);
+		    evv[4] = _mm256_load_pd(&ev[16]);		
+		    
+		    vv[0] = _mm256_add_pd(vv[0], _mm256_mul_pd(x1v, evv[0]));
+		    vv[1] = _mm256_add_pd(vv[1], _mm256_mul_pd(x1v, evv[1]));
+		    vv[2] = _mm256_add_pd(vv[2], _mm256_mul_pd(x1v, evv[2]));
+		    vv[3] = _mm256_add_pd(vv[3], _mm256_mul_pd(x1v, evv[3]));
+		    vv[4] = _mm256_add_pd(vv[4], _mm256_mul_pd(x1v, evv[4]));				      	
+#endif
+		  }	  
+
+	   	     
+		__m256d minlikelihood_avx = _mm256_set1_pd( minlikelihood );
+		
+		scale = 1;
+		
+		for(l = 0; scale && (l < 20); l += 4)
+		  {	       
+		    __m256d 
+		      v1 = _mm256_and_pd(vv[l / 4], absMask_AVX.m);
+		    v1 = _mm256_cmp_pd(v1,  minlikelihood_avx, _CMP_LT_OS);
+		    
+		    if(_mm256_movemask_pd( v1 ) != 15)
+		      scale = 0;
+		  }	    	  	  
+		
+		if(scale)
+		  {
+		    __m256d 
+		      twoto = _mm256_set1_pd(twotothe256);
+		    
+		    for(l = 0; l < 20; l += 4)
+		      vv[l / 4] = _mm256_mul_pd(vv[l / 4] , twoto);		    		 
+		    
+		    if(useFastScaling)
+		      addScale += wgt[i];
+		    else
+		      ex3[i]  += 1;	      
+		  }
+
+		_mm256_store_pd(&v[0], vv[0]);
+		_mm256_store_pd(&v[4], vv[1]);
+		_mm256_store_pd(&v[8], vv[2]);
+		_mm256_store_pd(&v[12], vv[3]);
+		_mm256_store_pd(&v[16], vv[4]);
+
+		 x3_ptr += 20;
+	     }
+	}   
       break;
     default:
       assert(0);
