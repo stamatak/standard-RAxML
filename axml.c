@@ -926,6 +926,9 @@ static boolean setupTree (tree *tr, analdef *adef)
       tr->yVector      = (unsigned char **)  malloc((tr->mxtips + 1) * sizeof(unsigned char *));
 
       tr->fracchanges  = (double *)malloc(tr->NumberOfModels * sizeof(double));
+
+      
+
       tr->likelihoods  = (double *)malloc(adef->multipleRuns * sizeof(double));
     }
 
@@ -947,6 +950,9 @@ static boolean setupTree (tree *tr, analdef *adef)
 
       for(i = 0; i < tr->NumberOfModels; i++)
 	tr->fracchanges[i] = -1.0;
+
+      
+
       tr->fracchange = -1.0;
 
       tr->constraintVector = (int *)malloc((2 * tr->mxtips) * sizeof(int));
@@ -3064,14 +3070,35 @@ static void allocPartitions(tree *tr)
       if(tr->useFastScaling)	
 	tr->partitionData[i].globalScaler    = (unsigned int *)calloc(2 * tr->mxtips, sizeof(unsigned int));  	         
 
+      
       tr->partitionData[i].left              = (double *)malloc_aligned(pl->leftLength * (maxCategories + 1) * sizeof(double));
-      tr->partitionData[i].right             = (double *)malloc_aligned(pl->rightLength * (maxCategories + 1) * sizeof(double));
+      tr->partitionData[i].right             = (double *)malloc_aligned(pl->rightLength * (maxCategories + 1) * sizeof(double));      
       tr->partitionData[i].EIGN              = (double*)malloc(pl->eignLength * sizeof(double));
       tr->partitionData[i].EV                = (double*)malloc_aligned(pl->evLength * sizeof(double));
       tr->partitionData[i].EI                = (double*)malloc(pl->eiLength * sizeof(double));
       tr->partitionData[i].substRates        = (double *)malloc(pl->substRatesLength * sizeof(double));
       tr->partitionData[i].frequencies       = (double*)malloc(pl->frequenciesLength * sizeof(double));
       tr->partitionData[i].tipVector         = (double *)malloc_aligned(pl->tipVectorLength * sizeof(double));
+
+      {
+	/* TODO alloc only when LG4 is used ! */
+
+	int 
+	  k;
+	
+	for(k = 0; k < 4; k++)
+	  {	    
+	    tr->partitionData[i].EIGN_LG4[k]              = (double*)malloc(pl->eignLength * sizeof(double));
+	    tr->partitionData[i].EV_LG4[k]                = (double*)malloc_aligned(pl->evLength * sizeof(double));
+	    tr->partitionData[i].EI_LG4[k]                = (double*)malloc(pl->eiLength * sizeof(double));
+	    tr->partitionData[i].substRates_LG4[k]        = (double *)malloc(pl->substRatesLength * sizeof(double));
+	    tr->partitionData[i].frequencies_LG4[k]       = (double*)malloc(pl->frequenciesLength * sizeof(double));
+	    tr->partitionData[i].tipVector_LG4[k]         = (double *)malloc_aligned(pl->tipVectorLength * sizeof(double));
+	  }
+
+      }
+
+
       tr->partitionData[i].symmetryVector    = (int *)malloc(pl->symmetryVectorLength  * sizeof(int));
       tr->partitionData[i].frequencyGrouping = (int *)malloc(pl->frequencyGroupingLength  * sizeof(int));
       tr->partitionData[i].perSiteRates      = (double *)malloc(sizeof(double) * tr->maxCategories);
@@ -4082,7 +4109,26 @@ static void printREADME(void)
   printf("                                                    heterogeneity (alpha parameter will be estimated)\n");  
   printf("                \"-m PROTGAMMAImatrixName[F]\"      : Same as PROTGAMMAmatrixName[F], but with estimate of proportion of invariable sites \n");
   printf("\n");
-  printf("                Available AA substitution models: DAYHOFF, DCMUT, JTT, MTREV, WAG, RTREV, CPREV, VT, BLOSUM62, MTMAM, LG, MTART, MTZOA, PMB, HIVB, HIVW, JTTDCMUT, FLU, DUMMY, DUMMY2, GTR_UNLINKED, GTR\n");
+  printf("                Available AA substitution models:\n");
+  printf("                ");
+  
+  {
+    int 
+      i;
+    
+    for(i = 0; i < NUM_PROT_MODELS - 1; i++)
+      {
+	if(i > 0 && (i % 8 == 0))
+	  {
+	    printf("\n");
+	    printf("                ");
+	  }
+	printf("%s, ", protModels[i]);
+      }
+    
+    printf("%s\n", protModels[i]);
+  }
+  
   printf("                With the optional \"F\" appendix you can specify if you want to use empirical base frequencies\n");
   printf("                Please note that for mixed models you can in addition specify the per-gene AA model in\n");
   printf("                the mixed model file (see manual for details). Also note that if you estimate AA GTR parameters on a partitioned\n");
@@ -4854,7 +4900,21 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 		printf("For AA data use:     PROTCATmatrixName[F]  or PROTGAMMAmatrixName[F]  or\n");
 		printf("                     PROTCATImatrixName[F] or PROTGAMMAImatrixName[F]   \n");
 		printf("The AA substitution matrix can be one of the following: \n");
-		printf("DAYHOFF, DCMUT, JTT, MTREV, WAG, RTREV, CPREV, VT, BLOSUM62, MTMAM, LG, MTART, MTZOA, PMB, HIVB, HIVW, JTTDCMUT, FLU, GTR\n\n");
+		
+		{
+		  int 
+		    i;
+    
+		  for(i = 0; i < NUM_PROT_MODELS - 1; i++)
+		    {
+		      	if(i % 8 == 0)	  
+			  printf("\n");
+		      printf("%s, ", protModels[i]);
+		    }
+		  
+		  printf("%s\n\n", protModels[i]);
+		}
+		
 		printf("With the optional \"F\" appendix you can specify if you want to use empirical base frequencies\n");
 		printf("Please note that for mixed models you can in addition specify the per-gene model in\n");
 		printf("the mixed model file (see manual for details)\n");
@@ -6712,6 +6772,9 @@ static void initPartition(tree *tr, tree *localTree, int tid)
       localTree->storedPerPartitionLH    = (double*)malloc(sizeof(double)   * localTree->NumberOfModels);
 
       localTree->fracchanges = (double*)malloc(sizeof(double)   * localTree->NumberOfModels);
+
+      
+
       localTree->partitionContributions = (double*)malloc(sizeof(double)   * localTree->NumberOfModels);
 
       localTree->partitionData = (pInfo*)malloc(sizeof(pInfo) * localTree->NumberOfModels);

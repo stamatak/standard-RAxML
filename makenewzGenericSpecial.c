@@ -1127,6 +1127,75 @@ static void coreGammaFlex(double *gammaRates, double *EIGN, double *sumtable, in
   *ext_d2lnLdlz2 = d2lnLdlz2;
 }
 
+static void coreGammaFlex_LG4(double *gammaRates, double *EIGN[4], double *sumtable, int upper, int *wrptr,
+			      volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double lz, const int numStates)
+{
+  double  
+    *sum, 
+    diagptable[1024],
+    dlnLdlz = 0.0,
+    d2lnLdlz2 = 0.0,
+    ki, 
+    kisqr,
+    tmp,
+    inv_Li, 
+    dlnLidlz, 
+    d2lnLidlz2;
+
+  int     
+    i, 
+    j, 
+    l;  
+
+  const int 
+    gammaStates = 4 * numStates;
+
+  for(i = 0; i < 4; i++)
+    {
+      ki = gammaRates[i];
+      kisqr = ki * ki;
+
+      for(l = 1; l < numStates; l++)
+	{
+	  diagptable[i * gammaStates + l * 4]     = EXP(EIGN[i][l-1] * ki * lz);
+	  diagptable[i * gammaStates + l * 4 + 1] = EIGN[i][l-1] * ki;
+	  diagptable[i * gammaStates + l * 4 + 2] = EIGN[i][l-1] * EIGN[i][l-1] * kisqr;
+	}
+    }
+
+  for (i = 0; i < upper; i++)
+    {
+      sum = &sumtable[i * gammaStates];
+      inv_Li   = 0.0;
+      dlnLidlz = 0.0;
+      d2lnLidlz2 = 0.0;
+
+      for(j = 0; j < 4; j++)
+	{
+	  inv_Li += sum[j * numStates];
+
+	  for(l = 1; l < numStates; l++)
+	    {
+	      inv_Li     += (tmp = diagptable[j * gammaStates + l * 4] * sum[j * numStates + l]);
+	      dlnLidlz   +=  tmp * diagptable[j * gammaStates + l * 4 + 1];
+	      d2lnLidlz2 +=  tmp * diagptable[j * gammaStates + l * 4 + 2];
+	    }
+	}
+
+      inv_Li = 1.0 / inv_Li;
+
+      dlnLidlz   *= inv_Li;
+      d2lnLidlz2 *= inv_Li;
+
+      dlnLdlz   += wrptr[i] * dlnLidlz;
+      d2lnLdlz2 += wrptr[i] * (d2lnLidlz2 - dlnLidlz * dlnLidlz);
+    }
+
+  *ext_dlnLdlz   = dlnLdlz;
+  *ext_d2lnLdlz2 = d2lnLdlz2;
+}
+
+
 
 static void coreGammaInvarFlex(double *gammaRates, double *EIGN, double *sumtable, int upper, int *wrptr,
 			       volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double lz, double *frequencies,
@@ -2166,6 +2235,88 @@ static void sumGAMMAPROT(int tipCase, double *sumtable, double *x1, double *x2, 
     }
 }
 
+static void sumGAMMAPROT_LG4(int tipCase, double *sumtable, double *x1, double *x2, double *tipVector[4],
+			     unsigned char *tipX1, unsigned char *tipX2, int n)
+{
+  int i, l, k;
+  double *left, *right, *sum;
+
+  switch(tipCase)
+    {
+    case TIP_TIP:
+      for(i = 0; i < n; i++)
+	{	  
+	  for(l = 0; l < 4; l++)
+	    {
+	      left  = &(tipVector[l][20 * tipX1[i]]);
+	      right = &(tipVector[l][20 * tipX2[i]]);
+
+	      sum = &sumtable[i * 80 + l * 20];
+#ifdef __SIM_SSE3
+	      for(k = 0; k < 20; k+=2)
+		{
+		  __m128d sumv = _mm_mul_pd(_mm_load_pd(&left[k]), _mm_load_pd(&right[k]));
+		  
+		  _mm_store_pd(&sum[k], sumv);		 
+		}
+#else
+	      for(k = 0; k < 20; k++)
+		sum[k] = left[k] * right[k];
+#endif
+	    }
+	}
+      break;
+    case TIP_INNER:
+      for(i = 0; i < n; i++)
+	{
+	 
+
+	  for(l = 0; l < 4; l++)
+	    { 
+	      left = &(tipVector[l][20 * tipX1[i]]);
+	      right = &(x2[80 * i + l * 20]);
+	      sum = &sumtable[i * 80 + l * 20];
+#ifdef __SIM_SSE3
+	      for(k = 0; k < 20; k+=2)
+		{
+		  __m128d sumv = _mm_mul_pd(_mm_load_pd(&left[k]), _mm_load_pd(&right[k]));
+		  
+		  _mm_store_pd(&sum[k], sumv);		 
+		}
+#else
+	      for(k = 0; k < 20; k++)
+		sum[k] = left[k] * right[k];
+#endif
+	    }
+	}
+      break;
+    case INNER_INNER:
+      for(i = 0; i < n; i++)
+	{
+	  for(l = 0; l < 4; l++)
+	    {
+	      left  = &(x1[80 * i + l * 20]);
+	      right = &(x2[80 * i + l * 20]);
+	      sum   = &(sumtable[i * 80 + l * 20]);
+
+#ifdef __SIM_SSE3
+	      for(k = 0; k < 20; k+=2)
+		{
+		  __m128d sumv = _mm_mul_pd(_mm_load_pd(&left[k]), _mm_load_pd(&right[k]));
+		  
+		  _mm_store_pd(&sum[k], sumv);		 
+		}
+#else
+	      for(k = 0; k < 20; k++)
+		sum[k] = left[k] * right[k];
+#endif
+	    }
+	}
+      break;
+    default:
+      assert(0);
+    }
+}
 
 
 #ifdef __SIM_SSE3
@@ -3277,8 +3428,14 @@ void makenewzIterative(tree *tr)
 					     width, x1_gapColumn, x2_gapColumn, x1_gap, x2_gap);
 		  else
 #endif		  
-		    sumGAMMAPROT(tipCase,  tr->partitionData[model].sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector,
-				 tipX1, tipX2, width);		       
+		    if(tr->partitionData[model].protModels == LG4)		      
+		      {			
+			sumGAMMAPROT_LG4(tipCase,  tr->partitionData[model].sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector_LG4,
+					 tipX1, tipX2, width);
+		      }
+		    else
+		      sumGAMMAPROT(tipCase,  tr->partitionData[model].sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector,
+				   tipX1, tipX2, width);		       
 		  break;
 		default:
 		  assert(0);
@@ -3477,10 +3634,18 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 				     &dlnLdlz, &d2lnLdlz2,
 				     sumBuffer);
 		      break;
-		    case GAMMA:		     
-		      coreGTRGAMMAPROT(tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN,
-				       sumBuffer, width, tr->partitionData[model].wgt,
-				       &dlnLdlz, &d2lnLdlz2, lz);
+		    case GAMMA:	
+		      if(tr->partitionData[model].protModels == LG4)
+			{						  
+			  coreGammaFlex_LG4(tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN_LG4,
+					   sumBuffer, width, tr->partitionData[model].wgt,
+					   &dlnLdlz, &d2lnLdlz2, lz, 20);
+
+			}
+		      else
+			coreGTRGAMMAPROT(tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN,
+					 sumBuffer, width, tr->partitionData[model].wgt,
+					 &dlnLdlz, &d2lnLdlz2, lz);
 		      break;
 		    case GAMMA_I:
 		      coreGTRGAMMAPROTINVAR(tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN,

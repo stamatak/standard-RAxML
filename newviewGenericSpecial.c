@@ -125,6 +125,45 @@ void makeP_Flex(double z1, double z2, double *rptr, double *EI,  double *EIGN, i
     }  
 }
 
+void makeP_FlexLG4(double z1, double z2, double *rptr, double *EI[4],  double *EIGN[4], int numberOfCategories, double *left, double *right, const int numStates)
+{
+  int 
+    i,
+    j,
+    k;
+  
+  const int
+    rates = numStates - 1,
+    statesSquare = numStates * numStates;
+
+  double    
+    d1[64],  
+    d2[64];
+
+  assert(numStates <= 64);
+       
+  for(i = 0; i < numberOfCategories; i++)
+    {
+      for(j = 0; j < rates; j++)
+	{
+	  d1[j] = EXP (rptr[i] * EIGN[i][j] * z1);
+	  d2[j] = EXP (rptr[i] * EIGN[i][j] * z2);
+	}
+
+      for(j = 0; j < numStates; j++)
+	{
+	  left[statesSquare * i  + numStates * j] = 1.0;
+	  right[statesSquare * i + numStates * j] = 1.0;
+
+	  for(k = 1; k < numStates; k++)
+	    {
+	      left[statesSquare * i + numStates * j + k]  = d1[k-1] * EI[i][rates * j + (k-1)];
+	      right[statesSquare * i + numStates * j + k] = d2[k-1] * EI[i][rates * j + (k-1)];
+	    }
+	}
+    }  
+}
+
 
 
 
@@ -430,6 +469,158 @@ static void newviewFlexGamma(int tipCase,
     *scalerIncrement = addScale;
 
 }
+
+
+
+static void newviewFlexGamma_LG4(int tipCase,
+				 double *x1, double *x2, double *x3, double *extEV[4], double *tipVector[4],
+				 int *ex3, unsigned char *tipX1, unsigned char *tipX2,
+				 int n, double *left, double *right, int *wgt, int *scalerIncrement, const boolean useFastScaling, 
+				 const int numStates)
+{
+  double  *v;
+  double x1px2;
+  int  i, j, l, k, scale, addScale = 0;
+  double *vl, *vr, al, ar;
+
+  const int 
+    statesSquare = numStates * numStates,
+    gammaStates = 4 * numStates;
+
+  switch(tipCase)
+    {
+    case TIP_TIP:
+      {
+	for(i = 0; i < n; i++)
+	  {
+	    for(k = 0; k < 4; k++)
+	      {
+		vl = &(tipVector[k][numStates * tipX1[i]]);
+		vr = &(tipVector[k][numStates * tipX2[i]]);
+		v =  &(x3[gammaStates * i + numStates * k]);
+
+		for(l = 0; l < numStates; l++)
+		  v[l] = 0;
+
+		for(l = 0; l < numStates; l++)
+		  {
+		    al = 0.0;
+		    ar = 0.0;
+		    for(j = 0; j < numStates; j++)
+		      {
+			al += vl[j] * left[k * statesSquare + l * numStates + j];
+			ar += vr[j] * right[k * statesSquare + l * numStates + j];
+		      }
+
+		    x1px2 = al * ar;
+		    for(j = 0; j < numStates; j++)
+		      v[j] += x1px2 * extEV[k][numStates * l + j];
+		  }
+	      }	    
+	  }
+      }
+      break;
+    case TIP_INNER:
+      {
+	for (i = 0; i < n; i++)
+	  {
+	    for(k = 0; k < 4; k++)
+	      {
+		vl = &(tipVector[k][numStates * tipX1[i]]);
+		vr = &(x2[gammaStates * i + numStates * k]);
+		v =  &(x3[gammaStates * i + numStates * k]);
+
+		for(l = 0; l < numStates; l++)
+		  v[l] = 0;
+
+		for(l = 0; l < numStates; l++)
+		  {
+		    al = 0.0;
+		    ar = 0.0;
+		    for(j = 0; j < numStates; j++)
+		      {
+			al += vl[j] * left[k * statesSquare + l * numStates + j];
+			ar += vr[j] * right[k * statesSquare + l * numStates + j];
+		      }
+
+		    x1px2 = al * ar;
+		    for(j = 0; j < numStates; j++)
+		      v[j] += x1px2 * extEV[k][numStates * l + j];
+		  }
+	      }
+	   
+	    v = &x3[gammaStates * i];
+	    scale = 1;
+	    for(l = 0; scale && (l < gammaStates); l++)
+	      scale = (ABS(v[l]) <  minlikelihood);
+
+	    if(scale)
+	      {
+		for(l = 0; l < gammaStates; l++)
+		  v[l] *= twotothe256;
+
+		if(useFastScaling)
+		  addScale += wgt[i];
+		else
+		  ex3[i]  += 1;	      
+	      }
+	  }
+      }
+      break;
+    case INNER_INNER:
+      for (i = 0; i < n; i++)
+       {
+	 for(k = 0; k < 4; k++)
+	   {
+	     vl = &(x1[gammaStates * i + numStates * k]);
+	     vr = &(x2[gammaStates * i + numStates * k]);
+	     v =  &(x3[gammaStates * i + numStates * k]);
+
+	     for(l = 0; l < numStates; l++)
+	       v[l] = 0;
+
+	     for(l = 0; l < numStates; l++)
+	       {
+		 al = 0.0;
+		 ar = 0.0;
+		 for(j = 0; j < numStates; j++)
+		   {
+		     al += vl[j] * left[k * statesSquare + l * numStates + j];
+		     ar += vr[j] * right[k * statesSquare + l * numStates + j];
+		   }
+
+		 x1px2 = al * ar;
+		 for(j = 0; j < numStates; j++)
+		   v[j] += x1px2 * extEV[k][numStates * l + j];
+	       }
+	   }
+	 
+	 v = &(x3[gammaStates * i]);
+	 scale = 1;
+	 for(l = 0; scale && (l < gammaStates); l++)
+	   scale = ((ABS(v[l]) <  minlikelihood));
+
+	 if (scale)
+	   {
+	     for(l = 0; l < gammaStates; l++)
+	       v[l] *= twotothe256;
+
+	     if(useFastScaling)
+	       addScale += wgt[i];
+	     else
+	       ex3[i]  += 1;	    
+	   }
+       }
+      break;
+    default:
+      assert(0);
+    }
+
+  if(useFastScaling)
+    *scalerIncrement = addScale;
+
+}
+
 
 
 
@@ -6958,16 +7149,9 @@ void newviewIterative (tree *tr)
     {
       traversalInfo 
 	*tInfo = &ti[i];
-#ifdef _DEBUG_MULTI_EPA  
-      printf("NV: ");
-#endif
+
       for(model = 0; model < tr->NumberOfModels; model++)
-	{
-#ifdef _DEBUG_MULTI_EPA  
-	  printf("%d ", tr->executeModel[model]);
-#endif
-	  
-	  
+	{	  	  
 	  if(tr->executeModel[model])
 	    {	      
 	      double
@@ -7336,7 +7520,23 @@ void newviewIterative (tree *tr)
 			}
 		      break;
 		    case GAMMA:
-		    case GAMMA_I:		     		      
+		    case GAMMA_I:
+		      if(tr->partitionData[model].protModels == LG4)
+			{		   			 
+			  makeP_FlexLG4(qz, rz, tr->partitionData[model].gammaRates,
+					tr->partitionData[model].EI_LG4,
+					tr->partitionData[model].EIGN_LG4,
+					4, left, right, 20);
+
+			  newviewFlexGamma_LG4(tInfo->tipCase,
+					       x1_start, x2_start, x3_start,
+					       tr->partitionData[model].EV_LG4,
+					       tr->partitionData[model].tipVector_LG4,
+					       ex3, tipX1, tipX2,
+					       width, left, right, 
+					       wgt, &scalerIncrement, tr->useFastScaling, 20);			    
+			}		      
+		      else
 			{			 
 			  makeP(qz, rz, tr->partitionData[model].gammaRates,
 				tr->partitionData[model].EI,

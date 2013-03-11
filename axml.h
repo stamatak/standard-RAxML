@@ -217,13 +217,14 @@
 #define HIVW         15
 #define JTTDCMUT     16
 #define FLU          17 
-#define DUMMY        18
-#define DUMMY2       19
-#define PROT_FILE    20
-#define GTR_UNLINKED 21
-#define GTR          22  /* GTR always needs to be the last one */
+#define LG4          18
+#define DUMMY        19
+#define DUMMY2       20
+#define PROT_FILE    21
+#define GTR_UNLINKED 22
+#define GTR          23  /* GTR always needs to be the last one */
 
-#define NUM_PROT_MODELS 23
+#define NUM_PROT_MODELS 24
 
 
 /* bipartition stuff */
@@ -545,26 +546,30 @@ typedef struct {
   char   *partitionName;
   char   proteinSubstitutionFileName[2048];
   double externalAAMatrix[420];
+
   double *sumBuffer;
- 
-  double *gammaRates;
+   double *gammaRates;
 
   double *EIGN;
   double *EV;
-
-
-
-  double *EI;
-
-
-
-  
+  double *EI;  
 
   double *left;
   double *right;
 
-  
+  /* LG4 */
 
+  double *EIGN_LG4[4];
+  double *EV_LG4[4];
+  double *EI_LG4[4];  
+
+ 
+
+  double *frequencies_LG4[4];
+  double *tipVector_LG4[4];
+  double *substRates_LG4[4];
+  
+  /* LG4 */
 
   double *frequencies;
   double *tipVector;
@@ -626,17 +631,7 @@ typedef struct List_{
 } List;
 
 
-typedef struct {
-  double EIGN[19];             
-  double EV[400];                
-  double EI[380];
-  double substRates[190];        
-  double frequencies[20];      
-  double tipVector[460];
-  double fracchange[1];
-  double left[1600];
-  double right[1600];
-} siteAAModels;
+
 
 typedef  struct  {
   boolean optimizeAllTrees;
@@ -720,6 +715,8 @@ typedef  struct  {
 
   double           *invariants;
   double           *fracchanges;
+
+  
 
   /* model stuff end */
 

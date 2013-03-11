@@ -86,6 +86,36 @@ static void calcDiagptableFlex(double z, int numberOfCategories, double *rptr, d
     }        
 }
 
+
+static void calcDiagptableFlex_LG4(double z, int numberOfCategories, double *rptr, double *EIGN[4], double *diagptable, const int numStates)
+{
+  int 
+    i, 
+    l;
+  
+  double 
+    lz;
+  
+  const int 
+    rates = numStates - 1;
+  
+  assert(numStates <= 64);
+  
+  if (z < zmin) 
+    lz = log(zmin);
+  else
+    lz = log(z);
+
+  for(i = 0; i <  numberOfCategories; i++)
+    {	      	       
+      diagptable[i * numStates] = 1.0;
+
+      for(l = 1; l < numStates; l++)
+	diagptable[i * numStates + l] = EXP(rptr[i] * EIGN[i][l - 1] * lz);     	          
+    }        
+}
+
+
 static double evaluateCatFlex(int *ex1, int *ex2, int *cptr, int *wptr,
 			      double *x1, double *x2, double *tipVector,
 			      unsigned char *tipX1, int n, double *diagptable_start, double *vector, boolean writeVector, const boolean fastScaling, const int numStates)
@@ -243,6 +273,121 @@ static double evaluateGammaFlex(int *ex1, int *ex2, int *wptr,
 	      
 	      for(j = 0, term = 0.0; j < 4; j++)
 		{
+		  right = &(x2[gammaStates * i + numStates * j]);
+		  
+		  for(l = 0; l < numStates; l++)
+		    term += left[l] * right[l] * diagptable[j * numStates + l];	      
+		}
+	      
+	      if(fastScaling)
+		term = LOG(0.25 * FABS(term));
+	      else
+		term = LOG(0.25 * FABS(term)) + (ex2[i] * LOG(minlikelihood));	   
+	      
+	      sum += wptr[i] * term;
+	    }     	 
+	}
+    }              
+  else
+    {
+      if(writeVector)
+	for (i = 0; i < n; i++) 
+	{	  	 	             
+      
+	  for(j = 0, term = 0.0; j < 4; j++)
+	    {
+	      left  = &(x1[gammaStates * i + numStates * j]);
+	      right = &(x2[gammaStates * i + numStates * j]);	    
+	      
+	      for(l = 0; l < numStates; l++)
+		term += left[l] * right[l] * diagptable[j * numStates + l];	
+	    }
+	  
+	  if(fastScaling)
+	    term = LOG(0.25 * FABS(term));
+	  else
+	    term = LOG(0.25 * FABS(term)) + ((ex1[i] + ex2[i])*LOG(minlikelihood));
+	
+	  vector[i] = term;
+  
+	  sum += wptr[i] * term;
+	}         
+      else
+	for (i = 0; i < n; i++) 
+	  {	  	 	             
+	    
+	    for(j = 0, term = 0.0; j < 4; j++)
+	      {
+		left  = &(x1[gammaStates * i + numStates * j]);
+		right = &(x2[gammaStates * i + numStates * j]);	    
+		
+		for(l = 0; l < numStates; l++)
+		  term += left[l] * right[l] * diagptable[j * numStates + l];	
+	      }
+	    
+	    if(fastScaling)
+	      term = LOG(0.25 * FABS(term));
+	    else
+	      term = LOG(0.25 * FABS(term)) + ((ex1[i] + ex2[i])*LOG(minlikelihood));
+	    
+	    sum += wptr[i] * term;
+	  }         
+    }
+         
+  return  sum;
+}
+
+static double evaluateGammaFlex_LG4(int *ex1, int *ex2, int *wptr,
+				    double *x1, double *x2,  
+				    double *tipVector[4], 
+				    unsigned char *tipX1, int n, double *diagptable, double *vector, boolean writeVector, const boolean fastScaling, const int numStates)
+{
+  double   
+    sum = 0.0, 
+    term,
+    *left, 
+    *right;
+  
+  int     
+    i, 
+    j, 
+    l; 
+
+  const int 
+    gammaStates = numStates * 4;
+            
+  if(tipX1)
+    {          
+      if(writeVector)
+	for (i = 0; i < n; i++) 
+	  {	    	  	  	    
+	    for(j = 0, term = 0.0; j < 4; j++)
+	      {
+		left = &(tipVector[j][numStates * tipX1[i]]);
+		right = &(x2[gammaStates * i + numStates * j]);
+		
+		for(l = 0; l < numStates; l++)
+		  term += left[l] * right[l] * diagptable[j * numStates + l];	      
+	      }	 
+	    
+	    if(fastScaling)
+	      term = LOG(0.25 * FABS(term));
+	    else
+	      term = LOG(0.25 * FABS(term)) + (ex2[i] * LOG(minlikelihood));	   
+	    	    
+	    vector[i] = term;
+	    
+	    sum += wptr[i] * term;
+	  }         
+      else
+	{       
+	  for (i = 0; i < n; i++) 
+	    {	     
+	      	  	  
+	      
+	      for(j = 0, term = 0.0; j < 4; j++)
+		{
+		  left = &(tipVector[j][numStates * tipX1[i]]);
 		  right = &(x2[gammaStates * i + numStates * j]);
 		  
 		  for(l = 0; l < numStates; l++)
@@ -2722,19 +2867,32 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 								 tip, width, diagptable, tr->useFastScaling);		  
 				     	      
 		      break;	      
-		    case GAMMA:		      
-		      calcDiagptable(z, AA_DATA, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable);
-#ifdef __SIM_SSE3
-		      if(tr->saveMemory)
-			partitionLikelihood = evaluateGTRGAMMAPROT_GAPPED_SAVE(ex1, ex2, tr->partitionData[model].wgt,
-									       x1_start, x2_start, tr->partitionData[model].tipVector,
-									       tip, width, diagptable, tr->useFastScaling,
-									       x1_gapColumn, x2_gapColumn, x1_gap, x2_gap);
+		    case GAMMA:	
+		      if(tr->partitionData[model].protModels == LG4)
+			{						  
+			  calcDiagptableFlex_LG4(z, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN_LG4, diagptable, 20);
+
+			  partitionLikelihood = evaluateGammaFlex_LG4(ex1, ex2, tr->partitionData[model].wgt,
+								      x1_start, x2_start, tr->partitionData[model].tipVector_LG4,
+								      tip, width, diagptable, (double*)NULL, FALSE, tr->useFastScaling, 20);
+
+			  
+			}
 		      else
+			{
+			  calcDiagptable(z, AA_DATA, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable);
+#ifdef __SIM_SSE3
+			  if(tr->saveMemory)
+			    partitionLikelihood = evaluateGTRGAMMAPROT_GAPPED_SAVE(ex1, ex2, tr->partitionData[model].wgt,
+										   x1_start, x2_start, tr->partitionData[model].tipVector,
+										   tip, width, diagptable, tr->useFastScaling,
+										   x1_gapColumn, x2_gapColumn, x1_gap, x2_gap);
+			  else
 #endif		
-			partitionLikelihood = evaluateGTRGAMMAPROT(ex1, ex2, tr->partitionData[model].wgt,
-								   x1_start, x2_start, tr->partitionData[model].tipVector,
-								   tip, width, diagptable, tr->useFastScaling);			
+			    partitionLikelihood = evaluateGTRGAMMAPROT(ex1, ex2, tr->partitionData[model].wgt,
+								       x1_start, x2_start, tr->partitionData[model].tipVector,
+								       tip, width, diagptable, tr->useFastScaling);			
+			}
 		      break;
 		    case GAMMA_I:		  	    
 		      {
