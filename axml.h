@@ -1426,6 +1426,22 @@ extern void masterBarrier(int jobType, tree *tr);
 
 
 #ifdef __AVX
+void  newviewGTRGAMMA_AVX_GAPPED_SAVE(int tipCase,
+				      double *x1_start, double *x2_start, double *x3_start,
+				      double *extEV, double *tipVector,
+				      int *ex3, unsigned char *tipX1, unsigned char *tipX2,
+				      const int n, double *left, double *right, int *wgt, int *scalerIncrement, const boolean useFastScaling,
+				      unsigned int *x1_gap, unsigned int *x2_gap, unsigned int *x3_gap, 
+				      double *x1_gapColumn, double *x2_gapColumn, double *x3_gapColumn
+				      );
+
+void newviewGTRGAMMAPROT_AVX_GAPPED_SAVE(int tipCase,
+					 double *x1_start, double *x2_start, double *x3_start, double *extEV, double *tipVector,
+					 int *ex3, unsigned char *tipX1, unsigned char *tipX2, int n, 
+					 double *left, double *right, int *wgt, int *scalerIncrement, const boolean useFastScaling,
+					 unsigned int *x1_gap, unsigned int *x2_gap, unsigned int *x3_gap, 
+					 double *x1_gapColumn, double *x2_gapColumn, double *x3_gapColumn); 
+
 void newviewGTRCAT_AVX(int tipCase,  double *EV,  int *cptr,
     double *x1_start, double *x2_start,  double *x3_start, double *tipVector,
     int *ex3, unsigned char *tipX1, unsigned char *tipX2,

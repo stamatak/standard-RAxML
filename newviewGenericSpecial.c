@@ -7302,8 +7302,18 @@ void newviewIterative (tree *tr)
 				tr->partitionData[model].EI,
 				tr->partitionData[model].EIGN,
 				4, left, right, AA_DATA, tr->saveMemory, tr->maxCategories);
-#ifdef __SIM_SSE3
+#if (defined(__SIM_SSE3) || defined(__AVX))
 			  if(tr->saveMemory)
+#ifdef __AVX
+			    newviewGTRGAMMAPROT_AVX_GAPPED_SAVE(tInfo->tipCase,
+								x1_start, x2_start, x3_start,
+								tr->partitionData[model].EV,
+								tr->partitionData[model].tipVector,
+								ex3, tipX1, tipX2,
+								width, left, right, wgt, &scalerIncrement, tr->useFastScaling,
+								x1_gap, x2_gap, x3_gap,
+								x1_gapColumn, x2_gapColumn, x3_gapColumn);
+#else
 			    newviewGTRGAMMAPROT_GAPPED_SAVE(tInfo->tipCase,
 							    x1_start, x2_start, x3_start,
 							    tr->partitionData[model].EV,
@@ -7312,6 +7322,7 @@ void newviewIterative (tree *tr)
 							    width, left, right, wgt, &scalerIncrement, tr->useFastScaling,
 							    x1_gap, x2_gap, x3_gap,
 							    x1_gapColumn, x2_gapColumn, x3_gapColumn);
+#endif
 			  else
 #endif
 			    {
