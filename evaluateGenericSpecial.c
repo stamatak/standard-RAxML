@@ -614,8 +614,10 @@ static double evaluateGTRCATPROT_SAVE (int *ex1, int *ex2, int *cptr, int *wptr,
       tv = _mm_hadd_pd(tv, tv);
       _mm_storel_pd(&term, tv);
 
-
-      term = LOG(term);
+      if(fastScaling)
+	term = LOG(term);
+      else
+	term = LOG(term) + (ex2[i] * LOG(minlikelihood));
 
       sum += wptr[i] * term;
     }      
@@ -657,8 +659,11 @@ static double evaluateGTRCATPROT_SAVE (int *ex1, int *ex2, int *cptr, int *wptr,
 
       tv = _mm_hadd_pd(tv, tv);
       _mm_storel_pd(&term, tv);
-
-      term = LOG(term);	 
+      
+      if(fastScaling)
+	term = LOG(term);	 
+      else 
+	term = LOG(term) + ((ex1[i] + ex2[i]) * LOG(minlikelihood));
 
       sum += wptr[i] * term;      
     }
@@ -718,7 +723,10 @@ static double evaluateGTRCAT_SAVE (int *ex1, int *ex2, int *cptr, int *wptr,
 
       _mm_store_pd(t, x1v1);
 
-      term = LOG(t[0] + t[1]);      
+      if(fastScaling)
+	term = LOG(t[0] + t[1]);      
+      else
+	term =  LOG(t[0] + t[1]) + (ex2[i] * LOG(minlikelihood));
 
       sum += wptr[i] * term;
     }	
@@ -765,8 +773,10 @@ static double evaluateGTRCAT_SAVE (int *ex1, int *ex2, int *cptr, int *wptr,
 
       _mm_store_pd(t, x1v1);
 
-
-      term = LOG(t[0] + t[1]);
+      if(fastScaling)
+	term = LOG(t[0] + t[1]);
+      else
+	term = LOG(t[0] + t[1]) + ((ex1[i] + ex2[i]) * LOG(minlikelihood));
       
       sum += wptr[i] * term;
     }    
