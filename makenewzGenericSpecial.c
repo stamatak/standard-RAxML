@@ -287,8 +287,8 @@ static void sumCAT(int tipCase, double *sum, double *x1_start, double *x2_start,
 
 
 static void coreGTRCAT_BINARY(int upper, int numberOfCategories, double *sum,
-			      volatile double *d1, volatile double *d2, double *wrptr, double *wr2ptr,
-			      double *rptr, double *EIGN, int *cptr, double lz)
+			      volatile double *d1, volatile double *d2, 
+			      double *rptr, double *EIGN, int *cptr, double lz, int *wgt)
 {
   int i;
   double
@@ -312,6 +312,11 @@ static void coreGTRCAT_BINARY(int upper, int numberOfCategories, double *sum,
 
   for (i = 0; i < upper; i++)
     {
+      double
+	r = rptr[cptr[i]],
+	wr1 = r * wgt[i],
+	wr2 = r * r * wgt[i];
+      
       d = &d_start[cptr[i]];
 
       inv_Li = sum[2 * i];
@@ -325,8 +330,8 @@ static void coreGTRCAT_BINARY(int upper, int numberOfCategories, double *sum,
       dlnLidlz   *= inv_Li;
       d2lnLidlz2 *= inv_Li;
 
-      dlnLdlz   += wrptr[i] * dlnLidlz;
-      d2lnLdlz2 += wr2ptr[i] * (d2lnLidlz2 - dlnLidlz * dlnLidlz);
+      dlnLdlz   += wr1 * dlnLidlz;
+      d2lnLdlz2 += wr2 * (d2lnLidlz2 - dlnLidlz * dlnLidlz);
     }
 
   *d1 = dlnLdlz;
@@ -338,8 +343,8 @@ static void coreGTRCAT_BINARY(int upper, int numberOfCategories, double *sum,
 #ifdef __SIM_SSE3
 
 static void coreGTRCAT(int upper, int numberOfCategories, double *sum,
-			   volatile double *d1, volatile double *d2, double *wrptr, double *wr2ptr,
-			   double *rptr, double *EIGN, int *cptr, double lz)
+			   volatile double *d1, volatile double *d2,
+		       double *rptr, double *EIGN, int *cptr, double lz, int *wgt)
 {
   int i;
   double
@@ -386,7 +391,12 @@ static void coreGTRCAT(int upper, int numberOfCategories, double *sum,
 
   for (i = 0; i < upper; i++)
     {
-      double *s = &sum[4 * i];
+      double 
+	*s = &sum[4 * i],
+	r = rptr[cptr[i]],
+	wr1 = r * wgt[i],
+	wr2 = r * r * wgt[i];
+      
       d = &d_start[4 * cptr[i]];  
       
       __m128d tmp_0v =_mm_mul_pd(_mm_load_pd(&d[0]),_mm_load_pd(&s[0]));
@@ -411,8 +421,8 @@ static void coreGTRCAT(int upper, int numberOfCategories, double *sum,
       dlnLidlz   *= inv_Li;
       d2lnLidlz2 *= inv_Li;
 
-      dlnLdlz   += wrptr[i] * dlnLidlz;
-      d2lnLdlz2 += wr2ptr[i] * (d2lnLidlz2 - dlnLidlz * dlnLidlz);
+      dlnLdlz   += wr1 * dlnLidlz;
+      d2lnLdlz2 += wr2 * (d2lnLidlz2 - dlnLidlz * dlnLidlz);
     }
 
   *d1 = dlnLdlz;
@@ -425,8 +435,8 @@ static void coreGTRCAT(int upper, int numberOfCategories, double *sum,
 #else
 
 static void coreGTRCAT(int upper, int numberOfCategories, double *sum,
-			   volatile double *d1, volatile double *d2, double *wrptr, double *wr2ptr,
-			   double *rptr, double *EIGN, int *cptr, double lz)
+			   volatile double *d1, volatile double *d2, 
+		       double *rptr, double *EIGN, int *cptr, double lz, int *wgt)
 {
   int i;
   double
@@ -459,6 +469,11 @@ static void coreGTRCAT(int upper, int numberOfCategories, double *sum,
 
   for (i = 0; i < upper; i++)
     {
+      double
+	r = rptr[cptr[i]],
+	wr1 = r * wgt[i],
+	wr2 = r * r * wgt[i];
+
       d = &d_start[4 * cptr[i]];
 
       inv_Li = sum[4 * i];
@@ -481,8 +496,8 @@ static void coreGTRCAT(int upper, int numberOfCategories, double *sum,
       d2lnLidlz2 *= inv_Li;
 
 
-      dlnLdlz   += wrptr[i] * dlnLidlz;
-      d2lnLdlz2 += wr2ptr[i] * (d2lnLidlz2 - dlnLidlz * dlnLidlz);
+      dlnLdlz   += wr1 * dlnLidlz;
+      d2lnLdlz2 += wr2 * (d2lnLidlz2 - dlnLidlz * dlnLidlz);
     }
 
   *d1 = dlnLdlz;
@@ -855,7 +870,7 @@ static void sumGTRCATSECONDARY_7(int tipCase, double *sumtable, double *x1, doub
 #ifdef __SIM_SSE3
 
 static void coreGTRCATPROT(double *EIGN, double lz, int numberOfCategories, double *rptr, int *cptr, int upper,
-			   double *wrptr, double *wr2ptr,  volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double *sumtable)
+			   volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double *sumtable, int *wgt)
 {
   int i, l;
   double *d1, *d_start, *sum;
@@ -888,6 +903,11 @@ static void coreGTRCATPROT(double *EIGN, double lz, int numberOfCategories, doub
 
   for (i = 0; i < upper; i++)
     {
+      double
+	r = rptr[cptr[i]],
+	wr1 = r * wgt[i],
+	wr2 = r * r * wgt[i];
+
       __m128d a0 = _mm_setzero_pd();
       __m128d a1 = _mm_setzero_pd();
       __m128d a2 = _mm_setzero_pd();
@@ -921,8 +941,8 @@ static void coreGTRCATPROT(double *EIGN, double lz, int numberOfCategories, doub
       dlnLidlz   *= inv_Li;
       d2lnLidlz2 *= inv_Li;
 
-      dlnLdlz  += wrptr[i] * dlnLidlz;
-      d2lnLdlz2 += wr2ptr[i] * (d2lnLidlz2 - dlnLidlz * dlnLidlz);
+      dlnLdlz  += wr1 * dlnLidlz;
+      d2lnLdlz2 += wr2 * (d2lnLidlz2 - dlnLidlz * dlnLidlz);
     }
 
   *ext_dlnLdlz   = dlnLdlz;
@@ -934,7 +954,7 @@ static void coreGTRCATPROT(double *EIGN, double lz, int numberOfCategories, doub
 #else
 
 static void coreGTRCATPROT(double *EIGN, double lz, int numberOfCategories, double *rptr, int *cptr, int upper,
-			   double *wrptr, double *wr2ptr,  volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double *sumtable)
+			   volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double *sumtable, int *wgt)
 {
   int i, l;
   double *d1, *d_start, *sum;
@@ -961,6 +981,11 @@ static void coreGTRCATPROT(double *EIGN, double lz, int numberOfCategories, doub
 
   for (i = 0; i < upper; i++)
     {
+      double
+	r = rptr[cptr[i]],
+	wr1 = r * wgt[i],
+	wr2 = r * r * wgt[i];
+      
       d1 = &d_start[20 * cptr[i]];
       sum = &sumtable[20 * i];
 
@@ -980,8 +1005,8 @@ static void coreGTRCATPROT(double *EIGN, double lz, int numberOfCategories, doub
       dlnLidlz   *= inv_Li;
       d2lnLidlz2 *= inv_Li;
 
-      dlnLdlz  += wrptr[i] * dlnLidlz;
-      d2lnLdlz2 += wr2ptr[i] * (d2lnLidlz2 - dlnLidlz * dlnLidlz);
+      dlnLdlz  += wr1 * dlnLidlz;
+      d2lnLdlz2 += wr2 * (d2lnLidlz2 - dlnLidlz * dlnLidlz);
     }
 
   *ext_dlnLdlz   = dlnLdlz;
@@ -995,8 +1020,8 @@ static void coreGTRCATPROT(double *EIGN, double lz, int numberOfCategories, doub
 
 
 static void coreCatFlex(double *EIGN, double lz, int numberOfCategories, double *rptr, int *cptr, int upper,
-			double *wrptr, double *wr2ptr,  volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double *sumtable,
-			const int numStates)
+			volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double *sumtable,
+			const int numStates, int *wgt)
 {
   int i, l;
   double 
@@ -1030,6 +1055,11 @@ static void coreCatFlex(double *EIGN, double lz, int numberOfCategories, double 
 
   for (i = 0; i < upper; i++)
     {
+      double
+	r = rptr[cptr[i]],
+	wr1 = r * wgt[i],
+	wr2 = r * r * wgt[i];
+
       d1 = &d_start[numStates * cptr[i]];
       sum = &sumtable[numStates * i];
 
@@ -1049,8 +1079,8 @@ static void coreCatFlex(double *EIGN, double lz, int numberOfCategories, double 
       dlnLidlz   *= inv_Li;
       d2lnLidlz2 *= inv_Li;
 
-      dlnLdlz  += wrptr[i] * dlnLidlz;
-      d2lnLdlz2 += wr2ptr[i] * (d2lnLidlz2 - dlnLidlz * dlnLidlz);
+      dlnLdlz  += wr1 * dlnLidlz;
+      d2lnLdlz2 += wr2 * (d2lnLidlz2 - dlnLidlz * dlnLidlz);
     }
 
   *ext_dlnLdlz   = dlnLdlz;
@@ -1282,7 +1312,7 @@ static void coreGammaInvarFlex(double *gammaRates, double *EIGN, double *sumtabl
 
 
 static void coreGTRCATSECONDARY(double *EIGN, double lz, int numberOfCategories, double *rptr, int *cptr, int upper,
-				double *wrptr, double *wr2ptr,  volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double *sumtable)
+				volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double *sumtable, int *wgt)
 {
   int i, l;
   double *d1, *d_start, *sum;
@@ -1309,6 +1339,11 @@ static void coreGTRCATSECONDARY(double *EIGN, double lz, int numberOfCategories,
 
   for (i = 0; i < upper; i++)
     {
+      double
+	r = rptr[cptr[i]],
+	wr1 = r * wgt[i],
+	wr2 = r * r * wgt[i];
+      
       d1 = &d_start[16 * cptr[i]];
       sum = &sumtable[16 * i];
 
@@ -1328,8 +1363,8 @@ static void coreGTRCATSECONDARY(double *EIGN, double lz, int numberOfCategories,
       dlnLidlz   *= inv_Li;
       d2lnLidlz2 *= inv_Li;
 
-      dlnLdlz  += wrptr[i] * dlnLidlz;
-      d2lnLdlz2 += wr2ptr[i] * (d2lnLidlz2 - dlnLidlz * dlnLidlz);
+      dlnLdlz  += wr1 * dlnLidlz;
+      d2lnLdlz2 += wr2 * (d2lnLidlz2 - dlnLidlz * dlnLidlz);
     }
 
   *ext_dlnLdlz   = dlnLdlz;
@@ -1339,7 +1374,7 @@ static void coreGTRCATSECONDARY(double *EIGN, double lz, int numberOfCategories,
 }
 
 static void coreGTRCATSECONDARY_6(double *EIGN, double lz, int numberOfCategories, double *rptr, int *cptr, int upper,
-				  double *wrptr, double *wr2ptr,  volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double *sumtable)
+				  volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double *sumtable, int *wgt)
 {
   int i, l;
   double *d1, *d_start, *sum;
@@ -1366,6 +1401,11 @@ static void coreGTRCATSECONDARY_6(double *EIGN, double lz, int numberOfCategorie
 
   for (i = 0; i < upper; i++)
     {
+      double
+	r = rptr[cptr[i]],
+	wr1 = r * wgt[i],
+	wr2 = r * r * wgt[i];
+      
       d1 = &d_start[6 * cptr[i]];
       sum = &sumtable[6 * i];
 
@@ -1385,8 +1425,8 @@ static void coreGTRCATSECONDARY_6(double *EIGN, double lz, int numberOfCategorie
       dlnLidlz   *= inv_Li;
       d2lnLidlz2 *= inv_Li;
 
-      dlnLdlz  += wrptr[i] * dlnLidlz;
-      d2lnLdlz2 += wr2ptr[i] * (d2lnLidlz2 - dlnLidlz * dlnLidlz);
+      dlnLdlz  += wr1 * dlnLidlz;
+      d2lnLdlz2 += wr2 * (d2lnLidlz2 - dlnLidlz * dlnLidlz);
     }
 
   *ext_dlnLdlz   = dlnLdlz;
@@ -1396,7 +1436,7 @@ static void coreGTRCATSECONDARY_6(double *EIGN, double lz, int numberOfCategorie
 }
 
 static void coreGTRCATSECONDARY_7(double *EIGN, double lz, int numberOfCategories, double *rptr, int *cptr, int upper,
-				  double *wrptr, double *wr2ptr,  volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double *sumtable)
+				  volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double *sumtable, int *wgt)
 {
   int i, l;
   double *d1, *d_start, *sum;
@@ -1423,6 +1463,11 @@ static void coreGTRCATSECONDARY_7(double *EIGN, double lz, int numberOfCategorie
 
   for (i = 0; i < upper; i++)
     {
+      double
+	r = rptr[cptr[i]],
+	wr1 = r * wgt[i],
+	wr2 = r * r * wgt[i];
+
       d1 = &d_start[7 * cptr[i]];
       sum = &sumtable[7 * i];
 
@@ -1442,8 +1487,8 @@ static void coreGTRCATSECONDARY_7(double *EIGN, double lz, int numberOfCategorie
       dlnLidlz   *= inv_Li;
       d2lnLidlz2 *= inv_Li;
 
-      dlnLdlz  += wrptr[i] * dlnLidlz;
-      d2lnLdlz2 += wr2ptr[i] * (d2lnLidlz2 - dlnLidlz * dlnLidlz);
+      dlnLdlz  += wr1 * dlnLidlz;
+      d2lnLdlz2 += wr2 * (d2lnLidlz2 - dlnLidlz * dlnLidlz);
     }
 
   *ext_dlnLdlz   = dlnLdlz;
@@ -3576,8 +3621,8 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 		{
 		case CAT:
 		  coreGTRCAT_BINARY(width, tr->partitionData[model].numberOfCategories, sumBuffer,
-				    &dlnLdlz, &d2lnLdlz2, tr->partitionData[model].wr, tr->partitionData[model].wr2,
-				    tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN,  tr->partitionData[model].rateCategory, lz);
+				    &dlnLdlz, &d2lnLdlz2, 
+				    tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN,  tr->partitionData[model].rateCategory, lz, tr->partitionData[model].wgt);
 		  break;
 		case GAMMA:
 		  coreGTRGAMMA_BINARY(width, sumBuffer,
@@ -3602,8 +3647,8 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 		    {
 		    case CAT:
 		      coreGTRCAT(width, tr->partitionData[model].numberOfCategories, sumBuffer,
-				 &dlnLdlz, &d2lnLdlz2, tr->partitionData[model].wr, tr->partitionData[model].wr2,
-				 tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN,  tr->partitionData[model].rateCategory, lz);
+				 &dlnLdlz, &d2lnLdlz2,
+				 tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN,  tr->partitionData[model].rateCategory, lz, tr->partitionData[model].wgt);
 		      break;
 		    case GAMMA:		     
 		      coreGTRGAMMA(width, sumBuffer,
@@ -3629,10 +3674,9 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 		    {
 		    case CAT:
 		      coreGTRCATPROT(tr->partitionData[model].EIGN, lz, tr->partitionData[model].numberOfCategories,  tr->partitionData[model].perSiteRates,
-				     tr->partitionData[model].rateCategory, width,
-				     tr->partitionData[model].wr, tr->partitionData[model].wr2,
+				     tr->partitionData[model].rateCategory, width,				    
 				     &dlnLdlz, &d2lnLdlz2,
-				     sumBuffer);
+				     sumBuffer, tr->partitionData[model].wgt);
 		      break;
 		    case GAMMA:	
 		      if(tr->partitionData[model].protModels == LG4)
@@ -3663,10 +3707,9 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 		{
 		case CAT:
 		  coreGTRCATSECONDARY(tr->partitionData[model].EIGN, lz, tr->partitionData[model].numberOfCategories,  tr->partitionData[model].perSiteRates,
-				      tr->partitionData[model].rateCategory, width,
-				      tr->partitionData[model].wr, tr->partitionData[model].wr2,
+				      tr->partitionData[model].rateCategory, width,				      
 				      &dlnLdlz, &d2lnLdlz2,
-				      sumBuffer);
+				      sumBuffer, tr->partitionData[model].wgt);
 		  break;
 		case GAMMA:
 		  coreGTRGAMMASECONDARY(tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN,
@@ -3688,10 +3731,9 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 		{
 		case CAT:
 		  coreGTRCATSECONDARY_6(tr->partitionData[model].EIGN, lz, tr->partitionData[model].numberOfCategories,  tr->partitionData[model].perSiteRates,
-					tr->partitionData[model].rateCategory, width,
-					tr->partitionData[model].wr, tr->partitionData[model].wr2,
+					tr->partitionData[model].rateCategory, width,					
 					&dlnLdlz, &d2lnLdlz2,
-					sumBuffer);
+					sumBuffer, tr->partitionData[model].wgt);
 		  break;
 		case GAMMA:
 		  coreGTRGAMMASECONDARY_6(tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN,
@@ -3713,10 +3755,9 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 		{
 		case CAT:
 		  coreGTRCATSECONDARY_7(tr->partitionData[model].EIGN, lz, tr->partitionData[model].numberOfCategories,  tr->partitionData[model].perSiteRates,
-					tr->partitionData[model].rateCategory, width,
-					tr->partitionData[model].wr, tr->partitionData[model].wr2,
+					tr->partitionData[model].rateCategory, width,				      
 					&dlnLdlz, &d2lnLdlz2,
-					sumBuffer);
+					sumBuffer, tr->partitionData[model].wgt);
 		  break;
 		case GAMMA:
 		  coreGTRGAMMASECONDARY_7(tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN,
@@ -3738,10 +3779,9 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 		{
 		case CAT:
 		  coreCatFlex(tr->partitionData[model].EIGN, lz, tr->partitionData[model].numberOfCategories,  tr->partitionData[model].perSiteRates,
-			      tr->partitionData[model].rateCategory, width,
-			      tr->partitionData[model].wr, tr->partitionData[model].wr2,
+			      tr->partitionData[model].rateCategory, width,			      
 			      &dlnLdlz, &d2lnLdlz2,
-			      sumBuffer, states);
+			      sumBuffer, states, tr->partitionData[model].wgt);
 		  break;
 		case GAMMA:
 		  coreGammaFlex(tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN,
@@ -4155,9 +4195,7 @@ static void coreClassify(tree *tr, volatile double *_dlnLdlz, volatile double *_
 	{	  
 	  double 
 	    *sumBuffer       = &tr->temporarySumBuffer[offsetCounter],
-	    *patrat          = tr->partitionData[model].perSiteRates,
-	    *wr              = &tr->contiguousWR[columnCounter],
-	    *wr2             = &tr->contiguousWR2[columnCounter];
+	    *patrat          = tr->partitionData[model].perSiteRates;
 	 
 	  int 
 	    *rateCategory  = &tr->contiguousRateCategory[columnCounter],
@@ -4189,8 +4227,8 @@ static void coreClassify(tree *tr, volatile double *_dlnLdlz, volatile double *_
 		{
 		case CAT:
 		  coreGTRCAT_BINARY(width, tr->partitionData[model].numberOfCategories, sumBuffer,
-				    &dlnLdlz, &d2lnLdlz2, wr, wr2,
-				    patrat, tr->partitionData[model].EIGN,  rateCategory, lz);
+				    &dlnLdlz, &d2lnLdlz2,
+				    patrat, tr->partitionData[model].EIGN,  rateCategory, lz, wgt);
 		  break;
 		case GAMMA:
 		  coreGTRGAMMA_BINARY(width, sumBuffer,
@@ -4213,8 +4251,8 @@ static void coreClassify(tree *tr, volatile double *_dlnLdlz, volatile double *_
 		{
 		case CAT:
 		  coreGTRCAT(width, tr->partitionData[model].numberOfCategories, sumBuffer,
-			     &dlnLdlz, &d2lnLdlz2, wr, wr2,
-			     patrat, tr->partitionData[model].EIGN,  rateCategory, lz);
+			     &dlnLdlz, &d2lnLdlz2,
+			     patrat, tr->partitionData[model].EIGN,  rateCategory, lz, tr->partitionData[model].wgt);
 		  break;
 		case GAMMA:
 		  coreGTRGAMMA(width, sumBuffer,
@@ -4237,10 +4275,9 @@ static void coreClassify(tree *tr, volatile double *_dlnLdlz, volatile double *_
 		{
 		case CAT:
 		  coreGTRCATPROT(tr->partitionData[model].EIGN, lz, tr->partitionData[model].numberOfCategories,  patrat,
-				 rateCategory, width,
-				 wr, wr2,
+				 rateCategory, width,				 
 				 &dlnLdlz, &d2lnLdlz2,
-				 sumBuffer);
+				 sumBuffer, wgt);
 		  break;
 		case GAMMA:
 		  coreGTRGAMMAPROT(tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN,
@@ -4262,10 +4299,9 @@ static void coreClassify(tree *tr, volatile double *_dlnLdlz, volatile double *_
 		{
 		case CAT:
 		  coreGTRCATSECONDARY(tr->partitionData[model].EIGN, lz, tr->partitionData[model].numberOfCategories,  patrat,
-				      rateCategory, width,
-				      wr, wr2,
+				      rateCategory, width,				      
 				      &dlnLdlz, &d2lnLdlz2,
-				      sumBuffer);
+				      sumBuffer, wgt);
 		  break;
 		case GAMMA:
 		  coreGTRGAMMASECONDARY(tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN,
@@ -4287,10 +4323,9 @@ static void coreClassify(tree *tr, volatile double *_dlnLdlz, volatile double *_
 		{
 		case CAT:
 		  coreGTRCATSECONDARY_6(tr->partitionData[model].EIGN, lz, tr->partitionData[model].numberOfCategories, patrat,
-					rateCategory, width,
-					wr, wr2,
+					rateCategory, width,					
 					&dlnLdlz, &d2lnLdlz2,
-					sumBuffer);
+					sumBuffer, wgt);
 		  break;
 		case GAMMA:
 		  coreGTRGAMMASECONDARY_6(tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN,
@@ -4312,10 +4347,9 @@ static void coreClassify(tree *tr, volatile double *_dlnLdlz, volatile double *_
 		{
 		case CAT:
 		  coreGTRCATSECONDARY_7(tr->partitionData[model].EIGN, lz, tr->partitionData[model].numberOfCategories,  patrat,
-					rateCategory, width,
-					wr, wr2,
+					rateCategory, width,					
 					&dlnLdlz, &d2lnLdlz2,
-					sumBuffer);
+					sumBuffer, wgt);
 		  break;
 		case GAMMA:
 		  coreGTRGAMMASECONDARY_7(tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN,

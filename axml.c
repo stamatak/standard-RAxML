@@ -1765,8 +1765,7 @@ static void getinput(analdef *adef, rawdata *rdta, cruncheddata *cdta, tree *tr)
       tr->extendedDataVector = (int *)    malloc((rdta->sites + 1) * sizeof(int));     
       cdta->patrat          = (double *) malloc((rdta->sites + 1) * sizeof(double));
       cdta->patratStored    = (double *) malloc((rdta->sites + 1) * sizeof(double));      
-      tr->wr                = (double *) malloc((rdta->sites + 1) * sizeof(double)); 
-      tr->wr2               = (double *) malloc((rdta->sites + 1) * sizeof(double)); 
+     
 
 
       if(!adef->useWeightFile)
@@ -3064,8 +3063,7 @@ static void allocPartitions(tree *tr)
 	k,
 	width = tr->partitionData[i].width;           
       
-      tr->partitionData[i].wr = (double *)malloc(sizeof(double) * width);
-      tr->partitionData[i].wr2 = (double *)malloc(sizeof(double) * width);
+      
 
       if(tr->useFastScaling)	
 	tr->partitionData[i].globalScaler    = (unsigned int *)calloc(2 * tr->mxtips, sizeof(unsigned int));  	         
@@ -7278,12 +7276,7 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 	    {
 	      if(i % (size_t)n == (size_t)tid)
 		{		 
-		  localTree->partitionData[model].rateCategory[localCounter] = tr->cdta->rateCategory[i];
-		  localTree->partitionData[model].wr[localCounter]             = tr->wr[i];
-		  localTree->partitionData[model].wr2[localCounter]            = tr->wr2[i];
-
-		
-		 
+		  localTree->partitionData[model].rateCategory[localCounter] = tr->cdta->rateCategory[i];		  				 
 		  localCounter++;
 		}
 	    }
@@ -7386,12 +7379,10 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
       if(tid > 0)
 	broadcastPerSiteRates(tr, localTree);
 
-      localTree->contiguousWR           = (double*)malloc(sizeof(double) * localTree->contiguousScalingLength);
-      localTree->contiguousWR2          = (double*)malloc(sizeof(double) * localTree->contiguousScalingLength);
+     
       localTree->contiguousRateCategory = (int*)malloc(sizeof(int) * localTree->contiguousScalingLength);
       
-      memcpy(localTree->contiguousWR, tr->wr, sizeof(double) * localTree->contiguousScalingLength);
-      memcpy(localTree->contiguousWR2, tr->wr2, sizeof(double) * localTree->contiguousScalingLength);
+     
       memcpy(localTree->contiguousRateCategory, tr->cdta->rateCategory, sizeof(int) * localTree->contiguousScalingLength);           
      
       localTree->contiguousTips = tr->yVector;	  	

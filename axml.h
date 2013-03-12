@@ -580,9 +580,6 @@ typedef struct {
   double *perSiteRates;
   double *unscaled_perSiteRates;
 
-  double *wr;
-  double *wr2;
-
   unsigned int    *globalScaler;
  
   int    *wgt;
@@ -678,8 +675,6 @@ typedef  struct  {
 
   int              maxCategories;
 
-  double           *wr;
-  double           *wr2;
   double           *sumBuffer;
   double           *perSiteLL;  
   double           coreLZ[NUM_BRANCHES];
@@ -831,15 +826,9 @@ typedef  struct  {
   int *contiguousInvariant;  
 
   unsigned char **contiguousTips;
-
-  double *contiguousWR;
-  double *contiguousWR2;
   
   
   unsigned char *y_ptr;
-  
-  double *wrPtr;
-  double *wr2Ptr;
 
   
 

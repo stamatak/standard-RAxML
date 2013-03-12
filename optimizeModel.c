@@ -2040,33 +2040,9 @@ void updatePerSiteRates(tree *tr, boolean scaleRates)
 	      assert(ABS(1.0 - accRat) < 1.0E-5);
 	    }                
 
-	  for(i = lower; i < upper; i++)
-	    {
-	      double
-		w = ((double)tr->cdta->aliaswgt[i]);	      
-
-	       double
-		 wtemp,
-		 temp = tr->partitionData[model].perSiteRates[tr->cdta->rateCategory[i]];
-
-	       wtemp = temp * w;
-
-	       tr->wr[i]  = wtemp;
-	       tr->wr2[i] = temp * wtemp;
-	    }	            	  
+	          	  
 	  
-#ifndef _USE_PTHREADS
-	  {
-	    int 
-	      localCount = 0;
-	    
-	    for(i = lower, localCount = 0; i < upper; i++, localCount++)
-	      {	    	      
-		tr->partitionData[model].wr[localCount]  = tr->wr[i];
-		tr->partitionData[model].wr2[localCount] = tr->wr2[i];
-	      }
-	  }
-#endif
+
 	}
     }
   else
@@ -2144,43 +2120,8 @@ void updatePerSiteRates(tree *tr, boolean scaleRates)
 	  assert(ABS(1.0 - accRat) < 1.0E-5);
 	}
          
-       for(model = 0; model < tr->NumberOfModels; model++)
-	{
-	  int 
-	    localCount = 0,
-	    lower = tr->partitionData[model].lower,
-	    upper = tr->partitionData[model].upper;
+       
 
-	  for(i = lower, localCount = 0; i < upper; i++, localCount++)
-	    {
-	      double
-		w = ((double)tr->cdta->aliaswgt[i]);	      
-
-	       double
-		 wtemp,
-		 temp = tr->partitionData[model].perSiteRates[tr->cdta->rateCategory[i]];
-
-	       wtemp = temp * w;
-
-	       tr->wr[i]  = wtemp;
-	       tr->wr2[i] = temp * wtemp;
-	    }
-	}         
-#ifndef _USE_PTHREADS
-      for(model = 0; model < tr->NumberOfModels; model++)
-	{   	  	  	 
-	  int 
-	    localCount,
-	    lower = tr->partitionData[model].lower,
-	    upper = tr->partitionData[model].upper;	  
-	  
-	  for(i = lower, localCount = 0; i < upper; i++, localCount++)
-	    {	    	      
-	      tr->partitionData[model].wr[localCount]  = tr->wr[i];
-	      tr->partitionData[model].wr2[localCount] = tr->wr2[i];
-	    }
-	}
-#endif
     }
   
       
