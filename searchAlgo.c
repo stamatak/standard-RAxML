@@ -51,6 +51,7 @@ extern infoList iList;
 extern char seq_file[1024];
 extern char resultFileName[1024];
 extern char tree_file[1024];
+extern char workdir[1024];
 extern char run_id[128];
 extern FILE *INFILE;
 extern double masterTime;
@@ -1147,7 +1148,17 @@ int determineRearrangementSetting(tree *tr,  analdef *adef, bestlist *bestT, bes
 
 
 
+/*
+  #define _TERRACES
+  
+  define _TERRACES to better explore trees on terraces
+*/
 
+#ifdef _TERRACES
+/* count the number of BS or ML tree search replicates */
+
+int bCount = 0;
+#endif
 
 void computeBIGRAPID (tree *tr, analdef *adef, boolean estimateModel) 
 { 
@@ -1166,6 +1177,19 @@ void computeBIGRAPID (tree *tr, analdef *adef, boolean estimateModel)
   double lh, previousLh, difference, epsilon;              
   bestlist *bestT, *bt;  
     
+#ifdef _TERRACES
+  /* store the 20 best trees found in a dedicated list */
+
+  bestlist
+    *terrace;
+  
+  /* output file names */
+
+  char 
+    terraceFileName[1024],
+    buf[64];
+#endif
+
   hashtable *h = (hashtable*)NULL;
   unsigned int **bitVectors = (unsigned int**)NULL;
   
@@ -1184,6 +1208,25 @@ void computeBIGRAPID (tree *tr, analdef *adef, boolean estimateModel)
   bt = (bestlist *) malloc(sizeof(bestlist));      
   bt->ninit = 0;
   initBestTree(bt, 20, tr->mxtips); 
+
+#ifdef _TERRACES 
+  /* initialize the tree list and the output file name for the current tree search/replicate */
+
+
+  terrace = (bestlist *) malloc(sizeof(bestlist));      
+  terrace->ninit = 0;
+  initBestTree(terrace, 20, tr->mxtips); 
+  
+  sprintf(buf, "%d", bCount);
+  
+  strcpy(terraceFileName,         workdir);
+  strcat(terraceFileName,         "RAxML_terrace.");
+  strcat(terraceFileName,         run_id);
+  strcat(terraceFileName,         ".BS.");
+  strcat(terraceFileName,         buf);
+  
+  printf("%s\n", terraceFileName);
+#endif
 
   initInfoList(50);
  
@@ -1298,11 +1341,10 @@ void computeBIGRAPID (tree *tr, analdef *adef, boolean estimateModel)
 	      lh = tr->likelihood;	       	     
 	      saveBestTree(bestT, tr);
 	    }	   	   
-	}
-
-
-	
+	}	
     }
+
+ 
 
   if(tr->searchConvergenceCriterion)
     {
@@ -1378,7 +1420,8 @@ void computeBIGRAPID (tree *tr, analdef *adef, boolean estimateModel)
       treeEvaluate(tr, 1.0);
      
       previousLh = lh = tr->likelihood;	      
-      saveBestTree(bestT, tr);     
+      saveBestTree(bestT, tr); 
+      
       printLog(tr, adef, FALSE);
       treeOptimizeRapid(tr, rearrangementsMin, rearrangementsMax, adef, bt);
 	
@@ -1389,7 +1432,12 @@ void computeBIGRAPID (tree *tr, analdef *adef, boolean estimateModel)
 	  recallBestTree(bt, i, tr);	 	    	    	
 	  
 	  treeEvaluate(tr, 0.25);	    	 
-	    
+	
+#ifdef _TERRACES
+	  /* save all 20 best trees in the terrace tree list */
+	  saveBestTree(terrace, tr);
+#endif
+
 	  difference = ((tr->likelihood > previousLh)? 
 			tr->likelihood - previousLh: 
 			previousLh - tr->likelihood); 	    
@@ -1406,6 +1454,43 @@ void computeBIGRAPID (tree *tr, analdef *adef, boolean estimateModel)
 
  cleanup: 
 
+#ifdef _TERRACES
+  {
+    double
+      bestLH = tr->likelihood;
+    FILE 
+      *f = myfopen(terraceFileName, "w");
+    
+    /* print out likelihood of best tree found */
+
+    printf("best tree: %f\n", tr->likelihood);
+
+    /* print out likelihoods of 20 best trees found during the tree search */
+
+    for(i = 1; i <= terrace->nvalid; i++)
+      {
+	recallBestTree(terrace, i, tr);
+	
+	/* if the likelihood scores are smaller than some epsilon 0.000001
+	   print the tree to file */
+	   
+	if(ABS(bestLH - tr->likelihood) < 0.000001)
+	  {
+	    printf("%d %f\n", i, tr->likelihood);
+	    Tree2String(tr->tree_string, tr, tr->start->back, FALSE, TRUE, FALSE, 
+			FALSE, 
+			FALSE, adef, NO_BRANCHES, FALSE, FALSE);
+	    
+	    fprintf(f, "%s\n", tr->tree_string); 
+	  }
+      }
+
+    fclose(f);
+    /* increment tree search counter */
+    bCount++;
+  }
+#endif
+ 
   
   if(tr->searchConvergenceCriterion)
     {
@@ -1419,6 +1504,14 @@ void computeBIGRAPID (tree *tr, analdef *adef, boolean estimateModel)
   free(bestT);
   freeBestTree(bt);
   free(bt);
+
+#ifdef _TERRACES
+  /* free terrace tree list */
+
+  freeBestTree(terrace);
+  free(terrace);
+#endif
+
   freeInfoList();  
   printLog(tr, adef, FALSE);
   printResult(tr, adef, FALSE);

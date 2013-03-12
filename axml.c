@@ -3078,23 +3078,22 @@ static void allocPartitions(tree *tr)
       tr->partitionData[i].frequencies       = (double*)malloc(pl->frequenciesLength * sizeof(double));
       tr->partitionData[i].tipVector         = (double *)malloc_aligned(pl->tipVectorLength * sizeof(double));
 
-      {
-	/* TODO alloc only when LG4 is used ! */
 
-	int 
-	  k;
-	
-	for(k = 0; k < 4; k++)
-	  {	    
-	    tr->partitionData[i].EIGN_LG4[k]              = (double*)malloc(pl->eignLength * sizeof(double));
-	    tr->partitionData[i].EV_LG4[k]                = (double*)malloc_aligned(pl->evLength * sizeof(double));
-	    tr->partitionData[i].EI_LG4[k]                = (double*)malloc(pl->eiLength * sizeof(double));
-	    tr->partitionData[i].substRates_LG4[k]        = (double *)malloc(pl->substRatesLength * sizeof(double));
-	    tr->partitionData[i].frequencies_LG4[k]       = (double*)malloc(pl->frequenciesLength * sizeof(double));
-	    tr->partitionData[i].tipVector_LG4[k]         = (double *)malloc_aligned(pl->tipVectorLength * sizeof(double));
-	  }
-
-      }
+      if(tr->partitionData[i].protModels == LG4)      
+	{	  	  
+	  int 
+	    k;
+	  
+	  for(k = 0; k < 4; k++)
+	    {	    
+	      tr->partitionData[i].EIGN_LG4[k]              = (double*)malloc(pl->eignLength * sizeof(double));
+	      tr->partitionData[i].EV_LG4[k]                = (double*)malloc_aligned(pl->evLength * sizeof(double));
+	      tr->partitionData[i].EI_LG4[k]                = (double*)malloc(pl->eiLength * sizeof(double));
+	      tr->partitionData[i].substRates_LG4[k]        = (double *)malloc(pl->substRatesLength * sizeof(double));
+	      tr->partitionData[i].frequencies_LG4[k]       = (double*)malloc(pl->frequenciesLength * sizeof(double));
+	      tr->partitionData[i].tipVector_LG4[k]         = (double *)malloc_aligned(pl->tipVectorLength * sizeof(double));
+	    }
+	}
 
 
       tr->partitionData[i].symmetryVector    = (int *)malloc(pl->symmetryVectorLength  * sizeof(int));
@@ -7187,7 +7186,7 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 	      memcpy(localTree->partitionData[model].frequencies, tr->partitionData[model].frequencies, pl->frequenciesLength * sizeof(double));
 	      memcpy(localTree->partitionData[model].tipVector,   tr->partitionData[model].tipVector,   pl->tipVectorLength * sizeof(double));
 	      
-	       	      	      
+	      
 
 	      memcpy(localTree->partitionData[model].gammaRates, tr->partitionData[model].gammaRates, sizeof(double) * 4);
 	      localTree->partitionData[model].alpha = tr->partitionData[model].alpha;
