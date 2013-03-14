@@ -44,7 +44,7 @@
 #include <string.h>
 
 #include "axml.h"
-
+#include "mem_alloc.h"
 
 
 
@@ -131,12 +131,12 @@ void initTL(topolRELL_LIST *rl, tree *tr, int n)
   int i;
 
   rl->max = n; 
-  rl->t = (topolRELL **)malloc(sizeof(topolRELL *) * n);
+  rl->t = (topolRELL **)rax_malloc(sizeof(topolRELL *) * n);
 
   for(i = 0; i < n; i++)
     {
-      rl->t[i] = (topolRELL *)malloc(sizeof(topolRELL));
-      rl->t[i]->connect = (connectRELL *)malloc((2 * tr->mxtips - 3) * sizeof(connectRELL));
+      rl->t[i] = (topolRELL *)rax_malloc(sizeof(topolRELL));
+      rl->t[i]->connect = (connectRELL *)rax_malloc((2 * tr->mxtips - 3) * sizeof(connectRELL));
       rl->t[i]->likelihood = unlikely;     
     }
 }
@@ -147,10 +147,10 @@ void freeTL(topolRELL_LIST *rl)
   int i;
   for(i = 0; i < rl->max; i++)    
     {
-      free(rl->t[i]->connect);          
-      free(rl->t[i]);
+      rax_free(rl->t[i]->connect);          
+      rax_free(rl->t[i]);
     }
-  free(rl->t);
+  rax_free(rl->t);
 }
 
 
@@ -206,8 +206,8 @@ static topol  *setupTopol (int maxtips)
 {
   topol   *tpl;
 
-  if (! (tpl = (topol *) malloc(sizeof(topol))) || 
-      ! (tpl->links = (connptr) malloc((2*maxtips-3) * sizeof(connect))))
+  if (! (tpl = (topol *) rax_malloc(sizeof(topol))) || 
+      ! (tpl->links = (connptr) rax_malloc((2*maxtips-3) * sizeof(connect))))
     {
       printf("ERROR: Unable to get topology memory");
       tpl = (topol *) NULL;
@@ -229,8 +229,8 @@ static topol  *setupTopol (int maxtips)
 
 static void  freeTopol (topol *tpl)
 {
-  free(tpl->links);
-  free(tpl);
+  rax_free(tpl->links);
+  rax_free(tpl);
 } 
 
 
@@ -381,10 +381,10 @@ int initBestTree (bestlist *bt, int newkeep, int numsp)
       bt->numtrees = 0;
       bt->best = unlikely;
       bt->improved = FALSE;
-      bt->byScore = (topol **) malloc((newkeep+1) * sizeof(topol *));
-      bt->byTopol = (topol **) malloc((newkeep+1) * sizeof(topol *));
+      bt->byScore = (topol **) rax_malloc((newkeep+1) * sizeof(topol *));
+      bt->byTopol = (topol **) rax_malloc((newkeep+1) * sizeof(topol *));
       if (! bt->byScore || ! bt->byTopol) {
-        printf( "initBestTree: malloc failure\n");
+        printf( "initBestTree: rax_malloc failure\n");
         return 0;
       }
     }
@@ -436,8 +436,8 @@ boolean  freeBestTree(bestlist *bt)
     
   /* VALGRIND */
 
-  free(bt->byScore);
-  free(bt->byTopol);
+  rax_free(bt->byScore);
+  rax_free(bt->byTopol);
 
   /* VALGRIND END */
 

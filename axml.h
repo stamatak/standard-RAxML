@@ -1198,7 +1198,6 @@ extern void   newviewIterative(tree *);
 
 extern double evaluateIterative(tree *, boolean writeVector);
 
-extern void *malloc_aligned( size_t size);
 extern double FABS(double x);
 
 
@@ -1413,6 +1412,11 @@ inline boolean isGap(unsigned int *x, int pos);
 inline boolean noGap(unsigned int *x, int pos);
 
 #ifdef __AVX
+
+void newviewGTRGAMMAPROT_AVX_LG4(int tipCase,
+				 double *x1, double *x2, double *x3, double *extEV[4], double *tipVector[4],
+				 int *ex3, unsigned char *tipX1, unsigned char *tipX2, int n, 
+				 double *left, double *right, int *wgt, int *scalerIncrement, const boolean useFastScaling);
 
 void newviewGTRCAT_AVX_GAPPED_SAVE(int tipCase,  double *EV,  int *cptr,
 				   double *x1_start, double *x2_start,  double *x3_start, double *tipVector,

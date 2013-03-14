@@ -45,7 +45,7 @@
 #include <pmmintrin.h>
 #endif
 
-
+#include "mem_alloc.h"
 
 /********************** GTRCAT ***************************************/
 
@@ -184,7 +184,7 @@ static double evaluatePartialGTRCATPROT(int i, double ki, int counter,  traversa
   double   *x1, *x2; 
   int scale = 0, k, l;
   double 
-    *lVector = (double *)malloc_aligned(sizeof(double) * 20 * mxtips),
+    *lVector = (double *)rax_malloc_aligned(sizeof(double) * 20 * mxtips),
     myEI[400]  __attribute__ ((aligned (BYTE_ALIGNMENT)));
 
   traversalInfo *trav = &ti[0];
@@ -231,7 +231,7 @@ static double evaluatePartialGTRCATPROT(int i, double ki, int counter,  traversa
 
   term = term * w;
 
-  free(lVector);
+  rax_free(lVector);
   
  
   return  term;
@@ -327,7 +327,7 @@ static double evaluatePartialGTRCATPROT(int i, double ki, int counter,  traversa
   double  d[20];
   double   *x1, *x2; 
   int scale = 0, k, l;
-  double *lVector = (double *)malloc_aligned(sizeof(double) * 20 * mxtips);
+  double *lVector = (double *)rax_malloc_aligned(sizeof(double) * 20 * mxtips);
 
   traversalInfo *trav = &ti[0];
 
@@ -364,7 +364,7 @@ static double evaluatePartialGTRCATPROT(int i, double ki, int counter,  traversa
 
   term = term * w;
 
-  free(lVector);
+  rax_free(lVector);
   
 
   return  term;
@@ -852,7 +852,7 @@ static double evaluatePartialGTRCAT_BINARY(int i, double ki, int counter,  trave
   double  d;
   double   *x1, *x2; 
   int scale = 0, k;
-  double *lVector = (double *)malloc(sizeof(double) * 2 * mxtips);  
+  double *lVector = (double *)rax_malloc(sizeof(double) * 2 * mxtips);  
   traversalInfo *trav = &ti[0];
  
   assert(isTip(trav->pNumber, mxtips));
@@ -884,7 +884,7 @@ static double evaluatePartialGTRCAT_BINARY(int i, double ki, int counter,  trave
 
   term = term * w;
 
-  free(lVector);
+  rax_free(lVector);
   
 
   return  term;
@@ -900,7 +900,7 @@ static double evaluatePartialGTRCAT(int i, double ki, int counter,  traversalInf
   double  d[3];
   double   *x1, *x2; 
   int scale = 0, k;
-  double *lVector = (double *)malloc_aligned(sizeof(double) * 4 * mxtips);    
+  double *lVector = (double *)rax_malloc_aligned(sizeof(double) * 4 * mxtips);    
 
   traversalInfo *trav = &ti[0];
  
@@ -935,7 +935,7 @@ static double evaluatePartialGTRCAT(int i, double ki, int counter,  traversalInf
 
   term = term * w;
 
-  free(lVector);  
+  rax_free(lVector);  
 
   return  term;
 }
@@ -952,7 +952,7 @@ static double evaluatePartialGTRCATSECONDARY(int i, double ki, int counter,  tra
   double  d[16];
   double   *x1, *x2; 
   int scale = 0, k, l;
-  double *lVector = (double *)malloc(sizeof(double) * 16 * mxtips);
+  double *lVector = (double *)rax_malloc(sizeof(double) * 16 * mxtips);
  
   traversalInfo *trav = &ti[0];
 
@@ -989,7 +989,7 @@ static double evaluatePartialGTRCATSECONDARY(int i, double ki, int counter,  tra
 
   term = term * w;
 
-  free(lVector);
+  rax_free(lVector);
   
 
   return  term;
@@ -1005,7 +1005,7 @@ static double evaluatePartialFlex(int i, double ki, int counter,  traversalInfo 
   double  d[64];
   double   *x1, *x2; 
   int scale = 0, k, l;
-  double *lVector = (double *)malloc(sizeof(double) * numStates * mxtips);
+  double *lVector = (double *)rax_malloc(sizeof(double) * numStates * mxtips);
  
   traversalInfo *trav = &ti[0];
 
@@ -1040,7 +1040,7 @@ static double evaluatePartialFlex(int i, double ki, int counter,  traversalInfo 
 
   term = term * w;
 
-  free(lVector);
+  rax_free(lVector);
   
 
   return  term;
@@ -1056,7 +1056,7 @@ static double evaluatePartialGTRCATSECONDARY_6(int i, double ki, int counter,  t
   double  d[6];
   double   *x1, *x2; 
   int scale = 0, k, l;
-  double *lVector = (double *)malloc(sizeof(double) * 6 * mxtips);
+  double *lVector = (double *)rax_malloc(sizeof(double) * 6 * mxtips);
   
   traversalInfo *trav = &ti[0];
 
@@ -1093,7 +1093,7 @@ static double evaluatePartialGTRCATSECONDARY_6(int i, double ki, int counter,  t
 
   term = term * w;
 
-  free(lVector);
+  rax_free(lVector);
  
 
   return  term;
@@ -1108,7 +1108,7 @@ static double evaluatePartialGTRCATSECONDARY_7(int i, double ki, int counter,  t
   double  d[7];
   double   *x1, *x2; 
   int scale = 0, k, l;
-  double *lVector = (double *)malloc(sizeof(double) * 7 * mxtips);
+  double *lVector = (double *)rax_malloc(sizeof(double) * 7 * mxtips);
  
   traversalInfo *trav = &ti[0];
 
@@ -1145,7 +1145,7 @@ static double evaluatePartialGTRCATSECONDARY_7(int i, double ki, int counter,  t
 
   term = term * w;
 
-  free(lVector);
+  rax_free(lVector);
  
 
   return  term;

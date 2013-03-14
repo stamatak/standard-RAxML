@@ -209,6 +209,8 @@ volatile int             NumberOfJobs;
 volatile int             jobCycle;
 volatile int             threadJob;
 volatile int             NumberOfThreads;
+
+
 volatile double          *reductionBuffer;
 volatile double          *reductionBufferTwo;
 volatile double          *reductionBufferThree;

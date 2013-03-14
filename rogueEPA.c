@@ -40,7 +40,7 @@
 #include <ctype.h>
 #include <string.h>
 #include "axml.h"
-
+#include "mem_alloc.h"
 
 extern char run_id[128];
 extern char workdir[1024];
@@ -243,11 +243,11 @@ void computePlacementBias(tree *tr, analdef *adef)
   /* data for each sliding window starting position */
 
   positionData
-    *pd = (positionData *)malloc(sizeof(positionData) * (tr->cdta->endsite - windowSize));
+    *pd = (positionData *)rax_malloc(sizeof(positionData) * (tr->cdta->endsite - windowSize));
 
   double 
-    *nodeDistances = (double*)calloc(tr->cdta->endsite, sizeof(double)), /* array to store node distnces ND for every sliding window position */
-    *distances = (double*)calloc(tr->cdta->endsite, sizeof(double)); /* array to store avg distances for every site */
+    *nodeDistances = (double*)rax_calloc(tr->cdta->endsite, sizeof(double)), /* array to store node distnces ND for every sliding window position */
+    *distances = (double*)rax_calloc(tr->cdta->endsite, sizeof(double)); /* array to store avg distances for every site */
 
   strcpy(fileName,         workdir);
   strcat(fileName,         "RAxML_SiteSpecificPlacementBias.");

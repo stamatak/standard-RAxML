@@ -44,7 +44,7 @@
 #include <string.h>
 
 #include "axml.h"
-
+#include "mem_alloc.h"
 
 extern char  workdir[1024];
 extern char run_id[128];
@@ -128,7 +128,7 @@ static void ancestralCat(double *v, double *sumBuffer, double *diagptable, int i
   double 
     *ancestral = &sumBuffer[numStates * i],
     sum = 0.0,
-    *term = (double*)malloc(sizeof(double) * numStates);
+    *term = (double*)rax_malloc(sizeof(double) * numStates);
 
   for(l = 0; l < numStates; l++)
     {
@@ -146,7 +146,7 @@ static void ancestralCat(double *v, double *sumBuffer, double *diagptable, int i
   for(l = 0; l < numStates; l++)          
     ancestral[l] = term[l] / sum;	
    
-  free(term);
+  rax_free(term);
 }
 
 static void newviewFlexCat_Ancestral(int tipCase, double *extEV,
@@ -156,7 +156,7 @@ static void newviewFlexCat_Ancestral(int tipCase, double *extEV,
 				     int n, double *left, double *right, const int numStates, double *diagptable, double *sumBuffer)
 {
   double   
-    *x3 = (double *)malloc(sizeof(double) * numStates),
+    *x3 = (double *)rax_malloc(sizeof(double) * numStates),
     *le, *ri, *v, *vl, *vr,
     ump_x1, ump_x2, x1px2;
   int 
@@ -295,7 +295,7 @@ static void newviewFlexCat_Ancestral(int tipCase, double *extEV,
       assert(0);
     }
 
-  free(x3);
+  rax_free(x3);
 
  
 
@@ -315,7 +315,7 @@ static void ancestralGamma(double *_v, double *sumBuffer, double *diagptable, in
     *v,
     *ancestral = &sumBuffer[gammaStates * i],
     sum = 0.0,
-    *term = (double*)malloc(sizeof(double) * numStates);	      	      
+    *term = (double*)rax_malloc(sizeof(double) * numStates);	      	      
 
   for(l = 0; l < numStates; l++)
     term[l] = 0.0;
@@ -340,7 +340,7 @@ static void ancestralGamma(double *_v, double *sumBuffer, double *diagptable, in
   for(l = 0; l < numStates; l++)        
     ancestral[l] = term[l] / sum;       
    
-  free(term);
+  rax_free(term);
 }
 
 
@@ -352,7 +352,7 @@ static void newviewFlexGamma_Ancestral(int tipCase,
 {
   double  
     *v,
-    *x3 = (double*)malloc(sizeof(double) * 4 * numStates);
+    *x3 = (double*)rax_malloc(sizeof(double) * 4 * numStates);
   double x1px2;
   int  i, j, l, k, scale;
   double *vl, *vr, al, ar;
@@ -490,7 +490,7 @@ static void newviewFlexGamma_Ancestral(int tipCase,
 
  
 
-  free(x3);
+  rax_free(x3);
 
 }
 void newviewIterativeAncestral(tree *tr)
@@ -570,7 +570,7 @@ void newviewIterativeAncestral(tree *tr)
 	    case CAT:
 	      {	
 		double
-		  *diagptable = (double*)malloc_aligned(tr->partitionData[model].numberOfCategories * states * states * sizeof(double));
+		  *diagptable = (double*)rax_malloc_aligned(tr->partitionData[model].numberOfCategories * states * states * sizeof(double));
 		
 		makeP_Flex(qz, rz, tr->partitionData[model].perSiteRates,
 			   tr->partitionData[model].EI,
@@ -589,14 +589,14 @@ void newviewIterativeAncestral(tree *tr)
 					 tipX1, tipX2, width, left, right, states, diagptable, 
 					 tr->partitionData[model].sumBuffer);
 
-		free(diagptable);
+		rax_free(diagptable);
 	      }
 	      break;
 	    case GAMMA:
 	    case GAMMA_I:
 	      {	
 		double
-		  *diagptable = (double*)malloc_aligned(4 * states * states * sizeof(double));
+		  *diagptable = (double*)rax_malloc_aligned(4 * states * states * sizeof(double));
 		
 		makeP_Flex(qz, rz, tr->partitionData[model].gammaRates,
 			   tr->partitionData[model].EI,
@@ -616,7 +616,7 @@ void newviewIterativeAncestral(tree *tr)
 					   tipX1, tipX2,
 					   width, left, right, states, diagptable, tr->partitionData[model].sumBuffer);
 		
-		free(diagptable);
+		rax_free(diagptable);
 	      }
 	      break;
 	    default:
@@ -744,8 +744,8 @@ static void computeAncestralRec(tree *tr, nodeptr p, int *counter, FILE *probsFi
     globalIndex = 0;
   
   ancestralState 
-    *a = (ancestralState *)malloc(sizeof(ancestralState) * tr->cdta->endsite),
-    *unsortedA = (ancestralState *)malloc(sizeof(ancestralState) * tr->rdta->sites);
+    *a = (ancestralState *)rax_malloc(sizeof(ancestralState) * tr->cdta->endsite),
+    *unsortedA = (ancestralState *)rax_malloc(sizeof(ancestralState) * tr->rdta->sites);
   
   if(!atRoot)
     {
@@ -812,7 +812,7 @@ static void computeAncestralRec(tree *tr, nodeptr p, int *counter, FILE *probsFi
 	    c;
 
 	  a[globalIndex].states = states;
-	  a[globalIndex].probs = (double *)malloc(sizeof(double) * states);
+	  a[globalIndex].probs = (double *)rax_malloc(sizeof(double) * states);
 	  
 	  for(l = 0; l < states; l++)
 	    {
@@ -860,7 +860,7 @@ static void computeAncestralRec(tree *tr, nodeptr p, int *counter, FILE *probsFi
 	      
 	      unsortedA[unsorted].states = a[sorted].states;
 	      unsortedA[unsorted].c = a[sorted].c;
-	      unsortedA[unsorted].probs = (double*)malloc(sizeof(double) * unsortedA[unsorted].states);
+	      unsortedA[unsorted].probs = (double*)rax_malloc(sizeof(double) * unsortedA[unsorted].states);
 	      memcpy(unsortedA[unsorted].probs,  a[sorted].probs, sizeof(double) * a[sorted].states);	      
 	    }	   
 	}  
@@ -883,13 +883,13 @@ static void computeAncestralRec(tree *tr, nodeptr p, int *counter, FILE *probsFi
     int j;
 
     for(j = 0; j < tr->rdta->sites; j++)
-      free(unsortedA[j].probs);
+      rax_free(unsortedA[j].probs);
     for(j = 0; j < tr->cdta->endsite; j++)
-      free(a[j].probs);
+      rax_free(a[j].probs);
   }
 
-  free(a);
-  free(unsortedA);
+  rax_free(a);
+  rax_free(unsortedA);
 }
 
 static char *ancestralTreeRec(char *treestr, tree *tr, nodeptr p)
@@ -952,7 +952,7 @@ void computeAncestralStates(tree *tr, double referenceLikelihood)
     *statesFile;
 
 #ifdef _USE_PTHREADS
-  tr->ancestralStates = (double*)malloc(getContiguousVectorLength(tr) * sizeof(double));
+  tr->ancestralStates = (double*)rax_malloc(getContiguousVectorLength(tr) * sizeof(double));
 #endif
 
   strcpy(ancestralProbsFileName,         workdir);

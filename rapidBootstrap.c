@@ -42,7 +42,7 @@
 #include <ctype.h>
 #include <string.h>
 
-
+#include "mem_alloc.h"
 
 #include "axml.h"
 
@@ -67,12 +67,12 @@ void computeBOOTRAPID (tree *tr, analdef *adef, long *radiusSeed)
   bestlist *bestT, *bt;  
   int countIT;
   
-  bestT = (bestlist *) malloc(sizeof(bestlist));
+  bestT = (bestlist *) rax_malloc(sizeof(bestlist));
   bestT->ninit = 0;
   initBestTree(bestT, 1, tr->mxtips);
   saveBestTree(bestT, tr);
 
-  bt = (bestlist *) malloc(sizeof(bestlist));      
+  bt = (bestlist *) rax_malloc(sizeof(bestlist));      
   bt->ninit = 0;  
   initBestTree(bt, 5, tr->mxtips);
 
@@ -128,9 +128,9 @@ void computeBOOTRAPID (tree *tr, analdef *adef, long *radiusSeed)
 
   recallBestTree(bestT, 1, tr);   
   freeBestTree(bestT);
-  free(bestT);
+  rax_free(bestT);
   freeBestTree(bt);
-  free(bt);
+  rax_free(bt);
   freeInfoList(); 
 }
 
@@ -147,11 +147,11 @@ void optimizeRAPID(tree *tr, analdef *adef)
   double lh, previousLh, difference, epsilon;              
   bestlist *bestT, *bt;   
   
-  bestT = (bestlist *) malloc(sizeof(bestlist));
+  bestT = (bestlist *) rax_malloc(sizeof(bestlist));
   bestT->ninit = 0;
   initBestTree(bestT, 1, tr->mxtips);
       
-  bt = (bestlist *) malloc(sizeof(bestlist));      
+  bt = (bestlist *) rax_malloc(sizeof(bestlist));      
   bt->ninit = 0;
   initBestTree(bt, 20, tr->mxtips); 
 
@@ -205,9 +205,9 @@ void optimizeRAPID(tree *tr, analdef *adef)
 
   recallBestTree(bestT, 1, tr);
   freeBestTree(bestT);
-  free(bestT);
+  rax_free(bestT);
   freeBestTree(bt);
-  free(bt);
+  rax_free(bt);
   freeInfoList(); 
 }
 
@@ -220,11 +220,11 @@ void thoroughOptimization(tree *tr, analdef *adef, topolRELL_LIST *rl, int index
   double lh, previousLh, difference, epsilon;              
   bestlist *bestT, *bt;  
     
-  bestT = (bestlist *) malloc(sizeof(bestlist));
+  bestT = (bestlist *) rax_malloc(sizeof(bestlist));
   bestT->ninit = 0;
   initBestTree(bestT, 1, tr->mxtips);
       
-  bt = (bestlist *) malloc(sizeof(bestlist));      
+  bt = (bestlist *) rax_malloc(sizeof(bestlist));      
   bt->ninit = 0;   
   initBestTree(bt, 20, tr->mxtips);
 
@@ -290,9 +290,9 @@ void thoroughOptimization(tree *tr, analdef *adef, topolRELL_LIST *rl, int index
  cleanup:  
   saveTL(rl, tr, index);  
   freeBestTree(bestT);
-  free(bestT);
+  rax_free(bestT);
   freeBestTree(bt);
-  free(bt);
+  rax_free(bt);
   freeInfoList();
 }
 
@@ -392,7 +392,7 @@ int treeOptimizeThorough(tree *tr, int mintrav, int maxtrav)
 
   nodeRectifier(tr);
 
-  bestT = (bestlist *) malloc(sizeof(bestlist));
+  bestT = (bestlist *) rax_malloc(sizeof(bestlist));
   bestT->ninit = 0;
   initBestTree(bestT, 1, tr->mxtips);
   
@@ -439,7 +439,7 @@ int treeOptimizeThorough(tree *tr, int mintrav, int maxtrav)
     }    
 
   freeBestTree(bestT);
-  free(bestT);
+  rax_free(bestT);
 
   return 1;     
 }

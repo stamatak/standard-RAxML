@@ -40,6 +40,8 @@
 #include <ctype.h>
 #include <string.h>
 #include "axml.h"
+#include "mem_alloc.h"
+
 
 static const double MNBRAK_GOLD =    1.618034;
 static const double MNBRAK_TINY =      1.e-20;
@@ -131,7 +133,7 @@ static linkageList* initLinkageList(int *linkList, tree *tr)
     numberOfModels = 0,
     i,
     pos;
-  linkageList* ll = (linkageList*)malloc(sizeof(linkageList));
+  linkageList* ll = (linkageList*)rax_malloc(sizeof(linkageList));
       
   for(i = 0; i < tr->NumberOfModels; i++)
     {
@@ -142,7 +144,7 @@ static linkageList* initLinkageList(int *linkList, tree *tr)
   numberOfModels++;
   
   ll->entries = numberOfModels;
-  ll->ld      = (linkageData*)malloc(sizeof(linkageData) * numberOfModels);
+  ll->ld      = (linkageData*)rax_malloc(sizeof(linkageData) * numberOfModels);
 
 
   for(i = 0; i < numberOfModels; i++)
@@ -155,7 +157,7 @@ static linkageList* initLinkageList(int *linkList, tree *tr)
 	  partitions++;	    
 
       ll->ld[i].partitions = partitions;
-      ll->ld[i].partitionList = (int*)malloc(sizeof(int) * partitions);
+      ll->ld[i].partitionList = (int*)rax_malloc(sizeof(int) * partitions);
       
       for(k = 0, pos = 0; k < tr->NumberOfModels; k++)	
 	if(linkList[k] == i)
@@ -170,7 +172,7 @@ static linkageList* initLinkageListGTR(tree *tr)
 {
   int
     i,
-    *links = (int*)malloc(sizeof(int) * tr->NumberOfModels),
+    *links = (int*)rax_malloc(sizeof(int) * tr->NumberOfModels),
     firstAA = tr->NumberOfModels + 2,
     countGTR = 0,
     countUnlinkedGTR = 0,
@@ -238,7 +240,7 @@ static linkageList* initLinkageListGTR(tree *tr)
 
   ll = initLinkageList(links, tr);
 
-  free(links);
+  rax_free(links);
   
   return ll;
 }
@@ -250,10 +252,10 @@ static void freeLinkageList( linkageList* ll)
   int i;    
 
   for(i = 0; i < ll->entries; i++)    
-    free(ll->ld[i].partitionList);         
+    rax_free(ll->ld[i].partitionList);         
 
-  free(ll->ld);
-  free(ll);   
+  rax_free(ll->ld);
+  rax_free(ll);   
 }
 
 #define ALPHA_F 0
@@ -586,26 +588,26 @@ static void brentGeneric(double *ax, double *bx, double *cx, double *fb, double 
 {
   int iter, i;
   double 
-    *a     = (double *)malloc(sizeof(double) * numberOfModels),
-    *b     = (double *)malloc(sizeof(double) * numberOfModels),
-    *d     = (double *)malloc(sizeof(double) * numberOfModels),
-    *etemp = (double *)malloc(sizeof(double) * numberOfModels),
-    *fu    = (double *)malloc(sizeof(double) * numberOfModels),
-    *fv    = (double *)malloc(sizeof(double) * numberOfModels),
-    *fw    = (double *)malloc(sizeof(double) * numberOfModels),
-    *fx    = (double *)malloc(sizeof(double) * numberOfModels),
-    *p     = (double *)malloc(sizeof(double) * numberOfModels),
-    *q     = (double *)malloc(sizeof(double) * numberOfModels),
-    *r     = (double *)malloc(sizeof(double) * numberOfModels),
-    *tol1  = (double *)malloc(sizeof(double) * numberOfModels),
-    *tol2  = (double *)malloc(sizeof(double) * numberOfModels),
-    *u     = (double *)malloc(sizeof(double) * numberOfModels),
-    *v     = (double *)malloc(sizeof(double) * numberOfModels),
-    *w     = (double *)malloc(sizeof(double) * numberOfModels),
-    *x     = (double *)malloc(sizeof(double) * numberOfModels),
-    *xm    = (double *)malloc(sizeof(double) * numberOfModels),
-    *e     = (double *)malloc(sizeof(double) * numberOfModels);
-  boolean *converged = (boolean *)malloc(sizeof(boolean) * numberOfModels);
+    *a     = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *b     = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *d     = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *etemp = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *fu    = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *fv    = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *fw    = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *fx    = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *p     = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *q     = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *r     = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *tol1  = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *tol2  = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *u     = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *v     = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *w     = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *x     = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *xm    = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *e     = (double *)rax_malloc(sizeof(double) * numberOfModels);
+  boolean *converged = (boolean *)rax_malloc(sizeof(boolean) * numberOfModels);
   boolean allConverged;
   
   for(i = 0; i < numberOfModels; i++)    
@@ -645,26 +647,26 @@ static void brentGeneric(double *ax, double *bx, double *cx, double *fb, double 
 
       if(allConverged)
 	{
-	  free(converged);
-	  free(a);
-	  free(b);
-	  free(d);
-	  free(etemp);
-	  free(fu);
-	  free(fv);
-	  free(fw);
-	  free(fx);
-	  free(p);
-	  free(q);
-	  free(r);
-	  free(tol1);
-	  free(tol2);
-	  free(u);
-	  free(v);
-	  free(w);
-	  free(x);
-	  free(xm);
-	  free(e);
+	  rax_free(converged);
+	  rax_free(a);
+	  rax_free(b);
+	  rax_free(d);
+	  rax_free(etemp);
+	  rax_free(fu);
+	  rax_free(fv);
+	  rax_free(fw);
+	  rax_free(fx);
+	  rax_free(p);
+	  rax_free(q);
+	  rax_free(r);
+	  rax_free(tol1);
+	  rax_free(tol2);
+	  rax_free(u);
+	  rax_free(v);
+	  rax_free(w);
+	  rax_free(x);
+	  rax_free(xm);
+	  rax_free(e);
 	  return;
 	}     
 
@@ -772,26 +774,26 @@ static void brentGeneric(double *ax, double *bx, double *cx, double *fb, double 
 	}
     }
 
-  free(converged);
-  free(a);
-  free(b);
-  free(d);
-  free(etemp);
-  free(fu);
-  free(fv);
-  free(fw);
-  free(fx);
-  free(p);
-  free(q);
-  free(r);
-  free(tol1);
-  free(tol2);
-  free(u);
-  free(v);
-  free(w);
-  free(x);
-  free(xm);
-  free(e);
+  rax_free(converged);
+  rax_free(a);
+  rax_free(b);
+  rax_free(d);
+  rax_free(etemp);
+  rax_free(fu);
+  rax_free(fv);
+  rax_free(fw);
+  rax_free(fx);
+  rax_free(p);
+  rax_free(q);
+  rax_free(r);
+  rax_free(tol1);
+  rax_free(tol2);
+  rax_free(u);
+  rax_free(v);
+  rax_free(w);
+  rax_free(x);
+  rax_free(xm);
+  rax_free(e);
 
   printf("\n. Too many iterations in BRENT !");
   assert(0);
@@ -804,20 +806,20 @@ static int brakGeneric(double *param, double *ax, double *bx, double *cx, double
 		       int numberOfModels, int rateNumber, int whichFunction, tree *tr, linkageList *ll)
 {
   double 
-    *ulim = (double *)malloc(sizeof(double) * numberOfModels),
-    *u    = (double *)malloc(sizeof(double) * numberOfModels),
-    *r    = (double *)malloc(sizeof(double) * numberOfModels),
-    *q    = (double *)malloc(sizeof(double) * numberOfModels),
-    *fu   = (double *)malloc(sizeof(double) * numberOfModels),
-    *dum  = (double *)malloc(sizeof(double) * numberOfModels), 
-    *temp = (double *)malloc(sizeof(double) * numberOfModels);
+    *ulim = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *u    = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *r    = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *q    = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *fu   = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *dum  = (double *)rax_malloc(sizeof(double) * numberOfModels), 
+    *temp = (double *)rax_malloc(sizeof(double) * numberOfModels);
   
   int 
     i,
-    *state    = (int *)malloc(sizeof(int) * numberOfModels),
-    *endState = (int *)malloc(sizeof(int) * numberOfModels);
+    *state    = (int *)rax_malloc(sizeof(int) * numberOfModels),
+    *endState = (int *)rax_malloc(sizeof(int) * numberOfModels);
 
-  boolean *converged = (boolean *)malloc(sizeof(boolean) * numberOfModels);
+  boolean *converged = (boolean *)rax_malloc(sizeof(boolean) * numberOfModels);
   boolean allConverged;
 
   for(i = 0; i < numberOfModels; i++)
@@ -908,16 +910,16 @@ static int brakGeneric(double *param, double *ax, double *bx, double *cx, double
 		 cx[i] = lim_inf;
 	     }
 
-	   free(converged);
-	   free(ulim);
-	   free(u);
-	   free(r);
-	   free(q);
-	   free(fu);
-	   free(dum); 
-	   free(temp);
-	   free(state);   
-	   free(endState);
+	   rax_free(converged);
+	   rax_free(ulim);
+	   rax_free(u);
+	   rax_free(r);
+	   rax_free(q);
+	   rax_free(fu);
+	   rax_free(dum); 
+	   rax_free(temp);
+	   rax_free(state);   
+	   rax_free(endState);
 	   return 0;
 	   
 	 }
@@ -1095,16 +1097,16 @@ static int brakGeneric(double *param, double *ax, double *bx, double *cx, double
    
 
    assert(0);
-   free(converged);
-   free(ulim);
-   free(u);
-   free(r);
-   free(q);
-   free(fu);
-   free(dum); 
-   free(temp);
-   free(state);   
-   free(endState);
+   rax_free(converged);
+   rax_free(ulim);
+   rax_free(u);
+   rax_free(r);
+   rax_free(q);
+   rax_free(fu);
+   rax_free(dum); 
+   rax_free(temp);
+   rax_free(state);   
+   rax_free(endState);
 
   
 
@@ -1128,18 +1130,18 @@ static void optInvar(tree *tr, double modelEpsilon, linkageList *ll)
   double lim_inf = INVAR_MIN;
   double lim_sup = INVAR_MAX;
    double
-    *startLH    = (double *)malloc(sizeof(double) * numberOfModels),
-    *startInvar = (double *)malloc(sizeof(double) * numberOfModels),
-    *endInvar   = (double *)malloc(sizeof(double) * numberOfModels),
-    *_a     = (double *)malloc(sizeof(double) * numberOfModels),
-    *_b     = (double *)malloc(sizeof(double) * numberOfModels),
-    *_c     = (double *)malloc(sizeof(double) * numberOfModels),
-    *_fa    = (double *)malloc(sizeof(double) * numberOfModels),
-    *_fb    = (double *)malloc(sizeof(double) * numberOfModels),
-    *_fc    = (double *)malloc(sizeof(double) * numberOfModels),
-    *_param = (double *)malloc(sizeof(double) * numberOfModels),
-    *result = (double *)malloc(sizeof(double) * numberOfModels),
-    *_x     = (double *)malloc(sizeof(double) * numberOfModels);
+    *startLH    = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *startInvar = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *endInvar   = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_a     = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_b     = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_c     = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_fa    = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_fb    = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_fc    = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_param = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *result = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_x     = (double *)rax_malloc(sizeof(double) * numberOfModels);
 #ifdef _USE_PTHREADS
    int revertModel = 0;
 #endif
@@ -1194,18 +1196,18 @@ static void optInvar(tree *tr, double modelEpsilon, linkageList *ll)
 #endif
  
 
-  free(startLH);
-  free(startInvar);
-  free(endInvar);
-  free(result);
-  free(_a);
-  free(_b);
-  free(_c);
-  free(_fa);
-  free(_fb);
-  free(_fc);
-  free(_param);
-  free(_x);  
+  rax_free(startLH);
+  rax_free(startInvar);
+  rax_free(endInvar);
+  rax_free(result);
+  rax_free(_a);
+  rax_free(_b);
+  rax_free(_c);
+  rax_free(_fa);
+  rax_free(_fb);
+  rax_free(_fc);
+  rax_free(_param);
+  rax_free(_x);  
  
 }
 
@@ -1234,18 +1236,18 @@ static void optAlpha(tree *tr, double modelEpsilon, linkageList *ll)
     lim_inf     = ALPHA_MIN,
     lim_sup     = ALPHA_MAX;
   double
-    *startLH    = (double *)malloc(sizeof(double) * numberOfModels),
-    *startAlpha = (double *)malloc(sizeof(double) * numberOfModels),
-    *endAlpha   = (double *)malloc(sizeof(double) * numberOfModels),
-    *_a         = (double *)malloc(sizeof(double) * numberOfModels),
-    *_b         = (double *)malloc(sizeof(double) * numberOfModels),
-    *_c         = (double *)malloc(sizeof(double) * numberOfModels),
-    *_fa        = (double *)malloc(sizeof(double) * numberOfModels),
-    *_fb        = (double *)malloc(sizeof(double) * numberOfModels),
-    *_fc        = (double *)malloc(sizeof(double) * numberOfModels),
-    *_param     = (double *)malloc(sizeof(double) * numberOfModels),
-    *result     = (double *)malloc(sizeof(double) * numberOfModels),
-    *_x         = (double *)malloc(sizeof(double) * numberOfModels);   
+    *startLH    = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *startAlpha = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *endAlpha   = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_a         = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_b         = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_c         = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_fa        = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_fb        = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_fc        = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_param     = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *result     = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_x         = (double *)rax_malloc(sizeof(double) * numberOfModels);   
 
 #ifdef _USE_PTHREADS
    int revertModel = 0;
@@ -1303,18 +1305,18 @@ static void optAlpha(tree *tr, double modelEpsilon, linkageList *ll)
 #endif
 
   
-  free(startLH);
-  free(startAlpha);
-  free(endAlpha);
-  free(result);
-  free(_a);
-  free(_b);
-  free(_c);
-  free(_fa);
-  free(_fb);
-  free(_fc);
-  free(_param);
-  free(_x);  
+  rax_free(startLH);
+  rax_free(startAlpha);
+  rax_free(endAlpha);
+  rax_free(result);
+  rax_free(_a);
+  rax_free(_b);
+  rax_free(_c);
+  rax_free(_fa);
+  rax_free(_fb);
+  rax_free(_fc);
+  rax_free(_param);
+  rax_free(_x);  
 
 }
 
@@ -1338,24 +1340,24 @@ static void optRates(tree *tr, double modelEpsilon, linkageList *ll, int numberO
   double 
     *startRates;
   double 
-    *startLH= (double *)malloc(sizeof(double) * numberOfModels),
-    *endLH  = (double *)malloc(sizeof(double) * numberOfModels),
-    *_a     = (double *)malloc(sizeof(double) * numberOfModels),
-    *_b     = (double *)malloc(sizeof(double) * numberOfModels),
-    *_c     = (double *)malloc(sizeof(double) * numberOfModels),
-    *_fa    = (double *)malloc(sizeof(double) * numberOfModels),
-    *_fb    = (double *)malloc(sizeof(double) * numberOfModels),
-    *_fc    = (double *)malloc(sizeof(double) * numberOfModels),
-    *_param = (double *)malloc(sizeof(double) * numberOfModels),
-    *result = (double *)malloc(sizeof(double) * numberOfModels),
-    *_x     = (double *)malloc(sizeof(double) * numberOfModels); 
+    *startLH= (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *endLH  = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_a     = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_b     = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_c     = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_fa    = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_fb    = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_fc    = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_param = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *result = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_x     = (double *)rax_malloc(sizeof(double) * numberOfModels); 
 #ifdef _USE_PTHREADS
    int revertModel = 0;
 #endif
 
    assert(states != -1);
 
-  startRates = (double *)malloc(sizeof(double) * numberOfRates * numberOfModels);
+  startRates = (double *)rax_malloc(sizeof(double) * numberOfRates * numberOfModels);
 
   evaluateGenericInitrav(tr, tr->start);
   /* 
@@ -1450,18 +1452,18 @@ static void optRates(tree *tr, double modelEpsilon, linkageList *ll, int numberO
     }
 
  
-  free(startLH);
-  free(endLH);
-  free(result);
-  free(_a);
-  free(_b);
-  free(_c);
-  free(_fa);
-  free(_fb);
-  free(_fc);
-  free(_param);
-  free(_x);  
-  free(startRates);
+  rax_free(startLH);
+  rax_free(endLH);
+  rax_free(result);
+  rax_free(_a);
+  rax_free(_b);
+  rax_free(_c);
+  rax_free(_fa);
+  rax_free(_fb);
+  rax_free(_fc);
+  rax_free(_param);
+  rax_free(_x);  
+  rax_free(startRates);
 }
 
 static boolean AAisGTR(tree *tr)
@@ -2141,18 +2143,18 @@ static void optimizeRateCategories(tree *tr, int _maxCategories)
 	lower_spacing, 
 	upper_spacing,
 	initialLH = tr->likelihood,	
-	*ratStored = (double *)malloc(sizeof(double) * tr->cdta->endsite),
-	*lhs =       (double *)malloc(sizeof(double) * tr->cdta->endsite),
-	**oldCategorizedRates = (double **)malloc(sizeof(double *) * tr->NumberOfModels),
-	**oldUnscaledCategorizedRates = (double **)malloc(sizeof(double *) * tr->NumberOfModels);
+	*ratStored = (double *)rax_malloc(sizeof(double) * tr->cdta->endsite),
+	*lhs =       (double *)rax_malloc(sizeof(double) * tr->cdta->endsite),
+	**oldCategorizedRates = (double **)rax_malloc(sizeof(double *) * tr->NumberOfModels),
+	**oldUnscaledCategorizedRates = (double **)rax_malloc(sizeof(double *) * tr->NumberOfModels);
 
       int  
 	i,
 	k,
 	maxCategories = _maxCategories,
-	*oldCategory =  (int *)malloc(sizeof(int) * tr->cdta->endsite),
+	*oldCategory =  (int *)rax_malloc(sizeof(int) * tr->cdta->endsite),
 	model,
-	*oldNumbers = (int *)malloc(sizeof(int) * tr->NumberOfModels);
+	*oldNumbers = (int *)rax_malloc(sizeof(int) * tr->NumberOfModels);
   
       assert(isTip(tr->start->number, tr->rdta->numsp));         
       
@@ -2184,8 +2186,8 @@ static void optimizeRateCategories(tree *tr, int _maxCategories)
 	{
 	  oldNumbers[model]          = tr->partitionData[model].numberOfCategories;
 
-	  oldCategorizedRates[model] = (double *)malloc(sizeof(double) * tr->maxCategories);
-	  oldUnscaledCategorizedRates[model] = (double *)malloc(sizeof(double) * tr->maxCategories);
+	  oldCategorizedRates[model] = (double *)rax_malloc(sizeof(double) * tr->maxCategories);
+	  oldUnscaledCategorizedRates[model] = (double *)rax_malloc(sizeof(double) * tr->maxCategories);
 	  
 	  memcpy(oldCategorizedRates[model], tr->partitionData[model].perSiteRates, tr->maxCategories * sizeof(double));	  	 	  
 	  memcpy(oldUnscaledCategorizedRates[model], tr->partitionData[model].unscaled_perSiteRates, tr->maxCategories * sizeof(double));
@@ -2211,7 +2213,7 @@ static void optimizeRateCategories(tree *tr, int _maxCategories)
 	    lower = tr->partitionData[model].lower;
 	    
 	  rateCategorize 
-	    *rc = (rateCategorize *)malloc(sizeof(rateCategorize) * width);		 
+	    *rc = (rateCategorize *)rax_malloc(sizeof(rateCategorize) * width);		 
 	
 	  for (i = 0; i < width; i++)
 	    {
@@ -2260,7 +2262,7 @@ static void optimizeRateCategories(tree *tr, int _maxCategories)
 	      categorizePartition(tr, rc, model, lower, upper);
 	    }
 	
-	  free(rc);
+	  rax_free(rc);
 	}
         	
       updatePerSiteRates(tr, TRUE);	
@@ -2290,16 +2292,16 @@ static void optimizeRateCategories(tree *tr, int _maxCategories)
           
       for(model = 0; model < tr->NumberOfModels; model++)
 	{
-	  free(oldCategorizedRates[model]);
-	  free(oldUnscaledCategorizedRates[model]);
+	  rax_free(oldCategorizedRates[model]);
+	  rax_free(oldUnscaledCategorizedRates[model]);
 	}
                    
-      free(oldCategorizedRates);
-      free(oldUnscaledCategorizedRates);
-      free(oldCategory);
-      free(ratStored);       
-      free(lhs); 
-      free(oldNumbers);
+      rax_free(oldCategorizedRates);
+      rax_free(oldUnscaledCategorizedRates);
+      rax_free(oldCategory);
+      rax_free(ratStored);       
+      rax_free(lhs); 
+      rax_free(oldNumbers);
     }
 }
   
@@ -2368,7 +2370,7 @@ void scaleBranches(tree *tr, boolean fromFile)
     z;
   
   if(!tr->storedBrLens)
-    tr->storedBrLens = (double *)malloc(sizeof(double) * (2 * tr->mxtips - 3) * 2);
+    tr->storedBrLens = (double *)rax_malloc(sizeof(double) * (2 * tr->mxtips - 3) * 2);
 
   assert(tr->numBranches == tr->NumberOfModels);
   
@@ -2574,18 +2576,18 @@ static void optScaler(tree *tr, double modelEpsilon, linkageList *ll)
     lim_inf     = 0.01,
     lim_sup     = 100.0;
   double
-    *startLH    = (double *)malloc(sizeof(double) * numberOfModels),
-    *startAlpha = (double *)malloc(sizeof(double) * numberOfModels),
-    *endAlpha   = (double *)malloc(sizeof(double) * numberOfModels),
-    *_a         = (double *)malloc(sizeof(double) * numberOfModels),
-    *_b         = (double *)malloc(sizeof(double) * numberOfModels),
-    *_c         = (double *)malloc(sizeof(double) * numberOfModels),
-    *_fa        = (double *)malloc(sizeof(double) * numberOfModels),
-    *_fb        = (double *)malloc(sizeof(double) * numberOfModels),
-    *_fc        = (double *)malloc(sizeof(double) * numberOfModels),
-    *_param     = (double *)malloc(sizeof(double) * numberOfModels),
-    *result     = (double *)malloc(sizeof(double) * numberOfModels),
-    *_x         = (double *)malloc(sizeof(double) * numberOfModels);   
+    *startLH    = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *startAlpha = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *endAlpha   = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_a         = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_b         = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_c         = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_fa        = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_fb        = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_fc        = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_param     = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *result     = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_x         = (double *)rax_malloc(sizeof(double) * numberOfModels);   
 
 
   assert(numberOfModels == tr->numBranches);
@@ -2630,18 +2632,18 @@ static void optScaler(tree *tr, double modelEpsilon, linkageList *ll)
 
   evaluateGenericInitrav(tr, tr->start);
   
-  free(startLH);
-  free(startAlpha);
-  free(endAlpha);
-  free(result);
-  free(_a);
-  free(_b);
-  free(_c);
-  free(_fa);
-  free(_fb);
-  free(_fc);
-  free(_param);
-  free(_x);  
+  rax_free(startLH);
+  rax_free(startAlpha);
+  rax_free(endAlpha);
+  rax_free(result);
+  rax_free(_a);
+  rax_free(_b);
+  rax_free(_c);
+  rax_free(_fa);
+  rax_free(_fb);
+  rax_free(_fc);
+  rax_free(_param);
+  rax_free(_x);  
 
 }
 
@@ -2662,8 +2664,8 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
     int linkedRates[4] = {0, 0, 0, 0};
   */  
   int 
-    *unlinked = (int *)malloc(sizeof(int) * tr->NumberOfModels),
-    *linked =  (int *)malloc(sizeof(int) * tr->NumberOfModels);
+    *unlinked = (int *)rax_malloc(sizeof(int) * tr->NumberOfModels),
+    *linked =  (int *)rax_malloc(sizeof(int) * tr->NumberOfModels);
 
 
   
@@ -2790,8 +2792,8 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
     }
   while(fabs(currentLikelihood - tr->likelihood) > likelihoodEpsilon);  
   
-  free(unlinked);
-  free(linked);
+  rax_free(unlinked);
+  rax_free(linked);
   freeLinkageList(alphaList);
   freeLinkageList(rateList);
   freeLinkageList(invarList);  

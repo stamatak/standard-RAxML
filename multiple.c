@@ -40,7 +40,7 @@
 #include <ctype.h>
 #include <string.h>
 #include "axml.h"
-
+#include "mem_alloc.h"
 
 #ifdef _WAYNE_MPI
 #include <mpi.h>
@@ -283,7 +283,7 @@ void computeNextReplicate(tree *tr, long *randomSeed, int *originalRateCategorie
 	ctr = 0,
 	totalWeight = 0,
 	realNumSites = tr->origNumSitePerModel[model],	
-	*wgtVirtualAln = (int*) calloc(realNumSites, sizeof(int)); 
+	*wgtVirtualAln = (int*) rax_calloc(realNumSites, sizeof(int)); 
 
       for(j = 0; j < tr->originalCrunchedLength; ++j)
 	{
@@ -294,7 +294,7 @@ void computeNextReplicate(tree *tr, long *randomSeed, int *originalRateCategorie
 	    }
 	}
 
-      weightBuffer = (int *)calloc(realNumSites, sizeof(int));
+      weightBuffer = (int *)rax_calloc(realNumSites, sizeof(int));
       
       j = 0; 
       
@@ -320,8 +320,8 @@ void computeNextReplicate(tree *tr, long *randomSeed, int *originalRateCategorie
 	    }
 	}
 
-       free(weightBuffer);
-       free(wgtVirtualAln);
+       rax_free(weightBuffer);
+       rax_free(wgtVirtualAln);
     }
 
    endsite = 0;
@@ -384,18 +384,18 @@ void computeNextReplicate(tree *tr, long *randomSeed, int *originalRateCategorie
 static pInfo *allocParams(tree *tr)
 {
   int i;
-  pInfo *partBuffer = (pInfo*)malloc(sizeof(pInfo) * tr->NumberOfModels);
+  pInfo *partBuffer = (pInfo*)rax_malloc(sizeof(pInfo) * tr->NumberOfModels);
 
   for(i = 0; i < tr->NumberOfModels; i++)
     {
       const partitionLengths *pl = getPartitionLengths(&(tr->partitionData[i]));
 
-      partBuffer[i].EIGN = (double*)malloc(pl->eignLength * sizeof(double));
-      partBuffer[i].EV   = (double*)malloc(pl->evLength * sizeof(double));
-      partBuffer[i].EI   = (double*)malloc(pl->eiLength * sizeof(double));	  
-      partBuffer[i].substRates = (double *)malloc(pl->substRatesLength * sizeof(double));	  
-      partBuffer[i].frequencies =  (double*)malloc(pl->frequenciesLength * sizeof(double));	  
-      partBuffer[i].tipVector   = (double *)malloc(pl->tipVectorLength * sizeof(double));
+      partBuffer[i].EIGN = (double*)rax_malloc(pl->eignLength * sizeof(double));
+      partBuffer[i].EV   = (double*)rax_malloc(pl->evLength * sizeof(double));
+      partBuffer[i].EI   = (double*)rax_malloc(pl->eiLength * sizeof(double));	  
+      partBuffer[i].substRates = (double *)rax_malloc(pl->substRatesLength * sizeof(double));	  
+      partBuffer[i].frequencies =  (double*)rax_malloc(pl->frequenciesLength * sizeof(double));	  
+      partBuffer[i].tipVector   = (double *)rax_malloc(pl->tipVectorLength * sizeof(double));
       
      
     }
@@ -403,18 +403,18 @@ static pInfo *allocParams(tree *tr)
   return partBuffer;      
 }
 
-static void freeParams(int numberOfModels, pInfo *partBuffer)
+static void rax_freeParams(int numberOfModels, pInfo *partBuffer)
 {
   int i;
 
   for(i = 0; i < numberOfModels; i++)
     {
-      free(partBuffer[i].EIGN); 
-      free(partBuffer[i].EV);   
-      free(partBuffer[i].EI);   
-      free(partBuffer[i].substRates);
-      free(partBuffer[i].frequencies); 
-      free(partBuffer[i].tipVector);  
+      rax_free(partBuffer[i].EIGN); 
+      rax_free(partBuffer[i].EV);   
+      rax_free(partBuffer[i].EI);   
+      rax_free(partBuffer[i].substRates);
+      rax_free(partBuffer[i].frequencies); 
+      rax_free(partBuffer[i].tipVector);  
     }
       
 }
@@ -580,11 +580,11 @@ void doAllInOne(tree *tr, analdef *adef)
       bitVectors = initBitVector(tr, &vLength);          
     }
 
-  rl = (topolRELL_LIST *)malloc(sizeof(topolRELL_LIST));
+  rl = (topolRELL_LIST *)rax_malloc(sizeof(topolRELL_LIST));
   initTL(rl, tr, n);
      
-  originalRateCategories = (int*)malloc(tr->cdta->endsite * sizeof(int));      
-  originalInvariant      = (int*)malloc(tr->cdta->endsite * sizeof(int));
+  originalRateCategories = (int*)rax_malloc(tr->cdta->endsite * sizeof(int));      
+  originalInvariant      = (int*)rax_malloc(tr->cdta->endsite * sizeof(int));
 
   sites = tr->cdta->endsite;             
 
@@ -777,18 +777,18 @@ void doAllInOne(tree *tr, analdef *adef)
   bootstrapsPerformed = i;
 #endif
 
-  freeParams(tr->NumberOfModels, catParams);
-  free(catParams);
+  rax_freeParams(tr->NumberOfModels, catParams);
+  rax_free(catParams);
 
-  freeParams(tr->NumberOfModels, gammaParams);
-  free(gammaParams);
+  rax_freeParams(tr->NumberOfModels, gammaParams);
+  rax_free(gammaParams);
 
   if(adef->bootStopping)
     {
       freeBitVectors(bitVectors, 2 * tr->mxtips);
-      free(bitVectors);
+      rax_free(bitVectors);
       freeHashTable(h);
-      free(h);      
+      rax_free(h);      
     }
 
  
@@ -1114,7 +1114,7 @@ void doAllInOne(tree *tr, analdef *adef)
       double *buffer;
       int bestProcess;
 
-      buffer = (double *)malloc(sizeof(double) * processes);
+      buffer = (double *)rax_malloc(sizeof(double) * processes);
       for(i = 0; i < processes; i++)
         buffer[i] = unlikely;
       buffer[processID] = bestLH;
@@ -1128,7 +1128,7 @@ void doAllInOne(tree *tr, analdef *adef)
              bestLH = buffer[i];
              bestProcess = i;
           }
-      free(buffer);
+      rax_free(buffer);
 
       if(processID != bestProcess)
         {
@@ -1165,7 +1165,7 @@ void doAllInOne(tree *tr, analdef *adef)
       
   
   freeTL(rl);   
-  free(rl);       
+  rax_free(rl);       
   
   calcBipartitions(tr, adef, bestTreeFileName, bootstrapFileName);    
   
@@ -1308,9 +1308,9 @@ void doBootstrap(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
   if(adef->bootStopping)
     {
       freeBitVectors(bitVectors, 2 * tr->mxtips);
-      free(bitVectors);
+      rax_free(bitVectors);
       freeHashTable(h);
-      free(h);
+      rax_free(h);
       
        
       if(bootStopIt)
@@ -1392,7 +1392,7 @@ void doInference(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
 
   if(!tr->catOnly)
     {
-      rl = (topolRELL_LIST *)malloc(sizeof(topolRELL_LIST));
+      rl = (topolRELL_LIST *)rax_malloc(sizeof(topolRELL_LIST));
       initTL(rl, tr, n);
     }
 
@@ -1639,7 +1639,7 @@ void doInference(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
 	  double *buffer;
 	  int bestProcess;
 	  
-	  buffer = (double *)malloc(sizeof(double) * processes);
+	  buffer = (double *)rax_malloc(sizeof(double) * processes);
 	  for(i = 0; i < processes; i++)
 	    buffer[i] = unlikely;
 	  buffer[processID] = bestLH;
@@ -1653,7 +1653,7 @@ void doInference(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
 		bestLH = buffer[i];
 		bestProcess = i;
 	      }
-	  free(buffer);
+	  rax_free(buffer);
 	  
 	  if(processID != bestProcess)
 	    {
@@ -1709,7 +1709,7 @@ void doInference(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
   if(!tr->catOnly)
     {
       freeTL(rl);   
-      free(rl); 
+      rax_free(rl); 
     }
   
 #ifdef _WAYNE_MPI

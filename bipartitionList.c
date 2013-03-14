@@ -68,6 +68,8 @@ extern int processID;
 extern int processes;
 #endif
 
+#include "mem_alloc.h"
+
 #define _NEW_MRE
 
 extern FILE *INFILE;
@@ -92,7 +94,7 @@ static void mre(hashtable *h, boolean icp, entry*** sbi, int* len, int which, in
 
 entry *initEntry(void)
 {
-  entry *e = (entry*)malloc(sizeof(entry));
+  entry *e = (entry*)rax_malloc(sizeof(entry));
 
   e->bitVector     = (unsigned int*)NULL;
   e->treeVector    = (unsigned int*)NULL;
@@ -126,7 +128,7 @@ hashtable *initHashTable(hashNumberType n)
 					      4194304, 8388608, 16777216, 33554432, 67108864, 134217728,
 					      268435456, 536870912, 1073741824, 2147483648U};
   
-  hashtable *h = (hashtable*)malloc(sizeof(hashtable));
+  hashtable *h = (hashtable*)rax_malloc(sizeof(hashtable));
   
   hashNumberType
     tableSize,
@@ -147,7 +149,7 @@ hashtable *initHashTable(hashNumberType n)
 
   /* printf("Hash table init with size %u\n", tableSize); */
 
-  h->table = (entry**)calloc(tableSize, sizeof(entry*));
+  h->table = (entry**)rax_calloc(tableSize, sizeof(entry*));
   h->tableSize = tableSize;  
   h->entryCount = 0;  
 
@@ -177,15 +179,15 @@ void freeHashTable(hashtable *h)
 	      e = e->next;
 
 	      if(previous->bitVector)
-		free(previous->bitVector);
+		rax_free(previous->bitVector);
 
 	      if(previous->treeVector)
-		free(previous->treeVector);
+		rax_free(previous->treeVector);
 
 	      if(previous->supportVector)
-		free(previous->supportVector);
+		rax_free(previous->supportVector);
 	      
-	      free(previous);	      
+	      rax_free(previous);	      
 	      entryCount++;
 	    }
 	  while(e != NULL);	  
@@ -195,7 +197,7 @@ void freeHashTable(hashtable *h)
 
   assert(entryCount == h->entryCount);
  
-  free(h->table);
+  rax_free(h->table);
 }
 
 
@@ -248,12 +250,12 @@ void cleanupHashTable(hashtable *h, int state)
 		    lastValid->next = remove->next;
 
 		  if(remove->bitVector)
-		    free(remove->bitVector);
+		    rax_free(remove->bitVector);
 		  if(remove->treeVector)
-		    free(remove->treeVector);
+		    rax_free(remove->treeVector);
 		  if(remove->supportVector)
-		    free(remove->supportVector);
-		  free(remove);		 
+		    rax_free(remove->supportVector);
+		  rax_free(remove);		 
 		}
 	      
 	      entryCount++;	     	     
@@ -289,7 +291,7 @@ void cleanupHashTable(hashtable *h, int state)
 
 unsigned int **initBitVector(tree *tr, unsigned int *vectorLength)
 {
-  unsigned int **bitVectors = (unsigned int **)malloc(sizeof(unsigned int*) * 2 * tr->mxtips);
+  unsigned int **bitVectors = (unsigned int **)rax_malloc(sizeof(unsigned int*) * 2 * tr->mxtips);
   int i;
 
   if(tr->mxtips % MASK_LENGTH == 0)
@@ -299,12 +301,12 @@ unsigned int **initBitVector(tree *tr, unsigned int *vectorLength)
   
   for(i = 1; i <= tr->mxtips; i++)
     {
-      bitVectors[i] = (unsigned int *)calloc(*vectorLength, sizeof(unsigned int));
+      bitVectors[i] = (unsigned int *)rax_calloc(*vectorLength, sizeof(unsigned int));
       bitVectors[i][(i - 1) / MASK_LENGTH] |= mask32[(i - 1) % MASK_LENGTH];
     }
   
   for(i = tr->mxtips + 1; i < 2 * tr->mxtips; i++) 
-    bitVectors[i] = (unsigned int *)malloc(sizeof(unsigned int) * *vectorLength);
+    bitVectors[i] = (unsigned int *)rax_malloc(sizeof(unsigned int) * *vectorLength);
 
   return bitVectors;
 }
@@ -314,7 +316,7 @@ void freeBitVectors(unsigned int **v, int n)
   int i;
 
   for(i = 1; i < n; i++)
-    free(v[i]);
+    rax_free(v[i]);
 }
 
 
@@ -392,9 +394,9 @@ static void insertHash(unsigned int *bitVector, hashtable *h, unsigned int vecto
   entry *e = initEntry();
 
   e->bipNumber = bipNumber; 
-  /*e->bitVector = (unsigned int*)calloc(vectorLength, sizeof(unsigned int)); */
+  /*e->bitVector = (unsigned int*)rax_calloc(vectorLength, sizeof(unsigned int)); */
 
-  e->bitVector = (unsigned int*)malloc_aligned(vectorLength * sizeof(unsigned int));
+  e->bitVector = (unsigned int*)rax_malloc_aligned(vectorLength * sizeof(unsigned int));
   memset(e->bitVector, 0, vectorLength * sizeof(unsigned int));
  
   memcpy(e->bitVector, bitVector, sizeof(unsigned int) * vectorLength);
@@ -467,8 +469,8 @@ static void insertHashAll(unsigned int *bitVector, hashtable *h, unsigned int ve
 
       e = initEntry(); 
   
-      /*e->bitVector  = (unsigned int*)calloc(vectorLength, sizeof(unsigned int)); */
-      e->bitVector = (unsigned int*)malloc_aligned(vectorLength * sizeof(unsigned int));
+      /*e->bitVector  = (unsigned int*)rax_calloc(vectorLength, sizeof(unsigned int)); */
+      e->bitVector = (unsigned int*)rax_malloc_aligned(vectorLength * sizeof(unsigned int));
       memset(e->bitVector, 0, vectorLength * sizeof(unsigned int));
 
 
@@ -486,9 +488,9 @@ static void insertHashAll(unsigned int *bitVector, hashtable *h, unsigned int ve
     {
       entry *e = initEntry(); 
   
-      /*e->bitVector  = (unsigned int*)calloc(vectorLength, sizeof(unsigned int)); */
+      /*e->bitVector  = (unsigned int*)rax_calloc(vectorLength, sizeof(unsigned int)); */
 
-      e->bitVector = (unsigned int*)malloc_aligned(vectorLength * sizeof(unsigned int));
+      e->bitVector = (unsigned int*)rax_malloc_aligned(vectorLength * sizeof(unsigned int));
       memset(e->bitVector, 0, vectorLength * sizeof(unsigned int));
 
       memcpy(e->bitVector, bitVector, sizeof(unsigned int) * vectorLength);
@@ -535,12 +537,12 @@ static void insertHashBootstop(unsigned int *bitVector, hashtable *h, unsigned i
 
       e->bipNumber = h->entryCount;
        
-      /*e->bitVector  = (unsigned int*)calloc(vectorLength, sizeof(unsigned int));*/
-      e->bitVector = (unsigned int*)malloc_aligned(vectorLength * sizeof(unsigned int));
+      /*e->bitVector  = (unsigned int*)rax_calloc(vectorLength, sizeof(unsigned int));*/
+      e->bitVector = (unsigned int*)rax_malloc_aligned(vectorLength * sizeof(unsigned int));
       memset(e->bitVector, 0, vectorLength * sizeof(unsigned int));
 
 
-      e->treeVector = (unsigned int*)calloc(treeVectorLength, sizeof(unsigned int));
+      e->treeVector = (unsigned int*)rax_calloc(treeVectorLength, sizeof(unsigned int));
       
       e->treeVector[treeNumber / MASK_LENGTH] |= mask32[treeNumber % MASK_LENGTH];
       memcpy(e->bitVector, bitVector, sizeof(unsigned int) * vectorLength);
@@ -554,12 +556,12 @@ static void insertHashBootstop(unsigned int *bitVector, hashtable *h, unsigned i
 
       e->bipNumber = h->entryCount;
 
-      /*e->bitVector  = (unsigned int*)calloc(vectorLength, sizeof(unsigned int));*/
+      /*e->bitVector  = (unsigned int*)rax_calloc(vectorLength, sizeof(unsigned int));*/
 
-      e->bitVector = (unsigned int*)malloc_aligned(vectorLength * sizeof(unsigned int));
+      e->bitVector = (unsigned int*)rax_malloc_aligned(vectorLength * sizeof(unsigned int));
       memset(e->bitVector, 0, vectorLength * sizeof(unsigned int));
 
-      e->treeVector = (unsigned int*)calloc(treeVectorLength, sizeof(unsigned int));
+      e->treeVector = (unsigned int*)rax_calloc(treeVectorLength, sizeof(unsigned int));
 
       e->treeVector[treeNumber / MASK_LENGTH] |= mask32[treeNumber % MASK_LENGTH];
       memcpy(e->bitVector, bitVector, sizeof(unsigned int) * vectorLength);     
@@ -603,14 +605,14 @@ static void insertHashRF(unsigned int *bitVector, hashtable *h, unsigned int vec
 
       e = initEntry(); 
        
-      /*e->bitVector  = (unsigned int*)calloc(vectorLength, sizeof(unsigned int));*/
-      e->bitVector = (unsigned int*)malloc_aligned(vectorLength * sizeof(unsigned int));
+      /*e->bitVector  = (unsigned int*)rax_calloc(vectorLength, sizeof(unsigned int));*/
+      e->bitVector = (unsigned int*)rax_malloc_aligned(vectorLength * sizeof(unsigned int));
       memset(e->bitVector, 0, vectorLength * sizeof(unsigned int));
 
 
-      e->treeVector = (unsigned int*)calloc(treeVectorLength, sizeof(unsigned int));
+      e->treeVector = (unsigned int*)rax_calloc(treeVectorLength, sizeof(unsigned int));
       if(computeWRF)
-	e->supportVector = (int*)calloc(treeVectorLength * MASK_LENGTH, sizeof(int));
+	e->supportVector = (int*)rax_calloc(treeVectorLength * MASK_LENGTH, sizeof(int));
 
       e->treeVector[treeNumber / MASK_LENGTH] |= mask32[treeNumber % MASK_LENGTH];
       if(computeWRF)
@@ -629,14 +631,14 @@ static void insertHashRF(unsigned int *bitVector, hashtable *h, unsigned int vec
     {
       entry *e = initEntry(); 
        
-      /*e->bitVector  = (unsigned int*)calloc(vectorLength, sizeof(unsigned int)); */
+      /*e->bitVector  = (unsigned int*)rax_calloc(vectorLength, sizeof(unsigned int)); */
 
-      e->bitVector = (unsigned int*)malloc_aligned(vectorLength * sizeof(unsigned int));
+      e->bitVector = (unsigned int*)rax_malloc_aligned(vectorLength * sizeof(unsigned int));
       memset(e->bitVector, 0, vectorLength * sizeof(unsigned int));
 
-      e->treeVector = (unsigned int*)calloc(treeVectorLength, sizeof(unsigned int));
+      e->treeVector = (unsigned int*)rax_calloc(treeVectorLength, sizeof(unsigned int));
       if(computeWRF)	
-	e->supportVector = (int*)calloc(treeVectorLength * MASK_LENGTH, sizeof(int));
+	e->supportVector = (int*)rax_calloc(treeVectorLength * MASK_LENGTH, sizeof(int));
 
 
       e->treeVector[treeNumber / MASK_LENGTH] |= mask32[treeNumber % MASK_LENGTH];
@@ -839,7 +841,7 @@ void calcBipartitions(tree *tr, analdef *adef, char *bestTreeFileName, char *boo
   
   numberOfTaxa = readSingleTree(tr, bestTreeFileName, adef, FALSE, FALSE, TRUE);    
   
-  bInf = (branchInfo*)malloc(sizeof(branchInfo) * (tr->mxtips - 3));
+  bInf = (branchInfo*)rax_malloc(sizeof(branchInfo) * (tr->mxtips - 3));
 
   bitVectorInitravSpecial(bitVectors, tr->nodep[1]->back, tr->mxtips, vLength, h, 0, GET_BIPARTITIONS_BEST, bInf, &branchCounter, 0, FALSE, FALSE);   
 
@@ -880,11 +882,11 @@ void calcBipartitions(tree *tr, analdef *adef, char *bestTreeFileName, char *boo
   printBipartitionResult(tr, adef, TRUE);    
 
   freeBitVectors(bitVectors, 2 * tr->mxtips);
-  free(bitVectors);
+  rax_free(bitVectors);
   freeHashTable(h);
-  free(h); 
+  rax_free(h); 
 
-  free(bInf);
+  rax_free(bInf);
 }
 
 /*************************************************************/
@@ -961,8 +963,8 @@ void compareBips(tree *tr, char *bootStrapFileName, analdef *adef)
 
   /***************************************************************************************************/
       
-  vect1 = (double *)malloc(sizeof(double) * h->entryCount);
-  vect2 = (double *)malloc(sizeof(double) * h->entryCount);
+  vect1 = (double *)rax_malloc(sizeof(double) * h->entryCount);
+  vect2 = (double *)rax_malloc(sizeof(double) * h->entryCount);
 
   strcpy(bipFileName,         workdir);  
   strcat(bipFileName,         "RAxML_bipartitionFrequencies.");
@@ -1023,12 +1025,12 @@ void compareBips(tree *tr, char *bootStrapFileName, analdef *adef)
   printBothOpen("\nFile containing pair-wise bipartition frequencies written to %s\n\n", bipFileName);
   
   freeBitVectors(bitVectors, 2 * tr->mxtips);
-  free(bitVectors);
+  rax_free(bitVectors);
   freeHashTable(h);
-  free(h);
+  rax_free(h);
 
-  free(vect1);
-  free(vect2);
+  rax_free(vect1);
+  rax_free(vect2);
 
   exit(0);
 }
@@ -1080,10 +1082,10 @@ void computeRF(tree *tr, char *bootStrapFileName, analdef *adef)
   else
     treeVectorLength = 1 + (numberOfTrees / MASK_LENGTH);
 
-  presentList = (int*)malloc(numberOfTrees * sizeof(int));
-  rfMat = (int*)calloc(numberOfTrees * numberOfTrees, sizeof(int));
-  wrfMat = (int*)calloc(numberOfTrees * numberOfTrees, sizeof(int));
-  wrf2Mat = (int*)calloc(numberOfTrees * numberOfTrees, sizeof(int));
+  presentList = (int*)rax_malloc(numberOfTrees * sizeof(int));
+  rfMat = (int*)rax_calloc(numberOfTrees * numberOfTrees, sizeof(int));
+  wrfMat = (int*)rax_calloc(numberOfTrees * numberOfTrees, sizeof(int));
+  wrf2Mat = (int*)rax_calloc(numberOfTrees * numberOfTrees, sizeof(int));
 
   for(i = 0; i < numberOfTrees; i++)
     { 
@@ -1264,13 +1266,13 @@ void computeRF(tree *tr, char *bootStrapFileName, analdef *adef)
   else
     printBothOpen("\nFile containing all %d pair-wise RF distances written to file %s\n\n", (numberOfTrees * numberOfTrees - numberOfTrees) / 2, rfFileName);
 
-  free(rfMat);
-  free(wrfMat);
-  free(wrf2Mat);
+  rax_free(rfMat);
+  rax_free(wrfMat);
+  rax_free(wrf2Mat);
   freeBitVectors(bitVectors, 2 * tr->mxtips);
-  free(bitVectors);
+  rax_free(bitVectors);
   freeHashTable(h);
-  free(h);  
+  rax_free(h);  
 
   exit(0);
 }
@@ -1408,7 +1410,7 @@ static double frequencyCriterion(int numberOfTrees, hashtable *h, int *countBett
     *vect2; 
 
   unsigned int
-    *perm =  (unsigned int *)malloc(sizeof(unsigned int) * numberOfTrees),
+    *perm =  (unsigned int *)rax_malloc(sizeof(unsigned int) * numberOfTrees),
     j;
 
   assert(*countBetter == 0);
@@ -1428,8 +1430,8 @@ static double frequencyCriterion(int numberOfTrees, hashtable *h, int *countBett
       
       t = gettime();
 
-      vect1 = (double *)calloc(h->entryCount, sizeof(double));
-      vect2 = (double *)calloc(h->entryCount, sizeof(double));	     
+      vect1 = (double *)rax_calloc(h->entryCount, sizeof(double));
+      vect2 = (double *)rax_calloc(h->entryCount, sizeof(double));	     
 
         
       
@@ -1476,11 +1478,11 @@ static double frequencyCriterion(int numberOfTrees, hashtable *h, int *countBett
 	      
       avg += result;
 	      
-      free(vect1);		  
-      free(vect2);		 
+      rax_free(vect1);		  
+      rax_free(vect2);		 
     }
 
-  free(perm);
+  rax_free(perm);
 	  
   avg /= bootstopPermutations;
 	
@@ -1501,7 +1503,7 @@ static double wcCriterion(int numberOfTrees, hashtable *h, int *countBetter, dou
     mr_thresh = ((double)numberOfTrees/4.0);
    
   unsigned int 
-    *perm =  (unsigned int *)malloc(sizeof(unsigned int) * numberOfTrees),
+    *perm =  (unsigned int *)rax_malloc(sizeof(unsigned int) * numberOfTrees),
     j;
 
   long seed = 12345;  
@@ -1646,8 +1648,8 @@ static double wcCriterion(int numberOfTrees, hashtable *h, int *countBetter, dou
 		}
 	    }
 
-	  free(sortedByKeyA);
-	  free(sortedByKeyB);
+	  rax_free(sortedByKeyA);
+	  rax_free(sortedByKeyB);
 	  
 	  assert (iA == mcnt1);
 	  assert (iB == mcnt2);	  
@@ -1683,7 +1685,7 @@ static double wcCriterion(int numberOfTrees, hashtable *h, int *countBetter, dou
       *wrf_thresh_avg += wrf_thresh;
     }
  
-  free(perm);
+  rax_free(perm);
 
   pct_avg /= (double)bootstopPermutations; 
   *wrf_avg /= (double)bootstopPermutations; 
@@ -1805,9 +1807,9 @@ void computeBootStopOnly(tree *tr, char *bootStrapFileName, analdef *adef)
   fclose(treeFile); 
   
   freeBitVectors(bitVectors, 2 * tr->mxtips);
-  free(bitVectors);
+  rax_free(bitVectors);
   freeHashTable(h);
-  free(h);
+  rax_free(h);
 
   
 
@@ -1941,9 +1943,9 @@ boolean computeBootStopMPI(tree *tr, char *bootStrapFileName, analdef *adef, dou
   fclose(treeFile); 
   
   freeBitVectors(bitVectors, 2 * tr->mxtips);
-  free(bitVectors);
+  rax_free(bitVectors);
   freeHashTable(h);
-  free(h);
+  rax_free(h);
 
   return stop;
 }
@@ -2099,7 +2101,7 @@ static void mre(hashtable *h, boolean icp, entry*** sbi, int* len, int which, in
     i = 0,
     j = 0;
   
-  sbw = (entry **) calloc(h->entryCount, sizeof(entry *));
+  sbw = (entry **) rax_calloc(h->entryCount, sizeof(entry *));
    
   for(i = 0; i < h->tableSize; i++) /* copy hashtable h to list sbw */
     {		
@@ -2126,7 +2128,7 @@ static void mre(hashtable *h, boolean icp, entry*** sbi, int* len, int which, in
   else
     qsort(sbw, h->entryCount, sizeof(entry *), _sortByWeight1);
 
-  *sbi = (entry **)calloc(n - 3, sizeof(entry *));
+  *sbi = (entry **)rax_calloc(n - 3, sizeof(entry *));
 
   *len = 0;
 
@@ -2155,7 +2157,7 @@ static void mre(hashtable *h, boolean icp, entry*** sbi, int* len, int which, in
 	  tr->bitVectorLength = vectorLength;
 	  tr->sbw = sbw;
 	  tr->entriesOfSection = tr->sbw;
-	  tr->bipStatus = (int*)calloc(tr->sectionEnd, sizeof(int));
+	  tr->bipStatus = (int*)rax_calloc(tr->sectionEnd, sizeof(int));
 	  tr->bipStatusLen = tr->sectionEnd;
 	  masterBarrier(THREAD_MRE_COMPUTE, tr);
 	}
@@ -2204,7 +2206,7 @@ static void mre(hashtable *h, boolean icp, entry*** sbi, int* len, int which, in
     }
 
 
-  free(sbw);
+  rax_free(sbw);
 
   if (sortp == TRUE)
     qsort(*sbi, (*len), sizeof(entry *), sortByIndex);
@@ -2242,7 +2244,7 @@ static void printBipsRecursive(FILE *outf, int consensusBipLen, entry **consensu
 {
   List *idx; 
   int i;
-  unsigned int *currentBitVector = (unsigned int*)malloc(bitVectorLength * sizeof(unsigned int));  
+  unsigned int *currentBitVector = (unsigned int*)rax_malloc(bitVectorLength * sizeof(unsigned int));  
   
   /* open bip */
   if(*printed)
@@ -2309,7 +2311,7 @@ static void printBipsRecursive(FILE *outf, int consensusBipLen, entry **consensu
   else
     fprintf(outf, ");\n");
   
-  free(currentBitVector); 
+  rax_free(currentBitVector); 
 }
 
 
@@ -2322,20 +2324,20 @@ static void printSortedBips(entry **consensusBips, const int consensusBipLen, co
     i;
 
   List 
-    **listOfDirectChildren = (List**) calloc(consensusBipLen + 1, sizeof(List*)); /* reserve one more: the last one is the bip with all species */
+    **listOfDirectChildren = (List**) rax_calloc(consensusBipLen + 1, sizeof(List*)); /* reserve one more: the last one is the bip with all species */
   
   boolean 
-    *hasAncestor = (boolean*) calloc(consensusBipLen, sizeof(boolean)),
-    *printed = (boolean*)calloc(1, sizeof(boolean));
+    *hasAncestor = (boolean*) rax_calloc(consensusBipLen, sizeof(boolean)),
+    *printed = (boolean*)rax_calloc(1, sizeof(boolean));
   
   entry 
     *topBip; 
 
 #ifndef _USE_PTHREADS
   List 
-    *elems = (List*)malloc((size_t)consensusBipLen *  sizeof(List));
+    *elems = (List*)rax_malloc((size_t)consensusBipLen *  sizeof(List));
   int 
-    *intList = (int*)malloc(sizeof(int) * (size_t)consensusBipLen); 
+    *intList = (int*)rax_malloc(sizeof(int) * (size_t)consensusBipLen); 
 #endif 
 
   /* sort the consensusBips by the amount of tips they contain */
@@ -2346,8 +2348,8 @@ static void printSortedBips(entry **consensusBips, const int consensusBipLen, co
   qsort(consensusBips, consensusBipLen, sizeof(entry *), &sortByAmountTips);
 
   /* create an artificial entry for the top */
-  topBip = (entry *)malloc(sizeof(entry));
-  topBip->bitVector = malloc(sizeof(unsigned int) * vectorLen);  
+  topBip = (entry *)rax_malloc(sizeof(entry));
+  topBip->bitVector = rax_malloc(sizeof(unsigned int) * vectorLen);  
   
   for(i = 1; i < numTips ; i++)
     topBip->bitVector[i / MASK_LENGTH] |= mask32[i % MASK_LENGTH];  
@@ -2366,11 +2368,11 @@ static void printSortedBips(entry **consensusBips, const int consensusBipLen, co
   tr->hasAncestor = hasAncestor; 
   tr->listOfDirectChildren = listOfDirectChildren;
   tr->bitVectorLength = vectorLen;   
-  tr->mutexesForHashing = (pthread_mutex_t**) malloc(consensusBipLen * sizeof(pthread_mutex_t*));  
+  tr->mutexesForHashing = (pthread_mutex_t**) rax_malloc(consensusBipLen * sizeof(pthread_mutex_t*));  
   
   for(i = 0; i < consensusBipLen; i++)
     {
-      tr->mutexesForHashing[i] = (pthread_mutex_t*) malloc(sizeof(pthread_mutex_t));
+      tr->mutexesForHashing[i] = (pthread_mutex_t*) rax_malloc(sizeof(pthread_mutex_t));
       pthread_mutex_init(tr->mutexesForHashing[i], (pthread_mutexattr_t *)NULL);
     }
   
@@ -2378,8 +2380,8 @@ static void printSortedBips(entry **consensusBips, const int consensusBipLen, co
 
   /* cleanup */
   for(i = 0; i < consensusBipLen; i++)
-    free(tr->mutexesForHashing[i]);
-  free(tr->mutexesForHashing);
+    rax_free(tr->mutexesForHashing[i]);
+  rax_free(tr->mutexesForHashing);
 
   /* restore the old variables - necessary? */
   
@@ -2416,7 +2418,7 @@ static void printSortedBips(entry **consensusBips, const int consensusBipLen, co
 		
 		highestId++; 
 		
-		elem->value = calloc(1, sizeof(int));
+		elem->value = rax_calloc(1, sizeof(int));
 		
 		*nmbr = i; 
 		elem->value = nmbr; 
@@ -2440,9 +2442,9 @@ static void printSortedBips(entry **consensusBips, const int consensusBipLen, co
   for(i = 0; i < consensusBipLen; i++)
     if( ! hasAncestor[i])
       {
-	List *elem  = (List*) malloc(sizeof(List));
+	List *elem  = (List*) rax_malloc(sizeof(List));
 	/* elem->value = &i;  */
-	elem->value = calloc(1, sizeof(int)); /* TODO omg this needs refactoring... */
+	elem->value = rax_calloc(1, sizeof(int)); /* TODO omg this needs refactoring... */
 	*(int*)elem->value = i;
 	elem->next = (listOfDirectChildren[consensusBipLen]) 
 	  ? listOfDirectChildren[consensusBipLen]
@@ -2458,30 +2460,30 @@ static void printSortedBips(entry **consensusBips, const int consensusBipLen, co
 		     numTips, nameList, 
 		     topBip, printed, TRUE, printCounter);
 
-  free(topBip->bitVector);
-  free(topBip);
-  free(printed);
-  free(hasAncestor);
+  rax_free(topBip->bitVector);
+  rax_free(topBip);
+  rax_free(printed);
+  rax_free(hasAncestor);
 
 #ifndef _USE_PTHREADS
-  free(elems);
-  free(intList);
+  rax_free(elems);
+  rax_free(intList);
 #endif
 
 
-  /* here is a bug, when I try to free the memory on the veryBig (55K)
-     dataset. When freeing the toplevel bips
+  /* here is a bug, when I try to rax_free the memory on the veryBig (55K)
+     dataset. When rax_freeing the toplevel bips
      (listOfDirectChildren[consensusBipLen]), he complains of sth like
-     a double free. At this point the value of ptr is not 0, however
+     a double rax_free. At this point the value of ptr is not 0, however
      the memory cannot be accessed. Also got a "bus error" instead of
      the described error here. This is very strange, I already have
-     accessed the stuff I try to free.   */
+     accessed the stuff I try to rax_free.   */
   /* for(i = 0; i < consensusBipLen+1; i++) */
   /*   { */
   /*     list *ptr = listOfDirectChildren[i]; */
   /*     while(ptr){ */
   /* 	list *n = ptr->next; */
-  /* 	/\* free(ptr);		/\\* TODO pthreads: last one  *\\/ *\/ */
+  /* 	/\* rax_free(ptr);		/\\* TODO pthreads: last one  *\\/ *\/ */
   /* 	ptr = n; */
   /*     } */
   /*   } */
@@ -2552,7 +2554,7 @@ void computeConsensusOnly(tree *tr, char *treeSetFileName, analdef *adef)
   
   if(tr->consensusType == MR_CONSENSUS || tr->consensusType == STRICT_CONSENSUS || tr->consensusType == USER_DEFINED)
     {
-      consensusBips = (entry **)calloc(tr->mxtips - 3, sizeof(entry *));
+      consensusBips = (entry **)rax_calloc(tr->mxtips - 3, sizeof(entry *));
       consensusBipsLen = 0;   
     }
   
@@ -2646,10 +2648,10 @@ void computeConsensusOnly(tree *tr, char *treeSetFileName, analdef *adef)
     }
   
   freeBitVectors(bitVectors, 2 * tr->mxtips);
-  free(bitVectors);
+  rax_free(bitVectors);
   freeHashTable(h);
-  free(h);
-  free(consensusBips);
+  rax_free(h);
+  rax_free(consensusBips);
 
   exit(0);   
 }
@@ -2668,7 +2670,7 @@ static void mre(hashtable *h, boolean icp, entry*** sbi, int* len, int which, in
     j = 0,
     k = 0;  
  
-  sbw = (entry **) calloc(h->entryCount, sizeof(entry *));  
+  sbw = (entry **) rax_calloc(h->entryCount, sizeof(entry *));  
 
   for(i = 0; i < h->tableSize; i++)
     {		
@@ -2693,14 +2695,14 @@ static void mre(hashtable *h, boolean icp, entry*** sbi, int* len, int which, in
     qsort(sbw, h->entryCount, sizeof(entry *), _sortByWeight1);      
 
   /* ***********************************          */
-  /* SOS SBI is never freed ********************* */
+  /* SOS SBI is never rax_freed ********************* */
   /* ******************************************** */
   /**** this will cause problems for repeated invocations */
   /**** with the bootstopping MRE VERSION !!!!!!        ***/
       
 
 
-  *sbi = (entry **)calloc(n - 3, sizeof(entry *));
+  *sbi = (entry **)rax_calloc(n - 3, sizeof(entry *));
 
   *len = 0;
 
@@ -2745,7 +2747,7 @@ static void mre(hashtable *h, boolean icp, entry*** sbi, int* len, int which, in
 	}
     }
 
-  free(sbw);
+  rax_free(sbw);
 
   if (sortp == TRUE)
     qsort(*sbi, (*len), sizeof(entry *), sortByIndex);    
@@ -2770,7 +2772,7 @@ static void printBip(entry *curBip, entry **consensusBips, const unsigned int co
     i,
     j;
 
-  unsigned int *subBip = (unsigned int *)calloc(vectorLen, sizeof(unsigned int));
+  unsigned int *subBip = (unsigned int *)rax_calloc(vectorLen, sizeof(unsigned int));
 
   double 
     support = 0.0;
@@ -2818,7 +2820,7 @@ static void printBip(entry *curBip, entry **consensusBips, const unsigned int co
 	}
     }
 
-  free(subBip);
+  rax_free(subBip);
 
   support = ((double)(curBip->supportFromTreeset[0])) / ((double) (numberOfTrees));
   branchLabel = (int)(0.5 + support * 100.0);
@@ -2898,7 +2900,7 @@ void computeConsensusOnly(tree *tr, char *treeSetFileName, analdef *adef)
 
   if(tr->consensusType == MR_CONSENSUS || tr->consensusType == STRICT_CONSENSUS)
     {
-      consensusBips = (entry **)calloc(tr->mxtips - 3, sizeof(entry *));
+      consensusBips = (entry **)rax_calloc(tr->mxtips - 3, sizeof(entry *));
       consensusBipsLen = 0;
     }
 
@@ -2956,9 +2958,9 @@ void computeConsensusOnly(tree *tr, char *treeSetFileName, analdef *adef)
   
   /* printf("Bips OLD %d\n", consensusBipsLen); */
 
-  processed = (boolean *) calloc(consensusBipsLen, sizeof(boolean));
+  processed = (boolean *) rax_calloc(consensusBipsLen, sizeof(boolean));
 
-  topBip = (unsigned int *) calloc(vectorLength, sizeof(unsigned int));
+  topBip = (unsigned int *) rax_calloc(vectorLength, sizeof(unsigned int));
   
   for(i = 1; i < tr->mxtips; i++)
     topBip[i / MASK_LENGTH] |= mask32[i % MASK_LENGTH];  
@@ -3011,14 +3013,14 @@ void computeConsensusOnly(tree *tr, char *treeSetFileName, analdef *adef)
     }
   
   
-  free(topBip);
-  free(processed);
+  rax_free(topBip);
+  rax_free(processed);
 
   freeBitVectors(bitVectors, 2 * tr->mxtips);
-  free(bitVectors);
+  rax_free(bitVectors);
   freeHashTable(h);
-  free(h);
-  free(consensusBips);  
+  rax_free(h);
+  rax_free(consensusBips);  
   
   exit(0);   
 }

@@ -42,7 +42,7 @@
 #include <ctype.h>
 #include <string.h>
 
-
+#include "mem_alloc.h"
 
 #include "axml.h"
 
@@ -82,7 +82,7 @@ static void addInsertion(nodeptr p, double lh, insertions *ins)
     }
   else
     {        
-      ins->s = realloc(ins->s, sizeof(scores) * ins->maxCount * 2);     
+      ins->s = rax_realloc(ins->s, sizeof(scores) * ins->maxCount * 2);     
 
       ins->maxCount *= 2;
 
@@ -442,20 +442,20 @@ static double linearSPRs(tree *tr, int radius, boolean veryFast)
     fourScores[4];
 
   nodeptr 
-    *ptr = (nodeptr *)malloc(sizeof(nodeptr) * numberOfSubtrees);
+    *ptr = (nodeptr *)rax_malloc(sizeof(nodeptr) * numberOfSubtrees);
   
   fourLikelihoods 
-    *fourLi = (fourLikelihoods *)malloc(sizeof(fourLikelihoods) * 4);
+    *fourLi = (fourLikelihoods *)rax_malloc(sizeof(fourLikelihoods) * 4);
 
   insertions 
-    *ins = (insertions*)malloc(sizeof(insertions));
+    *ins = (insertions*)rax_malloc(sizeof(insertions));
 
   
 
   ins->count = 0;
   ins->maxCount = 2048;
 
-  ins->s = (scores *)malloc(sizeof(scores) * ins->maxCount);
+  ins->s = (scores *)rax_malloc(sizeof(scores) * ins->maxCount);
 
 
   /* recursively compute the roots of all subtrees in the current tree 
@@ -1077,8 +1077,8 @@ int *permutationSH(tree *tr, int nBootstrap, long _randomSeed)
     model,
     maxNonZero = 0,
     *weightBuffer,   
-    *col = (int*)calloc(((size_t)tr->cdta->endsite) * ((size_t)nBootstrap), sizeof(int)),
-    *nonzero = (int*)calloc(tr->NumberOfModels, sizeof(int));
+    *col = (int*)rax_calloc(((size_t)tr->cdta->endsite) * ((size_t)nBootstrap), sizeof(int)),
+    *nonzero = (int*)rax_calloc(tr->NumberOfModels, sizeof(int));
   
   long 
     randomSeed = _randomSeed;
@@ -1102,7 +1102,7 @@ int *permutationSH(tree *tr, int nBootstrap, long _randomSeed)
     }
   
   bufferSize = ((size_t)maxNonZero) * sizeof(int);
-  weightBuffer = (int*)malloc(bufferSize);
+  weightBuffer = (int*)rax_malloc(bufferSize);
 
   for(replicate = 0; replicate < nBootstrap; replicate++)
     {      
@@ -1139,8 +1139,8 @@ int *permutationSH(tree *tr, int nBootstrap, long _randomSeed)
     }
 
 
-  free(weightBuffer);
-  free(nonzero);
+  rax_free(weightBuffer);
+  rax_free(nonzero);
 
   return col;
 }
@@ -1300,10 +1300,10 @@ void shSupports(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
     
   tr->resample = permutationSH(tr, 1000, 12345);
     
-  lhVectors[0] = (double *)malloc(sizeof(double) * tr->cdta->endsite);
-  lhVectors[1] = (double *)malloc(sizeof(double) * tr->cdta->endsite);
-  lhVectors[2] = (double *)malloc(sizeof(double) * tr->cdta->endsite);
-  tr->bInf = (branchInfo*)malloc(sizeof(branchInfo) * (tr->mxtips - 3));       
+  lhVectors[0] = (double *)rax_malloc(sizeof(double) * tr->cdta->endsite);
+  lhVectors[1] = (double *)rax_malloc(sizeof(double) * tr->cdta->endsite);
+  lhVectors[2] = (double *)rax_malloc(sizeof(double) * tr->cdta->endsite);
+  tr->bInf = (branchInfo*)rax_malloc(sizeof(branchInfo) * (tr->mxtips - 3));       
 
   initModel(tr, rdta, cdta, adef);        
  

@@ -44,6 +44,7 @@
 #include <string.h>
 
 #include "axml.h"
+#include "mem_alloc.h"
 
 extern int optimizeRatesInvocations;
 extern int optimizeRateCategoryInvocations;
@@ -3193,7 +3194,7 @@ static void updateFracChange(tree *tr)
 	i;
       
       double 
-	*modelWeights = (double *)calloc(tr->NumberOfModels, sizeof(double)),
+	*modelWeights = (double *)rax_calloc(tr->NumberOfModels, sizeof(double)),
 	wgtsum = 0.0;  
      
       assert(tr->NumberOfModels > 1);
@@ -3215,7 +3216,7 @@ static void updateFracChange(tree *tr)
       if(tr->useBrLenScaler)
 	scaleBranches(tr, FALSE);	  	
 
-      free(modelWeights);
+      rax_free(modelWeights);
     }
 }
 
@@ -3414,22 +3415,22 @@ static void initGeneric(const int n, const unsigned int *valueVector, int valueV
     m, 
     l;  
 
-  r    = (double **)malloc(n * sizeof(double *));
-  EIGV = (double **)malloc(n * sizeof(double *));  
-  a    = (double **)malloc(n * sizeof(double *));	  
+  r    = (double **)rax_malloc(n * sizeof(double *));
+  EIGV = (double **)rax_malloc(n * sizeof(double *));  
+  a    = (double **)rax_malloc(n * sizeof(double *));	  
   
   for(i = 0; i < n; i++)
     {
-      a[i]    = (double*)malloc(n * sizeof(double));
-      EIGV[i] = (double*)malloc(n * sizeof(double));
-      r[i]    = (double*)malloc(n * sizeof(double));
+      a[i]    = (double*)rax_malloc(n * sizeof(double));
+      EIGV[i] = (double*)rax_malloc(n * sizeof(double));
+      r[i]    = (double*)rax_malloc(n * sizeof(double));
     }
 
-  f       = (double*)malloc(n * sizeof(double));
-  e       = (double*)malloc(n * sizeof(double));
-  d       = (double*)malloc(n * sizeof(double));
-  invfreq = (double*)malloc(n * sizeof(double));
-  EIGN    = (double*)malloc(n * sizeof(double));
+  f       = (double*)rax_malloc(n * sizeof(double));
+  e       = (double*)rax_malloc(n * sizeof(double));
+  d       = (double*)rax_malloc(n * sizeof(double));
+  invfreq = (double*)rax_malloc(n * sizeof(double));
+  EIGN    = (double*)rax_malloc(n * sizeof(double));
 
   
   for(l = 0; l < n; l++)		 
@@ -3566,20 +3567,20 @@ static void initGeneric(const int n, const unsigned int *valueVector, int valueV
 
   for(i = 0; i < n; i++)
     {
-      free(EIGV[i]);
-      free(a[i]);
-      free(r[i]);
+      rax_free(EIGV[i]);
+      rax_free(a[i]);
+      rax_free(r[i]);
     }
 
-  free(r);
-  free(a);
-  free(EIGV);
+  rax_free(r);
+  rax_free(a);
+  rax_free(EIGV);
 
-  free(f);
-  free(e);
-  free(d);
-  free(invfreq);
-  free(EIGN);
+  rax_free(f);
+  rax_free(e);
+  rax_free(d);
+  rax_free(invfreq);
+  rax_free(EIGN);
 }
 
 
@@ -3643,7 +3644,7 @@ void initReversibleGTR(tree *tr, int model)
 		   for(l = 0; l < 20; l++)		
 		     tr->partitionData[model].frequencies_LG4[i][l] = f[l];
 		 else
-		   assert(0);
+		   memcpy(tr->partitionData[model].frequencies_LG4[i], frequencies, 20 * sizeof(double));
 	       }
 	   }
 	 else
@@ -3674,7 +3675,7 @@ void initReversibleGTR(tree *tr, int model)
 
 	 for(i = 0; i < 4; i++)
 	   {
-	     fracchanges_LG4[i]  = (double *)malloc(tr->NumberOfModels * sizeof(double));
+	     fracchanges_LG4[i]  = (double *)rax_malloc(tr->NumberOfModels * sizeof(double));
 	     initGeneric(states, bitVectorAA, 23, fracchanges_LG4[i],
 			 tr->partitionData[model].EIGN_LG4[i],  tr->partitionData[model].EV_LG4[i],  tr->partitionData[model].EI_LG4[i], tr->partitionData[model].frequencies_LG4[i], tr->partitionData[model].substRates_LG4[i],
 			 tr->partitionData[model].tipVector_LG4[i], 
@@ -3684,7 +3685,7 @@ void initReversibleGTR(tree *tr, int model)
 	 for(i = 0; i < 4; i++)
 	   {	    
 	     acc += fracchanges_LG4[i][model];
-	     free(fracchanges_LG4[i]);
+	     rax_free(fracchanges_LG4[i]);
 	   }
 
 	 tr->fracchanges[model] = acc / 4;
@@ -3918,7 +3919,7 @@ void makeGammaCats(double alpha, double *gammaRates, int K, boolean useMedian)
     lnga1, 
     alfa = alpha, 
     beta = alpha,
-    *gammaProbs = (double *)malloc(K * sizeof(double));
+    *gammaProbs = (double *)rax_malloc(K * sizeof(double));
 
   /* Note that ALPHA_MIN setting is somewhat critical due to   */
   /* numerical instability caused by very small rate[0] values */
@@ -3959,7 +3960,7 @@ void makeGammaCats(double alpha, double *gammaRates, int K, boolean useMedian)
     }
   /* assert(gammaRates[0] >= 0.00000000000000000000000000000044136090435925743185910935350715027016962154188875); */
 
-  free(gammaProbs);
+  rax_free(gammaProbs);
 
   return;  
 }

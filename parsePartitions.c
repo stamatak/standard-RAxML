@@ -45,7 +45,7 @@
 #include <strings.h>
 
 
-
+#include "mem_alloc.h"
 
 #include "axml.h"
 
@@ -302,7 +302,7 @@ static void analyzeIdentifier(char **ch, int modelNumber, tree *tr)
       i = 0;
       while(ident[i++] != ',');      
 	  
-      tr->initialPartitionData[modelNumber].partitionName = (char*)malloc((n - i + 1) * sizeof(char));          
+      tr->initialPartitionData[modelNumber].partitionName = (char*)rax_malloc((n - i + 1) * sizeof(char));          
 	  
       j = 0;
       while(i < n)	
@@ -335,7 +335,7 @@ static int myGetline(char **lineptr, int *n, FILE *stream)
 
    if (*lineptr == NULL || *n < 2) 
     {
-      line = (char *)realloc(*lineptr, chunkSize);
+      line = (char *)rax_realloc(*lineptr, chunkSize);
       if (line == NULL)
 	return -1;
       *lineptr = line;
@@ -412,18 +412,18 @@ void parsePartitions(analdef *adef, rawdata *rdta, tree *tr)
 	  numberOfModels++;
 	}
       if(cc)
-	free(cc);
+	rax_free(cc);
       cc = (char *)NULL;
     }     
   
   rewind(f);
       
-  p_names = (char **)malloc(sizeof(char *) * numberOfModels);
-  partitions = (int **)malloc(sizeof(int *) * numberOfModels);
+  p_names = (char **)rax_malloc(sizeof(char *) * numberOfModels);
+  partitions = (int **)rax_malloc(sizeof(int *) * numberOfModels);
       
  
   
-  tr->initialPartitionData = (pInfo*)malloc(sizeof(pInfo) * numberOfModels);
+  tr->initialPartitionData = (pInfo*)rax_malloc(sizeof(pInfo) * numberOfModels);
 
       
   for(i = 0; i < numberOfModels; i++) 
@@ -442,12 +442,12 @@ void parsePartitions(analdef *adef, rawdata *rdta, tree *tr)
       if(!lineContainsOnlyWhiteChars(cc))
 	{
 	  n = strlen(cc);	 
-	  p_names[i] = (char *)malloc(sizeof(char) * (n + 1));
+	  p_names[i] = (char *)rax_malloc(sizeof(char) * (n + 1));
 	  strcpy(&(p_names[i][0]), cc);	 
 	  i++;
 	}
       if(cc)
-	free(cc);
+	rax_free(cc);
       cc = (char *)NULL;
     }         
 
@@ -655,12 +655,12 @@ void parsePartitions(analdef *adef, rawdata *rdta, tree *tr)
 
   for(i = 0; i < numberOfModels; i++)
     {
-      free(partitions[i]);
-      free(p_names[i]);
+      rax_free(partitions[i]);
+      rax_free(p_names[i]);
     }
   
-  free(partitions);
-  free(p_names);    
+  rax_free(partitions);
+  rax_free(p_names);    
     
   tr->NumberOfModels = numberOfModels;     
   
@@ -713,13 +713,13 @@ void handleExcludeFile(tree *tr, analdef *adef, rawdata *rdta)
 	numberOfModels++;
     } 
 
-  excludeArray = (int*)malloc(sizeof(int) * (rdta->sites + 1));
-  countArray   = (int*)malloc(sizeof(int) * (rdta->sites + 1));
-  modelList    = (int *)malloc((rdta->sites + 1)* sizeof(int));
+  excludeArray = (int*)rax_malloc(sizeof(int) * (rdta->sites + 1));
+  countArray   = (int*)rax_malloc(sizeof(int) * (rdta->sites + 1));
+  modelList    = (int *)rax_malloc((rdta->sites + 1)* sizeof(int));
 
-  partitions = (int **)malloc(sizeof(int *) * numberOfModels);  
+  partitions = (int **)rax_malloc(sizeof(int *) * numberOfModels);  
   for(i = 0; i < numberOfModels; i++)
-    partitions[i] = (int *)malloc(sizeof(int) * 2);
+    partitions[i] = (int *)rax_malloc(sizeof(int) * 2);
 
   rewind(f);
   
@@ -1026,11 +1026,11 @@ void handleExcludeFile(tree *tr, analdef *adef, rawdata *rdta)
   
   fclose(f);
   for(i = 0; i < numberOfModels; i++)
-    free(partitions[i]);
-  free(partitions);  
-  free(excludeArray);
-  free(countArray);
-  free(modelList);
+    rax_free(partitions[i]);
+  rax_free(partitions);  
+  rax_free(excludeArray);
+  rax_free(countArray);
+  rax_free(modelList);
 }
 
 
@@ -1122,7 +1122,7 @@ void parseSecondaryStructure(tree *tr, analdef *adef, int sites)
 
       numberOfSymbols = 4;     
 
-      tr->secondaryStructureInput = (char*)malloc(sizeof(char) * sites);
+      tr->secondaryStructureInput = (char*)rax_malloc(sizeof(char) * sites);
 
       while((ch = fgetc(f)) != EOF)
 	{
@@ -1145,12 +1145,12 @@ void parseSecondaryStructure(tree *tr, analdef *adef, int sites)
 	  errorExit(-1);
 	}
     
-      characters = (int*)malloc(sizeof(int) * countCharacters); 
+      characters = (int*)rax_malloc(sizeof(int) * countCharacters); 
 
-      brackets = (int **)malloc(sizeof(int*) * numberOfSymbols);
+      brackets = (int **)rax_malloc(sizeof(int*) * numberOfSymbols);
       
       for(k = 0; k < numberOfSymbols; k++)	  
-	brackets[k]   = (int*)calloc(countCharacters, sizeof(int));
+	brackets[k]   = (int*)rax_calloc(countCharacters, sizeof(int));
 
       rewind(f);
 
@@ -1282,7 +1282,7 @@ void parseSecondaryStructure(tree *tr, analdef *adef, int sites)
 	{
 	  int model = tr->NumberOfModels;
 	  int countPairs;
-	  pInfo *partBuffer = (pInfo*)malloc(sizeof(pInfo) * tr->NumberOfModels);
+	  pInfo *partBuffer = (pInfo*)rax_malloc(sizeof(pInfo) * tr->NumberOfModels);
 
 	  for(i = 1; i <= sites; i++)
 	    {
@@ -1299,7 +1299,7 @@ void parseSecondaryStructure(tree *tr, analdef *adef, int sites)
 	 
 	  for(i = 0; i < tr->NumberOfModels; i++)
 	    {
-	      partBuffer[i].partitionName = (char*)malloc((strlen(tr->extendedPartitionData[i].partitionName) + 1) * sizeof(char));
+	      partBuffer[i].partitionName = (char*)rax_malloc((strlen(tr->extendedPartitionData[i].partitionName) + 1) * sizeof(char));
 	      strcpy(partBuffer[i].partitionName, tr->extendedPartitionData[i].partitionName);
 	      strcpy(partBuffer[i].proteinSubstitutionFileName, tr->extendedPartitionData[i].proteinSubstitutionFileName);
 	      partBuffer[i].dataType =  tr->extendedPartitionData[i].dataType;
@@ -1308,24 +1308,24 @@ void parseSecondaryStructure(tree *tr, analdef *adef, int sites)
 	    }
 
 	  for(i = 0; i < tr->NumberOfModels; i++)
-	    free(tr->extendedPartitionData[i].partitionName);
-	  free(tr->extendedPartitionData);
+	    rax_free(tr->extendedPartitionData[i].partitionName);
+	  rax_free(tr->extendedPartitionData);
 	 
-	  tr->extendedPartitionData = (pInfo*)malloc(sizeof(pInfo) * (tr->NumberOfModels + 1));
+	  tr->extendedPartitionData = (pInfo*)rax_malloc(sizeof(pInfo) * (tr->NumberOfModels + 1));
 	  
 	  for(i = 0; i < tr->NumberOfModels; i++)
 	    {
-	      tr->extendedPartitionData[i].partitionName = (char*)malloc((strlen(partBuffer[i].partitionName) + 1) * sizeof(char));
+	      tr->extendedPartitionData[i].partitionName = (char*)rax_malloc((strlen(partBuffer[i].partitionName) + 1) * sizeof(char));
 	      strcpy(tr->extendedPartitionData[i].partitionName, partBuffer[i].partitionName);
 	      strcpy(tr->extendedPartitionData[i].proteinSubstitutionFileName, partBuffer[i].proteinSubstitutionFileName);
 	      tr->extendedPartitionData[i].dataType =  partBuffer[i].dataType;
 	      tr->extendedPartitionData[i].protModels= partBuffer[i].protModels;
 	      tr->extendedPartitionData[i].usePredefinedProtFreqs=  partBuffer[i].usePredefinedProtFreqs;	      
-	      free(partBuffer[i].partitionName);
+	      rax_free(partBuffer[i].partitionName);
 	    }
-	  free(partBuffer);
+	  rax_free(partBuffer);
 
-	  tr->extendedPartitionData[i].partitionName = (char*)malloc(64 * sizeof(char));
+	  tr->extendedPartitionData[i].partitionName = (char*)rax_malloc(64 * sizeof(char));
 
 	  switch(tr->secondaryStructureModel)
 	    {
@@ -1389,7 +1389,7 @@ void parseSecondaryStructure(tree *tr, analdef *adef, int sites)
 	  
 	  assert(countCharacters == sites);
 
-	  tr->secondaryStructurePairs = (int*)malloc(sizeof(int) * countCharacters);
+	  tr->secondaryStructurePairs = (int*)rax_malloc(sizeof(int) * countCharacters);
 	  for(i = 0; i < countCharacters; i++)
 	    tr->secondaryStructurePairs[i] = -1;
 	  /*
@@ -1464,9 +1464,9 @@ void parseSecondaryStructure(tree *tr, analdef *adef, int sites)
 
       
       for(k = 0; k < numberOfSymbols; k++)	  
-	free(brackets[k]);
-      free(brackets);
-      free(characters);
+	rax_free(brackets[k]);
+      rax_free(brackets);
+      rax_free(characters);
 
       fclose(f);
     }

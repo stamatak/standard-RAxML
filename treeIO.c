@@ -43,6 +43,7 @@
 #include <string.h>
 
 #include "axml.h"
+#include "mem_alloc.h"
 
 extern FILE *INFILE;
 extern char infoFileName[1024];
@@ -76,7 +77,7 @@ stringHashtable *initStringHashTable(hashNumberType n)
 					      268435456, 536870912, 1073741824, 2147483648U};
   */
   
-  stringHashtable *h = (stringHashtable*)malloc(sizeof(stringHashtable));
+  stringHashtable *h = (stringHashtable*)rax_malloc(sizeof(stringHashtable));
   
   hashNumberType
     tableSize,
@@ -95,7 +96,7 @@ stringHashtable *initStringHashTable(hashNumberType n)
 
   tableSize = initTable[i];  
 
-  h->table = (stringEntry**)calloc(tableSize, sizeof(stringEntry*));
+  h->table = (stringEntry**)rax_calloc(tableSize, sizeof(stringEntry*));
   h->tableSize = tableSize;    
 
   return h;
@@ -125,12 +126,12 @@ void addword(char *s, stringHashtable *h, int nodeNumber)
 	return;	  	
     }
 
-  p = (stringEntry *)malloc(sizeof(stringEntry));
+  p = (stringEntry *)rax_malloc(sizeof(stringEntry));
 
   assert(p);
   
   p->nodeNumber = nodeNumber;
-  p->word = (char *)malloc((strlen(s) + 1) * sizeof(char));
+  p->word = (char *)rax_malloc((strlen(s) + 1) * sizeof(char));
 
   strcpy(p->word, s);
   
@@ -518,10 +519,10 @@ char *Tree2String(char *treestr, tree *tr, nodeptr p, boolean printBranchLengths
       if(tr->numberOfOutgroups > 1)
 	{
 	  nodeptr root;
-	  nodeptr *subtrees = (nodeptr *)malloc(sizeof(nodeptr) * tr->mxtips);
+	  nodeptr *subtrees = (nodeptr *)rax_malloc(sizeof(nodeptr) * tr->mxtips);
 	  int i, k, count = 0;
-	  int *nodeNumbers = (int*)malloc(sizeof(int) * tr->numberOfOutgroups);
-	  int *foundVector = (int*)malloc(sizeof(int) * tr->numberOfOutgroups);
+	  int *nodeNumbers = (int*)rax_malloc(sizeof(int) * tr->numberOfOutgroups);
+	  int *foundVector = (int*)rax_malloc(sizeof(int) * tr->numberOfOutgroups);
 	  boolean monophyletic = FALSE;
 
 	  collectSubtrees(tr, subtrees, &count, tr->numberOfOutgroups);
@@ -605,9 +606,9 @@ char *Tree2String(char *treestr, tree *tr, nodeptr p, boolean printBranchLengths
 			 finalPrint, adef, perGene, branchLabelSupport, printSHSupport);
 	    }
 	  
-	  free(foundVector);
-	  free(nodeNumbers);
-	  free(subtrees);
+	  rax_free(foundVector);
+	  rax_free(nodeNumbers);
+	  rax_free(subtrees);
 	}
       else
 	{	  

@@ -76,7 +76,7 @@
 
 #include "axml.h"
 
-
+#include "mem_alloc.h"
 
 extern const unsigned int mask32[32]; 
 /* vector-specific stuff */
@@ -1653,8 +1653,8 @@ static void compressDNA(tree *tr, int *informative, boolean saveMemory)
 	upper = tr->partitionData[model].upper;
 
       parsimonyNumber 
-	**compressedTips = (parsimonyNumber **)malloc(states * sizeof(parsimonyNumber*)),
-	*compressedValues = (parsimonyNumber *)malloc(states * sizeof(parsimonyNumber));
+	**compressedTips = (parsimonyNumber **)rax_malloc(states * sizeof(parsimonyNumber*)),
+	*compressedValues = (parsimonyNumber *)rax_malloc(states * sizeof(parsimonyNumber));
       
       for(i = lower; i < upper; i++)    
 	if(informative[i])
@@ -1675,7 +1675,7 @@ static void compressDNA(tree *tr, int *informative, boolean saveMemory)
 #endif     
 
       
-      tr->partitionData[model].parsVect = (parsimonyNumber *)malloc_aligned((size_t)compressedEntriesPadded * states * totalNodes * sizeof(parsimonyNumber));
+      tr->partitionData[model].parsVect = (parsimonyNumber *)rax_malloc_aligned((size_t)compressedEntriesPadded * states * totalNodes * sizeof(parsimonyNumber));
      
       for(i = 0; i < compressedEntriesPadded * states * totalNodes; i++)      
 	tr->partitionData[model].parsVect[i] = 0;          
@@ -1747,11 +1747,11 @@ static void compressDNA(tree *tr, int *informative, boolean saveMemory)
   
       tr->partitionData[model].parsimonyLength = compressedEntriesPadded;   
 
-      free(compressedTips);
-      free(compressedValues);
+      rax_free(compressedTips);
+      rax_free(compressedValues);
     }
   
-  tr->parsimonyScore = (unsigned int*)malloc_aligned(sizeof(unsigned int) * totalNodes);  
+  tr->parsimonyScore = (unsigned int*)rax_malloc_aligned(sizeof(unsigned int) * totalNodes);  
           
   for(i = 0; i < totalNodes; i++) 
     tr->parsimonyScore[i] = 0;
@@ -1823,8 +1823,8 @@ void makeParsimonyTreeFast(tree *tr, analdef *adef, boolean full)
   int 
     i, 
     nextsp,
-    *perm        = (int *)malloc((size_t)(tr->mxtips + 1) * sizeof(int)),
-    *informative = (int *)malloc(sizeof(int) * (size_t)tr->cdta->endsite);  
+    *perm        = (int *)rax_malloc((size_t)(tr->mxtips + 1) * sizeof(int)),
+    *informative = (int *)rax_malloc(sizeof(int) * (size_t)tr->cdta->endsite);  
 
   unsigned int 
     randomMP, 
@@ -1836,9 +1836,9 @@ void makeParsimonyTreeFast(tree *tr, analdef *adef, boolean full)
 
   compressDNA(tr, informative, FALSE);
 
-  free(informative); 
+  rax_free(informative); 
 
-  tr->ti = (int*)malloc(sizeof(int) * 4 * (size_t)tr->mxtips);  
+  tr->ti = (int*)rax_malloc(sizeof(int) * 4 * (size_t)tr->mxtips);  
  
   /*t = gettime();*/
 
@@ -1851,7 +1851,7 @@ void makeParsimonyTreeFast(tree *tr, analdef *adef, boolean full)
 	j = 0;
 
       unsigned char
-	*nodesInTree = (unsigned char*)calloc((size_t)(tr->mxtips + 1), sizeof(unsigned char));	      
+	*nodesInTree = (unsigned char*)rax_calloc((size_t)(tr->mxtips + 1), sizeof(unsigned char));	      
 	
       tr->start = findAnyTipFast(tr->start, tr->rdta->numsp);
 	
@@ -1916,7 +1916,7 @@ void makeParsimonyTreeFast(tree *tr, analdef *adef, boolean full)
 	
       f = tr->start;     
 
-      free(nodesInTree);
+      rax_free(nodesInTree);
     }
   else
     {
@@ -1996,13 +1996,13 @@ void makeParsimonyTreeFast(tree *tr, analdef *adef, boolean full)
 
   
      
-  free(perm);  
-  free(tr->parsimonyScore);
+  rax_free(perm);  
+  rax_free(tr->parsimonyScore);
   
   for(model = 0; model < (size_t) tr->NumberOfModels; model++)
-    free(tr->partitionData[model].parsVect);
+    rax_free(tr->partitionData[model].parsVect);
   
-  free(tr->ti);
+  rax_free(tr->ti);
 } 
 
 
@@ -2156,8 +2156,8 @@ void makeRandomTree(tree *tr, analdef *adef)
   int *perm, branchCounter;
   nodeptr *branches;
   
-  branches = (nodeptr *)malloc(sizeof(nodeptr) * (2 * tr->mxtips));
-  perm = (int *)malloc((tr->mxtips + 1) * sizeof(int));                         
+  branches = (nodeptr *)rax_malloc(sizeof(nodeptr) * (2 * tr->mxtips));
+  perm = (int *)rax_malloc((tr->mxtips + 1) * sizeof(int));                         
   
   makePermutation(perm, tr->mxtips, adef);              
   
@@ -2190,15 +2190,15 @@ void makeRandomTree(tree *tr, analdef *adef)
       insertRandom(p->back, randomBranch, tr->numBranches);
       
     }
-  free(perm);            
-  free(branches);
+  rax_free(perm);            
+  rax_free(branches);
 }
 
 
 
 void nodeRectifier(tree *tr)
 {
-  nodeptr *np = (nodeptr *)malloc(2 * tr->mxtips * sizeof(nodeptr));
+  nodeptr *np = (nodeptr *)rax_malloc(2 * tr->mxtips * sizeof(nodeptr));
   int i;
   int count = 0;
   
@@ -2213,7 +2213,7 @@ void nodeRectifier(tree *tr)
   reorderNodes(tr, np, tr->start->back, &count); 
 
  
-  free(np);
+  rax_free(np);
 }
 
 
@@ -2440,7 +2440,7 @@ static int infoCompare(const void *p1, const void *p2)
 void classifyMP(tree *tr, analdef *adef)
 {    
   int  
-    *informative = (int *)malloc(sizeof(int) * (size_t)tr->cdta->endsite),
+    *informative = (int *)rax_malloc(sizeof(int) * (size_t)tr->cdta->endsite),
     i, 
     j,  
     *perm;    
@@ -2471,9 +2471,9 @@ void classifyMP(tree *tr, analdef *adef)
 
   compressDNA(tr, informative, TRUE);
 
-  free(informative); 
+  rax_free(informative); 
 
-  tr->ti = (int*)malloc(sizeof(int) * 4 * (size_t)tr->mxtips);    
+  tr->ti = (int*)rax_malloc(sizeof(int) * 4 * (size_t)tr->mxtips);    
   
   tr->numberOfBranches = 2 * tr->ntips - 3;
 
@@ -2485,8 +2485,8 @@ void classifyMP(tree *tr, analdef *adef)
 
   printBothOpen("\nparsimony score of reference tree: %u\n\n", score);
 
-  perm        = (int *)calloc(((size_t)tr->mxtips) + 1, sizeof(int));
-  tr->inserts = (int *)calloc((size_t)tr->mxtips,   sizeof(int));
+  perm        = (int *)rax_calloc(((size_t)tr->mxtips) + 1, sizeof(int));
+  tr->inserts = (int *)rax_calloc((size_t)tr->mxtips,   sizeof(int));
 
   markTips(tr->start,       perm, tr->mxtips);
   markTips(tr->start->back, perm ,tr->mxtips);
@@ -2502,25 +2502,25 @@ void classifyMP(tree *tr, analdef *adef)
 	}
     }    
 
-  free(perm);
+  rax_free(perm);
   
   printBothOpen("RAxML will place %d Query Sequences into the %d branches of the reference tree with %d taxa\n\n",  tr->numberOfTipsForInsertion, (2 * tr->ntips - 3), tr->ntips);  
 
   assert(tr->numberOfTipsForInsertion == (tr->mxtips - tr->ntips));      
 
-  tr->bInf              = (branchInfo*)malloc(tr->numberOfBranches * sizeof(branchInfo)); 
+  tr->bInf              = (branchInfo*)rax_malloc(tr->numberOfBranches * sizeof(branchInfo)); 
 
   for(i = 0; i < tr->numberOfBranches; i++)
     {      
-      tr->bInf[i].epa = (epaBranchData*)malloc(sizeof(epaBranchData));                    
+      tr->bInf[i].epa = (epaBranchData*)rax_malloc(sizeof(epaBranchData));                    
 
-      tr->bInf[i].epa->parsimonyScore = (unsigned int*)malloc(tr->numberOfTipsForInsertion * sizeof(unsigned int));
+      tr->bInf[i].epa->parsimonyScore = (unsigned int*)rax_malloc(tr->numberOfTipsForInsertion * sizeof(unsigned int));
 
       for(j = 0; j < tr->numberOfTipsForInsertion; j++)
 	tr->bInf[i].epa->parsimonyScore[j] = INT_MAX;
                 
       tr->bInf[i].epa->branchNumber = i;
-      tr->bInf[i].epa->countThem = (int*)calloc(tr->numberOfTipsForInsertion, sizeof(int));
+      tr->bInf[i].epa->countThem = (int*)rax_calloc(tr->numberOfTipsForInsertion, sizeof(int));
       
       sprintf(tr->bInf[i].epa->branchLabel, "I%d", i);     
     } 
@@ -2559,11 +2559,11 @@ void classifyMP(tree *tr, analdef *adef)
 
   strcat(jointFormatTreeFileName,      ".jplace");
   
-  free(tr->tree_string);
+  rax_free(tr->tree_string);
 
   tr->treeStringLength *= 16;
 
-  tr->tree_string  = (char*)calloc(tr->treeStringLength, sizeof(char));  
+  tr->tree_string  = (char*)rax_calloc(tr->treeStringLength, sizeof(char));  
   
  
 
@@ -2580,7 +2580,7 @@ void classifyMP(tree *tr, analdef *adef)
   fprintf(treeFile, "\t\"placements\": [\n");
       
 
-  inf = (infoMP*)malloc(sizeof(infoMP) * tr->numberOfBranches); 
+  inf = (infoMP*)rax_malloc(sizeof(infoMP) * tr->numberOfBranches); 
   
   /* joint format */
         
@@ -2690,7 +2690,7 @@ void classifyMP(tree *tr, analdef *adef)
 	}			      	   
     }
       
-  free(inf);
+  rax_free(inf);
    
   fclose(likelihoodWeightsFile); 
     

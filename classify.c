@@ -57,7 +57,7 @@ extern volatile int NumberOfThreads;
 extern volatile int NumberOfJobs;
 #endif
 
-
+#include "mem_alloc.h"
 
 static double getBranch(tree *tr, double *b, double *bb)
 {
@@ -816,11 +816,11 @@ static void allocBranchX(tree *tr)
       branchInfo 
 	*b = &(tr->bInf[i]);
 
-      b->epa->left  = (double*)malloc_aligned(sizeof(double) * tr->contiguousVectorLength);
-      b->epa->leftScaling = (int*)malloc(sizeof(int) * tr->contiguousScalingLength);
+      b->epa->left  = (double*)rax_malloc_aligned(sizeof(double) * tr->contiguousVectorLength);
+      b->epa->leftScaling = (int*)rax_malloc(sizeof(int) * tr->contiguousScalingLength);
 
-      b->epa->right = (double*)malloc_aligned(sizeof(double)  * tr->contiguousVectorLength);
-      b->epa->rightScaling = (int*)malloc(sizeof(int) * tr->contiguousScalingLength);     
+      b->epa->right = (double*)rax_malloc_aligned(sizeof(double)  * tr->contiguousVectorLength);
+      b->epa->rightScaling = (int*)rax_malloc(sizeof(int) * tr->contiguousScalingLength);     
     }
 }
 
@@ -1528,7 +1528,7 @@ static void consolidateInfoMLHeuristics(tree *tr, int throwAwayStart)
     j;
 
   info 
-    *inf = (info*)malloc(sizeof(info) * tr->numberOfBranches);
+    *inf = (info*)rax_malloc(sizeof(info) * tr->numberOfBranches);
 
   assert(tr->useEpaHeuristics);
 
@@ -1551,7 +1551,7 @@ static void consolidateInfoMLHeuristics(tree *tr, int throwAwayStart)
        tr->bInf[i].epa->likelihoods[j] = unlikely;     
   
 
-  free(inf);
+  rax_free(inf);
 }
 
 
@@ -1663,7 +1663,7 @@ static void analyzeReads(tree *tr)
     i,
     *inserts = tr->inserts;
 
-  tr->readPartition = (int *)malloc(sizeof(int) * (size_t)tr->numberOfTipsForInsertion);
+  tr->readPartition = (int *)rax_malloc(sizeof(int) * (size_t)tr->numberOfTipsForInsertion);
   
   for(i = 0; i < tr->numberOfTipsForInsertion; i++)
     {
@@ -1750,8 +1750,8 @@ void classifyML(tree *tr, analdef *adef)
 
   printBothOpen("\nLikelihood of reference tree: %f\n\n", tr->likelihood);
 
-  perm    = (int *)calloc(tr->mxtips + 1, sizeof(int));
-  tr->inserts = (int *)calloc(tr->mxtips, sizeof(int));
+  perm    = (int *)rax_calloc(tr->mxtips + 1, sizeof(int));
+  tr->inserts = (int *)rax_calloc(tr->mxtips, sizeof(int));
 
   markTips(tr->start,       perm, tr->mxtips);
   markTips(tr->start->back, perm ,tr->mxtips);
@@ -1767,29 +1767,29 @@ void classifyML(tree *tr, analdef *adef)
 	}
     }    
 
-  free(perm);
+  rax_free(perm);
   
   printBothOpen("RAxML will place %d Query Sequences into the %d branches of the reference tree with %d taxa\n\n",  tr->numberOfTipsForInsertion, (2 * tr->ntips - 3), tr->ntips);  
 
   assert(tr->numberOfTipsForInsertion == (tr->mxtips - tr->ntips));      
 
-  tr->bInf              = (branchInfo*)malloc(tr->numberOfBranches * sizeof(branchInfo)); 
+  tr->bInf              = (branchInfo*)rax_malloc(tr->numberOfBranches * sizeof(branchInfo)); 
 
   for(i = 0; i < tr->numberOfBranches; i++)
     {      
-      tr->bInf[i].epa = (epaBranchData*)malloc(sizeof(epaBranchData));
+      tr->bInf[i].epa = (epaBranchData*)rax_malloc(sizeof(epaBranchData));
 
-      tr->bInf[i].epa->countThem   = (int*)calloc(tr->numberOfTipsForInsertion, sizeof(int));      
+      tr->bInf[i].epa->countThem   = (int*)rax_calloc(tr->numberOfTipsForInsertion, sizeof(int));      
       
-      tr->bInf[i].epa->executeThem = (int*)calloc(tr->numberOfTipsForInsertion, sizeof(int));
+      tr->bInf[i].epa->executeThem = (int*)rax_calloc(tr->numberOfTipsForInsertion, sizeof(int));
       
       for(j = 0; j < tr->numberOfTipsForInsertion; j++)
 	tr->bInf[i].epa->executeThem[j] = 1;
 
-      tr->bInf[i].epa->branches          = (double*)calloc(tr->numberOfTipsForInsertion, sizeof(double));   
-      tr->bInf[i].epa->distalBranches    = (double*)calloc(tr->numberOfTipsForInsertion, sizeof(double)); 
+      tr->bInf[i].epa->branches          = (double*)rax_calloc(tr->numberOfTipsForInsertion, sizeof(double));   
+      tr->bInf[i].epa->distalBranches    = (double*)rax_calloc(tr->numberOfTipsForInsertion, sizeof(double)); 
          
-      tr->bInf[i].epa->likelihoods = (double*)calloc(tr->numberOfTipsForInsertion, sizeof(double));      
+      tr->bInf[i].epa->likelihoods = (double*)rax_calloc(tr->numberOfTipsForInsertion, sizeof(double));      
       tr->bInf[i].epa->branchNumber = i;
       
       sprintf(tr->bInf[i].epa->branchLabel, "I%d", i);     
@@ -1870,10 +1870,10 @@ void classifyML(tree *tr, analdef *adef)
  
   strcat(jointFormatTreeFileName,      ".jplace");
   
-  free(tr->tree_string);
+  rax_free(tr->tree_string);
   tr->treeStringLength *= 16;
 
-  tr->tree_string  = (char*)calloc(tr->treeStringLength, sizeof(char));
+  tr->tree_string  = (char*)rax_calloc(tr->treeStringLength, sizeof(char));
  
  
   treeFile = myfopen(labelledTreeFileName, "wb");
@@ -1902,7 +1902,7 @@ void classifyML(tree *tr, analdef *adef)
       
   {
     info 
-      *inf = (info*)malloc(sizeof(info) * tr->numberOfBranches);
+      *inf = (info*)rax_malloc(sizeof(info) * tr->numberOfBranches);
         
     for(i = 0; i < tr->numberOfTipsForInsertion; i++)    
       {
@@ -2017,7 +2017,7 @@ void classifyML(tree *tr, analdef *adef)
 	  fprintf(treeFile, "], \"n\":[\"%s\"]},\n", tr->nameList[tr->inserts[i]]);
       }      
     
-    free(inf);      
+    rax_free(inf);      
   }
 
 #ifdef _ALL_ENTRIES
@@ -2071,7 +2071,7 @@ void classifyML(tree *tr, analdef *adef)
   
   {
     info 
-      *inf = (info*)malloc(sizeof(info) * tr->numberOfBranches);
+      *inf = (info*)rax_malloc(sizeof(info) * tr->numberOfBranches);
     
     FILE 
       *likelihoodWeightsFile;
@@ -2162,7 +2162,7 @@ void classifyML(tree *tr, analdef *adef)
 	fprintf(entropyFile, "%s\t%f\n", tr->nameList[tr->inserts[i]], entropy / log((double)validEntries));	      	   
       }     
       
-    free(inf);
+    rax_free(inf);
 
     fclose(entropyFile);
     fclose(likelihoodWeightsFile); 

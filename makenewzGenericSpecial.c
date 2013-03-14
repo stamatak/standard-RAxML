@@ -49,6 +49,8 @@
 /*#include <tmmintrin.h>*/
 #endif
 
+#include "mem_alloc.h"
+
 #ifdef _USE_PTHREADS
 extern volatile double *reductionBuffer;
 extern volatile double *reductionBufferTwo;
@@ -303,7 +305,7 @@ static void coreGTRCAT_BINARY(int upper, int numberOfCategories, double *sum,
   e[1] = EIGN[0] * EIGN[0];
 
 
-  d = d_start = (double *)malloc(numberOfCategories * sizeof(double));
+  d = d_start = (double *)rax_malloc(numberOfCategories * sizeof(double));
 
   dd1 = e[0] * lz;
 
@@ -337,7 +339,7 @@ static void coreGTRCAT_BINARY(int upper, int numberOfCategories, double *sum,
   *d1 = dlnLdlz;
   *d2 = d2lnLdlz2;
 
-  free(d_start);
+  rax_free(d_start);
 }
 
 #ifdef __SIM_SSE3
@@ -375,7 +377,7 @@ static void coreGTRCAT(int upper, int numberOfCategories, double *sum,
   e2v[0]= _mm_load_pd(&e2[0]);
   e2v[1]= _mm_load_pd(&e2[2]);
 
-  d = d_start = (double *)malloc_aligned(numberOfCategories * 4 * sizeof(double));
+  d = d_start = (double *)rax_malloc_aligned(numberOfCategories * 4 * sizeof(double));
 
   dd1 = EIGN[0] * lz;
   dd2 = EIGN[1] * lz;
@@ -428,7 +430,7 @@ static void coreGTRCAT(int upper, int numberOfCategories, double *sum,
   *d1 = dlnLdlz;
   *d2 = d2lnLdlz2;
 
-  free(d_start);
+  rax_free(d_start);
 }
 
 
@@ -454,7 +456,7 @@ static void coreGTRCAT(int upper, int numberOfCategories, double *sum,
   e[4] = EIGN[2];
   e[5] = EIGN[2] * EIGN[2];
 
-  d = d_start = (double *)malloc(numberOfCategories * 4 * sizeof(double));
+  d = d_start = (double *)rax_malloc(numberOfCategories * 4 * sizeof(double));
 
   dd1 = e[0] * lz;
   dd2 = e[2] * lz;
@@ -503,7 +505,7 @@ static void coreGTRCAT(int upper, int numberOfCategories, double *sum,
   *d1 = dlnLdlz;
   *d2 = d2lnLdlz2;
 
-  free(d_start);
+  rax_free(d_start);
 }
 
 #endif
@@ -882,7 +884,7 @@ static void coreGTRCATPROT(double *EIGN, double lz, int numberOfCategories, doub
   double  dlnLdlz = 0.0;
   double  d2lnLdlz2 = 0.0;
 
-  d1 = d_start = (double *)malloc_aligned(numberOfCategories * 20 * sizeof(double));
+  d1 = d_start = (double *)rax_malloc_aligned(numberOfCategories * 20 * sizeof(double));
 
   e[0] = 0.0;
   s[0] = 0.0; 
@@ -948,7 +950,7 @@ static void coreGTRCATPROT(double *EIGN, double lz, int numberOfCategories, doub
   *ext_dlnLdlz   = dlnLdlz;
   *ext_d2lnLdlz2 = d2lnLdlz2;
 
-  free(d_start);
+  rax_free(d_start);
 }
 
 #else
@@ -964,7 +966,7 @@ static void coreGTRCATPROT(double *EIGN, double lz, int numberOfCategories, doub
   double  dlnLdlz = 0.0;
   double  d2lnLdlz2 = 0.0;
 
-  d1 = d_start = (double *)malloc(numberOfCategories * 20 * sizeof(double));
+  d1 = d_start = (double *)rax_malloc(numberOfCategories * 20 * sizeof(double));
 
   for(l = 1; l < 20; l++)
     {
@@ -1012,7 +1014,7 @@ static void coreGTRCATPROT(double *EIGN, double lz, int numberOfCategories, doub
   *ext_dlnLdlz   = dlnLdlz;
   *ext_d2lnLdlz2 = d2lnLdlz2;
 
-  free(d_start);
+  rax_free(d_start);
 }
 
 #endif
@@ -1038,7 +1040,7 @@ static void coreCatFlex(double *EIGN, double lz, int numberOfCategories, double 
     dlnLdlz = 0.0,
     d2lnLdlz2 = 0.0;
 
-  d1 = d_start = (double *)malloc(numberOfCategories * numStates * sizeof(double));
+  d1 = d_start = (double *)rax_malloc(numberOfCategories * numStates * sizeof(double));
 
   for(l = 1; l < numStates; l++)
     {
@@ -1086,7 +1088,7 @@ static void coreCatFlex(double *EIGN, double lz, int numberOfCategories, double 
   *ext_dlnLdlz   = dlnLdlz;
   *ext_d2lnLdlz2 = d2lnLdlz2;
 
-  free(d_start);
+  rax_free(d_start);
 }
 
 static void coreGammaFlex(double *gammaRates, double *EIGN, double *sumtable, int upper, int *wrptr,
@@ -1157,73 +1159,6 @@ static void coreGammaFlex(double *gammaRates, double *EIGN, double *sumtable, in
   *ext_d2lnLdlz2 = d2lnLdlz2;
 }
 
-static void coreGammaFlex_LG4(double *gammaRates, double *EIGN[4], double *sumtable, int upper, int *wrptr,
-			      volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double lz, const int numStates)
-{
-  double  
-    *sum, 
-    diagptable[1024],
-    dlnLdlz = 0.0,
-    d2lnLdlz2 = 0.0,
-    ki, 
-    kisqr,
-    tmp,
-    inv_Li, 
-    dlnLidlz, 
-    d2lnLidlz2;
-
-  int     
-    i, 
-    j, 
-    l;  
-
-  const int 
-    gammaStates = 4 * numStates;
-
-  for(i = 0; i < 4; i++)
-    {
-      ki = gammaRates[i];
-      kisqr = ki * ki;
-
-      for(l = 1; l < numStates; l++)
-	{
-	  diagptable[i * gammaStates + l * 4]     = EXP(EIGN[i][l-1] * ki * lz);
-	  diagptable[i * gammaStates + l * 4 + 1] = EIGN[i][l-1] * ki;
-	  diagptable[i * gammaStates + l * 4 + 2] = EIGN[i][l-1] * EIGN[i][l-1] * kisqr;
-	}
-    }
-
-  for (i = 0; i < upper; i++)
-    {
-      sum = &sumtable[i * gammaStates];
-      inv_Li   = 0.0;
-      dlnLidlz = 0.0;
-      d2lnLidlz2 = 0.0;
-
-      for(j = 0; j < 4; j++)
-	{
-	  inv_Li += sum[j * numStates];
-
-	  for(l = 1; l < numStates; l++)
-	    {
-	      inv_Li     += (tmp = diagptable[j * gammaStates + l * 4] * sum[j * numStates + l]);
-	      dlnLidlz   +=  tmp * diagptable[j * gammaStates + l * 4 + 1];
-	      d2lnLidlz2 +=  tmp * diagptable[j * gammaStates + l * 4 + 2];
-	    }
-	}
-
-      inv_Li = 1.0 / inv_Li;
-
-      dlnLidlz   *= inv_Li;
-      d2lnLidlz2 *= inv_Li;
-
-      dlnLdlz   += wrptr[i] * dlnLidlz;
-      d2lnLdlz2 += wrptr[i] * (d2lnLidlz2 - dlnLidlz * dlnLidlz);
-    }
-
-  *ext_dlnLdlz   = dlnLdlz;
-  *ext_d2lnLdlz2 = d2lnLdlz2;
-}
 
 
 
@@ -1322,7 +1257,7 @@ static void coreGTRCATSECONDARY(double *EIGN, double lz, int numberOfCategories,
   double  dlnLdlz = 0.0;
   double  d2lnLdlz2 = 0.0;
 
-  d1 = d_start = (double *)malloc(numberOfCategories * 16 * sizeof(double));
+  d1 = d_start = (double *)rax_malloc(numberOfCategories * 16 * sizeof(double));
 
   for(l = 1; l < 16; l++)
     {
@@ -1370,7 +1305,7 @@ static void coreGTRCATSECONDARY(double *EIGN, double lz, int numberOfCategories,
   *ext_dlnLdlz   = dlnLdlz;
   *ext_d2lnLdlz2 = d2lnLdlz2;
 
-  free(d_start);
+  rax_free(d_start);
 }
 
 static void coreGTRCATSECONDARY_6(double *EIGN, double lz, int numberOfCategories, double *rptr, int *cptr, int upper,
@@ -1384,7 +1319,7 @@ static void coreGTRCATSECONDARY_6(double *EIGN, double lz, int numberOfCategorie
   double  dlnLdlz = 0.0;
   double  d2lnLdlz2 = 0.0;
 
-  d1 = d_start = (double *)malloc(numberOfCategories * 6 * sizeof(double));
+  d1 = d_start = (double *)rax_malloc(numberOfCategories * 6 * sizeof(double));
 
   for(l = 1; l < 6; l++)
     {
@@ -1432,7 +1367,7 @@ static void coreGTRCATSECONDARY_6(double *EIGN, double lz, int numberOfCategorie
   *ext_dlnLdlz   = dlnLdlz;
   *ext_d2lnLdlz2 = d2lnLdlz2;
 
-  free(d_start);
+  rax_free(d_start);
 }
 
 static void coreGTRCATSECONDARY_7(double *EIGN, double lz, int numberOfCategories, double *rptr, int *cptr, int upper,
@@ -1446,7 +1381,7 @@ static void coreGTRCATSECONDARY_7(double *EIGN, double lz, int numberOfCategorie
   double  dlnLdlz = 0.0;
   double  d2lnLdlz2 = 0.0;
 
-  d1 = d_start = (double *)malloc(numberOfCategories * 7 * sizeof(double));
+  d1 = d_start = (double *)rax_malloc(numberOfCategories * 7 * sizeof(double));
 
   for(l = 1; l < 7; l++)
     {
@@ -1494,7 +1429,7 @@ static void coreGTRCATSECONDARY_7(double *EIGN, double lz, int numberOfCategorie
   *ext_dlnLdlz   = dlnLdlz;
   *ext_d2lnLdlz2 = d2lnLdlz2;
 
-  free(d_start);
+  rax_free(d_start);
 }
 
 
@@ -1902,7 +1837,7 @@ static void coreGTRGAMMA_BINARY(const int upper, double *sumtable,
     dlnLdlz = 0.0,
     d2lnLdlz2 = 0.0;
 
-  diagptable = diagptable_start = (double *)malloc(sizeof(double) * 12);
+  diagptable = diagptable_start = (double *)rax_malloc(sizeof(double) * 12);
 
   for(i = 0; i < 4; i++)
     {
@@ -1946,7 +1881,7 @@ static void coreGTRGAMMA_BINARY(const int upper, double *sumtable,
   *d1 = dlnLdlz;
   *d2 = d2lnLdlz2;
 
-  free(diagptable_start);
+  rax_free(diagptable_start);
 }
 #else
 static void coreGTRGAMMA_BINARY(const int upper, double *sumtable,
@@ -2041,7 +1976,7 @@ static void coreGTRGAMMA(const int upper, double *sumtable,
     dlnLdlz = 0.0,
     d2lnLdlz2 = 0.0;
 
-  diagptable = diagptable_start = (double *)malloc(sizeof(double) * 64);
+  diagptable = diagptable_start = (double *)rax_malloc(sizeof(double) * 64);
 
 
 
@@ -2099,7 +2034,7 @@ static void coreGTRGAMMA(const int upper, double *sumtable,
   *d1 = dlnLdlz;
   *d2 = d2lnLdlz2;
 
-  free(diagptable_start);
+  rax_free(diagptable_start);
 }
 #else
 
@@ -2773,6 +2708,81 @@ static void coreGTRGAMMAPROT(double *gammaRates, double *EIGN, double *sumtable,
   *ext_d2lnLdlz2 = d2lnLdlz2;
 }
 
+static void coreGTRGAMMAPROT_LG4(double *gammaRates, double *EIGN[4], double *sumtable, int upper, int *wrptr,
+				volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double lz)
+{
+  double  *sum, 
+    diagptable0[80] __attribute__ ((aligned (BYTE_ALIGNMENT))),
+    diagptable1[80] __attribute__ ((aligned (BYTE_ALIGNMENT))),
+    diagptable2[80] __attribute__ ((aligned (BYTE_ALIGNMENT)));    
+  int     i, j, l;
+  double  dlnLdlz = 0;
+  double d2lnLdlz2 = 0;
+  double ki, kisqr; 
+  double inv_Li, dlnLidlz, d2lnLidlz2;
+
+  for(i = 0; i < 4; i++)
+    {
+      ki = gammaRates[i];
+      kisqr = ki * ki;
+      
+      diagptable0[i * 20] = 1.0;
+      diagptable1[i * 20] = 0.0;
+      diagptable2[i * 20] = 0.0;
+
+      for(l = 1; l < 20; l++)
+	{
+	  diagptable0[i * 20 + l] = EXP(EIGN[i][l-1] * ki * lz);
+	  diagptable1[i * 20 + l] = EIGN[i][l-1] * ki;
+	  diagptable2[i * 20 + l] = EIGN[i][l-1] * EIGN[i][l-1] * kisqr;
+	}
+    }
+
+  for (i = 0; i < upper; i++)
+    { 
+      __m128d a0 = _mm_setzero_pd();
+      __m128d a1 = _mm_setzero_pd();
+      __m128d a2 = _mm_setzero_pd();
+
+      sum = &sumtable[i * 80];         
+
+      for(j = 0; j < 4; j++)
+	{	 	  	
+	  double 	   
+	    *d0 = &diagptable0[j * 20],
+	    *d1 = &diagptable1[j * 20],
+	    *d2 = &diagptable2[j * 20];
+  	 	 
+	  for(l = 0; l < 20; l+=2)
+	    {
+	      __m128d tmpv = _mm_mul_pd(_mm_load_pd(&d0[l]), _mm_load_pd(&sum[j * 20 +l]));
+	      a0 = _mm_add_pd(a0, tmpv);
+	      a1 = _mm_add_pd(a1, _mm_mul_pd(tmpv, _mm_load_pd(&d1[l])));
+	      a2 = _mm_add_pd(a2, _mm_mul_pd(tmpv, _mm_load_pd(&d2[l])));
+	    }	 	  
+	}
+
+      a0 = _mm_hadd_pd(a0, a0);
+      a1 = _mm_hadd_pd(a1, a1);
+      a2 = _mm_hadd_pd(a2, a2);
+
+      _mm_storel_pd(&inv_Li, a0);
+      _mm_storel_pd(&dlnLidlz, a1);
+      _mm_storel_pd(&d2lnLidlz2, a2);
+
+      inv_Li = 1.0 / inv_Li;
+
+      dlnLidlz   *= inv_Li;
+      d2lnLidlz2 *= inv_Li;
+
+      dlnLdlz   += wrptr[i] * dlnLidlz;
+      d2lnLdlz2 += wrptr[i] * (d2lnLidlz2 - dlnLidlz * dlnLidlz);
+    }
+
+  *ext_dlnLdlz   = dlnLdlz;
+  *ext_d2lnLdlz2 = d2lnLdlz2;
+}
+
 
 #else
 
@@ -2831,6 +2841,63 @@ static void coreGTRGAMMAPROT(double *gammaRates, double *EIGN, double *sumtable,
   *ext_dlnLdlz   = dlnLdlz;
   *ext_d2lnLdlz2 = d2lnLdlz2;
 }
+
+static void coreGTRGAMMAPROT_LG4(double *gammaRates, double *EIGN[4], double *sumtable, int upper, int *wrptr,
+				 volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double lz)
+{
+  double  *sum, diagptable[512];
+  int     i, j, l;
+  double  dlnLdlz = 0;
+  double d2lnLdlz2 = 0;
+  double ki, kisqr;
+  double tmp;
+  double inv_Li, dlnLidlz, d2lnLidlz2;
+
+  for(i = 0; i < 4; i++)
+    {
+      ki = gammaRates[i];
+      kisqr = ki * ki;
+
+      for(l = 1; l < 20; l++)
+	{
+	  diagptable[i * 128 + l * 4]     = EXP(EIGN[i][l-1] * ki * lz);
+	  diagptable[i * 128 + l * 4 + 1] = EIGN[i][l-1] * ki;
+	  diagptable[i * 128 + l * 4 + 2] = EIGN[i][l-1] * EIGN[i][l-1] * kisqr;
+	}
+    }
+
+  for (i = 0; i < upper; i++)
+    {
+      sum = &sumtable[i * 80];
+      inv_Li   = 0.0;
+      dlnLidlz = 0.0;
+      d2lnLidlz2 = 0.0;
+
+      for(j = 0; j < 4; j++)
+	{
+	  inv_Li += sum[j * 20];
+
+	  for(l = 1; l < 20; l++)
+	    {
+	      inv_Li     += (tmp = diagptable[j * 128 + l * 4] * sum[j * 20 + l]);
+	      dlnLidlz   +=  tmp * diagptable[j * 128 + l * 4 + 1];
+	      d2lnLidlz2 +=  tmp * diagptable[j * 128 + l * 4 + 2];
+	    }
+	}
+
+      inv_Li = 1.0 / inv_Li;
+
+      dlnLidlz   *= inv_Li;
+      d2lnLidlz2 *= inv_Li;
+
+      dlnLdlz   += wrptr[i] * dlnLidlz;
+      d2lnLdlz2 += wrptr[i] * (d2lnLidlz2 - dlnLidlz * dlnLidlz);
+    }
+
+  *ext_dlnLdlz   = dlnLdlz;
+  *ext_d2lnLdlz2 = d2lnLdlz2;
+}
+
 
 #endif
 
@@ -3681,9 +3748,9 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 		    case GAMMA:	
 		      if(tr->partitionData[model].protModels == LG4)
 			{						  
-			  coreGammaFlex_LG4(tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN_LG4,
-					   sumBuffer, width, tr->partitionData[model].wgt,
-					   &dlnLdlz, &d2lnLdlz2, lz, 20);
+			  coreGTRGAMMAPROT_LG4(tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN_LG4,
+					      sumBuffer, width, tr->partitionData[model].wgt,
+					      &dlnLdlz, &d2lnLdlz2, lz);
 
 			}
 		      else

@@ -10,11 +10,11 @@ LIBRARIES = -lm -pthread
 
 RM = rm -f
 
-objs    = axml.o  optimizeModel.o multiple.o searchAlgo.o topologies.o parsePartitions.o treeIO.o models.o bipartitionList.o rapidBootstrap.o evaluatePartialGenericSpecial.o evaluateGenericSpecial.o newviewGenericSpecial.o makenewzGenericSpecial.o   classify.o fastDNAparsimony.o fastSearch.o leaveDropping.o rogueEPA.o ancestralStates.o avxLikelihood.o
+objs    = axml.o  optimizeModel.o multiple.o searchAlgo.o topologies.o parsePartitions.o treeIO.o models.o bipartitionList.o rapidBootstrap.o evaluatePartialGenericSpecial.o evaluateGenericSpecial.o newviewGenericSpecial.o makenewzGenericSpecial.o   classify.o fastDNAparsimony.o fastSearch.o leaveDropping.o rogueEPA.o ancestralStates.o avxLikelihood.o mem_alloc.o #ll_alloc.o 
 
 all : raxmlHPC
 
-GLOBAL_DEPS = axml.h globalVariables.h
+GLOBAL_DEPS = axml.h globalVariables.h  mem_alloc.h #compiler.h  gcc.h  ll_asm.h  ll_list.h
 
 raxmlHPC : $(objs)
 	$(CC) -o raxmlHPC-PTHREADS-AVX $(objs) $(LIBRARIES) 
@@ -45,6 +45,8 @@ makenewzGenericSpecial.o : makenewzGenericSpecial.c $(GLOBAL_DEPS)
 fastSearch.o : fastSearch.c $(GLOBAL_DEPS)
 leaveDropping.o : leaveDropping.c $(GLOBAL_DEPS)
 ancestralStates.o : ancestralStates.c $(GLOBAL_DEPS)
+#ll_alloc.o : ll_alloc.c $(GLOBAL_DEPS)
+mem_alloc.o : mem_alloc.c  $(GLOBAL_DEPS)
 
 clean : 
 	$(RM) *.o raxmlHPC-PTHREADS-AVX

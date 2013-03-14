@@ -42,7 +42,7 @@
 #include <ctype.h>
 #include <string.h>
 
-
+#include "mem_alloc.h"
 
 #include "axml.h"
 
@@ -278,7 +278,7 @@ void initInfoList(int n)
 
   iList.n = n;
   iList.valid = 0;
-  iList.list = (bestInfo *)malloc(sizeof(bestInfo) * n);
+  iList.list = (bestInfo *)rax_malloc(sizeof(bestInfo) * n);
 
   for(i = 0; i < n; i++)
     {
@@ -289,7 +289,7 @@ void initInfoList(int n)
 
 void freeInfoList(void)
 { 
-  free(iList.list);   
+  rax_free(iList.list);   
 }
 
 
@@ -899,7 +899,7 @@ double treeOptimizeRapid(tree *tr, int mintrav, int maxtrav, analdef *adef, best
   if(adef->permuteTreeoptimize)
     {
       int n = tr->mxtips + tr->mxtips - 2;   
-      perm = (int *)malloc(sizeof(int) * (n + 1));
+      perm = (int *)rax_malloc(sizeof(int) * (n + 1));
       makePermutation(perm, n, adef);
     }
 
@@ -975,7 +975,7 @@ double treeOptimizeRapid(tree *tr, int mintrav, int maxtrav, analdef *adef, best
     }
 
   if(adef->permuteTreeoptimize)
-    free(perm);
+    rax_free(perm);
 
   return tr->startLH;     
 }
@@ -1071,7 +1071,7 @@ int determineRearrangementSetting(tree *tr,  analdef *adef, bestlist *bestT, bes
   if(adef->permuteTreeoptimize)
     {
       int n = tr->mxtips + tr->mxtips - 2;   
-      perm = (int *)malloc(sizeof(int) * (n + 1));
+      perm = (int *)rax_malloc(sizeof(int) * (n + 1));
       makePermutation(perm, n, adef);
     }
   
@@ -1140,7 +1140,7 @@ int determineRearrangementSetting(tree *tr,  analdef *adef, bestlist *bestT, bes
   tr->doCutoff = cutoff;
 
   if(adef->permuteTreeoptimize)
-    free(perm);
+    rax_free(perm);
 
   
   return bestTrav;     
@@ -1201,11 +1201,11 @@ void computeBIGRAPID (tree *tr, analdef *adef, boolean estimateModel)
       h = initHashTable(tr->mxtips * 4);   
     }
 
-  bestT = (bestlist *) malloc(sizeof(bestlist));
+  bestT = (bestlist *) rax_malloc(sizeof(bestlist));
   bestT->ninit = 0;
   initBestTree(bestT, 1, tr->mxtips);
       
-  bt = (bestlist *) malloc(sizeof(bestlist));      
+  bt = (bestlist *) rax_malloc(sizeof(bestlist));      
   bt->ninit = 0;
   initBestTree(bt, 20, tr->mxtips); 
 
@@ -1213,7 +1213,7 @@ void computeBIGRAPID (tree *tr, analdef *adef, boolean estimateModel)
   /* initialize the tree list and the output file name for the current tree search/replicate */
 
 
-  terrace = (bestlist *) malloc(sizeof(bestlist));      
+  terrace = (bestlist *) rax_malloc(sizeof(bestlist));      
   terrace->ninit = 0;
   initBestTree(terrace, 20, tr->mxtips); 
   
@@ -1495,21 +1495,21 @@ void computeBIGRAPID (tree *tr, analdef *adef, boolean estimateModel)
   if(tr->searchConvergenceCriterion)
     {
       freeBitVectors(bitVectors, 2 * tr->mxtips);
-      free(bitVectors);
+      rax_free(bitVectors);
       freeHashTable(h);
-      free(h);
+      rax_free(h);
     }
   
   freeBestTree(bestT);
-  free(bestT);
+  rax_free(bestT);
   freeBestTree(bt);
-  free(bt);
+  rax_free(bt);
 
 #ifdef _TERRACES
   /* free terrace tree list */
 
   freeBestTree(terrace);
-  free(terrace);
+  rax_free(terrace);
 #endif
 
   freeInfoList();  
@@ -1606,9 +1606,9 @@ static void smoothTreeRandom (tree *tr, int maxtimes)
   tr->branchCounter = 0;
   tr->numberOfBranches = 2 * tr->mxtips - 3;
   
-  tr->bInf = (branchInfo*)malloc(tr->numberOfBranches * sizeof(branchInfo)); 
+  tr->bInf = (branchInfo*)rax_malloc(tr->numberOfBranches * sizeof(branchInfo)); 
 
-  perm = (int*)malloc(sizeof(int) * tr->numberOfBranches);
+  perm = (int*)rax_malloc(sizeof(int) * tr->numberOfBranches);
 
   setupBranches(tr, tr->start->back, tr->bInf);
 
@@ -1657,8 +1657,8 @@ static void smoothTreeRandom (tree *tr, int maxtimes)
   for(i = 0; i < tr->numBranches; i++)
     tr->partitionConverged[i] = FALSE;
 
-  free(tr->bInf);
-  free(perm);
+  rax_free(tr->bInf);
+  rax_free(perm);
 } 
 
 
@@ -1679,7 +1679,7 @@ void treeEvaluateProgressive(tree *tr)
   tr->branchCounter = 0;
   tr->numberOfBranches = 2 * tr->mxtips - 3;
   
-  tr->bInf = (branchInfo*)malloc(tr->numberOfBranches * sizeof(branchInfo));  
+  tr->bInf = (branchInfo*)rax_malloc(tr->numberOfBranches * sizeof(branchInfo));  
 
   setupBranches(tr, tr->start->back, tr->bInf);
 
