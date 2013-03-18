@@ -6496,8 +6496,8 @@ static void finalizeInfoFile(tree *tr, analdef *adef)
 	    printBothOpen("\n");
 
 	   
-	    printBothOpen("Number of rax_free parameters for AIC-TEST(BR-LEN): %d\n",    paramsBrLen);
-	    printBothOpen("Number of rax_free parameters for AIC-TEST(NO-BR-LEN): %d\n", params);
+	    printBothOpen("Number of free parameters for AIC-TEST(BR-LEN): %d\n",    paramsBrLen);
+	    printBothOpen("Number of free parameters for AIC-TEST(NO-BR-LEN): %d\n", params);
 	    
 	    
 	    printBothOpen("\n\n");
