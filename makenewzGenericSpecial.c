@@ -3888,9 +3888,11 @@ static void topLevelMakenewz(tree *tr, double *z0, int _maxiter, double *result)
   double   z[NUM_BRANCHES], zprev[NUM_BRANCHES], zstep[NUM_BRANCHES];
   volatile double  dlnLdlz[NUM_BRANCHES], d2lnLdlz2[NUM_BRANCHES];
   int i, maxiter[NUM_BRANCHES], numBranches, model;
-  boolean firstIteration = TRUE;
-  boolean outerConverged[NUM_BRANCHES];
-  boolean loopConverged;
+  boolean 
+    firstIteration = TRUE,
+    outerConverged[NUM_BRANCHES],
+    loopConverged,
+    longBranch[NUM_BRANCHES];
 
   if(tr->multiBranch)
     numBranches = tr->NumberOfModels;
@@ -3899,10 +3901,12 @@ static void topLevelMakenewz(tree *tr, double *z0, int _maxiter, double *result)
 
   for(i = 0; i < numBranches; i++)
     {
-      z[i] = z0[i];
+      z[i] = z0[i];       
+
       maxiter[i] = _maxiter;
+      
       outerConverged[i] = FALSE;
-      tr->curvatOK[i]       = TRUE;
+      tr->curvatOK[i]       = TRUE;      
     }
 
   if(tr->perPartitionEPA)   
@@ -3933,8 +3937,14 @@ static void topLevelMakenewz(tree *tr, double *z0, int _maxiter, double *result)
 	    {
 	      double lz;
 
-	      if (z[i] < zmin) z[i] = zmin;
-	      else if (z[i] > zmax) z[i] = zmax;
+	      if (z[i] < zmin) 			  
+		z[i] = zmin;		
+	      else
+		{
+		  if(z[i] > zmax) 		    
+		    z[i] = zmax;		      		    
+		}
+
 	      lz    = log(z[i]);
 
 	      tr->coreLZ[i] = lz;
@@ -4024,8 +4034,10 @@ static void topLevelMakenewz(tree *tr, double *z0, int _maxiter, double *result)
 	    {
 	      if (d2lnLdlz2[i] < 0.0)
 		{
-		  double tantmp = -dlnLdlz[i] / d2lnLdlz2[i];
-		  if (tantmp < 100)
+		  double 
+		    tantmp = -dlnLdlz[i] / d2lnLdlz2[i];
+		  
+		  if(tantmp < 100)
 		    {
 		      z[i] *= EXP(tantmp);
 		      if (z[i] < zmin)
@@ -4037,13 +4049,30 @@ static void topLevelMakenewz(tree *tr, double *z0, int _maxiter, double *result)
 		  else
 		    z[i] = 0.25 * zprev[i] + 0.75;
 		}
-	      if (z[i] > zmax) z[i] = zmax;
+	      
+	      if(z[i] > zmax) 
+		z[i] = zmax;
 
 	      maxiter[i] = maxiter[i] - 1;
-	      if(maxiter[i] > 0 && (ABS(z[i] - zprev[i]) > zstep[i]))
-		outerConverged[i] = FALSE;
-	      else
-		outerConverged[i] = TRUE;
+
+	      /* the previous termination condition did not guarantee an improvement in LnL in 
+		 cases where the initial branch was very long ! */
+	      //if(maxiter[i] > 0 && (ABS(z[i] - zprev[i]) > zstep[i]))
+	      if((ABS(z[i] - zprev[i]) > zstep[i]))
+		{
+		  /* We should make a more informed decision here,
+		     based on the log like improvement */
+
+		  if(maxiter[i] < -20)
+		    {
+		      z[i] = z0[i];
+		      outerConverged[i] = TRUE;
+		    }
+		  else
+		    outerConverged[i] = FALSE;
+		}
+	      else				
+		outerConverged[i] = TRUE;						
 	    }
 	}
 

@@ -46,6 +46,8 @@
 
 #include "axml.h"
 
+
+
 extern int Thorough;
 extern infoList iList;
 extern char seq_file[1024];
@@ -1531,7 +1533,7 @@ boolean treeEvaluate (tree *tr, double smoothFactor)       /* Evaluate a user tr
   
   assert(result); 
 
-  evaluateGeneric(tr, tr->start);       
+  evaluateGeneric(tr, tr->start);         
 
   return TRUE;
 }

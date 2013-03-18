@@ -2787,6 +2787,10 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
 	  assert(0);
 	}       
 
+      if(tr->likelihood < currentLikelihood)
+	printf("%f %f\n", tr->likelihood, currentLikelihood);
+      assert(tr->likelihood >= currentLikelihood);
+
       
       printAAmatrix(tr, fabs(currentLikelihood - tr->likelihood));    
     }
