@@ -1237,6 +1237,7 @@ void doBootstrap(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
 #ifdef _WAYNE_MPI
   long parsimonySeed0 = adef->parsimonySeed;
   long replicateSeed0 = adef->rapidBoot;
+  long bootstrapSeed0  = adef->boot;
   n = n / processes;
 #endif
 
@@ -1249,7 +1250,9 @@ void doBootstrap(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
         {
           if(parsimonySeed0 != 0)
             adef->parsimonySeed = parsimonySeed0 + 10000 * processID;
+	  
           adef->rapidBoot = replicateSeed0 + 10000 * processID;
+	  adef->boot = bootstrapSeed0 + 10000 * processID;
         }
       j  = i + n*processID;
       singleBootstrap(tr, j, adef, rdta, cdta);
