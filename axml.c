@@ -76,7 +76,7 @@
 #include "globalVariables.h"
 
 
-//#define _PORTABLE_PTHREADS
+#define _PORTABLE_PTHREADS
 
 
 /***************** UTILITY FUNCTIONS **************************/
