@@ -5,7 +5,10 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+
+#if !defined(__APPLE__)
 #include <malloc.h>
+#endif
 
 //#define RAXML_USE_LLALLOC
 
