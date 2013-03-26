@@ -69,12 +69,12 @@ extern pthread_mutex_t          mutex;
 
 extern const unsigned int mask32[32];
 
-inline boolean isGap(unsigned int *x, int pos)
+boolean isGap(unsigned int *x, int pos)
 {
   return (x[pos / 32] & mask32[pos % 32]);
 }
 
-inline boolean noGap(unsigned int *x, int pos)
+boolean noGap(unsigned int *x, int pos)
 {
   return (!(x[pos / 32] & mask32[pos % 32]));
 }

@@ -1408,8 +1408,8 @@ extern void masterBarrier(int jobType, tree *tr);
 
 #endif
 
-inline boolean isGap(unsigned int *x, int pos);
-inline boolean noGap(unsigned int *x, int pos);
+boolean isGap(unsigned int *x, int pos);
+boolean noGap(unsigned int *x, int pos);
 
 #ifdef __AVX
 
