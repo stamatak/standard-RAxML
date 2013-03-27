@@ -67,7 +67,8 @@ extern volatile int             NumberOfThreads;
 extern volatile double          *reductionBuffer;
 #endif
 
-
+/* TODO remove at some point */
+#define _DEBUG_MODEL_OPTIMIZATION 
 
 /*********************FUNCTIONS FOOR EXACT MODEL OPTIMIZATION UNDER GTRGAMMA ***************************************/
 
@@ -470,7 +471,7 @@ static void evaluateChange(tree *tr, int rateNumber, double *value, double *resu
 	  }
       }
 #else
-      evaluateGenericInitrav(tr, tr->start);      
+      evaluateGenericInitrav(tr, tr->start);  
 #endif
      
       
@@ -1152,6 +1153,11 @@ static void optInvar(tree *tr, double modelEpsilon, linkageList *ll)
   /* to avoid transferring traversal info further on */
 #endif
 
+#ifdef  _DEBUG_MODEL_OPTIMIZATION 
+  double
+    initialLH = tr->likelihood;
+#endif  
+
   for(i = 0; i < numberOfModels; i++)
     {
       assert(ll->ld[i].valid);
@@ -1187,7 +1193,12 @@ static void optInvar(tree *tr, double modelEpsilon, linkageList *ll)
 #ifdef _USE_PTHREADS	  
 	  revertModel++;
 #endif
-	}      
+	}   
+      else
+	{
+	  for(k = 0; k < ll->ld[i].partitions; k++)	    
+	    tr->partitionData[ll->ld[i].partitionList[k]].propInvariant = _x[i];
+	}
     }
 
 #ifdef _USE_PTHREADS
@@ -1195,6 +1206,13 @@ static void optInvar(tree *tr, double modelEpsilon, linkageList *ll)
     masterBarrier(THREAD_COPY_INVAR, tr);	 
 #endif
  
+#ifdef _DEBUG_MODEL_OPTIMIZATION
+  evaluateGenericInitrav(tr, tr->start);
+
+  if(tr->likelihood < initialLH)
+    printf("%f %f\n", tr->likelihood, initialLH);
+  assert(tr->likelihood >= initialLH);
+#endif
 
   rax_free(startLH);
   rax_free(startInvar);
@@ -1254,6 +1272,12 @@ static void optAlpha(tree *tr, double modelEpsilon, linkageList *ll)
 #endif   
 
   evaluateGenericInitrav(tr, tr->start);
+
+#ifdef  _DEBUG_MODEL_OPTIMIZATION 
+  double
+    initialLH = tr->likelihood;
+#endif
+
    /* 
      at this point here every worker has the traversal data it needs for the 
      search, so we won't re-distribute it he he :-)
@@ -1297,6 +1321,14 @@ static void optAlpha(tree *tr, double modelEpsilon, linkageList *ll)
 	  revertModel++;
 #endif
 	}  
+      else
+	{
+	  for(k = 0; k < ll->ld[i].partitions; k++)
+	    {	      
+	      tr->partitionData[ll->ld[i].partitionList[k]].alpha = _x[i];
+	      makeGammaCats(tr->partitionData[ll->ld[i].partitionList[k]].alpha, tr->partitionData[ll->ld[i].partitionList[k]].gammaRates, 4, tr->useGammaMedian); 		
+	    }
+	}
     }
 
 #ifdef _USE_PTHREADS
@@ -1305,6 +1337,14 @@ static void optAlpha(tree *tr, double modelEpsilon, linkageList *ll)
 #endif
 
   
+#ifdef _DEBUG_MODEL_OPTIMIZATION
+  evaluateGenericInitrav(tr, tr->start);
+
+  if(tr->likelihood < initialLH)
+    printf("%f %f\n", tr->likelihood, initialLH);
+  assert(tr->likelihood >= initialLH);
+#endif 
+
   rax_free(startLH);
   rax_free(startAlpha);
   rax_free(endAlpha);
@@ -1316,7 +1356,8 @@ static void optAlpha(tree *tr, double modelEpsilon, linkageList *ll)
   rax_free(_fb);
   rax_free(_fc);
   rax_free(_param);
-  rax_free(_x);  
+  rax_free(_x); 
+
 
 }
 
@@ -1326,57 +1367,65 @@ static void optAlpha(tree *tr, double modelEpsilon, linkageList *ll)
 
 
 
-static void optRates(tree *tr, double modelEpsilon, linkageList *ll, int numberOfModels, int states)
+
+
+static void optRate(tree *tr, double modelEpsilon, linkageList *ll, int numberOfModels, int states, int rateNumber, int numberOfRates)
 {
-  int 
-    i, 
+  int
+    l,
     k, 
     j, 
-    pos,
-    numberOfRates = ((states * states - states) / 2) - 1;
+    pos;
     
-  double lim_inf = RATE_MIN;
-  double lim_sup = RATE_MAX;
   double 
-    *startRates;
-  double 
-    *startLH= (double *)rax_malloc(sizeof(double) * numberOfModels),
-    *endLH  = (double *)rax_malloc(sizeof(double) * numberOfModels),
-    *_a     = (double *)rax_malloc(sizeof(double) * numberOfModels),
-    *_b     = (double *)rax_malloc(sizeof(double) * numberOfModels),
-    *_c     = (double *)rax_malloc(sizeof(double) * numberOfModels),
-    *_fa    = (double *)rax_malloc(sizeof(double) * numberOfModels),
-    *_fb    = (double *)rax_malloc(sizeof(double) * numberOfModels),
-    *_fc    = (double *)rax_malloc(sizeof(double) * numberOfModels),
-    *_param = (double *)rax_malloc(sizeof(double) * numberOfModels),
-    *result = (double *)rax_malloc(sizeof(double) * numberOfModels),
-    *_x     = (double *)rax_malloc(sizeof(double) * numberOfModels); 
+    lim_inf     = RATE_MIN,
+    lim_sup     = RATE_MAX,
+    *startRates = (double *)rax_malloc(sizeof(double) * numberOfRates * numberOfModels),
+    *startLH    = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *endLH      = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_a         = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_b         = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_c         = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_fa        = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_fb        = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_fc        = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_param     = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *result     = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_x         = (double *)rax_malloc(sizeof(double) * numberOfModels); 
+
 #ifdef _USE_PTHREADS
-   int revertModel = 0;
+  int 
+    revertModel = 0;
 #endif
-
-   assert(states != -1);
-
-  startRates = (double *)rax_malloc(sizeof(double) * numberOfRates * numberOfModels);
+   
+  assert(states != -1);
 
   evaluateGenericInitrav(tr, tr->start);
+  
+#ifdef  _DEBUG_MODEL_OPTIMIZATION 
+  double
+    initialLH = tr->likelihood;
+#endif
+
   /* 
      at this point here every worker has the traversal data it needs for the 
      search 
   */
 
-  for(i = 0, pos = 0; i < ll->entries; i++)
+  for(l = 0, pos = 0; l < ll->entries; l++)
     {
-      if(ll->ld[i].valid)
+      if(ll->ld[l].valid)
 	{
 	  endLH[pos] = unlikely;
 	  startLH[pos] = 0.0;
 
-	  for(j = 0; j < ll->ld[i].partitions; j++)
+	  for(j = 0; j < ll->ld[l].partitions; j++)
 	    {
-	      int index = ll->ld[i].partitionList[j];
+	      int 
+		index = ll->ld[l].partitionList[j];
 	      
 	      startLH[pos] += tr->perPartitionLH[index];
+	      
 	      for(k = 0; k < numberOfRates; k++)
 		startRates[pos * numberOfRates + k] = tr->partitionData[index].substRates[k];      
 	    }
@@ -1385,73 +1434,93 @@ static void optRates(tree *tr, double modelEpsilon, linkageList *ll, int numberO
     }  
 
   assert(pos == numberOfModels);
-  
-  for(i = 0; i < numberOfRates; i++)
-    {     
-      for(k = 0, pos = 0; k < ll->entries; k++)
+   
+  for(k = 0, pos = 0; k < ll->entries; k++)
+    {
+      if(ll->ld[k].valid)
 	{
-	  if(ll->ld[k].valid)
-	    {
-	      int index = ll->ld[k].partitionList[0];
-	      _a[pos] = tr->partitionData[index].substRates[i] + 0.1;
-	      _b[pos] = tr->partitionData[index].substRates[i] - 0.1;
-	      
-	      if(_a[pos] < lim_inf) _a[pos] = lim_inf;
-	      if(_a[pos] > lim_sup) _a[pos] = lim_sup;
-	      
-	      if(_b[pos] < lim_inf) _b[pos] = lim_inf;
-	      if(_b[pos] > lim_sup) _b[pos] = lim_sup;    
-	      pos++;
-	    }
-	}                       	     
 
-      assert(pos == numberOfModels);
+	  /* TODO partition List[0]? */
+	  int 
+	    index = ll->ld[k].partitionList[0];
+	  
 
-      brakGeneric(_param, _a, _b, _c, _fa, _fb, _fc, lim_inf, lim_sup, numberOfModels, i, RATE_F, tr, ll);
-      
-      for(k = 0; k < numberOfModels; k++)
-	{
-	  assert(_a[k] >= lim_inf && _a[k] <= lim_sup);
-	  assert(_b[k] >= lim_inf && _b[k] <= lim_sup);	  
-	  assert(_c[k] >= lim_inf && _c[k] <= lim_sup);	    
-	}      
-
-      brentGeneric(_a, _b, _c, _fb, modelEpsilon, _x, result, numberOfModels, RATE_F, i, tr,  ll, lim_inf, lim_sup);
-	
-      for(k = 0; k < numberOfModels; k++)
-	endLH[k] = result[k];
+	  _a[pos] = tr->partitionData[index].substRates[rateNumber] + 0.1;
+	  _b[pos] = tr->partitionData[index].substRates[rateNumber] - 0.1;
 	      
-      for(k = 0, pos = 0; k < ll->entries; k++)
-	{
-#ifdef _USE_PTHREADS
-	  revertModel = 0;
-#endif
-	  if(ll->ld[k].valid)
-	    { 
-	      if(startLH[pos] > endLH[pos])
-		{
-		  for(j = 0; j < ll->ld[k].partitions; j++)
-		    {
-		      int index = ll->ld[k].partitionList[j];
-		      tr->partitionData[index].substRates[i] = startRates[pos * numberOfRates + i];	             	  
-		      initReversibleGTR(tr, index);
-		    }
-#ifdef _USE_PTHREADS		  
-		  revertModel++;
-#endif
-		}
-	      pos++;
-	    }
+	  if(_a[pos] < lim_inf) 
+	    _a[pos] = lim_inf;
+	  
+	  if(_a[pos] > lim_sup) 
+	    _a[pos] = lim_sup;
+	      
+	  if(_b[pos] < lim_inf) 
+	    _b[pos] = lim_inf;
+	  
+	  if(_b[pos] > lim_sup) 
+	    _b[pos] = lim_sup;    
+	  pos++;
 	}
+    }                    	     
 
+  assert(pos == numberOfModels);
+
+  brakGeneric(_param, _a, _b, _c, _fa, _fb, _fc, lim_inf, lim_sup, numberOfModels, rateNumber, RATE_F, tr, ll);
+      
+  for(k = 0; k < numberOfModels; k++)
+    {
+      assert(_a[k] >= lim_inf && _a[k] <= lim_sup);
+      assert(_b[k] >= lim_inf && _b[k] <= lim_sup);	  
+      assert(_c[k] >= lim_inf && _c[k] <= lim_sup);	    
+    }      
+
+  brentGeneric(_a, _b, _c, _fb, modelEpsilon, _x, result, numberOfModels, RATE_F, rateNumber, tr,  ll, lim_inf, lim_sup);
+	
+  for(k = 0; k < numberOfModels; k++)
+    endLH[k] = result[k];
+	      
+  for(k = 0, pos = 0; k < ll->entries; k++)
+    {
 #ifdef _USE_PTHREADS
-      if(revertModel > 0)
-	masterBarrier(THREAD_COPY_RATES, tr);
-#endif    
-      assert(pos == numberOfModels);
+      revertModel = 0;
+#endif
+      if(ll->ld[k].valid)
+	{ 
+	  if(startLH[pos] > endLH[pos])
+	    {
+	      for(j = 0; j < ll->ld[k].partitions; j++)
+		{
+		  int 
+		    index = ll->ld[k].partitionList[j];
+		  
+		  tr->partitionData[index].substRates[rateNumber] = startRates[pos * numberOfRates + rateNumber];	             	  
+		  initReversibleGTR(tr, index);
+		}
+#ifdef _USE_PTHREADS		  
+	      revertModel++;
+#endif
+	    }
+	  else
+	    {
+	      for(j = 0; j < ll->ld[k].partitions; j++)
+		{
+		  int 
+		    index = ll->ld[k].partitionList[j];
+		  
+		  tr->partitionData[index].substRates[rateNumber] = _x[pos];	             	  
+		  initReversibleGTR(tr, index);
+		}
+	    }
+	  pos++;
+	}
     }
 
- 
+#ifdef _USE_PTHREADS
+  if(revertModel > 0)
+    masterBarrier(THREAD_COPY_RATES, tr);
+#endif    
+  assert(pos == numberOfModels);
+
   rax_free(startLH);
   rax_free(endLH);
   rax_free(result);
@@ -1464,6 +1533,25 @@ static void optRates(tree *tr, double modelEpsilon, linkageList *ll, int numberO
   rax_free(_param);
   rax_free(_x);  
   rax_free(startRates);
+
+#ifdef _DEBUG_MODEL_OPTIMIZATION
+  evaluateGenericInitrav(tr, tr->start);
+
+  if(tr->likelihood < initialLH)
+    printf("%f %f\n", tr->likelihood, initialLH);
+  assert(tr->likelihood >= initialLH);
+#endif
+
+}
+
+static void optRates(tree *tr, double modelEpsilon, linkageList *ll, int numberOfModels, int states)
+{
+  int
+    rateNumber,
+    numberOfRates = ((states * states - states) / 2) - 1;
+
+  for(rateNumber = 0; rateNumber < numberOfRates; rateNumber++)
+    optRate(tr, modelEpsilon, ll, numberOfModels, states, rateNumber, numberOfRates);
 }
 
 static boolean AAisGTR(tree *tr)
@@ -2595,6 +2683,11 @@ static void optScaler(tree *tr, double modelEpsilon, linkageList *ll)
    
   evaluateGenericInitrav(tr, tr->start);
   
+#ifdef  _DEBUG_MODEL_OPTIMIZATION 
+  double
+    initialLH = tr->likelihood;
+#endif
+
   for(i = 0; i < numberOfModels; i++)
     {
       assert(ll->ld[i].valid);
@@ -2628,9 +2721,23 @@ static void optScaler(tree *tr, double modelEpsilon, linkageList *ll)
 	      scaleBranches(tr, FALSE);	     
 	    }
 	}  
+      else
+	{
+	  for(k = 0; k < ll->ld[i].partitions; k++)
+	    {	      
+	      tr->partitionData[ll->ld[i].partitionList[k]].brLenScaler = _x[i];	      	      
+	      scaleBranches(tr, FALSE);	     
+	    }
+	}
     }
 
   evaluateGenericInitrav(tr, tr->start);
+
+#ifdef _DEBUG_MODEL_OPTIMIZATION
+  if(tr->likelihood < initialLH)
+    printf("%f %f\n", tr->likelihood, initialLH);
+  assert(tr->likelihood >= initialLH);
+#endif
   
   rax_free(startLH);
   rax_free(startAlpha);
