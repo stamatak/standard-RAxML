@@ -1143,11 +1143,9 @@ static void optInvar(tree *tr, double modelEpsilon, linkageList *ll)
     *_param = (double *)rax_malloc(sizeof(double) * numberOfModels),
     *result = (double *)rax_malloc(sizeof(double) * numberOfModels),
     *_x     = (double *)rax_malloc(sizeof(double) * numberOfModels);
-#ifdef _USE_PTHREADS
-   int revertModel = 0;
-#endif
 
   evaluateGenericInitrav(tr, tr->start); 
+
 #ifdef _USE_PTHREADS
   evaluateGeneric(tr, tr->start); 
   /* to avoid transferring traversal info further on */
@@ -1190,9 +1188,6 @@ static void optInvar(tree *tr, double modelEpsilon, linkageList *ll)
 	{    	  
 	  for(k = 0; k < ll->ld[i].partitions; k++)	    
 	    tr->partitionData[ll->ld[i].partitionList[k]].propInvariant = startInvar[i];	     			    
-#ifdef _USE_PTHREADS	  
-	  revertModel++;
-#endif
 	}   
       else
 	{
@@ -1201,9 +1196,8 @@ static void optInvar(tree *tr, double modelEpsilon, linkageList *ll)
 	}
     }
 
-#ifdef _USE_PTHREADS
-  if(revertModel > 0)
-    masterBarrier(THREAD_COPY_INVAR, tr);	 
+#ifdef _USE_PTHREADS  
+  masterBarrier(THREAD_COPY_INVAR, tr);	 
 #endif
  
 #ifdef _DEBUG_MODEL_OPTIMIZATION
@@ -1267,10 +1261,6 @@ static void optAlpha(tree *tr, double modelEpsilon, linkageList *ll)
     *result     = (double *)rax_malloc(sizeof(double) * numberOfModels),
     *_x         = (double *)rax_malloc(sizeof(double) * numberOfModels);   
 
-#ifdef _USE_PTHREADS
-   int revertModel = 0;
-#endif   
-
   evaluateGenericInitrav(tr, tr->start);
 
 #ifdef  _DEBUG_MODEL_OPTIMIZATION 
@@ -1317,9 +1307,6 @@ static void optAlpha(tree *tr, double modelEpsilon, linkageList *ll)
 	      tr->partitionData[ll->ld[i].partitionList[k]].alpha = startAlpha[i];
 	      makeGammaCats(tr->partitionData[ll->ld[i].partitionList[k]].alpha, tr->partitionData[ll->ld[i].partitionList[k]].gammaRates, 4, tr->useGammaMedian); 		
 	    }
-#ifdef _USE_PTHREADS
-	  revertModel++;
-#endif
 	}  
       else
 	{
@@ -1331,9 +1318,8 @@ static void optAlpha(tree *tr, double modelEpsilon, linkageList *ll)
 	}
     }
 
-#ifdef _USE_PTHREADS
-  if(revertModel > 0)
-    masterBarrier(THREAD_COPY_ALPHA, tr);
+#ifdef _USE_PTHREADS  
+  masterBarrier(THREAD_COPY_ALPHA, tr);
 #endif
 
   
@@ -1392,11 +1378,6 @@ static void optRate(tree *tr, double modelEpsilon, linkageList *ll, int numberOf
     *_param     = (double *)rax_malloc(sizeof(double) * numberOfModels),
     *result     = (double *)rax_malloc(sizeof(double) * numberOfModels),
     *_x         = (double *)rax_malloc(sizeof(double) * numberOfModels); 
-
-#ifdef _USE_PTHREADS
-  int 
-    revertModel = 0;
-#endif
    
   assert(states != -1);
 
@@ -1481,9 +1462,6 @@ static void optRate(tree *tr, double modelEpsilon, linkageList *ll, int numberOf
 	      
   for(k = 0, pos = 0; k < ll->entries; k++)
     {
-#ifdef _USE_PTHREADS
-      revertModel = 0;
-#endif
       if(ll->ld[k].valid)
 	{ 
 	  if(startLH[pos] > endLH[pos])
@@ -1496,9 +1474,6 @@ static void optRate(tree *tr, double modelEpsilon, linkageList *ll, int numberOf
 		  tr->partitionData[index].substRates[rateNumber] = startRates[pos * numberOfRates + rateNumber];	             	  
 		  initReversibleGTR(tr, index);
 		}
-#ifdef _USE_PTHREADS		  
-	      revertModel++;
-#endif
 	    }
 	  else
 	    {
@@ -1515,9 +1490,8 @@ static void optRate(tree *tr, double modelEpsilon, linkageList *ll, int numberOf
 	}
     }
 
-#ifdef _USE_PTHREADS
-  if(revertModel > 0)
-    masterBarrier(THREAD_COPY_RATES, tr);
+#ifdef _USE_PTHREADS  
+  masterBarrier(THREAD_COPY_RATES, tr);
 #endif    
   assert(pos == numberOfModels);
 
