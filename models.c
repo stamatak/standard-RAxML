@@ -2894,6 +2894,7 @@ static void initProtMat(double f[20], int proteinMatrix, double *ext_initialRate
 	  }
 	  break;  
       case LG4:
+      case LG4X:
 	{
 	  double 
 	    rates[4][190] = 
@@ -3631,7 +3632,7 @@ void initReversibleGTR(tree *tr, int model)
 	 int 
 	   l;
        
-	 if(tr->partitionData[model].protModels == LG4)
+	 if(tr->partitionData[model].protModels == LG4 || tr->partitionData[model].protModels == LG4X)
 	   {
 	     int 
 	       i;
@@ -3662,7 +3663,7 @@ void initReversibleGTR(tree *tr, int model)
      else          
        assert(tr->partitionData[model].usePredefinedProtFreqs == FALSE);
 
-     if(tr->partitionData[model].protModels == LG4)
+     if(tr->partitionData[model].protModels == LG4 || tr->partitionData[model].protModels == LG4X)
        {
 	 int 
 	   i;

@@ -2830,7 +2830,7 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 		  break;	      
 		case GAMMA:
 		  {		    		    
-		    if(tr->partitionData[model].protModels == LG4)
+		    if(tr->partitionData[model].protModels == LG4 || tr->partitionData[model].protModels == LG4X)
 			{		   			 			 
 			  calcDiagptableFlex_LG4(z, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN_LG4, diagptable, 20);
 
@@ -2974,7 +2974,7 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 				     	      
 		      break;	      
 		    case GAMMA:	
-		      if(tr->partitionData[model].protModels == LG4)
+		      if(tr->partitionData[model].protModels == LG4 || tr->partitionData[model].protModels == LG4X)
 			{						  
 			  calcDiagptableFlex_LG4(z, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN_LG4, diagptable, 20);
 

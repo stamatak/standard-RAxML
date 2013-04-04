@@ -3540,7 +3540,7 @@ void makenewzIterative(tree *tr)
 					     width, x1_gapColumn, x2_gapColumn, x1_gap, x2_gap);
 		  else
 #endif		  
-		    if(tr->partitionData[model].protModels == LG4)		      
+		    if(tr->partitionData[model].protModels == LG4 || tr->partitionData[model].protModels == LG4X)		      
 		      {			
 			sumGAMMAPROT_LG4(tipCase,  tr->partitionData[model].sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector_LG4,
 					 tipX1, tipX2, width);
@@ -3746,7 +3746,7 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 				     sumBuffer, tr->partitionData[model].wgt);
 		      break;
 		    case GAMMA:	
-		      if(tr->partitionData[model].protModels == LG4)
+		      if(tr->partitionData[model].protModels == LG4 || tr->partitionData[model].protModels == LG4X)
 			{						  
 			  coreGTRGAMMAPROT_LG4(tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN_LG4,
 					      sumBuffer, width, tr->partitionData[model].wgt,

@@ -122,6 +122,9 @@
 
 #define FREQ_MIN     0.001
 
+#define LG4X_RATE_MIN 0.0000001
+#define LG4X_RATE_MAX 1000.0
+
 /* 
    previous values between 0.001 and 0.000001
 
@@ -158,8 +161,8 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "RAxML"
-#define programVersion     "7.4.4"
-#define programDate        "March 27 2013"
+#define programVersion     "7.4.5"
+#define programDate        "April 4 2013"
 
 
 #define  TREE_EVALUATION            0
@@ -218,13 +221,14 @@
 #define JTTDCMUT     16
 #define FLU          17 
 #define LG4          18
-#define DUMMY        19
-#define DUMMY2       20
-#define PROT_FILE    21
-#define GTR_UNLINKED 22
-#define GTR          23  /* GTR always needs to be the last one */
+#define LG4X         19
+#define DUMMY        20
+#define DUMMY2       21
+#define PROT_FILE    22
+#define GTR_UNLINKED 23
+#define GTR          24  /* GTR always needs to be the last one */
 
-#define NUM_PROT_MODELS 24
+#define NUM_PROT_MODELS 25
 
 
 /* bipartition stuff */
@@ -1370,6 +1374,7 @@ extern void testInsertThoroughIterative(tree *tr, int branchNumber);
 #define THREAD_NEWVIEW_ANCESTRAL            41
 #define THREAD_GATHER_ANCESTRAL             42
 #define THREAD_OPT_SCALER                   43
+
 
 /*
 

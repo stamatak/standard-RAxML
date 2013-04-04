@@ -7762,7 +7762,7 @@ void newviewIterative (tree *tr)
 		      break;
 		    case GAMMA:
 		    case GAMMA_I:
-		      if(tr->partitionData[model].protModels == LG4)
+		      if(tr->partitionData[model].protModels == LG4 || tr->partitionData[model].protModels == LG4X)
 			{		   			 
 			  makeP_FlexLG4(qz, rz, tr->partitionData[model].gammaRates,
 					tr->partitionData[model].EI_LG4,

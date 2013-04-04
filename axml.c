@@ -3042,7 +3042,7 @@ static void allocPartitions(tree *tr)
       tr->partitionData[i].tipVector         = (double *)rax_malloc_aligned(pl->tipVectorLength * sizeof(double));
 
 
-      if(tr->partitionData[i].protModels == LG4)      
+      if(tr->partitionData[i].protModels == LG4 || tr->partitionData[i].protModels == LG4X)      
 	{	  	  
 	  int 
 	    k;
@@ -5478,7 +5478,7 @@ void printBaseFrequencies(tree *tr)
 	  printBothOpen("Partition: %d with name: %s\n", model, tr->partitionData[model].partitionName);
 	  printBothOpen("Base frequencies: ");
 	  
-	  if(tr->partitionData[model].protModels == LG4)
+	  if(tr->partitionData[model].protModels == LG4 || tr->partitionData[model].protModels == LG4X)
 	    {
 	      int
 		k;
@@ -6224,7 +6224,7 @@ void printModelParams(tree *tr, analdef *adef)
 				   "H", "I", "L", "K", "M", "F", "P", "S",
 				   "T", "W", "Y", "V"};
 
-	    if(tr->partitionData[model].protModels == LG4)
+	    if(tr->partitionData[model].protModels == LG4 || tr->partitionData[model].protModels == LG4X)
 	      {
 		int 
 		  k;
@@ -6926,7 +6926,7 @@ static void broadcastPerSiteRates(tree *tr, tree *localTree)
 
 static void copyLG4(tree *localTree, tree *tr, int model, const partitionLengths *pl)
 {
-  if(tr->partitionData[model].protModels == LG4)
+  if(tr->partitionData[model].protModels == LG4 || tr->partitionData[model].protModels == LG4X)
     {
       int 
 	k;
@@ -7854,7 +7854,7 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 	  for(model = 0; model < localTree->NumberOfModels; model++)
 	    localTree->executeModel[model] = TRUE;
 	}
-      break;
+      break;   
     default:
       printf("Job %d\n", currentJob);
       assert(0);
@@ -8892,7 +8892,7 @@ static void myfwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream)
 
 static void writeLG4(tree *tr, int model, int dataType, FILE *f, partitionLengths pLengths[MAX_MODEL])
 {
-  if(tr->partitionData[model].protModels == LG4)
+  if(tr->partitionData[model].protModels == LG4 || tr->partitionData[model].protModels == LG4X)
     {
       int 
 	k;
@@ -8963,7 +8963,7 @@ static void myfread(void *ptr, size_t size, size_t nmemb, FILE *stream)
 
 static void readLG4(tree *tr, int model, int dataType, FILE *f, partitionLengths pLengths[MAX_MODEL])
 {
-  if(tr->partitionData[model].protModels == LG4)
+  if(tr->partitionData[model].protModels == LG4 || tr->partitionData[model].protModels == LG4X)
     {
       int 
 	k;
@@ -9844,7 +9844,7 @@ int main (int argc, char *argv[])
 	  if(!(tr->partitionData[i].dataType == AA_DATA || tr->partitionData[i].dataType == DNA_DATA))
 	    countNonSev++;
 
-	  if(tr->partitionData[i].protModels == LG4)
+	  if(tr->partitionData[i].protModels == LG4 || tr->partitionData[i].protModels == LG4X)
 	    countLG4++;
 
 	  if(tr->partitionData[i].dataType == AA_DATA)
