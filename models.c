@@ -3187,6 +3187,9 @@ static void updateFracChange(tree *tr)
       assert(tr->fracchanges[0] != -1.0);
       tr->fracchange = tr->fracchanges[0];      
       tr->fracchanges[0] = -1.0;
+      
+      if(tr->useBrLenScaler)
+	scaleBranches(tr, FALSE);
     }      
   else
     {

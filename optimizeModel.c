@@ -593,7 +593,7 @@ static void evaluateChange(tree *tr, int rateNumber, double *value, double *resu
 	  }
       }
 #else
-      evaluateGenericInitrav(tr, tr->start);
+      evaluateGenericInitrav(tr, tr->start);     
 #endif
             
       for(i = 0; i < ll->entries; i++)	
@@ -2830,7 +2830,6 @@ void scaleBranches(tree *tr, boolean fromFile)
 	      z = fixZ(z);	     
 
 	      p->z[model] = z;
-
 	    }
 	}
       else
@@ -3012,8 +3011,8 @@ static void optScaler(tree *tr, double modelEpsilon, linkageList *ll)
   
   double 
     lim_inf     = 0.01,
-    lim_sup     = 100.0;
-  double
+    lim_sup     = 100.0,
+    *endLH      = (double *)rax_malloc(sizeof(double) * numberOfModels),
     *startLH    = (double *)rax_malloc(sizeof(double) * numberOfModels),
     *startAlpha = (double *)rax_malloc(sizeof(double) * numberOfModels),
     *endAlpha   = (double *)rax_malloc(sizeof(double) * numberOfModels),
@@ -3029,7 +3028,8 @@ static void optScaler(tree *tr, double modelEpsilon, linkageList *ll)
 
 
   assert(numberOfModels == tr->numBranches);
-   
+
+ 
    
   evaluateGenericInitrav(tr, tr->start);
   
@@ -3049,6 +3049,9 @@ static void optScaler(tree *tr, double modelEpsilon, linkageList *ll)
 	_b[i] = lim_inf;
 
       startLH[i] = 0.0;
+      endLH[i] = unlikely;
+
+      assert(ll->ld[i].partitions == 1);
       
       for(k = 0; k < ll->ld[i].partitions; k++)		
 	startLH[i] += tr->perPartitionLH[ll->ld[i].partitionList[k]];	  	
@@ -3058,15 +3061,15 @@ static void optScaler(tree *tr, double modelEpsilon, linkageList *ll)
   brentGeneric(_a, _b, _c, _fb, modelEpsilon, _x, result, numberOfModels, SCALER_F, -1, tr, ll, lim_inf, lim_sup);
 
   for(i = 0; i < numberOfModels; i++)    
-    endAlpha[i] = result[i];
+    endLH[i] = result[i];
     
 
   for(i = 0; i < numberOfModels; i++)
     {
-      if(startLH[i] > endAlpha[i])
+      if(startLH[i] > endLH[i])
 	{    	  
 	  for(k = 0; k < ll->ld[i].partitions; k++)
-	    {	      
+	    {	      	     
 	      tr->partitionData[ll->ld[i].partitionList[k]].brLenScaler = startAlpha[i];	      	      
 	      scaleBranches(tr, FALSE);	     
 	    }
@@ -3081,6 +3084,7 @@ static void optScaler(tree *tr, double modelEpsilon, linkageList *ll)
 	}
     }
 
+   
   evaluateGenericInitrav(tr, tr->start);
 
 #ifdef _DEBUG_MODEL_OPTIMIZATION
@@ -3090,6 +3094,7 @@ static void optScaler(tree *tr, double modelEpsilon, linkageList *ll)
 #endif
   
   rax_free(startLH);
+  rax_free(endLH);
   rax_free(startAlpha);
   rax_free(endAlpha);
   rax_free(result);
