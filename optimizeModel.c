@@ -2130,28 +2130,33 @@ static void optAlphasGeneric(tree *tr, double modelEpsilon, linkageList *ll)
 	}      
     }   
   
+  
+
   if(LG4X_Partitions > 0)
     optLG4X(tr, modelEpsilon, ll, LG4X_Partitions);
 
 
   /* some checking that the LG4X rates are actually scaled to a mean rate of 1.0 */
   
-  {
-    double 
-      sum = 0.0;
-    
+  {       
     int 
       model;
 
     for(model = 0; model < tr->NumberOfModels; model++)
       {
+	double
+	  sum = 0.0;
+	
 	for(i = 0; i < 4; i++)
 	  sum += tr->partitionData[model].gammaRates[i];
 	
 	sum /= 4;
 
-	assert(fabs(sum - 1.0) < 0.00000001);
-	//printf("rates: %f %f %f %f, mean rate %f\n", tr->partitionData[model].gammaRates[0], tr->partitionData[model].gammaRates[1], tr->partitionData[model].gammaRates[2], tr->partitionData[model].gammaRates[3], sum);
+	if(fabs(sum - 1.0) >= 0.00001)
+	  printf("model %d alpha: %f rates: %f %f %f %f, mean rate %f\n", model, tr->partitionData[model].alpha, tr->partitionData[model].gammaRates[0], tr->partitionData[model].gammaRates[1], 
+		 tr->partitionData[model].gammaRates[2], tr->partitionData[model].gammaRates[3], sum);
+
+	assert(fabs(sum - 1.0) < 0.00001);		
       }
   }
 
@@ -3194,8 +3199,6 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
     }
   
   inputLikelihood = tr->likelihood;
-
-  
 
   evaluateGenericInitrav(tr, tr->start); 
 

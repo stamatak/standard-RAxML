@@ -5669,7 +5669,7 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
 
       if(!adef->readTaxaOnly)
 	{	  
-	  printBoth(infoFile, "All rax_free model parameters will be estimated by RAxML\n");
+	  printBoth(infoFile, "All free model parameters will be estimated by RAxML\n");
 
 	  
 	  if(tr->rateHetModel == GAMMA || tr->rateHetModel == GAMMA_I)
