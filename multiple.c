@@ -1486,7 +1486,7 @@ void doInference(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
       if(tr->rateHetModel == GAMMA ||  tr->rateHetModel == GAMMA_I)
 	{
 	  restoreTL(rl, tr, best);
-	  onlyInitrav(tr, tr->start);
+	  evaluateGenericInitrav(tr, tr->start);
 	  if(!adef->useBinaryModelFile)
 	    modOpt(tr, adef, FALSE, adef->likelihoodEpsilon); 
 	  else
@@ -1509,7 +1509,7 @@ void doInference(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
 	      if(j != best)
 		{
 		  restoreTL(rl, tr, j);
-		  onlyInitrav(tr, tr->start);
+		  evaluateGenericInitrav(tr, tr->start);
 		  treeEvaluate(tr, 1);
 		  tr->likelihoods[j] = tr->likelihood;
 		  
@@ -1530,7 +1530,7 @@ void doInference(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
 	      if(i != best)
 		{
 		  restoreTL(rl, tr, i);
-		  onlyInitrav(tr, tr->start);
+		  evaluateGenericInitrav(tr, tr->start);
 		  treeEvaluate(tr, 1);
 		  tr->likelihoods[i] = tr->likelihood;
 		  
@@ -1572,7 +1572,7 @@ void doInference(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
 	  restoreTL(rl, tr, best);      
 	  
 	  resetBranches(tr);
-	  onlyInitrav(tr, tr->start);
+	  evaluateGenericInitrav(tr, tr->start);
 	  modOpt(tr, adef, TRUE, adef->likelihoodEpsilon);      
 	  tr->likelihoods[best] = tr->likelihood;
 	  bestLH = tr->likelihood;     
@@ -1589,7 +1589,7 @@ void doInference(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
 		{
 		  restoreTL(rl, tr, j);	    
 		  resetBranches(tr);
-		  onlyInitrav(tr, tr->start);
+		  evaluateGenericInitrav(tr, tr->start);
 		  treeEvaluate(tr, 2);
 		  tr->likelihoods[j] = tr->likelihood;
 		  
@@ -1612,7 +1612,7 @@ void doInference(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
 		{
 		  restoreTL(rl, tr, i);	    
 		  resetBranches(tr);
-		  onlyInitrav(tr, tr->start);
+		  evaluateGenericInitrav(tr, tr->start);
 		  treeEvaluate(tr, 2);
 		  tr->likelihoods[i] = tr->likelihood;
 		  
@@ -1667,8 +1667,8 @@ void doInference(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
 #endif
 
       restoreTL(rl, tr, newBest);
-  
-      onlyInitrav(tr, tr->start);
+      evaluateGenericInitrav(tr, tr->start);
+     
       printBothOpen("\n\nStarting final GAMMA-based thorough Optimization on tree %d likelihood %f .... \n\n", newBest, tr->likelihoods[newBest]);
 
       Thorough = 1;

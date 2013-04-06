@@ -3113,6 +3113,7 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
 { 
   int i, model, catOpt = 0; 
   double 
+    inputLikelihood,
     currentLikelihood,
     modelEpsilon = 0.0001;
   linkageList 
@@ -3128,10 +3129,7 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
   int 
     *unlinked = (int *)rax_malloc(sizeof(int) * tr->NumberOfModels),
     *linked =  (int *)rax_malloc(sizeof(int) * tr->NumberOfModels);
-
-
   
-
   assert(!adef->useBinaryModelFile);
  
   modelEpsilon = 0.0001;
@@ -3195,7 +3193,13 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
       treeEvaluate(tr, 0.25);     
     }
   
+  inputLikelihood = tr->likelihood;
+
   
+
+  evaluateGenericInitrav(tr, tr->start); 
+
+  assert(inputLikelihood == tr->likelihood);
   
   /* no need for individual models here, just an init on params equal for all partitions*/
   
@@ -3203,15 +3207,15 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
     {           
       currentLikelihood = tr->likelihood;      
       
-      optRatesGeneric(tr, modelEpsilon, rateList);
-      
+      optRatesGeneric(tr, modelEpsilon, rateList);         
+
       onlyInitrav(tr, tr->start);         
       
       if(adef->mode != OPTIMIZE_BR_LEN_SCALER)
 	treeEvaluate(tr, 0.0625);                     	            
       else 	 
-	optScaler(tr, modelEpsilon, scalerList);
-	 
+	optScaler(tr, modelEpsilon, scalerList);     
+
       switch(tr->rateHetModel)
 	{	  
 	case GAMMA_I:
@@ -3226,14 +3230,14 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
 	  break;
 	case GAMMA:      
 	  optAlphasGeneric(tr, modelEpsilon, alphaList); 
+	 
 	  onlyInitrav(tr, tr->start); 
 
 	  if(adef->mode != OPTIMIZE_BR_LEN_SCALER)	 	 
 	    treeEvaluate(tr, 0.1);
 	  else 	   
-	    optScaler(tr, modelEpsilon, scalerList);	     
-	  break;
-	  
+	    optScaler(tr, modelEpsilon, scalerList);	  
+	  break;	  
 	case CAT:
 	  if(!tr->noRateHet)
 	    {
