@@ -2013,7 +2013,13 @@ static void optLG4X_Rate(tree *tr, double modelEpsilon, linkageList *ll, int num
 	}
     }
 
+#ifdef _USE_PTHREADS  
+  masterBarrier(THREAD_COPY_ALPHA, tr);
+#endif
+
   evaluateGenericInitrav(tr, tr->start);
+
+  //printf("Scaled LH %f\n", tr->likelihood);
   
   for(i = 0, pos = 0; i < ll->entries; i++)
     {
@@ -2026,12 +2032,12 @@ static void optLG4X_Rate(tree *tr, double modelEpsilon, linkageList *ll, int num
 
 	  endLH[pos] = tr->perPartitionLH[index];
 
-	  if(startLH[pos] > endLH[pos])        	    	    
+	  if(startLH[pos] > endLH[pos]) 	    
 	    memcpy(tr->partitionData[index].gammaRates, &startAlpha[pos * 4], sizeof(double) * 4);
 	  else
 	    {
-	      tr->partitionData[index].gammaRates[rateNumber] = _x[pos];	      	    	
-	      scaleLX4_Rates(tr, index);
+	      //tr->partitionData[index].gammaRates[rateNumber] = _x[pos];	      	    	
+	      //scaleLX4_Rates(tr, index);
 	    }
 	  
 	  pos++;
