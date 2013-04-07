@@ -1947,6 +1947,8 @@ static void optLG4X_Rate(tree *tr, double modelEpsilon, linkageList *ll, int num
     initialLH = tr->likelihood;
 #endif
 
+  assert(rateNumber >= 0 && rateNumber < 4);
+
    /* 
      at this point here every worker has the traversal data it needs for the 
      search, so we won't re-distribute it he he :-)
@@ -1989,9 +1991,29 @@ static void optLG4X_Rate(tree *tr, double modelEpsilon, linkageList *ll, int num
 
   brakGeneric(_param, _a, _b, _c, _fa, _fb, _fc, lim_inf, lim_sup, numberOfModels, rateNumber, LXRATE_F, tr, ll);       
   brentGeneric(_a, _b, _c, _fb, modelEpsilon, _x, result, numberOfModels, LXRATE_F, rateNumber, tr, ll, lim_inf, lim_sup);
+  
+  /* now calculate the actual likelihood when the x-rates are scaled such that the 
+     mean rate is 1.0 */
 
-  for(i = 0; i < numberOfModels; i++)
-    endLH[i] = result[i];
+  for(i = 0, pos = 0; i < ll->entries; i++)
+    {
+      if(ll->ld[i].valid)
+	{
+	  int
+	    index = ll->ld[i].partitionList[0];
+	  
+	  assert(ll->ld[i].partitions == 1);
+
+	  tr->executeModel[index] = TRUE;
+
+	  tr->partitionData[index].gammaRates[rateNumber] = _x[pos];	      	    	
+	  scaleLX4_Rates(tr, index);
+	  
+	  pos++;
+	}
+    }
+
+  evaluateGenericInitrav(tr, tr->start);
   
   for(i = 0, pos = 0; i < ll->entries; i++)
     {
@@ -2001,7 +2023,9 @@ static void optLG4X_Rate(tree *tr, double modelEpsilon, linkageList *ll, int num
 	    index = ll->ld[i].partitionList[0];
 	  
 	  assert(ll->ld[i].partitions == 1);
-	    
+
+	  endLH[pos] = tr->perPartitionLH[index];
+
 	  if(startLH[pos] > endLH[pos])        	    	    
 	    memcpy(tr->partitionData[index].gammaRates, &startAlpha[pos * 4], sizeof(double) * 4);
 	  else
