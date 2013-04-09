@@ -3786,6 +3786,8 @@ static void printMinusFUsage(void)
 
   printf("              \"-f c\": check if the alignment can be properly read by RAxML\n");
 
+  printf("              \"-f C\": ancestral sequence test for Jiajie, users will also need to provide a list of taxon names via -Y separated by whitespaces\n");
+
   printf("              \"-f d\": new rapid hill-climbing \n");
   printf("                      DEFAULT: ON\n");
 
@@ -3896,7 +3898,7 @@ static void printREADME(void)
   printf("      [-b bootstrapRandomNumberSeed] [-B wcCriterionThreshold]\n");
   printf("      [-c numberOfCategories] [-d] [-D]\n");
   printf("      [-e likelihoodEpsilon] [-E excludeFileName]\n");
-  printf("      [-f a|A|b|B|c|d|e|E|F|g|G|h|H|j|J|m|n|N|o|p|q|r|s|S|t|T|u|v|V|w|W|x|y] [-F]\n");
+  printf("      [-f a|A|b|B|c|C|d|e|E|F|g|G|h|H|j|J|m|n|N|o|p|q|r|s|S|t|T|u|v|V|w|W|x|y] [-F]\n");
   printf("      [-g groupingFileName] [-G placementThreshold] [-h]\n");
   printf("      [-i initialRearrangementSetting] [-I autoFC|autoMR|autoMRE|autoMRE_IGN]\n");
   printf("      [-j] [-J MR|MR_DROP|MRE|STRICT|STRICT_DROP|T_<PERCENT>] [-k] [-K] [-M]\n");
@@ -3905,7 +3907,7 @@ static void printREADME(void)
   printf("      [-q multipleModelFileName] [-r binaryConstraintTree]\n");
   printf("      [-R binaryModelParamFile] [-S secondaryStructureFile] [-t userStartingTree]\n");
   printf("      [-T numberOfThreads] [-u] [-U] [-v] [-V] [-w outputDirectory] [-W slidingWindowSize]\n");
-  printf("      [-x rapidBootstrapRandomNumberSeed] [-y] [-Y quartetGroupingFileName]\n");
+  printf("      [-x rapidBootstrapRandomNumberSeed] [-y] [-Y quartetGroupingFileName|ancestralSequenceCandidatesFileName]\n");
   printf("      [-z multipleTreesFile] [-#|-N numberOfRuns|autoFC|autoMR|autoMRE|autoMRE_IGN]\n");
   printf("\n");
   printf("      -a      Specify a column weight file name to assign individual weights to each column of \n");
@@ -4265,7 +4267,8 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
   boolean
     bSeedSet = FALSE,
     xSeedSet = FALSE,
-    multipleRunsSet = FALSE;
+    multipleRunsSet = FALSE,
+    yFileSet = FALSE;
 
   run_id[0] = 0;
   workdir[0] = 0;
@@ -4309,6 +4312,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
       {
       case 'Y':
 	adef->useQuartetGrouping = TRUE;
+	yFileSet = TRUE;
 	strcpy(quartetGroupingFileName, optarg);
 	break;
       case 'V':
@@ -4680,6 +4684,10 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	  case 'c':
 	    adef->mode = CHECK_ALIGNMENT;
 	    break;
+	  case 'C':
+	    adef->mode = ANCESTRAL_SEQUENCE_TEST;
+	    tr->useFastScaling = FALSE;
+	    break;
 	  case 'd':
 	    adef->mode = BIG_RAPID_MODE;
 	    tr->doCutoff = TRUE;
@@ -4889,7 +4897,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
     }
   }
 
- 
+  
 
 #ifdef _USE_PTHREADS
   if(NumberOfThreads < 2)
@@ -4924,7 +4932,24 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
     }
 
 #endif
-  
+
+  if(adef->mode ==  ANCESTRAL_SEQUENCE_TEST && !yFileSet)
+    {
+      if(!yFileSet)
+	{
+	  printf("Error, for using the ancestral sequence test you have to provide a ancestral taxon name\n");
+	  printf("candidate file via \"-Y\" \n");
+	  errorExit(-1);
+	}
+
+      if(!treeSet)
+	{
+	  printf("Error, for using the ancestral sequence test you have to provide a tree file\n");
+	  printf("via \"-t\" \n");
+	  errorExit(-1);
+	}
+    }
+
   if(tr->catOnly && adef->rapidBoot)
     {
       printf("Error, you can not use \"-F\" in conjunction with the rapid bootstrapping option!\n");
@@ -5619,6 +5644,9 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
 	  break;
 	case OPTIMIZE_BR_LEN_SCALER :
 	  printBoth(infoFile, "\nRAxML Branch length scaler and other model parameter optimization up to an accuracy of %f log likelihood units\n\n", adef->likelihoodEpsilon);
+	  break;
+	case ANCESTRAL_SEQUENCE_TEST:
+	  printBoth(infoFile, "\nRAxML ancestral sequence test for Jiajie\n\n");
 	  break;
 	default:
 	  assert(0);
@@ -9699,6 +9727,154 @@ static void thoroughTreeOptimization(tree *tr, analdef *adef, rawdata *rdta, cru
   printBothOpen("Best-scoring ML tree written to: %s\n\n", bestTreeFileName);
 }
 
+static void ancestralSequenceTest(tree *tr, analdef *adef)
+{
+  FILE 
+    *f = myfopen(quartetGroupingFileName, "r");
+
+  int
+    ch,
+    i,
+    *candidateAncestorList = (int *)rax_calloc((tr->mxtips + 1), sizeof(int)),
+    numberOfCandidateAncestors = 0;  
+
+  double 
+    bestLH, 
+    currentLH, 
+    weightSum = 0.0,
+    *bestVector = (double*)rax_malloc(sizeof(double) * tr->cdta->endsite);
+
+  assert(tr->useFastScaling == FALSE);
+
+  for(i = 0; i < tr->cdta->endsite; i++)
+    weightSum += (double)(tr->cdta->aliaswgt[i]);
+  
+  evaluateGenericInitrav(tr, tr->start);
+  evaluateGenericVector(tr, tr->start);
+  
+  bestLH = tr->likelihood;
+  
+  memcpy(bestVector, tr->perSiteLL, tr->cdta->endsite * sizeof(double));
+
+  printBothOpen("Likelihood of reference tree: %f\n\n\n", tr->likelihood);  
+
+  while((ch = getc(f)) != EOF)
+    {
+      if(!whitechar(ch))
+	{	  
+	  int 
+	    n;
+	  
+	  ungetc(ch, f);
+	  
+	  n = treeFindTipName(f, tr, FALSE);  
+	  
+	  if(n <= 0 || n > tr->mxtips)		
+	    printf("parsing error, raxml is expecting to read a taxon name that is contained in the reference tree you passed!\n");		
+	  
+	  assert(n > 0 && n <= tr->mxtips);	
+	  
+	  candidateAncestorList[n] = 1;
+	  numberOfCandidateAncestors++;	     
+	}
+    }
+
+  fclose(f);
+
+  for(i = 1; i <= tr->mxtips; i++)
+    {
+      if(candidateAncestorList[i])
+	{
+	  nodeptr 
+	    t = (nodeptr)NULL,
+	    p = tr->nodep[i],
+	    q = p->back,
+	    l = q->next,
+	    r = q->next->next;
+
+	  int
+	    k,
+	    leftTips = countTips(l->back, tr->mxtips),
+	    rightTips = countTips(r->back, tr->mxtips);
+
+	  double 
+	    sum = 0.0,
+	    sum2 = 0.0,
+	    sd,
+	    attachmentBranch[NUM_BRANCHES],
+	    pendantBranch[NUM_BRANCHES];
+
+	  assert(strcmp(tr->nameList[i], tr->nameList[p->number]) == 0);
+
+	  printf("Checking if %s is a candidate ancestor\n", tr->nameList[i]);
+
+	  assert(leftTips + rightTips + 1 == tr->mxtips);
+
+	  if(leftTips == rightTips)
+	    assert(0); //TODO 
+
+	  if(leftTips > rightTips)
+	    t = l;
+	  else
+	    t = r;
+
+	  memcpy(attachmentBranch, p->z, sizeof(double) * NUM_BRANCHES);
+	  memcpy(pendantBranch, t->z, sizeof(double) * NUM_BRANCHES);
+
+	  for(k = 0; k < NUM_BRANCHES; k++)
+	    {
+	      p->z[k] = q->z[k] = zmax;
+	      t->z[k] = t->back->z[k] = zmax;
+	    }	  
+
+	  evaluateGenericInitrav(tr, tr->start);	  
+	  evaluateGenericVector(tr, tr->start); 	 	  
+
+	  currentLH = tr->likelihood;
+
+	  printBothOpen("Likelihood: %f\n", tr->likelihood);       
+
+	  if(currentLH > bestLH)	
+	    printBothOpen("WARNING tree with ancestral sequence taxon %s has a better likelihood %f > %f than the reference tree!\n", tr->nameList[i], currentLH, bestLH);
+
+	  for (k = 0; k < tr->cdta->endsite; k++)
+	    {
+	      double 
+		temp = bestVector[k] - tr->perSiteLL[k],
+		wtemp = tr->cdta->aliaswgt[k] * temp;
+	     
+	      sum  += wtemp;
+	      sum2 += wtemp * temp;
+	    }
+
+	  sd = sqrt( weightSum * (sum2 - sum * sum / weightSum) / (weightSum - 1) );
+	  /* this is for a 5% p level */
+	 
+	  printBothOpen("Ancestral Taxon: %s Likelihood: %f D(LH): %f SD: %f \nSignificantly Worse: %s (5%s), %s (2%s), %s (1%s)\n", 
+			tr->nameList[i], currentLH, currentLH - bestLH, sd, 
+			(sum > 1.95996 * sd) ? "Yes" : " No", "%",
+			(sum > 2.326 * sd) ? "Yes" : " No", "%",
+			(sum > 2.57583 * sd) ? "Yes" : " No", "%");	
+
+	  memcpy(p->z, attachmentBranch, sizeof(double) * NUM_BRANCHES);
+	  memcpy(p->back->z, attachmentBranch, sizeof(double) * NUM_BRANCHES);
+	  memcpy(t->z, pendantBranch, sizeof(double) * NUM_BRANCHES);
+	  memcpy(t->back->z, pendantBranch, sizeof(double) * NUM_BRANCHES);
+	  
+	  evaluateGenericInitrav(tr, tr->start);
+	  assert(tr->likelihood == bestLH);
+
+	  printBothOpen("\n\n");
+	}
+    }
+
+  printBothOpen("good-bye\n\n");
+
+  rax_free(candidateAncestorList);
+  rax_free(bestVector);
+  exit(0);  
+}
+
 int main (int argc, char *argv[])
 {
   rawdata      *rdta;
@@ -10080,6 +10256,15 @@ int main (int argc, char *argv[])
       
       printBothOpen("Likelihood: %f\n", tr->likelihood);
 
+      break;
+    case ANCESTRAL_SEQUENCE_TEST:
+      initModel(tr, rdta, cdta, adef);
+      
+      getStartingTree(tr, adef);  
+      
+      modOpt(tr, adef, FALSE, adef->likelihoodEpsilon);	
+      
+      ancestralSequenceTest(tr, adef);
       break;
     default:
       assert(0);

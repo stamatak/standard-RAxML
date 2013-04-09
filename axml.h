@@ -190,6 +190,7 @@
 #define  QUARTET_CALCULATION        31
 #define  THOROUGH_OPTIMIZATION      32
 #define  OPTIMIZE_BR_LEN_SCALER     33
+#define  ANCESTRAL_SEQUENCE_TEST    34
 
 #define M_GTRCAT         1
 #define M_GTRGAMMA       2
