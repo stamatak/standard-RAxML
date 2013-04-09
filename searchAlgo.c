@@ -1246,7 +1246,10 @@ void computeBIGRAPID (tree *tr, analdef *adef, boolean estimateModel)
 	  treeEvaluate(tr, 2);
 	}
       else
-	modOpt(tr, adef, FALSE, 10.0);
+	{
+	  evaluateGenericInitrav(tr, tr->start);
+	  modOpt(tr, adef, FALSE, 10.0);
+	}
     }
   else
     treeEvaluate(tr, 2);  
@@ -1266,7 +1269,10 @@ void computeBIGRAPID (tree *tr, analdef *adef, boolean estimateModel)
       if(adef->useBinaryModelFile)	
 	treeEvaluate(tr, 2);
       else
-	modOpt(tr, adef, FALSE, 5.0);
+	{
+	  evaluateGenericInitrav(tr, tr->start);
+	  modOpt(tr, adef, FALSE, 5.0);
+	}
     }
   else
     treeEvaluate(tr, 1);
@@ -1365,7 +1371,10 @@ void computeBIGRAPID (tree *tr, analdef *adef, boolean estimateModel)
       if(adef->useBinaryModelFile)	
 	treeEvaluate(tr, 2);
       else
-	modOpt(tr, adef, FALSE, 1.0);
+	{
+	  evaluateGenericInitrav(tr, tr->start);
+	  modOpt(tr, adef, FALSE, 1.0);
+	}
     }
   else
     treeEvaluate(tr, 1.0);

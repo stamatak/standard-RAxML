@@ -3225,7 +3225,7 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
       
       
 
-      treeEvaluate(tr, 0.25);     
+      treeEvaluate(tr, 0.25);        
     }
   
   inputLikelihood = tr->likelihood;
