@@ -902,7 +902,7 @@ static boolean treeNeedCh (FILE *fp, int c1, char *where)
 
 
 
-static boolean addElementLen (FILE *fp, tree *tr, nodeptr p, boolean readBranchLengths, boolean readNodeLabels, int *lcount)
+static boolean addElementLen (FILE *fp, tree *tr, nodeptr p, boolean readBranchLengths, boolean readNodeLabels, int *lcount, analdef *adef)
 {   
   nodeptr  q;
   int      n, ch, fres;
@@ -934,9 +934,9 @@ static boolean addElementLen (FILE *fp, tree *tr, nodeptr p, boolean readBranchL
       
       q = tr->nodep[n];
 
-      if (! addElementLen(fp, tr, q->next, readBranchLengths, readNodeLabels, lcount))        return FALSE;
+      if (! addElementLen(fp, tr, q->next, readBranchLengths, readNodeLabels, lcount, adef))        return FALSE;
       if (! treeNeedCh(fp, ',', "in"))             return FALSE;
-      if (! addElementLen(fp, tr, q->next->next, readBranchLengths, readNodeLabels, lcount))  return FALSE;
+      if (! addElementLen(fp, tr, q->next->next, readBranchLengths, readNodeLabels, lcount, adef))  return FALSE;
       if (! treeNeedCh(fp, ')', "in"))             return FALSE;
       
       if(readNodeLabels)
@@ -976,7 +976,21 @@ static boolean addElementLen (FILE *fp, tree *tr, nodeptr p, boolean readBranchL
       if (! treeProcessLength(fp, &branch))            return FALSE;
       
       /*printf("Branch %8.20f %d\n", branch, tr->numBranches);*/
-      hookup(p, q, &branch, tr->numBranches);
+      if(adef->mode == CLASSIFY_ML)
+	{
+	  double 
+	    x[NUM_BRANCHES];
+	  
+	  assert(tr->NumberOfModels == 1);
+	  assert(adef->useBinaryModelFile);
+	  assert(tr->numBranches == 1);
+
+	  x[0] = exp(-branch / tr->fracchange);	 	  
+
+	  hookup(p, q, x, tr->numBranches);
+	}
+      else
+	hookup(p, q, &branch, tr->numBranches);
     }
   else
     {
@@ -1193,24 +1207,34 @@ int treeReadLen (FILE *fp, tree *tr, boolean readBranches, boolean readNodeLabel
       
   if(!topologyOnly)
     {
-      if(adef->mode != OPTIMIZE_BR_LEN_SCALER)
-	assert(readBranches == FALSE && readNodeLabels == FALSE);
+      if(adef->mode != CLASSIFY_ML)
+	{
+	  if(adef->mode != OPTIMIZE_BR_LEN_SCALER)
+	    assert(readBranches == FALSE && readNodeLabels == FALSE);
+	  else		 
+	    assert(readBranches == TRUE && readNodeLabels == FALSE);		
+	}
       else
-	assert(readBranches == TRUE && readNodeLabels == FALSE);	
+	{
+	  if(adef->useBinaryModelFile)
+	    assert(readBranches == TRUE && readNodeLabels == FALSE);		
+	  else
+	    assert(readBranches == FALSE && readNodeLabels == FALSE);
+	}
     }
   
        
-  if (! addElementLen(fp, tr, p, readBranches, readNodeLabels, &lcount))                 
+  if (! addElementLen(fp, tr, p, readBranches, readNodeLabels, &lcount, adef))                 
     assert(0);
   if (! treeNeedCh(fp, ',', "in"))                
     assert(0);
-  if (! addElementLen(fp, tr, p->next, readBranches, readNodeLabels, &lcount))
+  if (! addElementLen(fp, tr, p->next, readBranches, readNodeLabels, &lcount, adef))
     assert(0);
   if (! tr->rooted) 
     {
       if ((ch = treeGetCh(fp)) == ',') 
 	{ 
-	  if (! addElementLen(fp, tr, p->next->next, readBranches, readNodeLabels, &lcount))
+	  if (! addElementLen(fp, tr, p->next->next, readBranches, readNodeLabels, &lcount, adef))
 	    assert(0);	    
 	}
       else 
@@ -1615,6 +1639,22 @@ void getStartingTree(tree *tr, analdef *adef)
 	      break;
 	    case OPTIMIZE_BR_LEN_SCALER:
 	      treeReadLen(INFILE, tr, TRUE, FALSE, FALSE, adef, TRUE);
+	      break;
+	    case CLASSIFY_ML:
+	      if(adef->useBinaryModelFile)
+		{
+		  if(tr->saveMemory)				 
+		    treeReadLen(INFILE, tr, TRUE, FALSE, TRUE, adef, FALSE);	          	       
+		  else		   
+		    treeReadLen(INFILE, tr, TRUE, FALSE, FALSE, adef, FALSE);
+		}
+	      else
+		{
+		  if(tr->saveMemory)				 
+		    treeReadLen(INFILE, tr, FALSE, FALSE, TRUE, adef, FALSE);	          	       
+		  else		   
+		    treeReadLen(INFILE, tr, FALSE, FALSE, FALSE, adef, FALSE);
+		}
 	      break;
 	    default:	     
 	      if(tr->saveMemory)				 

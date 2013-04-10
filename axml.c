@@ -7279,7 +7279,7 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 	   for(i = localTree->partitionData[model].lower, localIndex = 0; i <  localTree->partitionData[model].upper; i++)
 	     if(i % (size_t)n == (size_t)tid)
 	       {
-		 localTree->partitionData[model].wgt[localIndex]          = tr->cdta->aliaswgt[i]; 
+		 localTree->partitionData[model].wgt[localIndex]          = tr->cdta->aliaswgt[i];
 		 localTree->partitionData[model].invariant[localIndex]    = tr->invariant[i];		
 
 		 localIndex++;
@@ -8951,8 +8951,16 @@ void writeBinaryModel(tree *tr)
   myfwrite(tr->cdta->rateCategory, sizeof(int), tr->rdta->sites + 1, f);
   myfwrite(tr->cdta->patrat, sizeof(double), tr->rdta->sites + 1, f);
   myfwrite(tr->cdta->patratStored, sizeof(double), tr->rdta->sites + 1, f);
-  
-  
+
+  /* partition contributions for fracchange */
+
+  myfwrite(tr->partitionContributions, sizeof(double), tr->NumberOfModels, f);
+
+  /* fracchange */
+
+  myfwrite(&tr->fracchange, sizeof(double), 1, f);
+  myfwrite(tr->fracchanges, sizeof(double), (size_t)tr->NumberOfModels, f);
+    
   /* pInfo */
    
   for(model = 0; model < tr->NumberOfModels; model++)
@@ -8969,6 +8977,11 @@ void writeBinaryModel(tree *tr)
       myfwrite(tr->partitionData[model].substRates, sizeof(double),  pLengths[dataType].substRatesLength, f);           
       myfwrite(&(tr->partitionData[model].alpha), sizeof(double),  1, f);
       myfwrite(&(tr->partitionData[model].propInvariant), sizeof(double), 1, f);
+
+      myfwrite(&(tr->partitionData[model].numberOfCategories), sizeof(int), 1, f);
+      
+      myfwrite(tr->partitionData[model].perSiteRates,          sizeof(double), tr->partitionData[model].numberOfCategories, f);
+      myfwrite(tr->partitionData[model].unscaled_perSiteRates, sizeof(double), tr->partitionData[model].numberOfCategories, f);   
 
       writeLG4(tr, model, dataType, f, pLengths);
     }
@@ -9026,7 +9039,15 @@ void readBinaryModel(tree *tr)
   myfread(tr->cdta->rateCategory, sizeof(int),    (size_t)(tr->rdta->sites + 1), f);
   myfread(tr->cdta->patrat,       sizeof(double), (size_t)(tr->rdta->sites + 1), f);
   myfread(tr->cdta->patratStored, sizeof(double), (size_t)(tr->rdta->sites + 1), f);
+
+  /* partition contributions for fracchange */
+
+  myfread(tr->partitionContributions, sizeof(double), tr->NumberOfModels, f);
   
+  /* fracchange */
+
+  myfread(&tr->fracchange, sizeof(double), 1, f);
+  myfread(tr->fracchanges, sizeof(double), (size_t)tr->NumberOfModels, f);
   
   /* pInfo */
    
@@ -9048,13 +9069,40 @@ void readBinaryModel(tree *tr)
       myfread(&(tr->partitionData[model].alpha),         sizeof(double), 1, f);
       myfread(&(tr->partitionData[model].propInvariant), sizeof(double), 1, f);
 
+      myfread(&(tr->partitionData[model].numberOfCategories), sizeof(int), 1, f);
+      
+      myfread(tr->partitionData[model].perSiteRates,          sizeof(double), tr->partitionData[model].numberOfCategories, f);
+      myfread(tr->partitionData[model].unscaled_perSiteRates, sizeof(double), tr->partitionData[model].numberOfCategories, f);
+
       readLG4(tr, model, dataType, f, pLengths);
     }
 
 #ifdef _USE_PTHREADS
-  /* TODO need to add stuff if we want this to work for CAT models as well */
-  masterBarrier(THREAD_RESET_MODEL, tr);
+  masterBarrier(THREAD_COPY_INIT_MODEL, tr); 
+  //masterBarrier(THREAD_RESET_MODEL, tr);
 #endif  
+
+  if(tr->rateHetModel == CAT)
+    {
+#ifdef _USE_PTHREADS
+      masterBarrier(THREAD_COPY_RATE_CATS, tr);
+#else
+      {
+	int 
+	  model,
+	  i;
+
+	for(model = 0; model < tr->NumberOfModels; model++)
+	  {	  
+	    int 
+	      localCounter = 0;
+
+	    for(i = tr->partitionData[model].lower; i < tr->partitionData[model].upper; i++, localCounter++)	      
+	      tr->partitionData[model].rateCategory[localCounter] = tr->cdta->rateCategory[i];	      
+	  }      
+      }
+#endif
+    }
 
   fclose(f);
 }
@@ -10120,7 +10168,14 @@ int main (int argc, char *argv[])
       assert(0);
       break;
     case CLASSIFY_ML:
-      initModel(tr, rdta, cdta, adef);
+      if(adef->useBinaryModelFile)
+	{	 
+	  assert(tr->rateHetModel != CAT);
+	  readBinaryModel(tr);	
+	}
+      else
+	initModel(tr, rdta, cdta, adef);
+      
       getStartingTree(tr, adef);
       exit(0);
       break;
@@ -10182,7 +10237,7 @@ int main (int argc, char *argv[])
 	  if(adef->useBinaryModelFile)	 	 
 	    {
 	      readBinaryModel(tr);
-	      evaluateGenericInitrav(tr, tr->start);
+	      evaluateGenericInitrav(tr, tr->start);	      
 	      treeEvaluate(tr, 2);
 	    }
 	  else

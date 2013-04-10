@@ -1744,9 +1744,17 @@ void classifyML(tree *tr, analdef *adef)
   else
     printBothOpen("\nRAxML Evolutionary Placement Algorithm\n"); 
 
-  evaluateGenericInitrav(tr, tr->start); 
+  if(adef->useBinaryModelFile)
+    {      
+      evaluateGenericInitrav(tr, tr->start);
+      // treeEvaluate(tr, 2);
+    }
+  else
+    {
+      evaluateGenericInitrav(tr, tr->start); 
   
-  modOpt(tr, adef, TRUE, 1.0);
+      modOpt(tr, adef, TRUE, 1.0);
+    }
 
   printBothOpen("\nLikelihood of reference tree: %f\n\n", tr->likelihood);
 
@@ -2167,8 +2175,8 @@ void classifyML(tree *tr, analdef *adef)
     fclose(entropyFile);
     fclose(likelihoodWeightsFile); 
     
-    printBothOpen("Classification result file using likelihood wieghts written to file: %s\n\n", likelihoodWeightsFileName);
-    printBothOpen("Classification entropy result file using likelihood wieghts written to file: %s\n\n", entropyFileName);
+    printBothOpen("Classification result file using likelihood weights written to file: %s\n\n", likelihoodWeightsFileName);
+    printBothOpen("Classification entropy result file using likelihood weights written to file: %s\n\n", entropyFileName);
   }          
      
   exit(0);
