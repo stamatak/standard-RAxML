@@ -1165,8 +1165,7 @@ void fastSearch(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
     *f;
 
   int
-    model,
-    interchanges;
+    model;
 
  
   
@@ -1240,7 +1239,7 @@ void fastSearch(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
       evaluateGeneric(tr, tr->start); 
       
       /* the NNIs also optimize br-lens of resulting topology a bit */
-      interchanges = encapsulateNNIs(tr, lhVectors, FALSE);                    
+      encapsulateNNIs(tr, lhVectors, FALSE);                    
  
       printBothOpen("LH after SPRs %f, after NNI %f\n", likelihood, tr->likelihood);
     }

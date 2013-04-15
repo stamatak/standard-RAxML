@@ -161,8 +161,8 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "RAxML"
-#define programVersion     "7.4.7"
-#define programDate        "April 10 2013"
+#define programVersion     "7.4.8"
+#define programDate        "April 15 2013"
 
 
 #define  TREE_EVALUATION            0
@@ -191,6 +191,7 @@
 #define  THOROUGH_OPTIMIZATION      32
 #define  OPTIMIZE_BR_LEN_SCALER     33
 #define  ANCESTRAL_SEQUENCE_TEST    34
+#define  PLAUSIBILITY_CHECKER       25
 
 #define M_GTRCAT         1
 #define M_GTRGAMMA       2
@@ -1102,6 +1103,7 @@ extern void resetBranches ( tree *tr );
 extern void scaleBranches(tree *tr, boolean fromFile);
 extern void modOpt ( tree *tr, analdef *adef , boolean resetModel, double likelihoodEpsilon);
 
+extern void plausibilityChecker(tree *tr, analdef *adef);
 
 extern void parsePartitions ( analdef *adef, rawdata *rdta, tree *tr);
 extern void computeBOOTRAPID (tree *tr, analdef *adef, long *radiusSeed);

@@ -523,15 +523,11 @@ void newviewIterativeAncestral(tree *tr)
 	    *tipX1 = (unsigned char *)NULL,
 	    *tipX2 = (unsigned char *)NULL;
 	  
-	  size_t
-	    rateHet,
+	  size_t	    
 	    states = (size_t)tr->partitionData[model].states,
 	    width = tr->partitionData[model].width;
 	    	       
-	  if(tr->rateHetModel == CAT)
-	    rateHet = 1;
-	  else
-	    rateHet = 4;	  	  
+	 	  	  
 	 	  
 	  switch(tInfo->tipCase)
 	    {

@@ -1170,7 +1170,6 @@ void computeBIGRAPID (tree *tr, analdef *adef, boolean estimateModel)
     i,
     impr, 
     bestTrav,
-    treeVectorLength = 0,
     rearrangementsMax = 0, 
     rearrangementsMin = 0,    
     thoroughIterations = 0,
@@ -1197,8 +1196,7 @@ void computeBIGRAPID (tree *tr, analdef *adef, boolean estimateModel)
   
  
   if(tr->searchConvergenceCriterion)
-    {     
-      treeVectorLength = 1;     
+    {          
       bitVectors = initBitVector(tr, &vLength);
       h = initHashTable(tr->mxtips * 4);   
     }
@@ -1611,7 +1609,6 @@ static void makePerm(int *perm, int n)
 
 static void smoothTreeRandom (tree *tr, int maxtimes)
 {
-  nodeptr  p;   
   int i, k, *perm;
 
   tr->branchCounter = 0;
@@ -1624,7 +1621,7 @@ static void smoothTreeRandom (tree *tr, int maxtimes)
   setupBranches(tr, tr->start->back, tr->bInf);
 
 
-  p = tr->start;
+
   for(i = 0; i < tr->numBranches; i++)
     tr->partitionConverged[i] = FALSE;
 

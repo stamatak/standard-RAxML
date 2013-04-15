@@ -1265,7 +1265,6 @@ static unsigned int* determineGreedyDropset(hashtable *profile, tree *tree, Arra
     numberOfTrees = tree->numberOfTrees, 
     frequencyThreshold,    
     i,
-    numberBipartitions,
     treeVectorLength = GET_BITVECTOR_LENGTH(numberOfTrees),
     bitVectorLength = GET_BITVECTOR_LENGTH(numberOfTaxa),
     *droppedTaxa = calloc(bitVectorLength, sizeof(unsigned int)); 
@@ -1340,9 +1339,7 @@ static unsigned int* determineGreedyDropset(hashtable *profile, tree *tree, Arra
       List 
 	*consensusBipartitions = getListOfConsensusBips(allBipartitions, frequencyThreshold);
       
-      assert(allBipartitions->length == infrequentBipartitions->length + getLengthOfList(consensusBipartitions)); 
-    
-      numberBipartitions = allBipartitions->length;
+      assert(allBipartitions->length == infrequentBipartitions->length + getLengthOfList(consensusBipartitions));       
     
       printBothOpen("divided bips: %d = %d infreq + %d consensus\n", allBipartitions->length, infrequentBipartitions->length, getLengthOfList(consensusBipartitions));
 
@@ -1558,8 +1555,7 @@ void computeRogueTaxa(tree *tr,  char* treeSetFileName, analdef *adef)
     treeVectorLength, 
     vectorLength,
     **bitVectors = initBitVector(tr, &vectorLength),
-    *droppedTaxa,
-    referenceLeaveIndex = 0;  
+    *droppedTaxa;  
 
   FILE
     *treeFile = getNumberOfTrees(tr, treeSetFileName, adef),
@@ -1595,7 +1591,7 @@ void computeRogueTaxa(tree *tr,  char* treeSetFileName, analdef *adef)
   droppedTaxa = determineGreedyDropset(h, tr, resultBipartitions);
        
 
-  referenceLeaveIndex = renormalizeBipartitions(*resultBipartitions, droppedTaxa, tr->mxtips);
+  renormalizeBipartitions(*resultBipartitions, droppedTaxa, tr->mxtips);
 
   h = reconvertHashtable(*resultBipartitions);
 

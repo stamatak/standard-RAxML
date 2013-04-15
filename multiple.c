@@ -533,7 +533,7 @@ static void removeBSFiles(int processes)
 
 void doAllInOne(tree *tr, analdef *adef)
 {
-  int i, n, sites, bestIndex, bootstrapsPerformed;
+  int i, n, bestIndex, bootstrapsPerformed;
 
 #ifdef _WAYNE_MPI
   int 
@@ -586,7 +586,7 @@ void doAllInOne(tree *tr, analdef *adef)
   originalRateCategories = (int*)rax_malloc(tr->cdta->endsite * sizeof(int));      
   originalInvariant      = (int*)rax_malloc(tr->cdta->endsite * sizeof(int));
 
-  sites = tr->cdta->endsite;             
+             
 
   initModel(tr, tr->rdta, tr->cdta, adef);
 

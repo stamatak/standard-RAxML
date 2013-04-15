@@ -1359,8 +1359,7 @@ static void optAlpha(tree *tr, double modelEpsilon, linkageList *ll, int numberO
 {
   int 
     pos,
-    i, 
-    k;
+    i;
   
   double 
     lim_inf     = ALPHA_MIN,
@@ -1920,8 +1919,7 @@ static void optLG4X_Rate(tree *tr, double modelEpsilon, linkageList *ll, int num
 {
   int 
     pos,
-    i, 
-    k;
+    i;
   
   double 
     lim_inf     = LG4X_RATE_MIN,

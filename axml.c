@@ -3021,13 +3021,7 @@ static void allocPartitions(tree *tr)
     {
       const partitionLengths 
 	*pl = getPartitionLengths(&(tr->partitionData[i]));
-
-      size_t
-	k,
-	width = tr->partitionData[i].width;           
-      
-      
-
+            
       if(tr->useFastScaling)	
 	tr->partitionData[i].globalScaler    = (unsigned int *)rax_calloc(2 * tr->mxtips, sizeof(unsigned int));  	         
 
@@ -3845,6 +3839,11 @@ static void printMinusFUsage(void)
   printf("                      if the trees have node labales represented as integer support values the program will also compute two flavors of\n");
   printf("                      the weighted Robinson-Foulds (WRF) distance\n");
 
+  printf("              \"-f R\": compute all pairwise Robinson-Foulds (RF) distances between a large reference tree  passed via \"-t\" \n");
+  printf("                      and many smaller trees (that must have a subset of the taxa of the large tree) passed via \"-z\".\n");
+  printf("                      This option is intended for checking the plausibility of very large phylogenies that can not be inspected\n");
+  printf("                      visually any more.\n");
+
   printf("              \"-f s\": split up a multi-gene partitioned alignment into the respective subalignments \n");
 
   printf("              \"-f S\": compute site-specific placement bias using a leave one out test inspired by the evolutionary placement algorithm\n");
@@ -3898,7 +3897,7 @@ static void printREADME(void)
   printf("      [-b bootstrapRandomNumberSeed] [-B wcCriterionThreshold]\n");
   printf("      [-c numberOfCategories] [-d] [-D]\n");
   printf("      [-e likelihoodEpsilon] [-E excludeFileName]\n");
-  printf("      [-f a|A|b|B|c|C|d|e|E|F|g|G|h|H|j|J|m|n|N|o|p|q|r|s|S|t|T|u|v|V|w|W|x|y] [-F]\n");
+  printf("      [-f a|A|b|B|c|C|d|e|E|F|g|G|h|H|j|J|m|n|N|o|p|q|r|R|s|S|t|T|u|v|V|w|W|x|y] [-F]\n");
   printf("      [-g groupingFileName] [-G placementThreshold] [-h]\n");
   printf("      [-i initialRearrangementSetting] [-I autoFC|autoMR|autoMRE|autoMRE_IGN]\n");
   printf("      [-j] [-J MR|MR_DROP|MRE|STRICT|STRICT_DROP|T_<PERCENT>] [-k] [-K] [-M]\n");
@@ -4759,6 +4758,10 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	    adef->readTaxaOnly = TRUE;
 	    adef->mode = COMPUTE_RF_DISTANCE;
 	    break;	  
+	  case 'R':
+	    adef->readTaxaOnly = TRUE;
+	    adef->mode = PLAUSIBILITY_CHECKER;
+	    break;
 	  case 's':
 	    adef->mode = SPLIT_MULTI_GENE;
 	    break;
@@ -5647,6 +5650,9 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
 	  break;
 	case ANCESTRAL_SEQUENCE_TEST:
 	  printBoth(infoFile, "\nRAxML ancestral sequence test for Jiajie\n\n");
+	  break;
+	case PLAUSIBILITY_CHECKER:
+	  printBoth(infoFile, "\nRAxML large-tree plausibility-checker\n\n");
 	  break;
 	default:
 	  assert(0);
@@ -8376,13 +8382,11 @@ static void computeELW(tree *tr, analdef *adef, char *bootStrapFileName)
     *treeFile = getNumberOfTrees(tr, bootStrapFileName, adef);
 
   int
-    position = 0,   
     bestIndex = -1,  
     i,
     k,
     *originalRateCategories = (int*)rax_malloc(tr->cdta->endsite * sizeof(int)),
-    *originalInvariant      = (int*)rax_malloc(tr->cdta->endsite * sizeof(int)),
-    *countBest;
+    *originalInvariant      = (int*)rax_malloc(tr->cdta->endsite * sizeof(int));
 
   long 
     startSeed;
@@ -8424,8 +8428,6 @@ static void computeELW(tree *tr, analdef *adef, char *bootStrapFileName)
   for(k = 0; k < tr->numberOfTrees; k++)
     lhweights[k] = (double *)rax_calloc(adef->multipleRuns, sizeof(double));
 
-  countBest = (int*)rax_calloc(adef->multipleRuns, sizeof(int));
-
   /* read in the first tree and optimize ML params on it */  
   
   treeReadLen(treeFile, tr, FALSE, FALSE, FALSE, adef, TRUE);   
@@ -8454,7 +8456,6 @@ static void computeELW(tree *tr, analdef *adef, char *bootStrapFileName)
 
   for(i = 0; i < tr->numberOfTrees; i++)
     {     
-      position = 0;
 
       /* read in new tree */
      
@@ -8807,9 +8808,10 @@ static int sortLex(const void *a, const void *b)
 }
 
 
-static void extractTaxaFromTopology(tree *tr, rawdata *rdta, cruncheddata *cdta)
+static void extractTaxaFromTopology(tree *tr, rawdata *rdta, cruncheddata *cdta, char fileName[1024])
 {
-  FILE *f = myfopen(bootStrapFile, "rb");
+  FILE 
+    *f = myfopen(fileName, "rb");
 
   char 
     **nameList,
@@ -9088,9 +9090,10 @@ void readBinaryModel(tree *tr)
       masterBarrier(THREAD_COPY_RATE_CATS, tr);
 #else
       {
-	int 
-	  model,
+	size_t 
 	  i;
+	int
+	  model;	  
 
 	for(model = 0; model < tr->NumberOfModels; model++)
 	  {	  
@@ -9775,7 +9778,7 @@ static void thoroughTreeOptimization(tree *tr, analdef *adef, rawdata *rdta, cru
   printBothOpen("Best-scoring ML tree written to: %s\n\n", bestTreeFileName);
 }
 
-static void ancestralSequenceTest(tree *tr, analdef *adef)
+static void ancestralSequenceTest(tree *tr)
 {
   FILE 
     *f = myfopen(quartetGroupingFileName, "r");
@@ -9982,7 +9985,12 @@ int main (int argc, char *argv[])
 
 
   if(adef->readTaxaOnly)  
-    extractTaxaFromTopology(tr, rdta, cdta);   
+    {
+      if(adef->mode == PLAUSIBILITY_CHECKER)
+	extractTaxaFromTopology(tr, rdta, cdta, tree_file);   
+      else
+	extractTaxaFromTopology(tr, rdta, cdta, bootStrapFile);
+    }
  
   getinput(adef, rdta, cdta, tr);
 
@@ -10319,7 +10327,11 @@ int main (int argc, char *argv[])
       
       modOpt(tr, adef, FALSE, adef->likelihoodEpsilon);	
       
-      ancestralSequenceTest(tr, adef);
+      ancestralSequenceTest(tr);
+      break;
+    case PLAUSIBILITY_CHECKER:
+      plausibilityChecker(tr, adef);
+      exit(0);
       break;
     default:
       assert(0);

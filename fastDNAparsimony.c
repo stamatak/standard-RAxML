@@ -1843,10 +1843,7 @@ void makeParsimonyTreeFast(tree *tr, analdef *adef, boolean full)
   /*t = gettime();*/
 
   if(!full)
-    {           
-      unsigned int 
-	score;
-	
+    {                	
       int 
 	j = 0;
 
@@ -1857,7 +1854,7 @@ void makeParsimonyTreeFast(tree *tr, analdef *adef, boolean full)
 	
       tr->bestParsimony = INT_MAX;
 
-      score = evaluateParsimony(tr, tr->start->back, TRUE);
+      evaluateParsimony(tr, tr->start->back, TRUE);
 		
       assert(tr->start);
       

@@ -1046,8 +1046,7 @@ void computeRF(tree *tr, char *bootStrapFileName, analdef *adef)
     j, 
     *rfMat,
     *wrfMat,
-    *wrf2Mat,
-    *presentList;
+    *wrf2Mat;
 
   unsigned int
     vLength; 
@@ -1082,7 +1081,7 @@ void computeRF(tree *tr, char *bootStrapFileName, analdef *adef)
   else
     treeVectorLength = 1 + (numberOfTrees / MASK_LENGTH);
 
-  presentList = (int*)rax_malloc(numberOfTrees * sizeof(int));
+ 
   rfMat = (int*)rax_calloc(numberOfTrees * numberOfTrees, sizeof(int));
   wrfMat = (int*)rax_calloc(numberOfTrees * numberOfTrees, sizeof(int));
   wrf2Mat = (int*)rax_calloc(numberOfTrees * numberOfTrees, sizeof(int));
@@ -1277,6 +1276,437 @@ void computeRF(tree *tr, char *bootStrapFileName, analdef *adef)
   exit(0);
 }
 
+/********************plausibility checker **********************************/
+
+/* function to extract the bit mask for the taxa that are present in the small tree */
+
+static void setupMask(unsigned int *smallTreeMask, nodeptr p, int numsp)
+{
+  if(isTip(p->number, numsp))
+    smallTreeMask[(p->number - 1) / MASK_LENGTH] |= mask32[(p->number - 1) % MASK_LENGTH];
+  else
+    {    
+      setupMask(smallTreeMask, p->next->back, numsp);	  
+      setupMask(smallTreeMask, p->next->next->back, numsp);      
+    }
+}
+
+/* we can not use the default hash numbers generated e.g., in the RF code, based on the tree shape.
+   we need to compute a hash on the large/long vector that has as many bits as the big tree has taxa */
+
+static hashNumberType oat_hash(unsigned char *p, int len)
+{
+  unsigned int 
+    h = 0;
+  int 
+    i;
+  
+  for(i = 0; i < len; i++) 
+    {
+      h += p[i];
+      h += ( h << 10 );
+      h ^= ( h >> 6 );
+    }
+  
+  h += ( h << 3 );
+  h ^= ( h >> 11 );
+  h += ( h << 15 );
+  
+  return h;
+}
+
+/* function that re-hashes bipartitions from the large tree into the new hash table */
+
+static void insertHashPlausibility(unsigned int *bitVector, hashtable *h, unsigned int vectorLength, hashNumberType position)
+{     
+  if(h->table[position] != NULL)
+    {
+      entry 
+	*e = h->table[position];     
+
+      do
+	{	 
+	  unsigned int 
+	    i;
+	  
+	  for(i = 0; i < vectorLength; i++)
+	    if(bitVector[i] != e->bitVector[i])
+	      break;
+	  
+	  if(i == vectorLength)	 	    	     
+	    return;	   	    
+	  
+	  e = e->next;
+	}
+      while(e != (entry*)NULL); 
+
+      e = initEntry(); 
+            
+      e->bitVector = (unsigned int*)rax_malloc_aligned(vectorLength * sizeof(unsigned int));                
+      memcpy(e->bitVector, bitVector, sizeof(unsigned int) * vectorLength);
+     
+      e->next = h->table[position];
+      h->table[position] = e;          
+    }
+  else
+    {
+      entry 
+	*e = initEntry(); 
+             
+      e->bitVector = (unsigned int*)rax_malloc_aligned(vectorLength * sizeof(unsigned int));      
+      memcpy(e->bitVector, bitVector, sizeof(unsigned int) * vectorLength);     
+
+      h->table[position] = e;
+    }
+
+  h->entryCount =  h->entryCount + 1;
+}
+
+/* this function is called while we parse the small trees and extract the bipartitions, it will just look 
+   if the bipartition stored in bitVector is already in the hastable, if it is in there this means that 
+   this bipartition is also present in the big tree */
+
+static int findHash(unsigned int *bitVector, hashtable *h, unsigned int vectorLength, hashNumberType position)
+{ 
+  if(h->table[position] == NULL)         
+    return 0;
+  {
+    entry *e = h->table[position];     
+
+    do
+      {	 
+	unsigned int i;
+
+	for(i = 0; i < vectorLength; i++)
+	  if(bitVector[i] != e->bitVector[i])
+	    goto NEXT;
+	   
+	return 1;	 
+      NEXT:
+	e = e->next;
+      }
+    while(e != (entry*)NULL); 
+     
+    return 0;   
+  }
+}
+
+/* this function actually traverses the small tree, generates the bit vectors for all 
+   non-trivial bipartitions and simultaneously counts how many bipartitions (already stored in the has table) are shared with the big tree
+*/
+
+static int bitVectorTraversePlausibility(unsigned int **bitVectors, nodeptr p, int numsp, unsigned int vectorLength, hashtable *h,
+				  int *countBranches, int firstTaxon, tree *tr)
+{
+
+  /* trivial bipartition */
+
+  if(isTip(p->number, numsp))
+    return 0;
+  else
+    {
+      int 
+	found = 0;
+
+      nodeptr 
+	q = p->next;          
+
+      /* recursively descend into the tree and get the bips of all subtrees first */
+
+      do 
+	{
+	  found = found + bitVectorTraversePlausibility(bitVectors, q->back, numsp, vectorLength, h, countBranches, firstTaxon, tr);
+	  q = q->next;
+	}
+      while(q != p);
+           
+      /* compute the bipartition induced by the current branch p, p->back */
+
+      newviewBipartitions(bitVectors, p, numsp, vectorLength);
+      
+      assert(p->x);      
+
+      /* if p->back does not lead to a tip this is an inner branch that induces a non-trivial bipartition.
+	 in this case we need to lookup if the induced bipartition is already contained in the hash table 
+      */
+
+      if(!(isTip(p->back->number, numsp)))
+	{	
+	  /* this is the bit vector to insert into the hash table */
+	  unsigned int 
+	    *toInsert = bitVectors[p->number];
+	  
+	  /* compute the hash number on that bit vector */
+	  hashNumberType 
+	    position = oat_hash((unsigned char *)toInsert, sizeof(unsigned int) * vectorLength) % h->tableSize;	 	 
+
+	  /* each bipartition can be stored in two forms (the two bit-wise complements
+	     we always canonically store that version of the bit-vector that does not contain the 
+	     first taxon of the small tree, we use an assertion to make sure that all is correct */
+
+	  assert(!(toInsert[(firstTaxon - 1) / MASK_LENGTH] & mask32[(firstTaxon - 1) % MASK_LENGTH]));	 
+	  	      
+	  /* increment the branch counter to assure that all inner branches are traversed */
+	  
+	  *countBranches =  *countBranches + 1;	
+	  	 	
+	  /* now look up this bipartition in the hash table, If it is present the number of 
+	     shared bipartitions between the small and the big tree is incremented by 1 */
+	   
+	  found = found + findHash(toInsert, h, vectorLength, position);	
+	}
+      return found;
+    }
+}
+
+
+void plausibilityChecker(tree *tr, analdef *adef)
+{
+  FILE 
+    *treeFile,
+    *rfFile;
+  
+  char 
+    rfFileName[1024];
+ 
+  /* init has table for big reference tree */
+  
+  hashtable
+    *h      = initHashTable(tr->mxtips * 2 * 2);
+  
+
+  /* init the bit vectors we need for computing and storing bipartitions during 
+     the tree traversal */
+  unsigned int 
+    vLength, 
+    **bitVectors = initBitVector(tr, &vLength);
+   
+  int
+    branchCounter = 0,
+    i;
+
+  double 
+    avgRF = 0.0;
+
+  /* set up an output file name */
+
+  strcpy(rfFileName,         workdir);  
+  strcat(rfFileName,         "RAxML_RF-Distances.");
+  strcat(rfFileName,         run_id);
+
+  rfFile = myfopen(rfFileName, "wb");  
+
+  assert(adef->mode ==  PLAUSIBILITY_CHECKER);
+
+  /* open the big reference tree file and parse it */
+
+  treeFile = myfopen(tree_file, "r");
+
+  printBothOpen("Parsing reference tree %s\n", tree_file);
+
+  treeReadLen(treeFile, tr, FALSE, TRUE, TRUE, adef, TRUE);
+
+  assert(tr->mxtips == tr->ntips);
+
+  printBothOpen("The reference tree has %d tips\n", tr->ntips);
+
+  fclose(treeFile);
+  
+  /* extract all induced bipartitions from the big tree and store them in the hastable */
+  
+  bitVectorInitravSpecial(bitVectors, tr->nodep[1]->back, tr->mxtips, vLength, h, 0, BIPARTITIONS_RF, (branchInfo *)NULL,
+			  &branchCounter, 1, FALSE, FALSE);
+     
+  assert(branchCounter == tr->mxtips - 3);   
+  
+  /* now see how many small trees we have */
+
+  treeFile = getNumberOfTrees(tr, bootStrapFile, adef); 
+  
+  /* loop over all small trees */
+
+  for(i = 0; i < tr->numberOfTrees;  i++)
+    {
+      unsigned int
+	entryCount = 0,
+	k,
+	j,	
+	*masked    = (unsigned int *)rax_calloc(vLength, sizeof(unsigned int)),
+	*smallTreeMask = (unsigned int *)rax_calloc(vLength, sizeof(unsigned int));
+      
+      int   
+	bCounter = 0,  
+	bips,
+	firstTaxon,
+	taxa = 0;
+      
+      /* allocate a has table for re-hashing the bipartitions of the big tree */
+
+      hashtable
+	*rehash = initHashTable(tr->mxtips * 2 * 2);
+
+      double
+	rf,
+	maxRF;
+      
+      /* parse the small tree */
+
+      treeReadLen(treeFile, tr, FALSE, TRUE, TRUE, adef, TRUE);
+      printBothOpen("Small tree %d has %d tips\n", i, tr->ntips);
+
+      /* compute the maximum RF distance for computing the relative RF distance later-on */
+
+      maxRF = ((double)(2 * (tr->ntips - 3)));
+
+      /* now set up a bit mask where only the bits are set to one for those 
+	 taxa that are actually present in the small tree we just read */
+	 
+      setupMask(smallTreeMask, tr->start, tr->mxtips);
+      setupMask(smallTreeMask, tr->start->back, tr->mxtips);
+
+      /* now get the index of the first taxon of the small tree.
+	 we will use this to unambiguously store the bipartitions 
+      */
+
+      firstTaxon = tr->start->number;
+
+      /* make sure that this bit vector is set up correctly, i.e., that 
+	 it contains as many non-zero bits as there are taxa in this small tree 
+      */
+
+      for(j = 0; j < vLength; j++)
+	taxa += __builtin_popcount(smallTreeMask[j]);
+      assert(taxa == tr->ntips);
+
+      /* now re-hash the big tree by applying the above bit mask */
+
+
+      /* loop over hash table */
+
+      for(k = 0, entryCount = 0; k < h->tableSize; k++)	     
+	{    
+	  if(h->table[k] != NULL)
+	    {
+	      entry *e = h->table[k];
+
+	      /* we resolve collisions by chaining, hence the loop here */
+
+	      do
+		{
+		  unsigned int 
+		    *bitVector = e->bitVector; 
+		  
+		  hashNumberType 
+		    position;
+
+		  int 
+		    count = 0;
+	 
+		  /* double check that our tree mask contains the first taxon of the small tree */
+
+		  assert(smallTreeMask[(firstTaxon - 1) / MASK_LENGTH] & mask32[(firstTaxon - 1) % MASK_LENGTH]);
+
+		  /* if the first taxon is set then we will re-hash the bit-wise complement of the 
+		     bit vector.
+		     The count variable is used for a small optimization */
+
+		  if(bitVector[(firstTaxon - 1) / MASK_LENGTH] & mask32[(firstTaxon - 1) % MASK_LENGTH])		    
+		    {
+		      //hash complement
+		      
+		      for(j = 0; j < vLength; j++)
+			{
+			  masked[j] = (~bitVector[j]) & smallTreeMask[j];			     
+			  count += __builtin_popcount(masked[j]);
+			}
+		    }
+		  else
+		    {
+		      //hash this vector 
+		      
+		      for(j = 0; j < vLength; j++)
+			{
+			  masked[j] = bitVector[j] & smallTreeMask[j];  
+			  count += __builtin_popcount(masked[j]);      
+			}
+		    }
+
+		  /* note that padding the last bits is not required because they are set to 0 automatically by smallTreeMask */	
+		  
+		  /* make sure that we will re-hash  the canonic representation of the bipartition 
+		     where the bit for firstTaxon is set to 0!
+		   */
+
+		  assert(!(masked[(firstTaxon - 1) / MASK_LENGTH] & mask32[(firstTaxon - 1) % MASK_LENGTH]));
+	  
+		  /* only if the masked bipartition of the large tree is a non-trivial bipartition (two or more bits set to 1 
+		     will we re-hash it */
+
+		  if(count > 1)
+		    {
+		      /* compute hash */
+		      position = oat_hash((unsigned char *)masked, sizeof(unsigned int) * vLength);
+		      position = position % rehash->tableSize;
+		      
+		      /* re-hash to the new hash table that contains the bips of the large tree, pruned down 
+			 to the taxa contained in the small tree
+		       */
+		      insertHashPlausibility(masked, rehash, vLength, position);
+		    }		
+		  
+		  entryCount++;
+		  
+		  e = e->next;
+		}
+	      while(e != NULL);
+	    }
+	}
+
+      /* make sure that we tried to re-hash all bipartitions of the original tree */
+      
+      assert(entryCount == (unsigned int)(tr->mxtips - 3));
+
+      /* now traverse the small tree and count how many bipartitions it shares 
+	 with the corresponding induced tree from the large tree */
+
+      bips = bitVectorTraversePlausibility(bitVectors, tr->start->back, tr->mxtips, vLength, rehash, &bCounter, firstTaxon, tr);
+      
+      /* compute the relative RF */
+
+      rf = (double)(2 * ((tr->ntips - 3) - bips)) / maxRF;           
+
+      avgRF += rf;
+
+      printBothOpen("Relative RF tree %d: %f\n\n", i, rf);
+
+      fprintf(rfFile, "%d %f\n", i, rf);
+      assert(bCounter == tr->ntips - 3);         
+
+      /* free masks and hast table for this iteration */
+
+      rax_free(smallTreeMask);
+      rax_free(masked);
+      freeHashTable(rehash);
+    }
+
+  printBothOpen("Average RF distance %f\n\n", avgRF / (double)tr->numberOfTrees);
+
+  printBothOpen("Total execution time: %f secs\n\n", gettime() - masterTime);
+
+  printBothOpen("\nFile containing all %d pair-wise RF distances written to file %s\n\n", tr->numberOfTrees, rfFileName);
+
+  fclose(treeFile);
+  fclose(rfFile);    
+  
+  freeBitVectors(bitVectors, 2 * tr->mxtips);
+  rax_free(bitVectors);
+  
+  freeHashTable(h);
+  rax_free(h);
+}
+
+/********************************************************/
+
 double convergenceCriterion(hashtable *h, int mxtips)
 {
   int      
@@ -1402,8 +1832,7 @@ static double frequencyCriterion(int numberOfTrees, hashtable *h, int *countBett
   long 
     seed = 12345;
 
-  double 
-    t,
+  double     
     result, 
     avg = 0, 
     *vect1, 
@@ -1428,7 +1857,7 @@ static double frequencyCriterion(int numberOfTrees, hashtable *h, int *countBett
 
       permute(perm, numberOfTrees, &seed);
       
-      t = gettime();
+     
 
       vect1 = (double *)rax_calloc(h->entryCount, sizeof(double));
       vect2 = (double *)rax_calloc(h->entryCount, sizeof(double));	     

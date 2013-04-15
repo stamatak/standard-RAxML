@@ -98,9 +98,6 @@ static void calcDiagptableFlex_LG4(double z, int numberOfCategories, double *rpt
   double 
     lz;
   
-  const int 
-    rates = numStates - 1;
-  
   assert(numStates <= 64);
   
   if (z < zmin) 

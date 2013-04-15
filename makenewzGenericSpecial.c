@@ -3891,8 +3891,7 @@ static void topLevelMakenewz(tree *tr, double *z0, int _maxiter, double *result)
   boolean 
     firstIteration = TRUE,
     outerConverged[NUM_BRANCHES],
-    loopConverged,
-    longBranch[NUM_BRANCHES];
+    loopConverged;
 
   if(tr->multiBranch)
     numBranches = tr->NumberOfModels;
@@ -4655,17 +4654,13 @@ void makenewzClassify(tree *tr, int _maxiter, double *result, double *z0, double
 void makenewzGeneric(tree *tr, nodeptr p, nodeptr q, double *z0, int maxiter, double *result, boolean mask)
 {
   int 
-    i;
-
-  boolean 
-    originalExecute[NUM_BRANCHES];
+    i; 
 
   tr->td[0].ti[0].pNumber = p->number;
   tr->td[0].ti[0].qNumber = q->number;
 
   for(i = 0; i < tr->numBranches; i++)
-    {
-      originalExecute[i] =  tr->executeModel[i];
+    {     
       tr->td[0].ti[0].qz[i] =  z0[i];
 
       if(mask)
