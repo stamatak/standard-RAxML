@@ -9778,6 +9778,58 @@ static void thoroughTreeOptimization(tree *tr, analdef *adef, rawdata *rdta, cru
   printBothOpen("Best-scoring ML tree written to: %s\n\n", bestTreeFileName);
 }
 
+static void evaluateSD(tree *tr, double bestLH, double *bestVector, double weightSum, int configuration, int i, FILE *f)
+{
+  double
+    sum = 0.0,
+    sum2 = 0.0,
+    sd,
+    currentLH;
+
+  int 
+    k;
+
+  evaluateGenericInitrav(tr, tr->start);	  
+  evaluateGenericVector(tr, tr->start); 	 	  
+  
+  currentLH = tr->likelihood;
+
+  printBothOpen("Configuration %d Likelihood: %f\n", configuration, tr->likelihood);       
+
+  fprintf(f, "tr%d\t", configuration);
+
+  if(currentLH > bestLH)	
+    printBothOpen("WARNING tree with ancestral sequence taxon %s has a better likelihood %f > %f than the reference tree!\n", tr->nameList[i], currentLH, bestLH);
+
+  for (k = 0; k < tr->cdta->endsite; k++)
+    {
+      int 
+	w;
+      
+      double 
+	temp = bestVector[k] - tr->perSiteLL[k],
+	wtemp = tr->cdta->aliaswgt[k] * temp;
+     
+      for(w = 0; w < tr->cdta->aliaswgt[k]; w++)
+	fprintf(f, "%f ",  tr->perSiteLL[k]);
+ 
+      sum  += wtemp;
+      sum2 += wtemp * temp;
+    }
+
+  fprintf(f, "\n");
+
+  sd = sqrt( weightSum * (sum2 - sum * sum / weightSum) / (weightSum - 1) );
+	 
+  printBothOpen("Ancestral Taxon: %s Likelihood: %f D(LH): %f SD: %f \nSignificantly Worse: %s (5%s), %s (2%s), %s (1%s)\n", 
+		tr->nameList[i], currentLH, currentLH - bestLH, sd, 
+		(sum > 1.95996 * sd) ? "Yes" : " No", "%",
+		(sum > 2.326 * sd) ? "Yes" : " No", "%",
+		(sum > 2.57583 * sd) ? "Yes" : " No", "%");
+
+  printBothOpen("\n");
+}
+
 static void ancestralSequenceTest(tree *tr)
 {
   FILE 
@@ -9791,7 +9843,6 @@ static void ancestralSequenceTest(tree *tr)
 
   double 
     bestLH, 
-    currentLH, 
     weightSum = 0.0,
     *bestVector = (double*)rax_malloc(sizeof(double) * tr->cdta->endsite);
 
@@ -9836,86 +9887,97 @@ static void ancestralSequenceTest(tree *tr)
     {
       if(candidateAncestorList[i])
 	{
-	  nodeptr 
-	    t = (nodeptr)NULL,
+	  nodeptr 	    
 	    p = tr->nodep[i],
 	    q = p->back,
 	    l = q->next,
 	    r = q->next->next;
 
 	  int
-	    k,
-	    leftTips = countTips(l->back, tr->mxtips),
-	    rightTips = countTips(r->back, tr->mxtips);
+	    k;	 
 
-	  double 
-	    sum = 0.0,
-	    sum2 = 0.0,
-	    sd,
+	  double 	  
 	    attachmentBranch[NUM_BRANCHES],
-	    pendantBranch[NUM_BRANCHES];
+	    leftBranch[NUM_BRANCHES],
+	    rightBranch[NUM_BRANCHES];
+
+	  FILE 
+	    *f;
+
+	  char 
+	    fileName[1024];
+
+	  strcpy(fileName, workdir);
+	  strcat(fileName, "RAxML_ancestralTest.");
+	  strcat(fileName, tr->nameList[i]);
+	  strcat(fileName, ".");
+	  strcat(fileName, run_id);
+
+	  f  = myfopen(fileName, "w");	
+ 
+	  fprintf(f, "  3  %d\n", tr->rdta->sites);
 
 	  assert(strcmp(tr->nameList[i], tr->nameList[p->number]) == 0);
 
-	  printf("Checking if %s is a candidate ancestor\n", tr->nameList[i]);
-
-	  assert(leftTips + rightTips + 1 == tr->mxtips);
-
-	  if(leftTips == rightTips)
-	    assert(0); //TODO 
-
-	  if(leftTips > rightTips)
-	    t = l;
-	  else
-	    t = r;
-
+	  printBothOpen("Checking if %s is a candidate ancestor\n\n", tr->nameList[i]);
+	  printBothOpen("Per site log likelihoods for the three configurations will be written to file %s\n\n", fileName);
+	  
 	  memcpy(attachmentBranch, p->z, sizeof(double) * NUM_BRANCHES);
-	  memcpy(pendantBranch, t->z, sizeof(double) * NUM_BRANCHES);
+	  memcpy(leftBranch, l->z, sizeof(double) * NUM_BRANCHES);
+	  memcpy(rightBranch, r->z, sizeof(double) * NUM_BRANCHES);
+
+
+	  //configuration 1
+
+	  for(k = 0; k < NUM_BRANCHES; k++)
+	    p->z[k] = q->z[k] = zmax;
+	    	   
+	  evaluateSD(tr, bestLH, bestVector, weightSum, 1, i, f);	
+
+	  memcpy(p->z, attachmentBranch, sizeof(double) * NUM_BRANCHES);
+	  memcpy(p->back->z, attachmentBranch, sizeof(double) * NUM_BRANCHES);
+
+	  evaluateGenericInitrav(tr, tr->start);
+	  assert(tr->likelihood == bestLH);
+
+	  //configuration 2
 
 	  for(k = 0; k < NUM_BRANCHES; k++)
 	    {
 	      p->z[k] = q->z[k] = zmax;
-	      t->z[k] = t->back->z[k] = zmax;
-	    }	  
-
-	  evaluateGenericInitrav(tr, tr->start);	  
-	  evaluateGenericVector(tr, tr->start); 	 	  
-
-	  currentLH = tr->likelihood;
-
-	  printBothOpen("Likelihood: %f\n", tr->likelihood);       
-
-	  if(currentLH > bestLH)	
-	    printBothOpen("WARNING tree with ancestral sequence taxon %s has a better likelihood %f > %f than the reference tree!\n", tr->nameList[i], currentLH, bestLH);
-
-	  for (k = 0; k < tr->cdta->endsite; k++)
-	    {
-	      double 
-		temp = bestVector[k] - tr->perSiteLL[k],
-		wtemp = tr->cdta->aliaswgt[k] * temp;
-	     
-	      sum  += wtemp;
-	      sum2 += wtemp * temp;
+	      l->z[k] = l->back->z[k] = zmax;
 	    }
 
-	  sd = sqrt( weightSum * (sum2 - sum * sum / weightSum) / (weightSum - 1) );
-	  /* this is for a 5% p level */
-	 
-	  printBothOpen("Ancestral Taxon: %s Likelihood: %f D(LH): %f SD: %f \nSignificantly Worse: %s (5%s), %s (2%s), %s (1%s)\n", 
-			tr->nameList[i], currentLH, currentLH - bestLH, sd, 
-			(sum > 1.95996 * sd) ? "Yes" : " No", "%",
-			(sum > 2.326 * sd) ? "Yes" : " No", "%",
-			(sum > 2.57583 * sd) ? "Yes" : " No", "%");	
+	  evaluateSD(tr, bestLH, bestVector, weightSum, 2, i, f);	
 
 	  memcpy(p->z, attachmentBranch, sizeof(double) * NUM_BRANCHES);
 	  memcpy(p->back->z, attachmentBranch, sizeof(double) * NUM_BRANCHES);
-	  memcpy(t->z, pendantBranch, sizeof(double) * NUM_BRANCHES);
-	  memcpy(t->back->z, pendantBranch, sizeof(double) * NUM_BRANCHES);
-	  
+	  memcpy(l->z, leftBranch, sizeof(double) * NUM_BRANCHES);
+	  memcpy(l->back->z, leftBranch, sizeof(double) * NUM_BRANCHES);
+
 	  evaluateGenericInitrav(tr, tr->start);
 	  assert(tr->likelihood == bestLH);
 
+	  //configuration 3
+
+	  for(k = 0; k < NUM_BRANCHES; k++)
+	    {
+	      p->z[k] = q->z[k] = zmax;
+	      r->z[k] = r->back->z[k] = zmax;
+	    }
+
+	  evaluateSD(tr, bestLH, bestVector, weightSum, 3, i, f);	
+
+	  memcpy(p->z, attachmentBranch, sizeof(double) * NUM_BRANCHES);
+	  memcpy(p->back->z, attachmentBranch, sizeof(double) * NUM_BRANCHES);
+	  memcpy(r->z, rightBranch, sizeof(double) * NUM_BRANCHES);
+	  memcpy(r->back->z, rightBranch, sizeof(double) * NUM_BRANCHES);
+	  
+	  evaluateGenericInitrav(tr, tr->start);
+	  assert(tr->likelihood == bestLH);
+	  
 	  printBothOpen("\n\n");
+	  fclose(f);
 	}
     }
 
@@ -10325,6 +10387,7 @@ int main (int argc, char *argv[])
       
       getStartingTree(tr, adef);  
       
+      evaluateGenericInitrav(tr, tr->start);
       modOpt(tr, adef, FALSE, adef->likelihoodEpsilon);	
       
       ancestralSequenceTest(tr);
