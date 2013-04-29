@@ -10311,7 +10311,7 @@ int main (int argc, char *argv[])
 	      treeEvaluate(tr, 2);
 	    }
 	  else
-	    {
+	    {	      
 	      modOpt(tr, adef, TRUE, adef->likelihoodEpsilon);	  
 	      writeBinaryModel(tr);
 	    }
@@ -10325,6 +10325,7 @@ int main (int argc, char *argv[])
       initModel(tr, rdta, cdta, adef);
       
       getStartingTree(tr, adef);
+      
       modOpt(tr, adef, TRUE, adef->likelihoodEpsilon);
        
       evaluateGenericInitrav(tr, tr->start);                                       	                  
@@ -10357,6 +10358,7 @@ int main (int argc, char *argv[])
     case MORPH_CALIBRATOR:
       initModel(tr, rdta, cdta, adef);
       getStartingTree(tr, adef);
+      evaluateGenericInitrav(tr, tr->start);
       modOpt(tr, adef, TRUE, adef->likelihoodEpsilon);
       morphologicalCalibration(tr, adef);
       break;       
@@ -10368,7 +10370,7 @@ int main (int argc, char *argv[])
       break;    
     case EPA_SITE_SPECIFIC_BIAS:
       initModel(tr, rdta, cdta, adef);
-      getStartingTree(tr, adef);
+      getStartingTree(tr, adef);      
       modOpt(tr, adef, TRUE, adef->likelihoodEpsilon);
       computePlacementBias(tr, adef);
       break;
@@ -10376,7 +10378,7 @@ int main (int argc, char *argv[])
       initModel(tr, rdta, cdta, adef);
       
       getStartingTree(tr, adef);      
-            	 	 
+      evaluateGenericInitrav(tr, tr->start);
       modOpt(tr, adef, FALSE, adef->likelihoodEpsilon);	  
       
       printBothOpen("Likelihood: %f\n", tr->likelihood);

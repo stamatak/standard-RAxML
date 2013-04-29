@@ -162,7 +162,7 @@
 
 #define programName        "RAxML"
 #define programVersion     "7.4.9"
-#define programDate        "April 25 2013"
+#define programDate        "April 29 2013"
 
 
 #define  TREE_EVALUATION            0
