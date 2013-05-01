@@ -3865,7 +3865,7 @@ static void printMinusFUsage(void)
   printf("              \"-f w\": compute ELW test on a bunch of trees passed via \"-z\" \n");
   printf("                      The model parameters will be estimated on the first tree only!\n");
 
-  printf("              \"-f w\": compute ELW test on a bunch of trees passed via \"-z\" \n");
+  printf("              \"-f W\": compute ELW test on a bunch of trees passed via \"-z\" \n");
   printf("                      The model parameters will be re-estimated for each tree\n");
 
   printf("              \"-f x\": compute pair-wise ML distances, ML model parameters will be estimated on an MP \n");

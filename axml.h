@@ -161,7 +161,7 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "RAxML"
-#define programVersion     "7.5.0"
+#define programVersion     "7.5.1"
 #define programDate        "May 1 2013"
 
 
@@ -222,15 +222,17 @@
 #define HIVW         15
 #define JTTDCMUT     16
 #define FLU          17 
-#define LG4          18
-#define LG4X         19
-#define DUMMY        20
-#define DUMMY2       21
-#define PROT_FILE    22
-#define GTR_UNLINKED 23
-#define GTR          24  /* GTR always needs to be the last one */
+#define DUMMY        18
+#define DUMMY2       19
+#define AUTO         20
+#define LG4          21
+#define LG4X         22
+#define PROT_FILE    23
+#define GTR_UNLINKED 24
+#define GTR          25  /* GTR always needs to be the last one */
 
-#define NUM_PROT_MODELS 25
+#define NUM_PROT_MODELS 26
+
 
 
 /* bipartition stuff */
@@ -539,6 +541,7 @@ typedef struct {
   size_t     width;
   int     dataType;
   int     protModels;
+  int     autoProtModels;
   boolean usePredefinedProtFreqs;
   int     mxtips;
   int     numberOfCategories;

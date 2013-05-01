@@ -3142,6 +3142,137 @@ static void optScaler(tree *tr, double modelEpsilon, linkageList *ll)
 
 }
 
+static void autoProtein(tree *tr, analdef *adef)
+{
+  int 
+    countAutos = 0,
+    i,
+    model;
+
+  boolean
+    jointBranchLengths = (tr->numBranches == 1);
+
+  topolRELL_LIST 
+    *rl = (topolRELL_LIST *)rax_malloc(sizeof(topolRELL_LIST));
+
+  initTL(rl, tr, 1);
+  saveTL(rl, tr, 0);
+  
+  for(model = 0; model < tr->NumberOfModels; model++)	      
+    if(tr->partitionData[model].protModels == AUTO)
+      countAutos++;
+
+  if(countAutos > 0)
+    {
+      int 
+	numProteinModels = AUTO,
+	*bestIndex = (int*)malloc(sizeof(int) * tr->NumberOfModels),
+	*oldIndex  = (int*)malloc(sizeof(int) * tr->NumberOfModels);
+
+      double
+	startLH,
+	*bestScores = (double*)malloc(sizeof(double) * tr->NumberOfModels);    
+
+      evaluateGenericInitrav(tr, tr->start); 
+
+      startLH = tr->likelihood;
+
+      for(model = 0; model < tr->NumberOfModels; model++)
+	{
+	  oldIndex[model] = tr->partitionData[model].autoProtModels;
+	  bestIndex[model] = -1;
+	  bestScores[model] = unlikely;
+	}
+      
+      for(i = 0; i < numProteinModels; i++)
+	{
+	  for(model = 0; model < tr->NumberOfModels; model++)
+	    {	   
+	      if(tr->partitionData[model].protModels == AUTO)
+		{
+		  tr->partitionData[model].autoProtModels = i;
+		  initReversibleGTR(tr, model);  
+		}
+	    }
+
+#ifdef _USE_PTHREADS	
+	  masterBarrier(THREAD_COPY_RATES, tr);	   
+#endif
+      
+	  resetBranches(tr);
+	  evaluateGenericInitrav(tr, tr->start);  
+	  treeEvaluate(tr, 0.5);     
+	  
+	  for(model = 0; model < tr->NumberOfModels; model++)
+	    {
+	      if(tr->partitionData[model].protModels == AUTO)
+		{		  
+		  if(tr->perPartitionLH[model] > bestScores[model])
+		    {
+		      bestScores[model] = tr->perPartitionLH[model];
+		      bestIndex[model] = i;		      
+		    }
+		}	      
+	    }       
+	}           
+      
+      printBothOpen("Automatic protein model assignment algorithm:\n\n");
+
+      for(model = 0; model < tr->NumberOfModels; model++)
+	{	   
+	  if(tr->partitionData[model].protModels == AUTO)
+	    {
+	      tr->partitionData[model].autoProtModels = bestIndex[model];
+	      initReversibleGTR(tr, model);  
+	      printBothOpen("\tPartition: %d best-scoring AA model: %s likelihood %f\n", model, protModels[tr->partitionData[model].autoProtModels], bestScores[model]);
+	    }	 
+	}
+
+      printBothOpen("\n\n");
+
+#ifdef _USE_PTHREADS	
+      masterBarrier(THREAD_COPY_RATES, tr);	   
+#endif
+          
+    resetBranches(tr);
+    evaluateGenericInitrav(tr, tr->start); 
+    treeEvaluate(tr, 2.0);    
+
+    if(tr->likelihood < startLH)
+      {
+	printf("reverting!\n");
+
+	for(model = 0; model < tr->NumberOfModels; model++)
+	  {
+	    if(tr->partitionData[model].protModels == AUTO)
+	      {
+		tr->partitionData[model].autoProtModels = oldIndex[model];
+		initReversibleGTR(tr, model);
+	      }
+	  }
+
+#ifdef _USE_PTHREADS	
+	masterBarrier(THREAD_COPY_RATES, tr);	   
+#endif 
+	restoreTL(rl, tr, 0);	
+	evaluateGenericInitrav(tr, tr->start); 
+
+	printf("Start: %f end %f\n", startLH, tr->likelihood);       
+      }
+
+    assert(tr->likelihood >= startLH);
+    
+    freeTL(rl);   
+    rax_free(rl); 
+
+    rax_free(oldIndex);
+    rax_free(bestIndex);
+    rax_free(bestScores);
+  }
+}
+
+
+
 void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilon)
 { 
   int i, model, catOpt = 0; 
@@ -3240,7 +3371,9 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
       
       optRatesGeneric(tr, modelEpsilon, rateList);         
 
-      onlyInitrav(tr, tr->start);         
+      onlyInitrav(tr, tr->start);   
+
+      autoProtein(tr, adef);
       
       if(adef->mode != OPTIMIZE_BR_LEN_SCALER)
 	treeEvaluate(tr, 0.0625);                     	            

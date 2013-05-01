@@ -3653,7 +3653,13 @@ void initReversibleGTR(tree *tr, int model)
 	   }
 	 else
 	   {
-	     initProtMat(f, tr->partitionData[model].protModels, ext_initialRates, model, tr, 0);
+	     if(tr->partitionData[model].protModels == AUTO)
+	       {
+		 //printf("init prot mat %s partition %d\n", protModels[tr->partitionData[model].autoProtModels], model);
+		 initProtMat(f, tr->partitionData[model].autoProtModels, ext_initialRates, model, tr, 0);
+	       }
+	     else
+	       initProtMat(f, tr->partitionData[model].protModels, ext_initialRates, model, tr, 0);
 	     
 	     if(tr->partitionData[model].protModels == PROT_FILE)
 	       assert(tr->partitionData[model].usePredefinedProtFreqs == TRUE);  
@@ -4379,6 +4385,10 @@ void initModel(tree *tr, rawdata *rdta, cruncheddata *cdta, analdef *adef)
     {
       tr->partitionData[model].alpha = 1.0;                
       tr->partitionData[model].brLenScaler = 1.0;
+
+      if(tr->partitionData[model].protModels == AUTO)
+	tr->partitionData[model].autoProtModels = WAG; /* initialize by WAG per default */
+
       initReversibleGTR(tr, model);               
       makeGammaCats(tr->partitionData[model].alpha, tr->partitionData[model].gammaRates, 4, tr->useGammaMedian); 
     }   
