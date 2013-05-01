@@ -160,7 +160,7 @@ static void traverseBias(nodeptr p, nodeptr q, tree *tr, int *branchCounter, pos
 	j;
 
       for(j = i, sum = 0.0; j < i + windowSize; j++)
-	sum += tr->perSiteLL[j];
+	sum += tr->perSiteLL[j];     
 
       if(sum > pd[i].lh)
 	{      
@@ -246,7 +246,7 @@ void computePlacementBias(tree *tr, analdef *adef)
     *pd = (positionData *)rax_malloc(sizeof(positionData) * (tr->cdta->endsite - windowSize));
 
   double 
-    *nodeDistances = (double*)rax_calloc(tr->cdta->endsite, sizeof(double)), /* array to store node distnces ND for every sliding window position */
+    *nodeDistances = (double*)rax_calloc(tr->cdta->endsite - windowSize, sizeof(double)), /* array to store node distnces ND for every sliding window position */
     *distances = (double*)rax_calloc(tr->cdta->endsite, sizeof(double)); /* array to store avg distances for every site */
 
   strcpy(fileName,         workdir);
@@ -321,8 +321,8 @@ void computePlacementBias(tree *tr, analdef *adef)
 
       /* for every sliding window position calc ND to the true/correct position at p */
 
-      for(i = 0; i < tr->cdta->endsite - windowSize; i++)		
-	nodeDistances[i] = getNodeDistance(p1, pd[i].p, tr->mxtips); 
+      for(i = 0; i < tr->cdta->endsite - windowSize; i++)	
+	nodeDistances[i] = getNodeDistance(p1, pd[i].p, tr->mxtips);      
 
       /* now analyze */
 
@@ -343,10 +343,10 @@ void computePlacementBias(tree *tr, analdef *adef)
 	    for each site just accumulate the node distances we have for all 
 	    sliding windows that passed over this site 
 	  */
-
+	 
 	  if(i < windowSize)
 	    {
-	      for(k = 0; k < i + 1; k++, s++)	    		
+	      for(k = 0; k <= i; k++, s++)	    		
 		d += nodeDistances[k];		 		
 	    }
 	  else
@@ -358,11 +358,12 @@ void computePlacementBias(tree *tr, analdef *adef)
 		}	    
 	      else
 		{				  
-		  for(k = i - windowSize; k < (tr->cdta->endsite - windowSize); k++, s++)	    		    
-		    d += nodeDistances[k + 1];		     		 
+		  for(k = i - windowSize; k < (tr->cdta->endsite - windowSize); k++, s++)		    		      
+		    d += nodeDistances[k];		     		 		  
 		}
-	    }
-	   	  
+	    }	   		 
+
+	  
 	  /* 
 	     now just divide the accumultaed ND distance by 
 	     the number of distances we have for this position and then add it to the acc 
@@ -381,7 +382,8 @@ void computePlacementBias(tree *tr, analdef *adef)
 	     
 	  distances[i] += (d / ((double)s));	  
 	}
-      
+
+     
 
       /* 
 	 re-connect taxon to its original position 
