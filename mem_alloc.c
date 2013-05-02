@@ -10,9 +10,8 @@
 #include <malloc.h>
 #endif
 
-//#define RAXML_USE_LLALLOC
 
-#ifdef RAXML_USE_LLALLOC
+#ifdef _RAXML_USE_LLALLOC
 
 // the llalloc library implementation in lockless_alloc/ll_alloc.c exports the alloction functions prefixed
 // with 'llalloc'. The following are the forward declarations of the llalloc* functions 

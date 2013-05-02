@@ -45,6 +45,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <stdio.h>
+#include <assert.h>
 // #include <malloc.h>
 #define USE_PREFIX 1
 
@@ -615,7 +616,7 @@ static mutex_t l_lock = MUTEX_INITIALIZER;
 #endif
 
 /* Hack */
-#define BUILD_ASSERT(C) do {switch (0){case 0:; case (C):;}} while (0)
+#define BUILD_ASSERT(C) do {switch (0){case 0:; case (C):;default: assert(0);}} while (0)
 
 /* Pre-declares */
 static always_inline void *split_node(atls *tl, btree *b, size_t t_size, size_t size);

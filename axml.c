@@ -6689,8 +6689,7 @@ static void threadFixModelIndices(tree *tr, tree *localTree, int tid, int n)
     localCounter  = 0,
     offset,
     countOffset,
-    myLength = 0,
-    memoryRequirements = 0;
+    myLength = 0;
 
   for(model = 0; model < (size_t)localTree->NumberOfModels; model++)
     {
@@ -6714,7 +6713,6 @@ static void threadFixModelIndices(tree *tr, tree *localTree, int tid, int n)
     }
 
   myLength           = countOffset;
-  memoryRequirements = offset;
 
 
   /* figure in data */   

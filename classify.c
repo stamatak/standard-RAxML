@@ -1717,7 +1717,6 @@ void classifyML(tree *tr, analdef *adef)
   
 
   nodeptr     
-    r, 
     q;    
 
   char
@@ -1802,8 +1801,6 @@ void classifyML(tree *tr, analdef *adef)
       
       sprintf(tr->bInf[i].epa->branchLabel, "I%d", i);     
     } 
-
-  r = tr->nodep[(tr->nextnode)++]; 
     
 
   q = findAnyTip(tr->start, tr->rdta->numsp);

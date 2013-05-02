@@ -28,11 +28,6 @@
  *  Bioinformatics 2006; doi: 10.1093/bioinformatics/btl446
  */
 
-
-
-
-
-
 #if (defined(_WAYNE_MPI) || defined (_QUARTET_MPI))
 int processes;
 #endif

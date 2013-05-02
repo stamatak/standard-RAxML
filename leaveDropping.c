@@ -4,6 +4,7 @@
 #include <math.h>
 #include <assert.h>
 #include "axml.h"
+#include "mem_alloc.h"
 
 
 /* the define below makes the algorithm run much faster and should therefore always be used :-) */
@@ -186,9 +187,9 @@ static Array* dropsetHashToArray(HashTable *dropsets)
     *hashTableIterator = createHashTableIterator(dropsets);
   
   Array 
-    *array = calloc(1, sizeof(Array));
+    *array = (Array*)rax_calloc(1, sizeof(Array));
   
-  array->arrayTable = calloc(dropsets->entryCount, sizeof(Dropset*));
+  array->arrayTable = (void *)rax_calloc(dropsets->entryCount, sizeof(Dropset*));
   array->length = dropsets->entryCount;
   
   do
@@ -199,7 +200,7 @@ static Array* dropsetHashToArray(HashTable *dropsets)
   
   assert(count == dropsets->entryCount);
   
-  free(hashTableIterator);
+  rax_free(hashTableIterator);
   
   return array;
 }
@@ -237,7 +238,7 @@ static unsigned int naiveDropsetHashFunction(HashTable *hashTable, void *value)
 static List* appendToList(void *value, List *list)
 {  
   List 
-    *listElem = calloc(1, sizeof(List));
+    *listElem = (List *)rax_calloc(1, sizeof(List));
   
   listElem->value = value;
   listElem->next = list;
@@ -248,7 +249,7 @@ static List* appendToList(void *value, List *list)
 static void insertIntoHashTableSeq(HashTable *hashTable, void *value, unsigned int index)
 {  
   HashElem
-    *hashElem = calloc(1, sizeof(HashElem));
+    *hashElem = (HashElem*)rax_calloc(1, sizeof(HashElem));
   
   hashElem->fullKey = index;
   
@@ -274,7 +275,7 @@ static HashTable *createHashTable(unsigned int size,
 		   536870912, 1073741824, 2147483648U};
   
   HashTable 
-    *hashTable = calloc(1, sizeof(HashTable));
+    *hashTable = (HashTable*)rax_calloc(1, sizeof(HashTable));
   
   unsigned int
     tableSize,
@@ -292,7 +293,7 @@ static HashTable *createHashTable(unsigned int size,
 
   tableSize = initTable[i];
 
-  hashTable->table = calloc(tableSize, sizeof(HashElem*));
+  hashTable->table = (HashElem**)rax_calloc(tableSize, sizeof(HashElem*));
   hashTable->tableSize = tableSize;  
   hashTable->entryCount = 0;  
 
@@ -340,7 +341,7 @@ static void *searchHashTable(HashTable *hashtable, void *value, unsigned int has
 static void insertIntoHashTable(HashTable *hashTable, void *value, unsigned int index)
 {  
   HashElem 
-    *hashElem = calloc(1, sizeof(HashElem));
+    *hashElem = (HashElem*)rax_calloc(1, sizeof(HashElem));
   
   hashElem->fullKey = index;
   
@@ -352,7 +353,7 @@ static void insertIntoHashTable(HashTable *hashTable, void *value, unsigned int 
 }
 
 
-static void destroyHashTable(HashTable *hashTable, void (*freeValue)(void *value))
+static void destroyHashTable(HashTable *hashTable, void (*rax_freeValue)(void *value))
 {
   unsigned 
     int i; 
@@ -369,18 +370,18 @@ static void destroyHashTable(HashTable *hashTable, void (*freeValue)(void *value
 	{
 	  elemB = elemA; 
 	  elemA = elemA->next; 
-	  if(freeValue)
-	    freeValue(elemB->value);
-	  free(elemB);
+	  if(rax_freeValue)
+	    rax_freeValue(elemB->value);
+	  rax_free(elemB);
 	}
 
 
       
     }
 
-  free(hashTable->commonAttributes);  
-  free(hashTable->table);
-  free(hashTable);
+  rax_free(hashTable->commonAttributes);  
+  rax_free(hashTable->table);
+  rax_free(hashTable);
 }
 
 
@@ -412,7 +413,7 @@ static HashTableIterator *createHashTableIterator(HashTable *hashTable)
     int i; 
   
   HashTableIterator 
-    *hashTableIterator = calloc(1, sizeof(HashTableIterator));
+    *hashTableIterator = (HashTableIterator*)rax_calloc(1, sizeof(HashTableIterator));
   
   hashTableIterator->hashTable = hashTable;
   hashTableIterator->hashElem = NULL;
@@ -535,22 +536,22 @@ static Array* profileToArray(HashTable *profile, boolean updateFrequencyCount, b
     hashTableIterator = createHashTableIterator(profile);
   
   Array 
-    *result = calloc(1, sizeof(Array));
+    *result = (Array*)rax_calloc(1, sizeof(Array));
   
   unsigned int 
     count = 0;
 
-  /* remember to always copy s.t. free() runs w/o problems */
+  /* remember to always copy s.t. rax_free() runs w/o problems */
   
   ProfileElemAttr 
     *profileElemAttr;
   
-  result->commonAttributes = calloc(1, sizeof(ProfileElemAttr));
+  result->commonAttributes = (void*)rax_calloc(1, sizeof(ProfileElemAttr));
   result->commonAttributes = memcpy(result->commonAttributes, profile->commonAttributes, sizeof(ProfileElemAttr));
   profileElemAttr = result->commonAttributes;
 
   result->length = profile->entryCount;
-  result->arrayTable = calloc(profile->entryCount, sizeof(ProfileElem*));
+  result->arrayTable = (void*)rax_calloc(profile->entryCount, sizeof(ProfileElem*));
 
   if(!hashTableIterator)
     return result;
@@ -573,7 +574,7 @@ static Array* profileToArray(HashTable *profile, boolean updateFrequencyCount, b
   
   assert(count == profile->entryCount);
   
-  free(hashTableIterator);
+  rax_free(hashTableIterator);
   
   return result;
 }
@@ -596,7 +597,7 @@ static Array *convertHashtableToArray(hashtable *oldHashtable, unsigned int bitV
     *result; 
   
   ProfileElemAttr 
-    *attr = calloc(1, sizeof(ProfileElemAttr));
+    *attr = (ProfileElemAttr*)rax_calloc(1, sizeof(ProfileElemAttr));
   
   attr->bitVectorLength = bitVectorLength; 
   attr->treeVectorLength = treeVectorLength;  
@@ -612,7 +613,7 @@ static Array *convertHashtableToArray(hashtable *oldHashtable, unsigned int bitV
       while(ent)
 	{
 	  ProfileElem 
-	    *profileElem = calloc(1, sizeof(ProfileElem));
+	    *profileElem = (ProfileElem*)rax_calloc(1, sizeof(ProfileElem));
 	  
 	  profileElem->bitVector = ent->bitVector;
 	  profileElem->treeVector = ent->treeVector;
@@ -621,12 +622,12 @@ static Array *convertHashtableToArray(hashtable *oldHashtable, unsigned int bitV
 			      hashTable->hashFunction(hashTable, profileElem));
 	  
 	  entTmp = ent->next;
-	  free(ent);
+	  rax_free(ent);
 	  ent = entTmp;
 	}
     }
   
-  free(oldHashtable);
+  rax_free(oldHashtable);
 
   updateEntryCount(hashTable);
    
@@ -673,7 +674,7 @@ static int sortProfileElems(const void *a, const void *b)
 static Array *getInfrequentBipartitions(Array *oldArray, unsigned int threshold) 
 {
   Array 
-    *array = calloc(1, sizeof(Array)); 
+    *array = (Array *)rax_calloc(1, sizeof(Array)); 
   
   ProfileElem** 
     oldArrayTable = oldArray->arrayTable;
@@ -686,10 +687,10 @@ static Array *getInfrequentBipartitions(Array *oldArray, unsigned int threshold)
   for(i = 0; i < oldArray->length; ++i)
     numberInfrequent += (oldArrayTable[i]->treeVectorSupport <= threshold);
 
-  array->commonAttributes = calloc(1, sizeof(ProfileElemAttr));
+  array->commonAttributes = (void*)rax_calloc(1, sizeof(ProfileElemAttr));
   memcpy(array->commonAttributes, oldArray->commonAttributes, sizeof(ProfileElemAttr));
   array->length = numberInfrequent;
-  array->arrayTable = calloc(numberInfrequent, sizeof(ProfileElem*));
+  array->arrayTable = (void*)rax_calloc(numberInfrequent, sizeof(ProfileElem*));
   
   for(i = 0; i < oldArray->length; ++i)
     {
@@ -822,7 +823,7 @@ static Dropset *getBestDropset(HashTable *dropsets
     } 
   while(hashTableIteratorNext(hashTableIterator));
 
-  free(hashTableIterator);  
+  rax_free(hashTableIterator);  
   
   /* we did not find anything */
   if(!bestDropset)
@@ -832,12 +833,12 @@ static Dropset *getBestDropset(HashTable *dropsets
   unsigned int 
     *bvPtr = bestDropset->dropset; 
   
-  bestDropset->dropset = calloc(((DropsetAttr*)dropsets->commonAttributes)->dropsetVectorLength, sizeof(unsigned int));
+  bestDropset->dropset = (unsigned int*)rax_calloc(((DropsetAttr*)dropsets->commonAttributes)->dropsetVectorLength, sizeof(unsigned int));
 
   for(i = 0; i < bestDropset->sizeOfDropset; ++i)
     FLIP_NTH_BIT(bestDropset->dropset, bvPtr[i]);
   
-  free(bvPtr);
+  rax_free(bvPtr);
   
   return bestDropset;
 }
@@ -847,13 +848,13 @@ static void insertBipartitionPairDropset_helper(HashTable *dropsets,
 						unsigned int *diff, unsigned int diffCount)
 {
   Dropset 
-    *dropset = calloc(1, sizeof(Dropset)),
+    *dropset = (Dropset*)rax_calloc(1, sizeof(Dropset)),
     *foundInHashTable;
   unsigned int 
     i, 
     ctr = 0;
   
-  dropset->dropset = calloc(diffCount, sizeof(unsigned int));
+  dropset->dropset = (unsigned int*)rax_calloc(diffCount, sizeof(unsigned int));
  
   for(i = 0; i < ((DropsetAttr*)dropsets->commonAttributes)->dropsetVectorLength * MASK_LENGTH; ++i)
     {
@@ -866,7 +867,7 @@ static void insertBipartitionPairDropset_helper(HashTable *dropsets,
 	}
     }
   
-  free(diff);
+  rax_free(diff);
 
   assert(ctr == diffCount);
 
@@ -882,8 +883,8 @@ static void insertBipartitionPairDropset_helper(HashTable *dropsets,
     {
       foundInHashTable->numberOfMergingPairs++;
             
-      free(dropset->dropset);
-      free(dropset);
+      rax_free(dropset->dropset);
+      rax_free(dropset);
     }
 }
 
@@ -898,8 +899,8 @@ static void insertBipartitionPairDropset(HashTable *dropsets,
     diffCount1 = 0, 
     diffCount2 = 0,
     length = profileElemAttr->bitVectorLength,
-    *diff1 = calloc(length, sizeof(unsigned int)), 
-    *diff2 = calloc(length, sizeof(unsigned int)),
+    *diff1 = (unsigned int*)rax_calloc(length, sizeof(unsigned int)), 
+    *diff2 = (unsigned int*)rax_calloc(length, sizeof(unsigned int)),
     lastByte = profileElemAttr->lastByte;
 
   
@@ -925,12 +926,12 @@ static void insertBipartitionPairDropset(HashTable *dropsets,
   if(diffCount1 < diffCount2)
     {
       insertBipartitionPairDropset_helper(dropsets, diff1, diffCount1);
-      free(diff2);
+      rax_free(diff2);
     }
   else if(diffCount1 > diffCount2)
     {
       insertBipartitionPairDropset_helper(dropsets, diff2, diffCount2);
-      free(diff1);
+      rax_free(diff1);
     }
   else
     {
@@ -986,7 +987,7 @@ static HashTable* potentialProfileDropsets(Array *infrequentBipartitions,
 					   unsigned int *droppedTaxa )
 {
   DropsetAttr 
-    *dropsetAttr = calloc(1, sizeof(DropsetAttr));
+    *dropsetAttr = (DropsetAttr*)rax_calloc(1, sizeof(DropsetAttr));
   
   dropsetAttr->dropsetVectorLength = ((ProfileElemAttr*)infrequentBipartitions->commonAttributes)->bitVectorLength;
   dropsetAttr->bipartitionVetorLength = infrequentBipartitions->length;
@@ -1034,9 +1035,9 @@ static HashTable* potentialProfileDropsets(Array *infrequentBipartitions,
 
 static void destroyProfileElem(ProfileElem *profileElem)
 {
-  free(profileElem->bitVector);
-  free(profileElem->treeVector);
-  free(profileElem);
+  rax_free(profileElem->bitVector);
+  rax_free(profileElem->treeVector);
+  rax_free(profileElem);
 }
 
 
@@ -1045,8 +1046,8 @@ static void destroyDropset(void *dropset_)
   Dropset 
     *dropset = (Dropset*)dropset_;
   
-  free(dropset->dropset);
-  free(dropset);
+  rax_free(dropset->dropset);
+  rax_free(dropset);
 }
 
 
@@ -1067,7 +1068,7 @@ static List* getListOfConsensusBips(Array *allBipartitions, unsigned int frequen
       if(elem->treeVectorSupport > frequencyThreshold)
 	{
 	  List 
-	    *tmp = calloc(1, sizeof(List));
+	    *tmp = (List*)rax_calloc(1, sizeof(List));
 	  
 	  tmp->value = elem;
 	  tmp->next = result;	
@@ -1101,12 +1102,12 @@ static HashTable *updateAndInsertElem(ProfileElem *elem, HashTable *hashTable, u
   
   ProfileElem 
     *foundInHashTable, *foundComplementInHashTable,
-    *complement = calloc(1, sizeof(ProfileElem));
+    *complement = (ProfileElem*)rax_calloc(1, sizeof(ProfileElem));
   
   unsigned int 
     lastByte = ((ProfileElemAttr*)hashTable->commonAttributes)->lastByte;
   
-  complement->bitVector = calloc(profileElemAttr->bitVectorLength, sizeof(unsigned int));
+  complement->bitVector = (unsigned int *)rax_calloc(profileElemAttr->bitVectorLength, sizeof(unsigned int));
 
   for(j = 0; j < profileElemAttr->bitVectorLength; ++j )
     {
@@ -1131,8 +1132,8 @@ static HashTable *updateAndInsertElem(ProfileElem *elem, HashTable *hashTable, u
   if(numberOfElements < 2 || numberElementsInComplement < 2)
     {
       destroyProfileElem(elem);      
-      free(complement->bitVector);
-      free(complement);
+      rax_free(complement->bitVector);
+      rax_free(complement);
       return hashTable;
     }
   
@@ -1160,14 +1161,14 @@ static HashTable *updateAndInsertElem(ProfileElem *elem, HashTable *hashTable, u
       foundInHashTable->treeVectorSupport = genericBitCount(foundInHashTable->treeVector, profileElemAttr->treeVectorLength);
       
       destroyProfileElem(elem);
-      free(complement->bitVector);
-      free(complement);
+      rax_free(complement->bitVector);
+      rax_free(complement);
     }
   else
     {
       insertIntoHashTable(hashTable, elem, hashValue);
-      free(complement->bitVector);
-      free(complement);
+      rax_free(complement->bitVector);
+      rax_free(complement);
     }  
 
   return hashTable;
@@ -1180,7 +1181,7 @@ static Array* restrictProfile( Array *infrequentBipartitions, List *consensusBip
     i; 
   
   ProfileElemAttr 
-    *profileElemAttr = calloc(1, sizeof(ProfileElemAttr));
+    *profileElemAttr = (ProfileElemAttr *)rax_calloc(1, sizeof(ProfileElemAttr));
   
   profileElemAttr = memcpy(profileElemAttr, infrequentBipartitions->commonAttributes, sizeof(ProfileElemAttr));
   
@@ -1199,11 +1200,11 @@ static Array* restrictProfile( Array *infrequentBipartitions, List *consensusBip
     *listTmp;
 
   Array 
-    *tmpArray = calloc(1, sizeof(Array));
+    *tmpArray = (Array *)rax_calloc(1, sizeof(Array));
 
   
-  tmpArray->arrayTable = calloc(infrequentBipartitions->length + lengthOfConsensus, sizeof(ProfileElem*));
-  tmpArray->commonAttributes = calloc(1, sizeof(ProfileElemAttr));
+  tmpArray->arrayTable = (void *)rax_calloc(infrequentBipartitions->length + lengthOfConsensus, sizeof(ProfileElem*));
+  tmpArray->commonAttributes = (void *)rax_calloc(1, sizeof(ProfileElemAttr));
   tmpArray->commonAttributes = memcpy(tmpArray->commonAttributes, infrequentBipartitions->commonAttributes, sizeof(ProfileElemAttr));
 
   for(i = 0; i < infrequentBipartitions->length; ++i)
@@ -1211,9 +1212,9 @@ static Array* restrictProfile( Array *infrequentBipartitions, List *consensusBip
 
   tmpArray->length = infrequentBipartitions->length;
 
-  free(infrequentBipartitions->commonAttributes);
-  free((ProfileElem**)infrequentBipartitions->arrayTable);
-  free(infrequentBipartitions);
+  rax_free(infrequentBipartitions->commonAttributes);
+  rax_free((ProfileElem**)infrequentBipartitions->arrayTable);
+  rax_free(infrequentBipartitions);
 
   listElem = consensusBipartitions;
   
@@ -1223,7 +1224,7 @@ static Array* restrictProfile( Array *infrequentBipartitions, List *consensusBip
       tmpArray->length++;
       listTmp = listElem;
       listElem = listElem->next;
-      free(listTmp);
+      rax_free(listTmp);
     }  
   
   for(i = 0; i < tmpArray->length; ++i)
@@ -1234,9 +1235,9 @@ static Array* restrictProfile( Array *infrequentBipartitions, List *consensusBip
   				      profileElemAttr);
     }
 
-  free(tmpArray->arrayTable);
-  free(tmpArray->commonAttributes);
-  free(tmpArray);
+  rax_free(tmpArray->arrayTable);
+  rax_free(tmpArray->commonAttributes);
+  rax_free(tmpArray);
 
   updateEntryCount(hashTable);
 
@@ -1267,7 +1268,7 @@ static unsigned int* determineGreedyDropset(hashtable *profile, tree *tree, Arra
     i,
     treeVectorLength = GET_BITVECTOR_LENGTH(numberOfTrees),
     bitVectorLength = GET_BITVECTOR_LENGTH(numberOfTaxa),
-    *droppedTaxa = calloc(bitVectorLength, sizeof(unsigned int)); 
+    *droppedTaxa = (unsigned int*)rax_calloc(bitVectorLength, sizeof(unsigned int)); 
   
   boolean 
     droppedTaxaThisRound = FALSE;
@@ -1285,7 +1286,7 @@ static unsigned int* determineGreedyDropset(hashtable *profile, tree *tree, Arra
 
   /* initialise random numbers: one for each taxon  */
   unsigned int 
-    *randForTaxa = calloc(numberOfTaxa, sizeof(unsigned int));
+    *randForTaxa = (unsigned int*)rax_calloc(numberOfTaxa, sizeof(unsigned int));
   
   for(i = 0; i < numberOfTaxa; ++i)  
     randForTaxa[i] = rand();
@@ -1343,9 +1344,9 @@ static unsigned int* determineGreedyDropset(hashtable *profile, tree *tree, Arra
     
       printBothOpen("divided bips: %d = %d infreq + %d consensus\n", allBipartitions->length, infrequentBipartitions->length, getLengthOfList(consensusBipartitions));
 
-      free((ProfileElem**)allBipartitions->arrayTable);
-      free(allBipartitions->commonAttributes);
-      free(allBipartitions);
+      rax_free((ProfileElem**)allBipartitions->arrayTable);
+      rax_free(allBipartitions->commonAttributes);
+      rax_free(allBipartitions);
       
       /* 
 	 NOTE: this below would be possible and might make sense in some
@@ -1422,7 +1423,7 @@ static unsigned int* determineGreedyDropset(hashtable *profile, tree *tree, Arra
     }      
   while(droppedTaxaThisRound);
   
-  free(randForTaxa);
+  rax_free(randForTaxa);
 
   return droppedTaxa;
 }
@@ -1507,7 +1508,7 @@ static hashtable *reconvertHashtable(Array *bipartitionArray)
       ent->treeVector = elem->treeVector;
       ent->bipNumber = count++;
       htable->table[i] = ent; 
-      free(elem);
+      rax_free(elem);
     }
   
   htable->entryCount = count;
@@ -1546,7 +1547,7 @@ void computeRogueTaxa(tree *tr,  char* treeSetFileName, analdef *adef)
     *h = initHashTable(tr->mxtips * FC_INIT * 10);
 
   Array 
-    **resultBipartitions = calloc(1, sizeof(Array*));
+    **resultBipartitions = (Array **)rax_calloc(1, sizeof(Array*));
 
   unsigned int 
     droppedTaxaNum = 0,
@@ -1663,10 +1664,10 @@ void computeRogueTaxa(tree *tr,  char* treeSetFileName, analdef *adef)
   fclose(treeFile); 
 
   freeBitVectors(bitVectors, 2 * tr->mxtips);   
-  free(droppedTaxa);
-  free(bitVectors); 
+  rax_free(droppedTaxa);
+  rax_free(bitVectors); 
   freeHashTable(h);
-  free(h);
+  rax_free(h);
 
   exit(0);
 }

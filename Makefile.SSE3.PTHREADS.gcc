@@ -3,18 +3,18 @@
 
 CC = gcc 
 
-CFLAGS = -D_USE_PTHREADS -D__SIM_SSE3 -O2 -D_GNU_SOURCE -msse3 -fomit-frame-pointer -funroll-loops  #-Wall -pedantic -Wunused-parameter -Wredundant-decls  -Wreturn-type  -Wswitch-default -Wunused-value -Wimplicit  -Wimplicit-function-declaration  -Wimplicit-int -Wimport  -Wunused  -Wunused-function  -Wunused-label -Wno-int-to-pointer-cast -Wbad-function-cast  -Wmissing-declarations -Wmissing-prototypes  -Wnested-externs  -Wold-style-definition -Wstrict-prototypes  -Wdeclaration-after-statement -Wpointer-sign -Wextra -Wredundant-decls -Wunused -Wunused-function -Wunused-parameter -Wunused-value  -Wunused-variable -Wformat  -Wformat-nonliteral -Wparentheses -Wsequence-point -Wuninitialized -Wundef -Wbad-function-cast
+CFLAGS = -D_USE_PTHREADS -D_RAXML_USE_LLALLOC -D__SIM_SSE3 -O2 -D_GNU_SOURCE -msse3 -fomit-frame-pointer -funroll-loops  #-Wall -pedantic -Wunused-parameter -Wredundant-decls  -Wreturn-type  -Wswitch-default -Wunused-value -Wimplicit  -Wimplicit-function-declaration  -Wimplicit-int -Wimport  -Wunused  -Wunused-function  -Wunused-label -Wno-int-to-pointer-cast -Wbad-function-cast  -Wmissing-declarations -Wmissing-prototypes  -Wnested-externs  -Wold-style-definition -Wstrict-prototypes  -Wdeclaration-after-statement -Wpointer-sign -Wextra -Wredundant-decls -Wunused -Wunused-function -Wunused-parameter -Wunused-value  -Wunused-variable -Wformat  -Wformat-nonliteral -Wparentheses -Wsequence-point -Wuninitialized -Wundef -Wbad-function-cast
 
 
 LIBRARIES = -lm -pthread 
 
 RM = rm -f
 
-objs    = axml.o  optimizeModel.o multiple.o searchAlgo.o topologies.o parsePartitions.o treeIO.o models.o bipartitionList.o rapidBootstrap.o evaluatePartialGenericSpecial.o evaluateGenericSpecial.o newviewGenericSpecial.o makenewzGenericSpecial.o   classify.o  fastDNAparsimony.o fastSearch.o leaveDropping.o rogueEPA.o ancestralStates.o mem_alloc.o
+objs    = axml.o  optimizeModel.o multiple.o searchAlgo.o topologies.o parsePartitions.o treeIO.o models.o bipartitionList.o rapidBootstrap.o evaluatePartialGenericSpecial.o evaluateGenericSpecial.o newviewGenericSpecial.o makenewzGenericSpecial.o   classify.o  fastDNAparsimony.o fastSearch.o leaveDropping.o rogueEPA.o ancestralStates.o mem_alloc.o ll_alloc.o
 
 all : raxmlHPC
 
-GLOBAL_DEPS = axml.h globalVariables.h mem_alloc.h
+GLOBAL_DEPS = axml.h globalVariables.h mem_alloc.h compiler.h  gcc.h  ll_asm.h  ll_list.h
 
 raxmlHPC : $(objs)
 	$(CC) -o raxmlHPC-PTHREADS-SSE3 $(objs) $(LIBRARIES) 
@@ -41,6 +41,7 @@ fastSearch.o : fastSearch.c $(GLOBAL_DEPS)
 leaveDropping.o : leaveDropping.c $(GLOBAL_DEPS)
 ancestralStates.o : ancestralStates.c $(GLOBAL_DEPS)
 mem_alloc.o : mem_alloc.c  $(GLOBAL_DEPS)
+ll_alloc.o : ll_alloc.c $(GLOBAL_DEPS)
 
 clean : 
 	$(RM) *.o raxmlHPC-PTHREADS-SSE3

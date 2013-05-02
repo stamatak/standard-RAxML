@@ -3142,15 +3142,12 @@ static void optScaler(tree *tr, double modelEpsilon, linkageList *ll)
 
 }
 
-static void autoProtein(tree *tr, analdef *adef)
+static void autoProtein(tree *tr)
 {
   int 
     countAutos = 0,
     i,
     model;
-
-  boolean
-    jointBranchLengths = (tr->numBranches == 1);
 
   topolRELL_LIST 
     *rl = (topolRELL_LIST *)rax_malloc(sizeof(topolRELL_LIST));
@@ -3166,12 +3163,12 @@ static void autoProtein(tree *tr, analdef *adef)
     {
       int 
 	numProteinModels = AUTO,
-	*bestIndex = (int*)malloc(sizeof(int) * tr->NumberOfModels),
-	*oldIndex  = (int*)malloc(sizeof(int) * tr->NumberOfModels);
+	*bestIndex = (int*)rax_malloc(sizeof(int) * tr->NumberOfModels),
+	*oldIndex  = (int*)rax_malloc(sizeof(int) * tr->NumberOfModels);
 
       double
 	startLH,
-	*bestScores = (double*)malloc(sizeof(double) * tr->NumberOfModels);    
+	*bestScores = (double*)rax_malloc(sizeof(double) * tr->NumberOfModels);    
 
       evaluateGenericInitrav(tr, tr->start); 
 
@@ -3373,7 +3370,7 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
 
       onlyInitrav(tr, tr->start);   
 
-      autoProtein(tr, adef);
+      autoProtein(tr);
       
       if(adef->mode != OPTIMIZE_BR_LEN_SCALER)
 	treeEvaluate(tr, 0.0625);                     	            
