@@ -3236,9 +3236,7 @@ static void autoProtein(tree *tr)
     treeEvaluate(tr, 2.0);    
 
     if(tr->likelihood < startLH)
-      {
-	printf("reverting!\n");
-
+      {	
 	for(model = 0; model < tr->NumberOfModels; model++)
 	  {
 	    if(tr->partitionData[model].protModels == AUTO)
@@ -3252,9 +3250,7 @@ static void autoProtein(tree *tr)
 	masterBarrier(THREAD_COPY_RATES, tr);	   
 #endif 
 	restoreTL(rl, tr, 0);	
-	evaluateGenericInitrav(tr, tr->start); 
-
-	printf("Start: %f end %f\n", startLH, tr->likelihood);       
+	evaluateGenericInitrav(tr, tr->start);              
       }
 
     assert(tr->likelihood >= startLH);
@@ -3267,6 +3263,7 @@ static void autoProtein(tree *tr)
     rax_free(bestScores);
   }
 }
+
 
 
 
