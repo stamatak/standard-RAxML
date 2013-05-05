@@ -1251,6 +1251,7 @@ static boolean getdata(analdef *adef, rawdata *rdta, tree *tr)
 		    {
 		      printf("ERROR: Bad base (%c) at site %d of sequence %d\n",
 			     ch, j + 1, i);
+		      			  
 		      return FALSE;
 		    }
 		}
