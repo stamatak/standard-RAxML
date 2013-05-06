@@ -4585,20 +4585,22 @@ static void newviewGTRCATPROT_SAVE(int tipCase, double *extEV,
 
 
             if(scale)
-            {
-              __m128d twoto = _mm_set_pd(twotothe256, twotothe256);
-
-              for(l = 0; l < 20; l+=2)
-              {
-                __m128d ex3v = _mm_load_pd(&v[l]);
-                _mm_store_pd(&v[l], _mm_mul_pd(ex3v,twoto));		    
-              }
-
-	      if(useFastScaling)
-		addScale += wgt[i];
-	      else
-		ex3[i] += 1;              
-            }
+	      {
+		__m128d twoto = _mm_set_pd(twotothe256, twotothe256);
+		
+		for(l = 0; l < 20; l+=2)
+		  {
+		    __m128d ex3v = _mm_load_pd(&v[l]);
+		    _mm_store_pd(&v[l], _mm_mul_pd(ex3v,twoto));		    
+		  }
+		
+		if(useFastScaling)
+		  addScale += wgt[i];
+		else
+		  ex3[i] += 1;              
+	      }
+	   
+ 
             x3_ptr += 20;
           }
         }
