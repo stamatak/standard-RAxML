@@ -1042,6 +1042,33 @@ static void checkTaxonName(char *buffer, int len)
   assert(buffer[len - 1] == '\0');
 }
 
+static void printParsingErrorContext(FILE *f)
+{
+  const long
+    contextWidth = 20;
+
+  long
+    i,
+    currentPos = ftell(f),
+    contextPos = MAX(currentPos - contextWidth, 0);
+  
+  fseek(f, MAX(currentPos - contextWidth, 0), SEEK_SET);
+  
+  printf("Printing error context:\n\n");
+  
+  for(i = contextPos; i < currentPos + contextWidth; i++)
+    {
+      int 
+	ch = getc(f);
+      if(ch != EOF)
+	printf("%c", ch);
+      else
+	break;
+    }
+  
+  printf("\n\n");
+}
+
 static boolean getdata(analdef *adef, rawdata *rdta, tree *tr)
 {
   int   
@@ -1165,11 +1192,12 @@ static boolean getdata(analdef *adef, rawdata *rdta, tree *tr)
 
   while (! allread)
     {
-      for (i = 1; i <= tr->mxtips; i++)
+      for(i = 1; i <= tr->mxtips; i++)
 	{
-	  if (firstpass)
+	  if(firstpass)
 	    {
 	      ch = getc(INFILE);
+	      
 	      while(ch == ' ' || ch == '\n' || ch == '\t' || ch == '\r')
 		ch = getc(INFILE);
 
@@ -1190,23 +1218,23 @@ static boolean getdata(analdef *adef, rawdata *rdta, tree *tr)
 		      errorExit(-1);
 		    }
 		}
-	      while(ch !=  ' ' && ch != '\n' && ch != '\t' && ch != '\r');
-
-	      while(ch == ' ' || ch == '\n' || ch == '\t' || ch == '\r')
-		ch = getc(INFILE);
-	      
-	      ungetc(ch, INFILE);
+	      while(ch !=  ' ' && ch != '\n' && ch != '\t' && ch != '\r');	      
 
 	      buffer[my_i] = '\0';
 	      len = strlen(buffer) + 1;
 	      checkTaxonName(buffer, len);
 	      tr->nameList[i] = (char *)rax_malloc(sizeof(char) * len);
-	      strcpy(tr->nameList[i], buffer);
-	    }
+	      strcpy(tr->nameList[i], buffer);	      
 
+	      while(ch == ' ' || ch == '\n' || ch == '\t' || ch == '\r')
+		ch = getc(INFILE);
+	      	      
+	      ungetc(ch, INFILE);
+	    }
+	  
 	  j = basesread;
 
-	  while ((j < rdta->sites) && ((ch = getc(INFILE)) != EOF) && (ch != '\n') && (ch != '\r'))
+	  while((j < rdta->sites) && ((ch = getc(INFILE)) != EOF) && (ch != '\n') && (ch != '\r'))
 	    {
 	      uppercase(& ch);
 
@@ -1251,6 +1279,8 @@ static boolean getdata(analdef *adef, rawdata *rdta, tree *tr)
 		    {
 		      printf("ERROR: Bad base (%c) at site %d of sequence %d\n",
 			     ch, j + 1, i);
+
+		      printParsingErrorContext(INFILE);		      
 		      			  
 		      return FALSE;
 		    }
@@ -1260,6 +1290,9 @@ static boolean getdata(analdef *adef, rawdata *rdta, tree *tr)
 	  if (ch == EOF)
 	    {
 	      printf("ERROR: End-of-file at site %d of sequence %d\n", j + 1, i);
+	      
+	      printParsingErrorContext(INFILE);
+
 	      return  FALSE;
 	    }
 
@@ -1275,6 +1308,9 @@ static boolean getdata(analdef *adef, rawdata *rdta, tree *tr)
 		    printf("ERROR: Sequences out of alignment\n");
 		    printf("%d (instead of %d) residues read in sequence %d %s\n",
 			   j - basesread, basesnew - basesread, i, tr->nameList[i]);
+
+		     printParsingErrorContext(INFILE);
+
 		    return  FALSE;
 		  }
 	    }
@@ -1340,9 +1376,6 @@ static boolean getdata(analdef *adef, rawdata *rdta, tree *tr)
       }
 
   adef->gapyness = (double)gaps / (double)total;
-
-  
-
 
   return  TRUE;
 }
