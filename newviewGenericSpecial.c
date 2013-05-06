@@ -1645,14 +1645,14 @@ static void newviewGTRCAT_SAVE( int tipCase,  double *EV,  int *cptr,
 {
   double
     *le,
-  *ri,
-  *x1,
-  *x2,
-  *x3,
-  *x1_ptr = x1_start,
-  *x2_ptr = x2_start, 
-  *x3_ptr = x3_start, 
-  EV_t[16] __attribute__ ((aligned (BYTE_ALIGNMENT)));
+    *ri,
+    *x1,
+    *x2,
+    *x3,
+    *x1_ptr = x1_start,
+    *x2_ptr = x2_start, 
+    *x3_ptr = x3_start, 
+    EV_t[16] __attribute__ ((aligned (BYTE_ALIGNMENT)));
 
   int 
     i, 
@@ -1663,8 +1663,8 @@ static void newviewGTRCAT_SAVE( int tipCase,  double *EV,  int *cptr,
 
   __m128d
     minlikelihood_sse = _mm_set1_pd( minlikelihood ),
-                      sc = _mm_set1_pd(twotothe256),
-                      EVV[8];  
+    sc = _mm_set1_pd(twotothe256),
+    EVV[8];  
 
   for(i = 0; i < 4; i++)
     for (j=0; j < 4; j++)
@@ -1673,19 +1673,13 @@ static void newviewGTRCAT_SAVE( int tipCase,  double *EV,  int *cptr,
   for(i = 0; i < 8; i++)
     EVV[i] = _mm_load_pd(&EV_t[i * 2]);
 
-  
-
   {
     x1 = x1_gapColumn;	      
     x2 = x2_gapColumn;
     x3 = x3_gapColumn;
 
-   
-
     le =  &left[maxCats * 16];	     	 
     ri =  &right[maxCats * 16];		   	  	  	  	         
-
-   
 
     __m128d x1_0 = _mm_load_pd( &x1[0] );
     __m128d x1_2 = _mm_load_pd( &x1[2] );
@@ -1782,47 +1776,47 @@ static void newviewGTRCAT_SAVE( int tipCase,  double *EV,  int *cptr,
     EV_t_l3_k0 = _mm_hadd_pd( EV_t_l3_k0, EV_t_l3_k2 );
 
     EV_t_l2_k0 = _mm_hadd_pd( EV_t_l2_k0, EV_t_l3_k0 );	  	 	    		  
-
-   
-
+    
     if(tipCase != TIP_TIP)
-    {    
-      scale = 1;
-
-      __m128d v1 = _mm_and_pd(EV_t_l0_k0, absMask.m);
-      v1 = _mm_cmplt_pd(v1,  minlikelihood_sse);
-      if(_mm_movemask_pd( v1 ) != 3)
-        scale = 0;
-      else
-      {
-        v1 = _mm_and_pd(EV_t_l2_k0, absMask.m);
-        v1 = _mm_cmplt_pd(v1,  minlikelihood_sse);
-        if(_mm_movemask_pd( v1 ) != 3)
-          scale = 0;
-      }
+      {    
+	scale = 1;
+	
+	__m128d v1 = _mm_and_pd(EV_t_l0_k0, absMask.m);
+	
+	v1 = _mm_cmplt_pd(v1,  minlikelihood_sse);
+	
+	if(_mm_movemask_pd( v1 ) != 3)
+	  scale = 0;
+	else
+	  {
+	    v1 = _mm_and_pd(EV_t_l2_k0, absMask.m);
+	    v1 = _mm_cmplt_pd(v1,  minlikelihood_sse);
+	    if(_mm_movemask_pd( v1 ) != 3)
+	      scale = 0;
+	  }
 
       if(scale)
-      {		      
-        _mm_store_pd(&x3[0], _mm_mul_pd(EV_t_l0_k0, sc));
-        _mm_store_pd(&x3[2], _mm_mul_pd(EV_t_l2_k0, sc));	      	      
-
-        scaleGap = TRUE;	   
-      }	
+	{		      
+	  _mm_store_pd(&x3[0], _mm_mul_pd(EV_t_l0_k0, sc));
+	  _mm_store_pd(&x3[2], _mm_mul_pd(EV_t_l2_k0, sc));	      	      
+	  
+	  scaleGap = TRUE;	   
+	}	
       else
-      {
-        _mm_store_pd(x3, EV_t_l0_k0);
-        _mm_store_pd(&x3[2], EV_t_l2_k0);
+	{
+	  _mm_store_pd(x3, EV_t_l0_k0);
+	  _mm_store_pd(&x3[2], EV_t_l2_k0);
+	}
       }
-    }
     else
-    {
-      _mm_store_pd(x3, EV_t_l0_k0);
-      _mm_store_pd(&x3[2], EV_t_l2_k0);
-    }
+      {
+	_mm_store_pd(x3, EV_t_l0_k0);
+	_mm_store_pd(&x3[2], EV_t_l2_k0);
+      }
   }
   
   switch(tipCase)
-  {
+    {
     case TIP_TIP:      
       for (i = 0; i < n; i++)
       {
@@ -2117,169 +2111,172 @@ static void newviewGTRCAT_SAVE( int tipCase,  double *EV,  int *cptr,
       break;
     case INNER_INNER:
       for (i = 0; i < n; i++)
-      { 
-        if(isGap(x3_gap, i))
-        {
-          if(scaleGap)
+	{ 
+	  if(isGap(x3_gap, i))
 	    {
-	      if(useFastScaling)
-		addScale += wgt[i];
+	      if(scaleGap)
+		{
+		  if(useFastScaling)
+		    addScale += wgt[i];
+		  else
+		    ex3[i] += 1;
+		}
+	    }
+	  else
+	    {	     
+	      x3 = x3_ptr;
+	      
+	      if(isGap(x1_gap, i))
+		{
+		  x1 = x1_gapColumn;
+		  le =  &left[maxCats * 16];
+		}
 	      else
-		ex3[i] += 1;
-            }
-        }
-        else
-        {	     
-          x3 = x3_ptr;
+		{
+		  le =  &left[cptr[i] * 16];
+		  x1 = x1_ptr;
+		  x1_ptr += 4;
+		}
 
-          if(isGap(x1_gap, i))
-          {
-            x1 = x1_gapColumn;
-            le =  &left[maxCats * 16];
-          }
-          else
-          {
-            le =  &left[cptr[i] * 16];
-            x1 = x1_ptr;
-            x1_ptr += 4;
-          }
+	      if(isGap(x2_gap, i))	
+		{
+		  x2 = x2_gapColumn;
+		  ri =  &right[maxCats * 16];	    
+		}
+	      else
+		{
+		  ri =  &right[cptr[i] * 16];
+		  x2 = x2_ptr;
+		  x2_ptr += 4;
+		}	 	  	  	  
 
-          if(isGap(x2_gap, i))	
-          {
-            x2 = x2_gapColumn;
-            ri =  &right[maxCats * 16];	    
-          }
-          else
-          {
-            ri =  &right[cptr[i] * 16];
-            x2 = x2_ptr;
-            x2_ptr += 4;
-          }	 	  	  	  
+	      __m128d x1_0 = _mm_load_pd( &x1[0] );
+	      __m128d x1_2 = _mm_load_pd( &x1[2] );
+	      
+	      __m128d left_k0_0 = _mm_load_pd( &le[0] );
+	      __m128d left_k0_2 = _mm_load_pd( &le[2] );
+	      __m128d left_k1_0 = _mm_load_pd( &le[4] );
+	      __m128d left_k1_2 = _mm_load_pd( &le[6] );
+	      __m128d left_k2_0 = _mm_load_pd( &le[8] );
+	      __m128d left_k2_2 = _mm_load_pd( &le[10] );
+	      __m128d left_k3_0 = _mm_load_pd( &le[12] );
+	      __m128d left_k3_2 = _mm_load_pd( &le[14] );
+	      
+	      left_k0_0 = _mm_mul_pd(x1_0, left_k0_0);
+	      left_k0_2 = _mm_mul_pd(x1_2, left_k0_2);
+	      
+	      left_k1_0 = _mm_mul_pd(x1_0, left_k1_0);
+	      left_k1_2 = _mm_mul_pd(x1_2, left_k1_2);
+	      
+	      left_k0_0 = _mm_hadd_pd( left_k0_0, left_k0_2 );
+	      left_k1_0 = _mm_hadd_pd( left_k1_0, left_k1_2);
+	      left_k0_0 = _mm_hadd_pd( left_k0_0, left_k1_0);
+	      
+	      left_k2_0 = _mm_mul_pd(x1_0, left_k2_0);
+	      left_k2_2 = _mm_mul_pd(x1_2, left_k2_2);
+	      
+	      left_k3_0 = _mm_mul_pd(x1_0, left_k3_0);
+	      left_k3_2 = _mm_mul_pd(x1_2, left_k3_2);
+	      
+	      left_k2_0 = _mm_hadd_pd( left_k2_0, left_k2_2);
+	      left_k3_0 = _mm_hadd_pd( left_k3_0, left_k3_2);
+	      left_k2_0 = _mm_hadd_pd( left_k2_0, left_k3_0);
+	      
+	      __m128d x2_0 = _mm_load_pd( &x2[0] );
+	      __m128d x2_2 = _mm_load_pd( &x2[2] );
+	      
+	      __m128d right_k0_0 = _mm_load_pd( &ri[0] );
+	      __m128d right_k0_2 = _mm_load_pd( &ri[2] );
+	      __m128d right_k1_0 = _mm_load_pd( &ri[4] );
+	      __m128d right_k1_2 = _mm_load_pd( &ri[6] );
+	      __m128d right_k2_0 = _mm_load_pd( &ri[8] );
+	      __m128d right_k2_2 = _mm_load_pd( &ri[10] );
+	      __m128d right_k3_0 = _mm_load_pd( &ri[12] );
+	      __m128d right_k3_2 = _mm_load_pd( &ri[14] );
+	      
+	      right_k0_0 = _mm_mul_pd( x2_0, right_k0_0);
+	      right_k0_2 = _mm_mul_pd( x2_2, right_k0_2);
+	      
+	      right_k1_0 = _mm_mul_pd( x2_0, right_k1_0);
+	      right_k1_2 = _mm_mul_pd( x2_2, right_k1_2);
+	      
+	      right_k0_0 = _mm_hadd_pd( right_k0_0, right_k0_2);
+	      right_k1_0 = _mm_hadd_pd( right_k1_0, right_k1_2);
+	      right_k0_0 = _mm_hadd_pd( right_k0_0, right_k1_0);
+	      
+	      right_k2_0 = _mm_mul_pd( x2_0, right_k2_0);
+	      right_k2_2 = _mm_mul_pd( x2_2, right_k2_2);
+	      
+	      right_k3_0 = _mm_mul_pd( x2_0, right_k3_0);
+	      right_k3_2 = _mm_mul_pd( x2_2, right_k3_2);
+	      
+	      right_k2_0 = _mm_hadd_pd( right_k2_0, right_k2_2);
+	      right_k3_0 = _mm_hadd_pd( right_k3_0, right_k3_2);
+	      right_k2_0 = _mm_hadd_pd( right_k2_0, right_k3_0);	   
+	      
+	      __m128d x1px2_k0 = _mm_mul_pd( left_k0_0, right_k0_0 );
+	      __m128d x1px2_k2 = _mm_mul_pd( left_k2_0, right_k2_0 );
+	      
+	      __m128d EV_t_l0_k0 = EVV[0];
+	      __m128d EV_t_l0_k2 = EVV[1];
+	      __m128d EV_t_l1_k0 = EVV[2];
+	      __m128d EV_t_l1_k2 = EVV[3];
+	      __m128d EV_t_l2_k0 = EVV[4];
+	      __m128d EV_t_l2_k2 = EVV[5];
+	      __m128d EV_t_l3_k0 = EVV[6];
+	      __m128d EV_t_l3_k2 = EVV[7];
 
-          __m128d x1_0 = _mm_load_pd( &x1[0] );
-          __m128d x1_2 = _mm_load_pd( &x1[2] );
+	      EV_t_l0_k0 = _mm_mul_pd( x1px2_k0, EV_t_l0_k0 );
+	      EV_t_l0_k2 = _mm_mul_pd( x1px2_k2, EV_t_l0_k2 );
+	      EV_t_l0_k0 = _mm_hadd_pd( EV_t_l0_k0, EV_t_l0_k2 );
+	      
+	      EV_t_l1_k0 = _mm_mul_pd( x1px2_k0, EV_t_l1_k0 );
+	      EV_t_l1_k2 = _mm_mul_pd( x1px2_k2, EV_t_l1_k2 );
+	      
+	      EV_t_l1_k0 = _mm_hadd_pd( EV_t_l1_k0, EV_t_l1_k2 );
+	      EV_t_l0_k0 = _mm_hadd_pd( EV_t_l0_k0, EV_t_l1_k0 );
+	      
+	      EV_t_l2_k0 = _mm_mul_pd( x1px2_k0, EV_t_l2_k0 );
+	      EV_t_l2_k2 = _mm_mul_pd( x1px2_k2, EV_t_l2_k2 );
+	      EV_t_l2_k0 = _mm_hadd_pd( EV_t_l2_k0, EV_t_l2_k2 );
+	      
+	      EV_t_l3_k0 = _mm_mul_pd( x1px2_k0, EV_t_l3_k0 );
+	      EV_t_l3_k2 = _mm_mul_pd( x1px2_k2, EV_t_l3_k2 );
+	      EV_t_l3_k0 = _mm_hadd_pd( EV_t_l3_k0, EV_t_l3_k2 );
+	      
+	      EV_t_l2_k0 = _mm_hadd_pd( EV_t_l2_k0, EV_t_l3_k0 );	  	 	    		  	 
+	      
+	      scale = 1;
+	      
+	      __m128d v1 = _mm_and_pd(EV_t_l0_k0, absMask.m);
+	      v1 = _mm_cmplt_pd(v1,  minlikelihood_sse);
+	      if(_mm_movemask_pd( v1 ) != 3)
+		scale = 0;
+	      else
+		{
+		  v1 = _mm_and_pd(EV_t_l2_k0, absMask.m);
+		  v1 = _mm_cmplt_pd(v1,  minlikelihood_sse);
+		  if(_mm_movemask_pd( v1 ) != 3)
+		    scale = 0;
+		}
 
-          __m128d left_k0_0 = _mm_load_pd( &le[0] );
-          __m128d left_k0_2 = _mm_load_pd( &le[2] );
-          __m128d left_k1_0 = _mm_load_pd( &le[4] );
-          __m128d left_k1_2 = _mm_load_pd( &le[6] );
-          __m128d left_k2_0 = _mm_load_pd( &le[8] );
-          __m128d left_k2_2 = _mm_load_pd( &le[10] );
-          __m128d left_k3_0 = _mm_load_pd( &le[12] );
-          __m128d left_k3_2 = _mm_load_pd( &le[14] );
+	      if(scale)
+		{		      
+		  EV_t_l0_k0 = _mm_mul_pd(EV_t_l0_k0, sc);
+		  EV_t_l2_k0 = _mm_mul_pd(EV_t_l2_k0, sc);	      	      
+		  
+		  if(useFastScaling)
+		    addScale += wgt[i];
+		  else
+		    ex3[i] += 1;            
+		}	
 
-          left_k0_0 = _mm_mul_pd(x1_0, left_k0_0);
-          left_k0_2 = _mm_mul_pd(x1_2, left_k0_2);
-
-          left_k1_0 = _mm_mul_pd(x1_0, left_k1_0);
-          left_k1_2 = _mm_mul_pd(x1_2, left_k1_2);
-
-          left_k0_0 = _mm_hadd_pd( left_k0_0, left_k0_2 );
-          left_k1_0 = _mm_hadd_pd( left_k1_0, left_k1_2);
-          left_k0_0 = _mm_hadd_pd( left_k0_0, left_k1_0);
-
-          left_k2_0 = _mm_mul_pd(x1_0, left_k2_0);
-          left_k2_2 = _mm_mul_pd(x1_2, left_k2_2);
-
-          left_k3_0 = _mm_mul_pd(x1_0, left_k3_0);
-          left_k3_2 = _mm_mul_pd(x1_2, left_k3_2);
-
-          left_k2_0 = _mm_hadd_pd( left_k2_0, left_k2_2);
-          left_k3_0 = _mm_hadd_pd( left_k3_0, left_k3_2);
-          left_k2_0 = _mm_hadd_pd( left_k2_0, left_k3_0);
-
-          __m128d x2_0 = _mm_load_pd( &x2[0] );
-          __m128d x2_2 = _mm_load_pd( &x2[2] );
-
-          __m128d right_k0_0 = _mm_load_pd( &ri[0] );
-          __m128d right_k0_2 = _mm_load_pd( &ri[2] );
-          __m128d right_k1_0 = _mm_load_pd( &ri[4] );
-          __m128d right_k1_2 = _mm_load_pd( &ri[6] );
-          __m128d right_k2_0 = _mm_load_pd( &ri[8] );
-          __m128d right_k2_2 = _mm_load_pd( &ri[10] );
-          __m128d right_k3_0 = _mm_load_pd( &ri[12] );
-          __m128d right_k3_2 = _mm_load_pd( &ri[14] );
-
-          right_k0_0 = _mm_mul_pd( x2_0, right_k0_0);
-          right_k0_2 = _mm_mul_pd( x2_2, right_k0_2);
-
-          right_k1_0 = _mm_mul_pd( x2_0, right_k1_0);
-          right_k1_2 = _mm_mul_pd( x2_2, right_k1_2);
-
-          right_k0_0 = _mm_hadd_pd( right_k0_0, right_k0_2);
-          right_k1_0 = _mm_hadd_pd( right_k1_0, right_k1_2);
-          right_k0_0 = _mm_hadd_pd( right_k0_0, right_k1_0);
-
-          right_k2_0 = _mm_mul_pd( x2_0, right_k2_0);
-          right_k2_2 = _mm_mul_pd( x2_2, right_k2_2);
-
-          right_k3_0 = _mm_mul_pd( x2_0, right_k3_0);
-          right_k3_2 = _mm_mul_pd( x2_2, right_k3_2);
-
-          right_k2_0 = _mm_hadd_pd( right_k2_0, right_k2_2);
-          right_k3_0 = _mm_hadd_pd( right_k3_0, right_k3_2);
-          right_k2_0 = _mm_hadd_pd( right_k2_0, right_k3_0);	   
-
-          __m128d x1px2_k0 = _mm_mul_pd( left_k0_0, right_k0_0 );
-          __m128d x1px2_k2 = _mm_mul_pd( left_k2_0, right_k2_0 );
-
-          __m128d EV_t_l0_k0 = EVV[0];
-          __m128d EV_t_l0_k2 = EVV[1];
-          __m128d EV_t_l1_k0 = EVV[2];
-          __m128d EV_t_l1_k2 = EVV[3];
-          __m128d EV_t_l2_k0 = EVV[4];
-          __m128d EV_t_l2_k2 = EVV[5];
-          __m128d EV_t_l3_k0 = EVV[6];
-          __m128d EV_t_l3_k2 = EVV[7];
-
-
-          EV_t_l0_k0 = _mm_mul_pd( x1px2_k0, EV_t_l0_k0 );
-          EV_t_l0_k2 = _mm_mul_pd( x1px2_k2, EV_t_l0_k2 );
-          EV_t_l0_k0 = _mm_hadd_pd( EV_t_l0_k0, EV_t_l0_k2 );
-
-          EV_t_l1_k0 = _mm_mul_pd( x1px2_k0, EV_t_l1_k0 );
-          EV_t_l1_k2 = _mm_mul_pd( x1px2_k2, EV_t_l1_k2 );
-
-          EV_t_l1_k0 = _mm_hadd_pd( EV_t_l1_k0, EV_t_l1_k2 );
-          EV_t_l0_k0 = _mm_hadd_pd( EV_t_l0_k0, EV_t_l1_k0 );
-
-          EV_t_l2_k0 = _mm_mul_pd( x1px2_k0, EV_t_l2_k0 );
-          EV_t_l2_k2 = _mm_mul_pd( x1px2_k2, EV_t_l2_k2 );
-          EV_t_l2_k0 = _mm_hadd_pd( EV_t_l2_k0, EV_t_l2_k2 );
-
-          EV_t_l3_k0 = _mm_mul_pd( x1px2_k0, EV_t_l3_k0 );
-          EV_t_l3_k2 = _mm_mul_pd( x1px2_k2, EV_t_l3_k2 );
-          EV_t_l3_k0 = _mm_hadd_pd( EV_t_l3_k0, EV_t_l3_k2 );
-
-          EV_t_l2_k0 = _mm_hadd_pd( EV_t_l2_k0, EV_t_l3_k0 );	  	 	    		  	 
-
-          scale = 1;
-
-          __m128d v1 = _mm_and_pd(EV_t_l0_k0, absMask.m);
-          v1 = _mm_cmplt_pd(v1,  minlikelihood_sse);
-          if(_mm_movemask_pd( v1 ) != 3)
-            scale = 0;
-          else
-          {
-            v1 = _mm_and_pd(EV_t_l2_k0, absMask.m);
-            v1 = _mm_cmplt_pd(v1,  minlikelihood_sse);
-            if(_mm_movemask_pd( v1 ) != 3)
-              scale = 0;
-          }
-
-          if(scale)
-          {		      
-            _mm_store_pd(&x3[0], _mm_mul_pd(EV_t_l0_k0, sc));
-            _mm_store_pd(&x3[2], _mm_mul_pd(EV_t_l2_k0, sc));	      	      
-
-	    if(useFastScaling)
-	      addScale += wgt[i];
-	    else
-	      ex3[i] += 1;            
-          }	
-          else x3_ptr += 4;
-        }
-      }
+	      _mm_store_pd(&x3[0], EV_t_l0_k0);
+	      _mm_store_pd(&x3[2], EV_t_l2_k0);
+	      
+	      x3_ptr += 4;
+	    }
+	}
       break;
     default:
       assert(0);
