@@ -102,7 +102,7 @@ static void saveTopolRELL(tree *tr, topolRELL *tpl)
       
   saveTopolRELLRec(tr, p->back, tpl, &i, tr->rdta->numsp, tr->numBranches);   
 
-  assert(i == 2 * tr->mxtips - 3);
+  assert(i == 2 * tr->ntips - 3);
 }
 
 

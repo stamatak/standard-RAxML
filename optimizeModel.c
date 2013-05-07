@@ -3530,15 +3530,8 @@ static void optScaler(tree *tr, double modelEpsilon, linkageList *ll)
 static void autoProtein(tree *tr)
 {
   int 
-    countAutos = 0,
-    i,
-    model;
-
-  topolRELL_LIST 
-    *rl = (topolRELL_LIST *)rax_malloc(sizeof(topolRELL_LIST));
-
-  initTL(rl, tr, 1);
-  saveTL(rl, tr, 0);
+    countAutos = 0,   
+    model;  
   
   for(model = 0; model < tr->NumberOfModels; model++)	      
     if(tr->partitionData[model].protModels == AUTO)
@@ -3547,6 +3540,7 @@ static void autoProtein(tree *tr)
   if(countAutos > 0)
     {
       int 
+	i,
 	numProteinModels = AUTO,
 	*bestIndex = (int*)rax_malloc(sizeof(int) * tr->NumberOfModels),
 	*oldIndex  = (int*)rax_malloc(sizeof(int) * tr->NumberOfModels);
@@ -3554,6 +3548,12 @@ static void autoProtein(tree *tr)
       double
 	startLH,
 	*bestScores = (double*)rax_malloc(sizeof(double) * tr->NumberOfModels);    
+
+      topolRELL_LIST 
+	*rl = (topolRELL_LIST *)rax_malloc(sizeof(topolRELL_LIST));
+
+      initTL(rl, tr, 1);
+      saveTL(rl, tr, 0);
 
       evaluateGenericInitrav(tr, tr->start); 
 
@@ -3616,37 +3616,37 @@ static void autoProtein(tree *tr)
       masterBarrier(THREAD_COPY_RATES, tr);	   
 #endif
           
-    resetBranches(tr);
-    evaluateGenericInitrav(tr, tr->start); 
-    treeEvaluate(tr, 2.0);    
-
-    if(tr->likelihood < startLH)
-      {	
-	for(model = 0; model < tr->NumberOfModels; model++)
-	  {
-	    if(tr->partitionData[model].protModels == AUTO)
-	      {
-		tr->partitionData[model].autoProtModels = oldIndex[model];
-		initReversibleGTR(tr, model);
-	      }
-	  }
-
+      resetBranches(tr);
+      evaluateGenericInitrav(tr, tr->start); 
+      treeEvaluate(tr, 2.0);    
+      
+      if(tr->likelihood < startLH)
+	{	
+	  for(model = 0; model < tr->NumberOfModels; model++)
+	    {
+	      if(tr->partitionData[model].protModels == AUTO)
+		{
+		  tr->partitionData[model].autoProtModels = oldIndex[model];
+		  initReversibleGTR(tr, model);
+		}
+	    }
+	  
 #ifdef _USE_PTHREADS	
-	masterBarrier(THREAD_COPY_RATES, tr);	   
+	  masterBarrier(THREAD_COPY_RATES, tr);	   
 #endif 
-	restoreTL(rl, tr, 0);	
-	evaluateGenericInitrav(tr, tr->start);              
-      }
-
-    assert(tr->likelihood >= startLH);
-    
-    freeTL(rl);   
-    rax_free(rl); 
-
-    rax_free(oldIndex);
-    rax_free(bestIndex);
-    rax_free(bestScores);
-  }
+	  restoreTL(rl, tr, 0);	
+	  evaluateGenericInitrav(tr, tr->start);              
+	}
+      
+      assert(tr->likelihood >= startLH);
+      
+      freeTL(rl);   
+      rax_free(rl); 
+      
+      rax_free(oldIndex);
+      rax_free(bestIndex);
+      rax_free(bestScores);
+    }
 }
 
 
