@@ -70,6 +70,13 @@ extern volatile double          *reductionBuffer;
 /* TODO remove at some point */
 #define _DEBUG_MODEL_OPTIMIZATION 
 
+static void brentGeneric(double *ax, double *bx, double *cx, double *fb, double tol, double *xmin, double *result, int numberOfModels, 
+			 int whichFunction, int rateNumber, tree *tr, linkageList *ll, double lim_inf, double lim_sup);
+
+static int brakGeneric(double *param, double *ax, double *bx, double *cx, double *fa, double *fb, 
+		       double *fc, double lim_inf, double lim_sup, 
+		       int numberOfModels, int rateNumber, int whichFunction, tree *tr, linkageList *ll, double modelEpsilon);
+
 /*********************FUNCTIONS FOOR EXACT MODEL OPTIMIZATION UNDER GTRGAMMA ***************************************/
 
 
@@ -264,32 +271,221 @@ static void freeLinkageList( linkageList* ll)
 #define RATE_F  2
 #define SCALER_F 3
 #define LXRATE_F 4
+#define LXWEIGHT_F 5
 
-
-
-static void scaleLX4_Rates(tree *tr, int index)
+static void updateWeights(tree *tr, int model, int rate, double value)
 {
-  double 
-    sum = 0.0;
-
   int 
-    i;
+    j;
 
-  for(i = 0; i < 4; i++)
-    sum += tr->partitionData[index].gammaRates[i];
+  double 
+    w = 0.0;
 
-  sum /= 4.0;
+  tr->partitionData[model].weightExponents[rate] = value;
 
-  sum = 1.0 / sum;
+  for(j = 0; j < 4; j++)
+    w += exp(tr->partitionData[model].weightExponents[j]);
 
-  for(i = 0; i < 4; i++)
-    tr->partitionData[index].gammaRates[i] *= sum;
-
+  for(j = 0; j < 4; j++)	    	    
+    tr->partitionData[model].weights[j] = exp(tr->partitionData[model].weightExponents[j]) / w;
 }
 
+static void optLG4X_Weights(tree *tr, linkageList *ll, int numberOfModels, int weightNumber, double modelEpsilon)
+{
+  int 
+    pos,
+    i;
+  
+  double 
+    lim_inf         = -1000000.0,
+    lim_sup         = 200.0,
+    *startLH        = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *endLH          = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *startWeights   = (double *)rax_malloc(sizeof(double) * numberOfModels * 4),
+    *startExponents = (double *)rax_malloc(sizeof(double) * numberOfModels * 4),
+    *endWeights     = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *endExponents   = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_a             = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_b             = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_c             = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_fa            = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_fb            = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_fc            = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_param         = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *result         = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_x             = (double *)rax_malloc(sizeof(double) * numberOfModels);   
 
+  evaluateGeneric(tr, tr->start);
 
-static void evaluateChange(tree *tr, int rateNumber, double *value, double *result, boolean* converged, int whichFunction, int numberOfModels, linkageList *ll)
+#ifdef  _DEBUG_MODEL_OPTIMIZATION 
+  double
+    initialLH = tr->likelihood;
+#endif
+
+  assert(weightNumber >= 0 && weightNumber < 4);
+
+  /* 
+     at this point here every worker has the traversal data it needs for the 
+     search, so we won't re-distribute it he he :-)
+  */
+
+  for(i = 0, pos = 0; i < ll->entries; i++)
+    {     
+      if(ll->ld[i].valid)
+	{
+	  int 
+	    index = ll->ld[i].partitionList[0];
+    
+	 
+	  assert(ll->ld[i].partitions == 1);
+	  
+	  memcpy(&startWeights[pos * 4],   tr->partitionData[index].weights,         4 * sizeof(double));
+	  memcpy(&startExponents[pos * 4], tr->partitionData[index].weightExponents, 4 * sizeof(double));
+	  
+	  _a[pos] = startExponents[pos * 4 + weightNumber] + 0.1;
+	  _b[pos] = startExponents[pos * 4 + weightNumber] - 0.1;      
+	  
+	  if(_a[pos] < lim_inf) 
+	    _a[pos] = lim_inf;
+	  
+	  if(_a[pos] > lim_sup) 
+	    _a[pos] = lim_sup;
+	  
+	  if(_b[pos] < lim_inf) 
+	    _b[pos] = lim_inf;
+	  
+	  if(_b[pos] > lim_sup) 
+	    _b[pos] = lim_sup;   
+	  
+	  startLH[pos] = tr->perPartitionLH[index];
+	  endLH[pos] = unlikely;	
+	  
+	  pos++;
+	}
+    }	
+#ifdef _USE_PTHREADS  
+  masterBarrier(THREAD_COPY_LG4X_RATES, tr);
+#endif
+  assert(pos == numberOfModels);
+
+  brakGeneric(_param, _a, _b, _c, _fa, _fb, _fc, lim_inf, lim_sup, numberOfModels, weightNumber, LXWEIGHT_F, tr, ll, modelEpsilon);       
+  brentGeneric(_a, _b, _c, _fb, modelEpsilon, _x, result, numberOfModels, LXWEIGHT_F, weightNumber, tr, ll, lim_inf, lim_sup);
+  
+  /* now calculate the likelihood with the optimized rate */
+
+  for(i = 0, pos = 0; i < ll->entries; i++)
+    {
+      if(ll->ld[i].valid)
+	{
+	  int
+	    index = ll->ld[i].partitionList[0];
+	  
+	  assert(ll->ld[i].partitions == 1);
+	  
+	  tr->executeModel[index] = TRUE;
+
+	  updateWeights(tr, index, weightNumber, _x[pos]);	  	    
+	  
+	  pos++;
+	}
+    }
+
+#ifdef _USE_PTHREADS  
+  masterBarrier(THREAD_COPY_LG4X_RATES, tr);
+#endif
+
+  evaluateGeneric(tr, tr->start);
+  
+  for(i = 0, pos = 0; i < ll->entries; i++)
+    {
+      if(ll->ld[i].valid)
+	{
+	  int
+	    index = ll->ld[i].partitionList[0];
+	  
+	  assert(ll->ld[i].partitions == 1);
+
+	  if(tr->executeModel[index])
+	    {
+	      endLH[pos] = tr->perPartitionLH[index];
+	  
+	      if(startLH[pos] > endLH[pos]) 
+		{
+		  memcpy(tr->partitionData[index].weights,         &startWeights[pos * 4], sizeof(double) * 4);	  	    
+		  memcpy(tr->partitionData[index].weightExponents, &startExponents[pos * 4], sizeof(double) * 4);	
+		}
+	    }
+	  
+	  pos++;
+	}
+    }
+
+  assert(pos == numberOfModels);
+  
+#ifdef _USE_PTHREADS  
+  masterBarrier(THREAD_COPY_LG4X_RATES, tr);
+#endif
+
+  
+#ifdef _DEBUG_MODEL_OPTIMIZATION
+  evaluateGeneric(tr, tr->start);
+
+  if(tr->likelihood < initialLH)
+    printf("%f %f\n", tr->likelihood, initialLH);
+  assert(tr->likelihood >= initialLH);
+#endif 
+
+  rax_free(endExponents);
+  rax_free(startExponents);
+  rax_free(startLH);
+  rax_free(endLH);
+  rax_free(startWeights);
+  rax_free(endWeights);
+  rax_free(result);
+  rax_free(_a);
+  rax_free(_b);
+  rax_free(_c);
+  rax_free(_fa);
+  rax_free(_fb);
+  rax_free(_fc);
+  rax_free(_param);
+  rax_free(_x); 
+}
+
+static void optimizeWeights(tree *tr, double modelEpsilon, linkageList *ll, int numberOfModels)
+{
+  int 
+    model,
+    i;
+  
+  double 
+    initialLH = 0.0,
+    finalLH   = 0.0;
+
+  evaluateGeneric(tr, tr->start);
+ 
+  initialLH = tr->likelihood;
+  //printf("W: %f %f [%f] ->", tr->perPartitionLH[0], tr->perPartitionLH[1], initialLH);
+
+  for(i = 0; i < 4; i++)   
+    optLG4X_Weights(tr, ll, numberOfModels, i, modelEpsilon);
+  
+#ifdef _USE_PTHREADS
+  masterBarrier(THREAD_COPY_LG4X_RATES, tr);
+#endif
+
+  evaluateGenericInitrav(tr, tr->start); 
+
+  finalLH = tr->likelihood;
+
+  if(finalLH < initialLH)
+    printf("Final: %f initial: %f\n", finalLH, initialLH);
+  assert(finalLH >= initialLH);
+
+  //printf("%f %f [%f]\n",  tr->perPartitionLH[0], tr->perPartitionLH[1], finalLH);
+}
+
+static void evaluateChange(tree *tr, int rateNumber, double *value, double *result, boolean* converged, int whichFunction, int numberOfModels, linkageList *ll, double modelEpsilon)
 { 
   int i, k, pos;
 
@@ -406,7 +602,7 @@ static void evaluateChange(tree *tr, int rateNumber, double *value, double *resu
 	  {
 	    for(i = 0, result = 0.0; i < NumberOfThreads; i++)    	  
 	      result += reductionBuffer[i];  	        
-	    tr->perPartitionLH[0] = result;
+	    tr->perPartitionLH[0] = result;	    
 	  }
 	else
 	  {
@@ -612,8 +808,127 @@ static void evaluateChange(tree *tr, int rateNumber, double *value, double *resu
 	}      
       break;
     case LXRATE_F:   
+      {
+	boolean
+	  atLeastOnePartition = FALSE;
+
+	assert(rateNumber != -1);
+ 
+	for(i = 0, pos = 0; i < ll->entries; i++)
+	  {
+	    int 
+	      index = ll->ld[i].partitionList[0];
+	    
+	    assert(ll->ld[i].partitions == 1);
+	    
+	    if(ll->ld[i].valid)
+	      {	      	    	      
+		if(converged[pos])				  
+		  tr->executeModel[index] = FALSE;		
+		else
+		  {
+		    atLeastOnePartition = TRUE;
+		    tr->executeModel[index] = TRUE;
+		    tr->partitionData[index].gammaRates[rateNumber] = value[pos];			  
+		  }
+	      
+		pos++;
+	      }
+	    else	    	      
+	      tr->executeModel[index] = FALSE;	    
+	  }
+      
+	assert(pos == numberOfModels);
+
+#ifdef _USE_PTHREADS   
+	{
+	  volatile double result;
+	  
+	  masterBarrier(THREAD_OPT_LG4X_RATES, tr);
+
+	  if(tr->NumberOfModels == 1)
+	    {
+	      for(i = 0, result = 0.0; i < NumberOfThreads; i++)    	  
+		result += reductionBuffer[i];  	        
+	      tr->perPartitionLH[0] = result;
+	    }
+	  else
+	    {
+	      int j;
+	      volatile double partitionResult;
+	      
+	      result = 0.0;
+	      
+	      for(j = 0; j < tr->NumberOfModels; j++)
+		{
+		  for(i = 0, partitionResult = 0.0; i < NumberOfThreads; i++)          	      
+		    partitionResult += reductionBuffer[i * tr->NumberOfModels + j];
+		  result +=  partitionResult;
+		  tr->perPartitionLH[j] = partitionResult;
+		}
+	    }
+	}
+
+#else	
+	evaluateGenericInitrav(tr, tr->start);
+#endif	
+	
+	if(atLeastOnePartition)
+	  {
+	    boolean 
+	      *buffer = (boolean*)rax_malloc(tr->NumberOfModels * sizeof(boolean));
+	    
+	    memcpy(buffer, tr->executeModel, sizeof(boolean) * tr->NumberOfModels);
+	    
+	    for(i = 0; i < tr->NumberOfModels; i++)
+	      tr->executeModel[i] = FALSE;
+	    
+	    for(i = 0, pos = 0; i < ll->entries; i++)	
+	      {  
+		int 
+		  index = ll->ld[i].partitionList[0];	    	      
+	    
+		if(ll->ld[i].valid)		  	    	      		   	    
+		  tr->executeModel[index] = TRUE;	    
+	      }
+
+	    optimizeWeights(tr, modelEpsilon, ll, numberOfModels);      
+	    
+	    memcpy(tr->executeModel, buffer, sizeof(boolean) * tr->NumberOfModels);
+	    
+	    rax_free(buffer);
+	  }
+
+            
+	for(i = 0, pos = 0; i < ll->entries; i++)	
+	  {  
+	    int 
+	      index = ll->ld[i].partitionList[0];
+	    
+	    assert(ll->ld[i].partitions == 1);
+	    
+	    if(ll->ld[i].valid)
+	      {	    	      
+		result[pos] = 0.0;
+		
+		assert(tr->perPartitionLH[index] <= 0.0);		
+		
+		result[pos] -= tr->perPartitionLH[index];	            	      
+		
+		pos++;
+	      }
+	    
+	    tr->executeModel[index] = TRUE;	    
+	  }
+      
+	assert(pos == numberOfModels);    
+      }
+      break;
+    case LXWEIGHT_F:
       assert(rateNumber != -1);
  
+      //printf("%d %d\n", tr->executeModel[0], tr->executeModel[1]);
+
       for(i = 0, pos = 0; i < ll->entries; i++)
 	{
 	  int 
@@ -628,7 +943,7 @@ static void evaluateChange(tree *tr, int rateNumber, double *value, double *resu
 	      else
 		{		  		  
 		  tr->executeModel[index] = TRUE;
-		  tr->partitionData[index].gammaRates[rateNumber] = value[pos];			  
+		  updateWeights(tr, index, rateNumber, value[pos]);		
 		}
 	      
 	      pos++;
@@ -638,38 +953,41 @@ static void evaluateChange(tree *tr, int rateNumber, double *value, double *resu
 	}
       
       assert(pos == numberOfModels);
-
+      
 #ifdef _USE_PTHREADS   
-      {
-	volatile double result;
-	
-	masterBarrier(THREAD_OPT_ALPHA, tr);
-	if(tr->NumberOfModels == 1)
-	  {
-	    for(i = 0, result = 0.0; i < NumberOfThreads; i++)    	  
-	      result += reductionBuffer[i];  	        
-	    tr->perPartitionLH[0] = result;
-	  }
-	else
-	  {
-	    int j;
-	    volatile double partitionResult;
-	
-	    result = 0.0;
+	{
+	  volatile double result;
+	  
+	  masterBarrier(THREAD_OPT_LG4X_RATES, tr);
 
-	    for(j = 0; j < tr->NumberOfModels; j++)
-	      {
-		for(i = 0, partitionResult = 0.0; i < NumberOfThreads; i++)          	      
-		  partitionResult += reductionBuffer[i * tr->NumberOfModels + j];
-		result +=  partitionResult;
-		tr->perPartitionLH[j] = partitionResult;
-	      }
-	  }
-      }
+	  if(tr->NumberOfModels == 1)
+	    {
+	      for(i = 0, result = 0.0; i < NumberOfThreads; i++)    	  
+		result += reductionBuffer[i];  	        
+	      tr->perPartitionLH[0] = result;
+	    }
+	  else
+	    {
+	      int j;
+	      volatile double partitionResult;
+	      
+	      result = 0.0;
+	      
+	      for(j = 0; j < tr->NumberOfModels; j++)
+		{
+		  for(i = 0, partitionResult = 0.0; i < NumberOfThreads; i++)          	      
+		    partitionResult += reductionBuffer[i * tr->NumberOfModels + j];
+		  result +=  partitionResult;
+		  tr->perPartitionLH[j] = partitionResult;
+		}
+	    }
+	}
 #else
-      evaluateGenericInitrav(tr, tr->start);
-#endif
-            
+      evaluateGeneric(tr, tr->start);    
+#endif          
+
+      //printf("weights Like: %f\n", tr->perPartitionLH[0]);
+
       for(i = 0, pos = 0; i < ll->entries; i++)	
 	{  
 	  int 
@@ -843,7 +1161,7 @@ static void brentGeneric(double *ax, double *bx, double *cx, double *fb, double 
 	    }
 	}
                  
-      evaluateChange(tr, rateNumber, u, fu, converged, whichFunction, numberOfModels, ll);
+      evaluateChange(tr, rateNumber, u, fu, converged, whichFunction, numberOfModels, ll, tol);
 
       for(i = 0; i < numberOfModels; i++)
 	{
@@ -922,7 +1240,7 @@ static void brentGeneric(double *ax, double *bx, double *cx, double *fb, double 
 
 static int brakGeneric(double *param, double *ax, double *bx, double *cx, double *fa, double *fb, 
 		       double *fc, double lim_inf, double lim_sup, 
-		       int numberOfModels, int rateNumber, int whichFunction, tree *tr, linkageList *ll)
+		       int numberOfModels, int rateNumber, int whichFunction, tree *tr, linkageList *ll, double modelEpsilon)
 {
   double 
     *ulim = (double *)rax_malloc(sizeof(double) * numberOfModels),
@@ -963,7 +1281,7 @@ static int brakGeneric(double *param, double *ax, double *bx, double *cx, double
     }
    
   
-  evaluateChange(tr, rateNumber, param, fa, converged, whichFunction, numberOfModels, ll);
+  evaluateChange(tr, rateNumber, param, fa, converged, whichFunction, numberOfModels, ll, modelEpsilon);
 
 
   for(i = 0; i < numberOfModels; i++)
@@ -977,7 +1295,7 @@ static int brakGeneric(double *param, double *ax, double *bx, double *cx, double
       assert(param[i] >= lim_inf && param[i] <= lim_sup);
     }
   
-  evaluateChange(tr, rateNumber, param, fb, converged, whichFunction, numberOfModels, ll);
+  evaluateChange(tr, rateNumber, param, fb, converged, whichFunction, numberOfModels, ll, modelEpsilon);
 
   for(i = 0; i < numberOfModels; i++)  
     {
@@ -1000,7 +1318,7 @@ static int brakGeneric(double *param, double *ax, double *bx, double *cx, double
     }
   
  
-  evaluateChange(tr, rateNumber, param, fc, converged, whichFunction, numberOfModels,  ll);
+  evaluateChange(tr, rateNumber, param, fc, converged, whichFunction, numberOfModels,  ll, modelEpsilon);
 
    while(1) 
      {       
@@ -1144,7 +1462,7 @@ static int brakGeneric(double *param, double *ax, double *bx, double *cx, double
 	     }
 	 }
              
-       evaluateChange(tr, rateNumber, param, temp, converged, whichFunction, numberOfModels, ll);
+       evaluateChange(tr, rateNumber, param, temp, converged, whichFunction, numberOfModels, ll, modelEpsilon);
 
        for(i = 0; i < numberOfModels; i++)
 	 {
@@ -1294,7 +1612,7 @@ static void optInvar(tree *tr, double modelEpsilon, linkageList *ll)
 	}
     }	       
 
-  brakGeneric(_param, _a, _b, _c, _fa, _fb, _fc, lim_inf, lim_sup, numberOfModels, -1, INVAR_F, tr, ll);
+  brakGeneric(_param, _a, _b, _c, _fa, _fb, _fc, lim_inf, lim_sup, numberOfModels, -1, INVAR_F, tr, ll, modelEpsilon);
   brentGeneric(_a, _b, _c, _fb, modelEpsilon, _x, result, numberOfModels, INVAR_F, -1, tr, ll, lim_inf, lim_sup);
 
   for(i = 0; i < numberOfModels; i++)
@@ -1422,7 +1740,7 @@ static void optAlpha(tree *tr, double modelEpsilon, linkageList *ll, int numberO
 	}
     }	
  
-  brakGeneric(_param, _a, _b, _c, _fa, _fb, _fc, lim_inf, lim_sup, numberOfModels, -1, ALPHA_F, tr, ll);       
+  brakGeneric(_param, _a, _b, _c, _fa, _fb, _fc, lim_inf, lim_sup, numberOfModels, -1, ALPHA_F, tr, ll, modelEpsilon);       
   brentGeneric(_a, _b, _c, _fb, modelEpsilon, _x, result, numberOfModels, ALPHA_F, -1, tr, ll, lim_inf, lim_sup);
 
   for(i = 0; i < numberOfModels; i++)
@@ -1581,7 +1899,7 @@ static void optRate(tree *tr, double modelEpsilon, linkageList *ll, int numberOf
 
   assert(pos == numberOfModels);
 
-  brakGeneric(_param, _a, _b, _c, _fa, _fb, _fc, lim_inf, lim_sup, numberOfModels, rateNumber, RATE_F, tr, ll);
+  brakGeneric(_param, _a, _b, _c, _fa, _fb, _fc, lim_inf, lim_sup, numberOfModels, rateNumber, RATE_F, tr, ll, modelEpsilon);
       
   for(k = 0; k < numberOfModels; k++)
     {
@@ -1922,23 +2240,25 @@ static void optLG4X_Rate(tree *tr, double modelEpsilon, linkageList *ll, int num
     i;
   
   double 
-    lim_inf     = LG4X_RATE_MIN,
-    lim_sup     = LG4X_RATE_MAX,
-    *startLH    = (double *)rax_malloc(sizeof(double) * numberOfModels),
-    *endLH      = (double *)rax_malloc(sizeof(double) * numberOfModels),
-    *startAlpha = (double *)rax_malloc(sizeof(double) * numberOfModels * 4),
-    *endAlpha   = (double *)rax_malloc(sizeof(double) * numberOfModels),
-    *_a         = (double *)rax_malloc(sizeof(double) * numberOfModels),
-    *_b         = (double *)rax_malloc(sizeof(double) * numberOfModels),
-    *_c         = (double *)rax_malloc(sizeof(double) * numberOfModels),
-    *_fa        = (double *)rax_malloc(sizeof(double) * numberOfModels),
-    *_fb        = (double *)rax_malloc(sizeof(double) * numberOfModels),
-    *_fc        = (double *)rax_malloc(sizeof(double) * numberOfModels),
-    *_param     = (double *)rax_malloc(sizeof(double) * numberOfModels),
-    *result     = (double *)rax_malloc(sizeof(double) * numberOfModels),
-    *_x         = (double *)rax_malloc(sizeof(double) * numberOfModels);   
+    lim_inf       = LG4X_RATE_MIN,
+    lim_sup       = LG4X_RATE_MAX,
+    *startLH      = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *endLH        = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *startAlpha   = (double *)rax_malloc(sizeof(double) * numberOfModels * 4),
+    *startWeights = (double *)rax_malloc(sizeof(double) * numberOfModels * 4),
+    *endAlpha     = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_a           = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_b           = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_c           = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_fa          = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_fb          = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_fc          = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_param       = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *result       = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *_x           = (double *)rax_malloc(sizeof(double) * numberOfModels);   
 
   evaluateGenericInitrav(tr, tr->start);
+  //  printf("Enter lg4x rates: %f\n", tr->likelihood);
 
 #ifdef  _DEBUG_MODEL_OPTIMIZATION 
   double
@@ -1947,7 +2267,7 @@ static void optLG4X_Rate(tree *tr, double modelEpsilon, linkageList *ll, int num
 
   assert(rateNumber >= 0 && rateNumber < 4);
 
-   /* 
+  /* 
      at this point here every worker has the traversal data it needs for the 
      search, so we won't re-distribute it he he :-)
   */
@@ -1961,7 +2281,8 @@ static void optLG4X_Rate(tree *tr, double modelEpsilon, linkageList *ll, int num
       
 	  assert(ll->ld[i].partitions == 1);
 	  
-	  memcpy(&startAlpha[pos * 4], tr->partitionData[index].gammaRates, 4 * sizeof(double));
+	  memcpy(&startAlpha[pos * 4],   tr->partitionData[index].gammaRates, 4 * sizeof(double));
+	  memcpy(&startWeights[pos * 4], tr->partitionData[index].weights, 4 * sizeof(double));
 
 	  _a[pos] = startAlpha[pos * 4 + rateNumber] + 0.1;
 	  _b[pos] = startAlpha[pos * 4 + rateNumber] - 0.1;      
@@ -1987,11 +2308,10 @@ static void optLG4X_Rate(tree *tr, double modelEpsilon, linkageList *ll, int num
 
   assert(pos == numberOfModels);
 
-  brakGeneric(_param, _a, _b, _c, _fa, _fb, _fc, lim_inf, lim_sup, numberOfModels, rateNumber, LXRATE_F, tr, ll);       
+  brakGeneric(_param, _a, _b, _c, _fa, _fb, _fc, lim_inf, lim_sup, numberOfModels, rateNumber, LXRATE_F, tr, ll, modelEpsilon);       
   brentGeneric(_a, _b, _c, _fb, modelEpsilon, _x, result, numberOfModels, LXRATE_F, rateNumber, tr, ll, lim_inf, lim_sup);
   
-  /* now calculate the actual likelihood when the x-rates are scaled such that the 
-     mean rate is 1.0 */
+  /* now calculate the likelihood with the optimized rate */
 
   for(i = 0, pos = 0; i < ll->entries; i++)
     {
@@ -2004,20 +2324,17 @@ static void optLG4X_Rate(tree *tr, double modelEpsilon, linkageList *ll, int num
 
 	  tr->executeModel[index] = TRUE;
 
-	  tr->partitionData[index].gammaRates[rateNumber] = _x[pos];	      	    	
-	  scaleLX4_Rates(tr, index);
+	  tr->partitionData[index].gammaRates[rateNumber] = _x[pos];	      	    		  
 	  
 	  pos++;
 	}
     }
 
 #ifdef _USE_PTHREADS  
-  masterBarrier(THREAD_COPY_ALPHA, tr);
+  masterBarrier(THREAD_COPY_LG4X_RATES, tr);
 #endif
 
   evaluateGenericInitrav(tr, tr->start);
-
-  //printf("Scaled LH %f\n", tr->likelihood);
   
   for(i = 0, pos = 0; i < ll->entries; i++)
     {
@@ -2029,13 +2346,11 @@ static void optLG4X_Rate(tree *tr, double modelEpsilon, linkageList *ll, int num
 	  assert(ll->ld[i].partitions == 1);
 
 	  endLH[pos] = tr->perPartitionLH[index];
-
-	  if(startLH[pos] > endLH[pos]) 	    
-	    memcpy(tr->partitionData[index].gammaRates, &startAlpha[pos * 4], sizeof(double) * 4);
-	  else
+	  
+	  if(startLH[pos] > endLH[pos])
 	    {
-	      //tr->partitionData[index].gammaRates[rateNumber] = _x[pos];	      	    	
-	      //scaleLX4_Rates(tr, index);
+	      memcpy(tr->partitionData[index].weights,    &startWeights[pos * 4], sizeof(double) * 4);
+	      memcpy(tr->partitionData[index].gammaRates, &startAlpha[pos * 4], sizeof(double) * 4);	  	    
 	    }
 	  
 	  pos++;
@@ -2045,13 +2360,13 @@ static void optLG4X_Rate(tree *tr, double modelEpsilon, linkageList *ll, int num
   assert(pos == numberOfModels);
   
 #ifdef _USE_PTHREADS  
-  masterBarrier(THREAD_COPY_ALPHA, tr);
+  masterBarrier(THREAD_COPY_LG4X_RATES, tr);
 #endif
 
   
 #ifdef _DEBUG_MODEL_OPTIMIZATION
   evaluateGenericInitrav(tr, tr->start);
-
+  
   if(tr->likelihood < initialLH)
     printf("%f %f\n", tr->likelihood, initialLH);
   assert(tr->likelihood >= initialLH);
@@ -2059,6 +2374,7 @@ static void optLG4X_Rate(tree *tr, double modelEpsilon, linkageList *ll, int num
 
   rax_free(startLH);
   rax_free(endLH);
+  rax_free(startWeights);
   rax_free(startAlpha);
   rax_free(endAlpha);
   rax_free(result);
@@ -2072,14 +2388,105 @@ static void optLG4X_Rate(tree *tr, double modelEpsilon, linkageList *ll, int num
   rax_free(_x); 
 }
 
+/*** WARNING: the re-scaling of the branch lengths will only work if 
+     it is done after the rate optimization that modifies fracchange 
+***/
+
+static void dummy()
+{
+  double 
+    values[6][4] = {{0.0, 0.0, 0.0, 0.0}, {10.0, 11.0, 200.0, 10.0}, {-1.0, 0.0, 0.0, -200.0}, {8.0, 1000.0, 900.0, 20.0}, {0.0, 0.0, 0.0, 0.0}, {100.0, 200.0, 300.0, 400.0}};
+
+  int 
+    i, j, k;
+
+  for(i = 0; i < 6; i++)
+    {
+      printf("D%d\n", i);
+      
+      for(j = 0; j < 4; j++)
+	{
+	  double 
+	    a = 0.0, 
+	    b = 0.0;
+	  
+	  a = exp(values[i][j]);
+	  //	  printf("a: %f\n", a);
+	  
+	  for(k = 0; k < 4; k++)
+	    b += exp(values[i][k]);
+
+	  printf("W%d: %f\n", j, a/b);
+	}
+    }
+  exit(1);
+}
 
 static void optLG4X(tree *tr, double modelEpsilon, linkageList *ll, int numberOfModels)
 {
   int 
     i;
 
+  double
+    lg4xScaler,
+    *lg4xScalers = (double *)rax_calloc(tr->NumberOfModels, sizeof(double)),
+    *modelWeights = (double *)rax_calloc(tr->NumberOfModels, sizeof(double)),
+    wgtsum = 0.0;
+
   for(i = 0; i < 4; i++)
     optLG4X_Rate(tr, modelEpsilon, ll, numberOfModels, i);
+  
+  for(i = 0; i < tr->NumberOfModels; i++)
+    lg4xScalers[i] = 1.0;
+
+  for(i = 0; i < ll->entries; i++)
+    {
+      if(ll->ld[i].valid)
+	{
+	  int
+	    j,
+	    index = ll->ld[i].partitionList[0];
+	  
+	  double
+	    averageRate = 0.0;
+	  
+	  assert(ll->ld[i].partitions == 1);
+	  
+	  for(j = 0; j < 4; j++)
+	    averageRate += tr->partitionData[index].gammaRates[j];	  
+	  
+	  averageRate /= 4.0;
+	  
+	  lg4xScalers[index] = averageRate;
+	}
+    }
+
+  if(tr->NumberOfModels > 1)
+    {
+      for(i = 0; i < tr->NumberOfModels; i++)
+	tr->fracchanges[i] = tr->rawFracchanges[i] * (1.0 / lg4xScalers[i]);
+    }
+
+  for(i = 0; i < tr->cdta->endsite; i++)
+    {
+      modelWeights[tr->model[i]]  += (double)tr->cdta->aliaswgt[i];
+      wgtsum                      += (double)tr->cdta->aliaswgt[i];
+    }
+
+  lg4xScaler = 0.0;
+
+  for(i = 0; i < tr->NumberOfModels; i++)
+    {
+      double 
+	fraction = modelWeights[i] / wgtsum; 
+      
+      lg4xScaler += (fraction * lg4xScalers[i]); 
+    }
+
+  tr->fracchange = tr->rawFracchange * (1.0 / lg4xScaler);
+
+  rax_free(lg4xScalers);
+  rax_free(modelWeights);
 }
 
 static void optAlphasGeneric(tree *tr, double modelEpsilon, linkageList *ll)
@@ -2164,29 +2571,7 @@ static void optAlphasGeneric(tree *tr, double modelEpsilon, linkageList *ll)
     optLG4X(tr, modelEpsilon, ll, LG4X_Partitions);
 
 
-  /* some checking that the LG4X rates are actually scaled to a mean rate of 1.0 */
   
-  {       
-    int 
-      model;
-
-    for(model = 0; model < tr->NumberOfModels; model++)
-      {
-	double
-	  sum = 0.0;
-	
-	for(i = 0; i < 4; i++)
-	  sum += tr->partitionData[model].gammaRates[i];
-	
-	sum /= 4;
-
-	if(fabs(sum - 1.0) >= 0.00001)
-	  printf("model %d alpha: %f rates: %f %f %f %f, mean rate %f\n", model, tr->partitionData[model].alpha, tr->partitionData[model].gammaRates[0], tr->partitionData[model].gammaRates[1], 
-		 tr->partitionData[model].gammaRates[2], tr->partitionData[model].gammaRates[3], sum);
-
-	assert(fabs(sum - 1.0) < 0.00001);		
-      }
-  }
 
   for(i = 0; i < ll->entries; i++)
     ll->ld[i].valid = TRUE;
@@ -3090,7 +3475,7 @@ static void optScaler(tree *tr, double modelEpsilon, linkageList *ll)
 	startLH[i] += tr->perPartitionLH[ll->ld[i].partitionList[k]];	  	
     }					  
 
-  brakGeneric(_param, _a, _b, _c, _fa, _fb, _fc, lim_inf, lim_sup, numberOfModels, -1, SCALER_F, tr, ll);       
+  brakGeneric(_param, _a, _b, _c, _fa, _fb, _fc, lim_inf, lim_sup, numberOfModels, -1, SCALER_F, tr, ll, modelEpsilon);       
   brentGeneric(_a, _b, _c, _fb, modelEpsilon, _x, result, numberOfModels, SCALER_F, -1, tr, ll, lim_inf, lim_sup);
 
   for(i = 0; i < numberOfModels; i++)    
@@ -3309,6 +3694,8 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
   
   if(resetModel)
     {
+      
+
       initRateMatrix(tr);
       
       for(model = 0; model < tr->NumberOfModels; model++)
@@ -3365,13 +3752,13 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
       
       optRatesGeneric(tr, modelEpsilon, rateList);         
 
-      onlyInitrav(tr, tr->start);   
+      evaluateGenericInitrav(tr, tr->start);         
 
       autoProtein(tr);
       
       if(adef->mode != OPTIMIZE_BR_LEN_SCALER)
 	treeEvaluate(tr, 0.0625);                     	            
-      else 	 
+      else 	
 	optScaler(tr, modelEpsilon, scalerList);     
 
       switch(tr->rateHetModel)
@@ -3390,11 +3777,14 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
 	  optAlphasGeneric(tr, modelEpsilon, alphaList); 
 	 
 	  onlyInitrav(tr, tr->start); 
-
+	  
+	  evaluateGeneric(tr, tr->start); 
+	  
 	  if(adef->mode != OPTIMIZE_BR_LEN_SCALER)	 	 
 	    treeEvaluate(tr, 0.1);
 	  else 	   
-	    optScaler(tr, modelEpsilon, scalerList);	  
+	    optScaler(tr, modelEpsilon, scalerList);
+	 
 	  break;	  
 	case CAT:
 	  if(!tr->noRateHet)

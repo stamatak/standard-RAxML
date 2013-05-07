@@ -3185,7 +3185,7 @@ static void updateFracChange(tree *tr)
   if(tr->NumberOfModels == 1)    
     {   
       assert(tr->fracchanges[0] != -1.0);
-      tr->fracchange = tr->fracchanges[0];      
+      tr->fracchange = tr->fracchanges[0];            
       tr->fracchanges[0] = -1.0;
       
       if(tr->useBrLenScaler)
@@ -3222,6 +3222,9 @@ static void updateFracChange(tree *tr)
 
       rax_free(modelWeights);
     }
+
+  tr->rawFracchange = tr->fracchange;
+  memcpy(tr->rawFracchanges, tr->fracchanges, sizeof(double) * tr->NumberOfModels);
 }
 
 static void mytred2(double **a, const int n, double *d, double *e)
@@ -3709,7 +3712,8 @@ void initReversibleGTR(tree *tr, int model)
    default:
      assert(0);
    } 
-
+ 
+ 
  updateFracChange(tr);    
 }
 
@@ -4391,6 +4395,12 @@ void initModel(tree *tr, rawdata *rdta, cruncheddata *cdta, analdef *adef)
 
       initReversibleGTR(tr, model);               
       makeGammaCats(tr->partitionData[model].alpha, tr->partitionData[model].gammaRates, 4, tr->useGammaMedian); 
+
+      for(j = 0; j < 4; j++)
+	{
+	  tr->partitionData[model].weights[j] = 0.25;
+	  tr->partitionData[model].weightExponents[j] = 0.0;
+	}
     }   
                 
  

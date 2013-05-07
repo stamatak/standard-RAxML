@@ -888,9 +888,9 @@ static boolean setupTree (tree *tr, analdef *adef)
     {
       tr->yVector      = (unsigned char **)  rax_malloc((tr->mxtips + 1) * sizeof(unsigned char *));
 
-      tr->fracchanges  = (double *)rax_malloc(tr->NumberOfModels * sizeof(double));
+      tr->fracchanges  = (double *)rax_malloc(tr->NumberOfModels * sizeof(double));    
 
-      
+      tr->rawFracchanges = (double *)rax_malloc(tr->NumberOfModels * sizeof(double));  
 
       tr->likelihoods  = (double *)rax_malloc(adef->multipleRuns * sizeof(double));
     }
@@ -912,11 +912,13 @@ static boolean setupTree (tree *tr, analdef *adef)
       tr->td[0].ti    = (traversalInfo *)rax_malloc(sizeof(traversalInfo) * tr->mxtips);	
 
       for(i = 0; i < tr->NumberOfModels; i++)
-	tr->fracchanges[i] = -1.0;
-
-      
+	{
+	  tr->fracchanges[i] = -1.0;             
+	  tr->rawFracchanges[i] = -1.0; 
+	}
 
       tr->fracchange = -1.0;
+      tr->rawFracchange = -1.0;
 
       tr->constraintVector = (int *)rax_malloc((2 * tr->mxtips) * sizeof(int));
 
@@ -6832,8 +6834,7 @@ static void initPartition(tree *tr, tree *localTree, int tid)
       localTree->storedPerPartitionLH    = (double*)rax_malloc(sizeof(double)   * localTree->NumberOfModels);
 
       localTree->fracchanges = (double*)rax_malloc(sizeof(double)   * localTree->NumberOfModels);
-
-      
+      localTree->rawFracchanges = (double*)rax_malloc(sizeof(double)   * localTree->NumberOfModels);
 
       localTree->partitionContributions = (double*)rax_malloc(sizeof(double)   * localTree->NumberOfModels);
 
@@ -7295,6 +7296,7 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 	      
 	      copyLG4(localTree, tr, model, pl);
 
+	      memcpy(localTree->partitionData[model].weights, tr->partitionData[model].weights, sizeof(double) * 4);
 	      memcpy(localTree->partitionData[model].gammaRates, tr->partitionData[model].gammaRates, sizeof(double) * 4);
 	      localTree->partitionData[model].alpha = tr->partitionData[model].alpha;
 	      localTree->partitionData[model].brLenScaler = tr->partitionData[model].brLenScaler;
@@ -7434,8 +7436,14 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 	  localTree->inserts                  = tr->inserts;
 	  localTree->numberOfTipsForInsertion = tr->numberOfTipsForInsertion;	
 	  localTree->fracchange = tr->fracchange;
+	  localTree->rawFracchange = tr->rawFracchange;
+	  
 	  memcpy(localTree->partitionContributions, tr->partitionContributions, sizeof(double) * localTree->NumberOfModels);
+	  
 	  memcpy(localTree->fracchanges, tr->fracchanges, sizeof(double) * localTree->NumberOfModels);	 
+	  
+	  memcpy(localTree->rawFracchanges, tr->rawFracchanges, sizeof(double) * localTree->NumberOfModels);
+
 
 	  if(localTree->perPartitionEPA)
 	    {
@@ -7921,6 +7929,45 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 	    localTree->executeModel[model] = TRUE;
 	}
       break;   
+    case THREAD_COPY_LG4X_RATES:
+      if(tid > 0)
+	{
+	  for(model = 0; model < localTree->NumberOfModels; model++)
+	    {
+	      memcpy(localTree->partitionData[model].weights,    tr->partitionData[model].weights,    sizeof(double) * 4);
+	      memcpy(localTree->partitionData[model].gammaRates, tr->partitionData[model].gammaRates, sizeof(double) * 4);
+	    }
+	}
+      break;
+    case THREAD_OPT_LG4X_RATES:
+      if(tid > 0)
+	{
+	  memcpy(localTree->executeModel, tr->executeModel, localTree->NumberOfModels * sizeof(boolean));
+
+	  for(model = 0; model < localTree->NumberOfModels; model++)
+	    {
+	      memcpy(localTree->partitionData[model].weights,    tr->partitionData[model].weights,    sizeof(double) * 4);
+	      memcpy(localTree->partitionData[model].gammaRates, tr->partitionData[model].gammaRates, sizeof(double) * 4);
+	    }
+	}
+
+     
+      result = evaluateIterative(localTree, FALSE);
+      
+      if(localTree->NumberOfModels > 1)
+	{
+	  for(model = 0; model < localTree->NumberOfModels; model++)
+	    reductionBuffer[tid *  localTree->NumberOfModels + model] = localTree->perPartitionLH[model];
+	}
+      else
+	reductionBuffer[tid] = result;
+      
+      if(tid > 0)
+	{
+	  for(model = 0; model < localTree->NumberOfModels; model++)
+	    localTree->executeModel[model] = TRUE;
+	}	
+      break;
     default:
       printf("Job %d\n", currentJob);
       assert(0);
@@ -8994,6 +9041,9 @@ void writeBinaryModel(tree *tr)
 
   myfwrite(&tr->fracchange, sizeof(double), 1, f);
   myfwrite(tr->fracchanges, sizeof(double), (size_t)tr->NumberOfModels, f);
+
+  myfwrite(&tr->rawFracchange, sizeof(double), 1, f);
+  myfwrite(tr->rawFracchanges, sizeof(double), (size_t)tr->NumberOfModels, f);
     
   /* pInfo */
    
@@ -9082,6 +9132,9 @@ void readBinaryModel(tree *tr)
 
   myfread(&tr->fracchange, sizeof(double), 1, f);
   myfread(tr->fracchanges, sizeof(double), (size_t)tr->NumberOfModels, f);
+
+  myfread(&tr->rawFracchange, sizeof(double), 1, f);
+  myfread(tr->rawFracchanges, sizeof(double), (size_t)tr->NumberOfModels, f);
   
   /* pInfo */
    

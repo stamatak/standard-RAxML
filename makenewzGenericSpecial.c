@@ -2709,7 +2709,7 @@ static void coreGTRGAMMAPROT(double *gammaRates, double *EIGN, double *sumtable,
 }
 
 static void coreGTRGAMMAPROT_LG4(double *gammaRates, double *EIGN[4], double *sumtable, int upper, int *wrptr,
-				volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double lz)
+				 volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double lz, double *weights)
 {
   double  *sum, 
     diagptable0[80] __attribute__ ((aligned (BYTE_ALIGNMENT))),
@@ -2718,8 +2718,7 @@ static void coreGTRGAMMAPROT_LG4(double *gammaRates, double *EIGN[4], double *su
   int     i, j, l;
   double  dlnLdlz = 0;
   double d2lnLdlz2 = 0;
-  double ki, kisqr; 
-  double inv_Li, dlnLidlz, d2lnLidlz2;
+  double ki, kisqr;   
 
   for(i = 0; i < 4; i++)
     {
@@ -2739,36 +2738,51 @@ static void coreGTRGAMMAPROT_LG4(double *gammaRates, double *EIGN[4], double *su
     }
 
   for (i = 0; i < upper; i++)
-    { 
-      __m128d a0 = _mm_setzero_pd();
-      __m128d a1 = _mm_setzero_pd();
-      __m128d a2 = _mm_setzero_pd();
+    {       
+      double 	
+	inv_Li = 0.0, 
+	dlnLidlz = 0.0, 
+	d2lnLidlz2 = 0.0;
 
       sum = &sumtable[i * 80];         
 
       for(j = 0; j < 4; j++)
 	{	 	  	
-	  double 	   
+	  double
+	    l0,
+	    l1,
+	    l2, 	   
 	    *d0 = &diagptable0[j * 20],
 	    *d1 = &diagptable1[j * 20],
 	    *d2 = &diagptable2[j * 20];
+	  
+	  __m128d 
+	    a0 = _mm_setzero_pd(),
+	    a1 = _mm_setzero_pd(),
+	    a2 = _mm_setzero_pd();
   	 	 
 	  for(l = 0; l < 20; l+=2)
 	    {
-	      __m128d tmpv = _mm_mul_pd(_mm_load_pd(&d0[l]), _mm_load_pd(&sum[j * 20 +l]));
+	      __m128d 
+		tmpv = _mm_mul_pd(_mm_load_pd(&d0[l]), _mm_load_pd(&sum[j * 20 +l]));
+	      
 	      a0 = _mm_add_pd(a0, tmpv);
 	      a1 = _mm_add_pd(a1, _mm_mul_pd(tmpv, _mm_load_pd(&d1[l])));
 	      a2 = _mm_add_pd(a2, _mm_mul_pd(tmpv, _mm_load_pd(&d2[l])));
-	    }	 	  
+	    }
+	  
+	  a0 = _mm_hadd_pd(a0, a0);
+	  a1 = _mm_hadd_pd(a1, a1);
+	  a2 = _mm_hadd_pd(a2, a2);
+
+	  _mm_storel_pd(&l0, a0);
+	  _mm_storel_pd(&l1, a1);
+	  _mm_storel_pd(&l2, a2);
+	  
+	  inv_Li     += weights[j] * l0;
+	  dlnLidlz   += weights[j] * l1;
+	  d2lnLidlz2 += weights[j] * l2; 
 	}
-
-      a0 = _mm_hadd_pd(a0, a0);
-      a1 = _mm_hadd_pd(a1, a1);
-      a2 = _mm_hadd_pd(a2, a2);
-
-      _mm_storel_pd(&inv_Li, a0);
-      _mm_storel_pd(&dlnLidlz, a1);
-      _mm_storel_pd(&d2lnLidlz2, a2);
 
       inv_Li = 1.0 / inv_Li;
 
@@ -2843,7 +2857,7 @@ static void coreGTRGAMMAPROT(double *gammaRates, double *EIGN, double *sumtable,
 }
 
 static void coreGTRGAMMAPROT_LG4(double *gammaRates, double *EIGN[4], double *sumtable, int upper, int *wrptr,
-				 volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double lz)
+				 volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double lz, double *weights)
 {
   double  *sum, diagptable[512];
   int     i, j, l;
@@ -2875,14 +2889,23 @@ static void coreGTRGAMMAPROT_LG4(double *gammaRates, double *EIGN[4], double *su
 
       for(j = 0; j < 4; j++)
 	{
-	  inv_Li += sum[j * 20];
+	  double 
+	    a1 = 0.0,
+	    a2 = 0.0,
+	    a3 = 0.0;
+
+	  a1 += sum[j * 20];
 
 	  for(l = 1; l < 20; l++)
 	    {
-	      inv_Li     += (tmp = diagptable[j * 128 + l * 4] * sum[j * 20 + l]);
-	      dlnLidlz   +=  tmp * diagptable[j * 128 + l * 4 + 1];
-	      d2lnLidlz2 +=  tmp * diagptable[j * 128 + l * 4 + 2];
+	      a1 += (tmp = diagptable[j * 128 + l * 4] * sum[j * 20 + l]);
+	      a2 +=  tmp * diagptable[j * 128 + l * 4 + 1];
+	      a3 +=  tmp * diagptable[j * 128 + l * 4 + 2];
 	    }
+
+	  inv_Li     += weights[j] * a1;
+	  dlnLidlz   += weights[j] * a2;
+	  d2lnLidlz2 += weights[j] * a3;
 	}
 
       inv_Li = 1.0 / inv_Li;
@@ -3657,6 +3680,7 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 	    states = tr->partitionData[model].states;
 	  
 	  double 
+	    *weights         = tr->partitionData[model].weights,
 	    *sumBuffer       = (double*)NULL;
 	 
 
@@ -3707,8 +3731,7 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 		  assert(0);
 		}
 	      break;
-	    case DNA_DATA:
-	      
+	    case DNA_DATA:	      
 		{
 		  switch(tr->rateHetModel)
 		    {
@@ -3750,7 +3773,7 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 			{						  
 			  coreGTRGAMMAPROT_LG4(tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN_LG4,
 					      sumBuffer, width, tr->partitionData[model].wgt,
-					      &dlnLdlz, &d2lnLdlz2, lz);
+					       &dlnLdlz, &d2lnLdlz2, lz, weights);
 
 			}
 		      else

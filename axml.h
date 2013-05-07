@@ -161,8 +161,8 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "RAxML"
-#define programVersion     "7.5.2"
-#define programDate        "May 2 2013"
+#define programVersion     "7.5.3"
+#define programDate        "May 7 2013"
 
 
 #define  TREE_EVALUATION            0
@@ -578,6 +578,11 @@ typedef struct {
   double *tipVector_LG4[4];
   double *substRates_LG4[4];
   
+  /* LG4X */
+
+  double weights[4];
+  double weightExponents[4];
+
   /* LG4 */
 
   double *frequencies;
@@ -719,8 +724,8 @@ typedef  struct  {
 
   double           *invariants;
   double           *fracchanges;
-
-  
+ 
+  double           *rawFracchanges;
 
   /* model stuff end */
 
@@ -736,7 +741,10 @@ typedef  struct  {
 
 
   double            *partitionContributions;
+
   double            fracchange;
+  double            rawFracchange;
+
   double            lhCutoff;
   double            lhAVG;
   unsigned long     lhDEC;
@@ -1380,6 +1388,8 @@ extern void testInsertThoroughIterative(tree *tr, int branchNumber);
 #define THREAD_NEWVIEW_ANCESTRAL            41
 #define THREAD_GATHER_ANCESTRAL             42
 #define THREAD_OPT_SCALER                   43
+#define THREAD_COPY_LG4X_RATES              44
+#define THREAD_OPT_LG4X_RATES               45
 
 
 /*
