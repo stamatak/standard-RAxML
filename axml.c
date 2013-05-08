@@ -9051,7 +9051,10 @@ void writeBinaryModel(tree *tr)
     {
       int 
 	dataType = tr->partitionData[model].dataType;
-      
+
+      myfwrite(tr->partitionData[model].weightExponents, sizeof(double), 4, f);
+      myfwrite(tr->partitionData[model].weights,         sizeof(double), 4, f);
+
       myfwrite(tr->partitionData[model].gammaRates, sizeof(double), 4, f);
       myfwrite(tr->partitionData[model].EIGN, sizeof(double), pLengths[dataType].eignLength, f);
       myfwrite(tr->partitionData[model].EV, sizeof(double),  pLengths[dataType].evLength, f);
@@ -9063,7 +9066,10 @@ void writeBinaryModel(tree *tr)
       myfwrite(&(tr->partitionData[model].propInvariant), sizeof(double), 1, f);
 
       myfwrite(&(tr->partitionData[model].numberOfCategories), sizeof(int), 1, f);
-      
+
+      myfwrite(&(tr->partitionData[model].protModels), sizeof(int), 1, f);
+      myfwrite(&(tr->partitionData[model].autoProtModels), sizeof(int), 1, f);
+
       myfwrite(tr->partitionData[model].perSiteRates,          sizeof(double), tr->partitionData[model].numberOfCategories, f);
       myfwrite(tr->partitionData[model].unscaled_perSiteRates, sizeof(double), tr->partitionData[model].numberOfCategories, f);   
 
@@ -9143,6 +9149,9 @@ void readBinaryModel(tree *tr)
       int 
 	dataType = tr->partitionData[model].dataType;
       
+      myfread(tr->partitionData[model].weightExponents, sizeof(double), 4, f);
+      myfread(tr->partitionData[model].weights,         sizeof(double), 4, f);
+
       myfread(tr->partitionData[model].gammaRates, sizeof(double), 4, f);
       
       myfread(tr->partitionData[model].EIGN, sizeof(double), (size_t)(pLengths[dataType].eignLength), f);
@@ -9158,6 +9167,9 @@ void readBinaryModel(tree *tr)
 
       myfread(&(tr->partitionData[model].numberOfCategories), sizeof(int), 1, f);
       
+      myfread(&(tr->partitionData[model].protModels), sizeof(int), 1, f);
+      myfread(&(tr->partitionData[model].autoProtModels), sizeof(int), 1, f);
+
       myfread(tr->partitionData[model].perSiteRates,          sizeof(double), tr->partitionData[model].numberOfCategories, f);
       myfread(tr->partitionData[model].unscaled_perSiteRates, sizeof(double), tr->partitionData[model].numberOfCategories, f);
 
