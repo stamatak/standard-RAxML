@@ -89,7 +89,7 @@ boolean initrav (tree *tr, nodeptr p)
 
 
 
-
+//#define _DEBUG_UPDATE
 
 
 boolean update(tree *tr, nodeptr p)
@@ -99,6 +99,15 @@ boolean update(tree *tr, nodeptr p)
   int i;
   double   z[NUM_BRANCHES], z0[NUM_BRANCHES];
   double _deltaz;
+
+#ifdef _DEBUG_UPDATE
+  double 
+    startLH;
+
+  evaluateGeneric(tr, p);
+
+  startLH = tr->likelihood;
+#endif
 
   q = p->back;   
 
@@ -123,13 +132,24 @@ boolean update(tree *tr, nodeptr p)
 	    {	      
 	      smoothedPartitions[i] = FALSE;       
 	    }	 
-
-	  
-	  
+	  	  
 	  p->z[i] = q->z[i] = z[i];	 
 	}
     }
   
+#ifdef _DEBUG_UPDATE
+  evaluateGeneric(tr, p);
+
+  if(tr->likelihood <= startLH)
+    {
+      if(fabs(tr->likelihood - startLH) > 0.01)
+	{
+	  printf("%f %f\n", startLH, tr->likelihood);
+	  assert(0);      
+	}
+    }
+#endif
+
   for(i = 0; i < tr->numBranches; i++)    
     tr->partitionSmoothed[i]  = smoothedPartitions[i];
   

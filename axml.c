@@ -9056,9 +9056,11 @@ void writeBinaryModel(tree *tr)
       myfwrite(tr->partitionData[model].weights,         sizeof(double), 4, f);
 
       myfwrite(tr->partitionData[model].gammaRates, sizeof(double), 4, f);
+
       myfwrite(tr->partitionData[model].EIGN, sizeof(double), pLengths[dataType].eignLength, f);
       myfwrite(tr->partitionData[model].EV, sizeof(double),  pLengths[dataType].evLength, f);
       myfwrite(tr->partitionData[model].EI, sizeof(double),  pLengths[dataType].eiLength, f);  
+
       myfwrite(tr->partitionData[model].frequencies, sizeof(double),  pLengths[dataType].frequenciesLength, f);
       myfwrite(tr->partitionData[model].tipVector, sizeof(double),  pLengths[dataType].tipVectorLength, f);  
       myfwrite(tr->partitionData[model].substRates, sizeof(double),  pLengths[dataType].substRatesLength, f);           
