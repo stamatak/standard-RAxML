@@ -3804,6 +3804,12 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
 	  break;
 	case GAMMA:      
 	  optAlphasGeneric(tr, modelEpsilon, alphaList); 
+
+#ifdef _DEBUG_MOD_OPT
+	  evaluateGenericInitrav(tr, tr->start); 
+	  printf("after alphas %f\n", tr->likelihood);
+#endif
+
 	 
 	  onlyInitrav(tr, tr->start); 
 	  
@@ -3813,6 +3819,12 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
 	    treeEvaluate(tr, 0.1);
 	  else 	   
 	    optScaler(tr, modelEpsilon, scalerList);
+
+#ifdef _DEBUG_MOD_OPT
+	  evaluateGenericInitrav(tr, tr->start); 
+	  printf("after br-len 3 %f\n", tr->likelihood);
+#endif
+
 	 
 	  break;	  
 	case CAT:
@@ -3825,6 +3837,12 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
 		  catOpt++;
 		}
 	    }
+
+#ifdef _DEBUG_MOD_OPT
+	  evaluateGenericInitrav(tr, tr->start); 
+	  printf("after cat-opt %f\n", tr->likelihood);
+#endif	  
+
 	  break;	  
 	default:
 	  assert(0);
