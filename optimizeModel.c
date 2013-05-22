@@ -3650,7 +3650,7 @@ static void autoProtein(tree *tr)
 }
 
 
-
+//#define _DEBUG_MOD_OPT
 
 void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilon)
 { 
@@ -3749,10 +3749,18 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
   do
     {           
       currentLikelihood = tr->likelihood;      
-      
+
+#ifdef _DEBUG_MOD_OPT
+      printf("start: %f\n", currentLikelihood);
+#endif
+
       optRatesGeneric(tr, modelEpsilon, rateList);         
 
-      evaluateGenericInitrav(tr, tr->start);         
+      evaluateGenericInitrav(tr, tr->start); 
+      
+#ifdef _DEBUG_MOD_OPT
+      printf("after rates %f\n", tr->likelihood);
+#endif
 
       autoProtein(tr);
       
@@ -3761,17 +3769,38 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
       else 	
 	optScaler(tr, modelEpsilon, scalerList);     
 
+#ifdef _DEBUG_MOD_OPT
+      evaluateGenericInitrav(tr, tr->start); 
+      printf("after br-len 1 %f\n", tr->likelihood);
+#endif
+
       switch(tr->rateHetModel)
 	{	  
 	case GAMMA_I:
 	  optAlphasGeneric(tr, modelEpsilon, alphaList);
+
+#ifdef _DEBUG_MOD_OPT
+	  evaluateGenericInitrav(tr, tr->start); 
+	  printf("after alphas %f\n", tr->likelihood);
+#endif
+
 	  optInvar(tr, modelEpsilon, invarList);
+
+#ifdef _DEBUG_MOD_OPT
+	  evaluateGenericInitrav(tr, tr->start); 
+	  printf("after invar %f\n", tr->likelihood);
+#endif
 
 	  if(adef->mode != OPTIMIZE_BR_LEN_SCALER)		      	    	   	 
 	    treeEvaluate(tr, 0.1);  
 	  else 	  
 	    optScaler(tr, modelEpsilon, scalerList);	
 	  
+#ifdef _DEBUG_MOD_OPT
+	  evaluateGenericInitrav(tr, tr->start); 
+	  printf("after br-len 2 %f\n", tr->likelihood);
+#endif
+
 	  break;
 	case GAMMA:      
 	  optAlphasGeneric(tr, modelEpsilon, alphaList); 

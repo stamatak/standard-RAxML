@@ -1187,7 +1187,7 @@ static void coreGammaInvarFlex(double *gammaRates, double *EIGN, double *sumtabl
  
   const int 
     gammaStates = 4 * numStates;
-
+  
   for(i = 0; i < numStates; i++)
     freqs[i] = frequencies[i] * propInvar;
 
@@ -1214,7 +1214,7 @@ static void coreGammaInvarFlex(double *gammaRates, double *EIGN, double *sumtabl
 
        for(j = 0; j < 4; j++)
 	{
-	  inv_Li += sum[j * gammaStates];
+	  inv_Li += sum[j * numStates];
 
 	  for(l = 1; l < numStates; l++)
 	    {
@@ -3207,7 +3207,7 @@ static void coreGTRGAMMASECONDARYINVAR(double *gammaRates, double *EIGN, double 
 
        for(j = 0; j < 4; j++)
 	{
-	  inv_Li += sum[j * 64];
+	  inv_Li += sum[j * 16];
 
 	  for(l = 1; l < 16; l++)
 	    {
@@ -3278,7 +3278,7 @@ static void coreGTRGAMMASECONDARYINVAR_6(double *gammaRates, double *EIGN, doubl
 
        for(j = 0; j < 4; j++)
 	{
-	  inv_Li += sum[j * 24];
+	  inv_Li += sum[j * 6];
 
 	  for(l = 1; l < 6; l++)
 	    {
@@ -3349,7 +3349,7 @@ static void coreGTRGAMMASECONDARYINVAR_7(double *gammaRates, double *EIGN, doubl
 
        for(j = 0; j < 4; j++)
 	{
-	  inv_Li += sum[j * 28];
+	  inv_Li += sum[j * 7];
 
 	  for(l = 1; l < 7; l++)
 	    {
@@ -3705,6 +3705,8 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 	      lz = tr->coreLZ[0];
 	    }
 
+	  
+
 	  switch(tr->partitionData[model].dataType)
 	    {
 	    case BINARY_DATA:
@@ -3792,7 +3794,7 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 		    }
 		}
 	      break;
-	    case SECONDARY_DATA:
+	    case SECONDARY_DATA:	      
 	      switch(tr->rateHetModel)
 		{
 		case CAT:
@@ -3806,7 +3808,7 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 					sumBuffer, width, tr->partitionData[model].wgt,
 					&dlnLdlz, &d2lnLdlz2, lz);
 		  break;
-		case GAMMA_I:
+		case GAMMA_I:		 
 		  coreGTRGAMMASECONDARYINVAR(tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN,
 					     sumBuffer, width, tr->partitionData[model].wgt,
 					     &dlnLdlz, &d2lnLdlz2, lz, tr->partitionData[model].frequencies,
@@ -3816,7 +3818,7 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 		  assert(0);
 		}
 	      break;
-	    case SECONDARY_DATA_6:
+	    case SECONDARY_DATA_6:	      
 	      switch(tr->rateHetModel)
 		{
 		case CAT:
@@ -3840,7 +3842,7 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 		  assert(0);
 		}
 	      break;
-	    case SECONDARY_DATA_7:
+	    case SECONDARY_DATA_7:	    
 	      switch(tr->rateHetModel)
 		{
 		case CAT:
