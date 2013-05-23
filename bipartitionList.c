@@ -508,7 +508,6 @@ static void insertHashAll(unsigned int *bitVector, hashtable *h, unsigned int ve
 
 
 
-
 static void insertHashBootstop(unsigned int *bitVector, hashtable *h, unsigned int vectorLength, int treeNumber, int treeVectorLength, hashNumberType position)
 {    
   if(h->table[position] != NULL)
@@ -727,7 +726,7 @@ void bitVectorInitravSpecial(unsigned int **bitVectors, nodeptr p, int numsp, un
 		assert(p->support == p->back->support);
 	      insertHashRF(toInsert, h, vectorLength, treeNumber, treeVectorLength, position, p->support, computeWRF);
 	      *countBranches =  *countBranches + 1;
-	      break;
+	      break;	    
 	    default:
 	      assert(0);
 	    }	  	  
@@ -777,17 +776,6 @@ static void linkBipartitions(nodeptr p, tree *tr, branchInfo *bInf, int *counter
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
 static int readSingleTree(tree *tr, char *fileName, analdef *adef, boolean readBranches, boolean readNodeLabels, boolean completeTree)
 { 
   FILE 
@@ -816,6 +804,8 @@ static int readSingleTree(tree *tr, char *fileName, analdef *adef, boolean readB
 
   return numberOfTaxa;
 }
+
+/*************** function for drawing bipartitions on a bifurcating tree ***********/
 
 void calcBipartitions(tree *tr, analdef *adef, char *bestTreeFileName, char *bootStrapFileName)
 {  
@@ -879,7 +869,7 @@ void calcBipartitions(tree *tr, analdef *adef, char *bestTreeFileName, char *boo
 
   assert(counter == branchCounter);
 
-  printBipartitionResult(tr, adef, TRUE);    
+  printBipartitionResult(tr, adef, TRUE, FALSE);    
 
   freeBitVectors(bitVectors, 2 * tr->mxtips);
   rax_free(bitVectors);
@@ -889,7 +879,367 @@ void calcBipartitions(tree *tr, analdef *adef, char *bestTreeFileName, char *boo
   rax_free(bInf);
 }
 
-/*************************************************************/
+
+/****** functions for IC computation ***********************************************/
+
+static void insertHash_IC(unsigned int *bitVector, hashtable *h, unsigned int vectorLength, hashNumberType position)
+{    
+  if(h->table[position] != NULL)
+    {
+      entry 
+	*e = h->table[position];     
+
+      do
+	{	 
+	  unsigned int 
+	    i;
+	  
+	  for(i = 0; i < vectorLength; i++)
+	    if(bitVector[i] != e->bitVector[i])
+	      break;
+	  
+	  if(i == vectorLength)
+	    {	     
+	      e->bipNumber = 	e->bipNumber  + 1;	     
+	      return;
+	    }
+	  
+	  e = e->next;	 
+	}
+      while(e != (entry*)NULL); 
+
+      e = initEntry(); 
+        
+      e->bitVector = (unsigned int*)rax_malloc_aligned(vectorLength * sizeof(unsigned int));
+      memset(e->bitVector, 0, vectorLength * sizeof(unsigned int));
+      memcpy(e->bitVector, bitVector, sizeof(unsigned int) * vectorLength);
+   
+      e->bipNumber  = 1;       	
+	
+      e->next = h->table[position];
+      h->table[position] = e;              
+    }
+  else
+    {
+      entry 
+	*e = initEntry(); 
+  
+      e->bitVector = (unsigned int*)rax_malloc_aligned(vectorLength * sizeof(unsigned int));
+      memset(e->bitVector, 0, vectorLength * sizeof(unsigned int));
+      memcpy(e->bitVector, bitVector, sizeof(unsigned int) * vectorLength);
+
+     
+      e->bipNumber  = 1;	  	    
+
+      h->table[position] = e;
+    }
+
+  h->entryCount =  h->entryCount + 1;
+}
+
+
+
+static unsigned int findHash_IC(unsigned int *bitVector, hashtable *h, unsigned int vectorLength, hashNumberType position)
+{
+  if(h->table[position] == NULL)         
+    return 0;
+  {
+    entry *e = h->table[position];     
+
+    do
+      {	 
+	unsigned int 
+	  i;
+
+	for(i = 0; i < vectorLength; i++)
+	  if(bitVector[i] != e->bitVector[i])
+	    goto NEXT;
+	   
+	return e->bipNumber;	 
+      NEXT:
+	e = e->next;
+      }
+    while(e != (entry*)NULL); 
+     
+    return 0;   
+  }
+}
+
+static boolean compatibleIC(unsigned int *A, unsigned int *C, unsigned int bvlen)
+{
+  unsigned int 
+    i;
+  
+  for(i = 0; i < bvlen; i++)        
+    if(A[i] & C[i])
+      break;
+          
+  if(i == bvlen)
+    return TRUE;
+  
+  for(i = 0; i < bvlen; i++)
+    if(A[i] & ~C[i])
+      break;
+   
+  if(i == bvlen)  
+    return TRUE;  
+  
+  /*
+    not required -> ask Andre
+  for(i = 0; i < bvlen; i++)
+    if(~A[i] & ~C[i])
+      break;
+   
+  if(i == bvlen)  
+  return TRUE; */
+
+  
+  for(i = 0; i < bvlen; i++)
+    if(~A[i] & C[i])
+      break;
+  
+  if(i == bvlen)
+    return TRUE;  
+  else
+    return FALSE;
+}
+
+
+static unsigned int countIncompatibleBipartitions(unsigned int *toInsert, hashtable *h,  hashNumberType vectorLength, unsigned int *max, boolean bipNumber)
+{
+  unsigned int   
+    k,
+    uncompatible = 0;
+
+  for(k = 0; k < h->tableSize; k++)	     
+    {    
+      if(h->table[k] != NULL)
+	{
+	  entry 
+	    *e = h->table[k];	   	  
+
+	  do
+	    {	    		  
+	      if(!compatibleIC(toInsert, e->bitVector, vectorLength))
+		{
+		  unsigned int
+		    support;
+
+		  if(bipNumber)
+		    support = e->bipNumber;
+		  else
+		    support = e->supportFromTreeset[0];
+
+		  if(support > *max)
+		    *max = support;		  		
+		  
+		  uncompatible += support;
+		}
+		  
+	      e = e->next;
+	    }
+	  while(e != NULL);
+	}
+    }
+  
+  return uncompatible;
+}
+
+static void bitVectorInitravIC(unsigned int **bitVectors, nodeptr p, int numsp, unsigned int vectorLength, hashtable *h, int treeNumber, int function, branchInfo *bInf, 
+			       int *countBranches, int treeVectorLength, boolean traverseOnly, boolean computeWRF, double *tc)
+{
+  if(isTip(p->number, numsp))
+    return;
+  else
+    {
+      nodeptr q = p->next;          
+
+      do 
+	{
+	  bitVectorInitravIC(bitVectors, q->back, numsp, vectorLength, h, treeNumber, function, bInf, countBranches, treeVectorLength, traverseOnly, computeWRF, tc);
+	  q = q->next;
+	}
+      while(q != p);
+           
+      newviewBipartitions(bitVectors, p, numsp, vectorLength);
+      
+      assert(p->x);
+
+      if(traverseOnly)
+	{
+	  if(!(isTip(p->back->number, numsp)))
+	    *countBranches =  *countBranches + 1;
+	  return;
+	}
+
+      if(!(isTip(p->back->number, numsp)))
+	{
+	  unsigned int *toInsert  = bitVectors[p->number];
+	  hashNumberType position = p->hash % h->tableSize;
+	 
+	  assert(!(toInsert[0] & 1));	 
+
+	  switch(function)
+	    {	  
+	    case GATHER_BIPARTITIONS_IC:
+	      insertHash_IC(toInsert, h, vectorLength, position);
+	      *countBranches =  *countBranches + 1;
+	      break;
+	    case FIND_BIPARTITIONS_IC:
+	      {
+		unsigned int
+		  numberOfTrees = (unsigned int)treeVectorLength,
+		  max = 0,
+		  supportedBips,
+		  unsupportedBips,
+		  totalBips;
+		
+		double 
+		  freqSupported,
+		  freqConflicting,
+		  ic;
+
+		//Leonida: Please check if I got the equation right!
+
+		//obtain the support for the bipartitions in the tree 
+		supportedBips = findHash_IC(toInsert, h, vectorLength, position);
+
+		//find all incompatible bipartitions in the hash table and also 
+		//get the conflicting bipartition with maximum support
+		unsupportedBips = countIncompatibleBipartitions(toInsert, h, vectorLength, &max, TRUE);
+		  		
+		//this number must be smaller or equal to the total number of trees
+		totalBips = max + supportedBips;
+
+		assert(supportedBips + max <= numberOfTrees);	     
+
+		//now compute the IC score for this bipartition 
+
+		if(supportedBips == numberOfTrees)
+		  ic = 1.0;
+		else
+		  {	
+		    if(supportedBips == 0)
+		      ic = 0.0;
+		    else
+		      {
+			assert(max > 0);
+			
+			freqSupported   = (double)supportedBips / (double)totalBips;
+			freqConflicting = (double)max           / (double)totalBips;	
+			//Leonida: please check the eqn. below
+			ic = log(2) + freqSupported * log(freqSupported) + freqConflicting * log(freqConflicting);
+		      }
+		  }
+
+		//printf("%d %d %d %d IC %f\n", supportedBips, unsupportedBips, max, treeVectorLength, ic);
+		
+		p->bInf            = &bInf[*countBranches];
+		p->back->bInf      = &bInf[*countBranches];        	     
+		p->bInf->oP = p;
+		p->bInf->oQ = p->back;
+		p->bInf->ic = ic;	     
+
+		//increment tc
+		*tc += ic;
+
+		//printf("%f\n", (double)supportedBips / 50.0);
+	      }
+	      *countBranches =  *countBranches + 1;
+	      break;
+	    default:
+	      assert(0);
+	    }	  	  
+	}
+      
+    }
+}
+
+
+
+
+void calcBipartitions_IC(tree *tr, analdef *adef, char *bestTreeFileName, char *bootStrapFileName)
+{  
+  branchInfo 
+    *bInf;
+  
+  unsigned int 
+    vLength,
+    **bitVectors = initBitVector(tr, &vLength);
+  
+  int 
+    bCount = 0,
+    numberOfTaxa = 0,
+    numberOfTrees = 0,
+    i;
+     
+  hashtable *h = 
+    initHashTable(tr->mxtips * 10);
+
+  FILE 
+    *treeFile; 
+  
+  double
+    rtc = 0.0,
+    tc = 0.0;
+
+  numberOfTaxa = readSingleTree(tr, bestTreeFileName, adef, FALSE, FALSE, TRUE);    
+  
+  bInf = (branchInfo*)rax_malloc(sizeof(branchInfo) * (tr->mxtips - 3));
+  
+  if(numberOfTaxa != tr->mxtips)
+    {
+      printBothOpen("The number of taxa in the reference tree file \"%s\" is %d and\n",  bestTreeFileName, numberOfTaxa);
+      printBothOpen("is not equal to the number of taxa in the bootstrap tree file \"%s\" which is %d.\n", bootStrapFileName, tr->mxtips);
+      printBothOpen("RAxML will exit now with an error ....\n\n");
+    }  
+  
+  treeFile = getNumberOfTrees(tr, bootStrapFileName, adef);
+
+  numberOfTrees = tr->numberOfTrees;
+  
+  for(i = 0; i < numberOfTrees; i++)
+    {                     
+      bCount = 0;
+      
+      treeReadLen(treeFile, tr, FALSE, FALSE, TRUE, adef, TRUE);
+      assert(tr->ntips == tr->mxtips);
+      
+      bitVectorInitravIC(bitVectors, tr->nodep[1]->back, tr->mxtips, vLength, h, 0, GATHER_BIPARTITIONS_IC, (branchInfo*)NULL, &bCount, 0, FALSE, FALSE, &tc);      
+      assert(bCount == tr->mxtips - 3);      
+    }     
+  
+  fclose(treeFile);
+   
+  readSingleTree(tr, bestTreeFileName, adef, TRUE, FALSE, TRUE); 
+   
+  bCount = 0;
+  tc = 0.0;
+
+  bitVectorInitravIC(bitVectors, tr->nodep[1]->back, tr->mxtips, vLength, h, 0, FIND_BIPARTITIONS_IC, bInf, &bCount, numberOfTrees, FALSE, FALSE, &tc); 
+
+  rtc = tc / (double)(tr->mxtips - 3);
+
+  assert(bCount == tr->mxtips - 3); 
+  assert(tc <= (double)(tr->mxtips - 3));
+  
+  printBothOpen("Tree certainty for this tree: %f\n", tc);
+  printBothOpen("Relative tree certainty for this tree: %f\n", rtc);
+
+  printBipartitionResult(tr, adef, TRUE, TRUE);    
+
+  freeBitVectors(bitVectors, 2 * tr->mxtips);
+  rax_free(bitVectors);
+  freeHashTable(h);
+  rax_free(h); 
+
+  rax_free(bInf);
+}
+
+
+
+
+/*******************/
 
 static double testFreq(double *vect1, double *vect2, int n);
 
@@ -2667,14 +3017,79 @@ static int sortByAmountTips(const void *a, const void *b)
   return (((unsigned int)A->amountTips < (unsigned int)B->amountTips) ?  -1 : 1); 
 }
 
+
+/******* IC function *******************/
+
+
+static double calculateIC(hashtable *h, unsigned int *bitVector, unsigned int vectorLength, int trees, unsigned int supportedBips)
+{
+  unsigned int 
+    numberOfTrees = (unsigned int)trees,
+    max = 0,
+    unsupportedBips = 0,
+    totalBips;
+
+  double
+    freqSupported,
+    freqConflicting,
+    ic = 0.0;
+
+  unsupportedBips = countIncompatibleBipartitions(bitVector, h, vectorLength, &max, FALSE);
+
+  totalBips = max + supportedBips;
+
+  // Leonida: here I am checking for the case that in the MRE there is an incompatible biparition that 
+  // has higher support than the bipartition that was added to the MRE consensus tree
+
+  if(max > supportedBips)
+    {
+      printBothOpen("max %d supported %d\n", max, supportedBips);
+      printBothOpen("Something unexpected happend, please send an email with the input files and command line\n");
+      printBothOpen("to Alexandros.Stamatakis@gmail.com.\n");
+      assert(0);
+    }
+
+  //printf("supp %d max %d unsupp %d\n", supportedBips, max, unsupportedBips);
+
+  assert(supportedBips + max <= numberOfTrees);
+
+  if(supportedBips == numberOfTrees)
+    ic = 1.0;
+  else
+    {	
+      if(supportedBips == 0)
+	ic = 0.0;
+      else
+	{
+	  assert(max > 0);
+			
+	  freqSupported   = (double)supportedBips / (double)totalBips;
+	  freqConflicting = (double)max           / (double)totalBips;	
+	  ic = log(2) + freqSupported * log(freqSupported) + freqConflicting * log(freqConflicting);
+	}
+    }
+
+  //printf("%d %d %d %d IC %f\n", supportedBips, unsupportedBips, max, vectorLength, ic);
+
+  return ic;
+}
+
+/******* IC function end ***************/
+
 static void printBipsRecursive(FILE *outf, int consensusBipLen, entry **consensusBips, int numberOfTrees, 
 			       int currentBipIdx, List **listOfDirectChildren, int bitVectorLength, int numTips, 
-			       char **nameList, entry *currentBip, boolean *printed, boolean topLevel, unsigned int *printCounter)
+			       char **nameList, entry *currentBip, boolean *printed, boolean topLevel, unsigned int *printCounter, hashtable 
+			       *h, boolean computeIC, double *tc)
 {
-  List *idx; 
-  int i;
-  unsigned int *currentBitVector = (unsigned int*)rax_malloc(bitVectorLength * sizeof(unsigned int));  
+  List 
+    *idx; 
   
+  int 
+    i;
+  
+  unsigned int 
+    *currentBitVector = (unsigned int*)rax_malloc(bitVectorLength * sizeof(unsigned int));  
+
   /* open bip */
   if(*printed)
     fprintf(outf, ",");
@@ -2688,6 +3103,7 @@ static void printBipsRecursive(FILE *outf, int consensusBipLen, entry **consensu
     {  	  
       idx = listOfDirectChildren[currentBipIdx]; 
       currentBitVector[i] = currentBip->bitVector[i];
+      
       while(idx)
 	{
 	  currentBitVector[i] = currentBitVector[i] & ~ consensusBips[*((int*)idx->value)]->bitVector[i]; 
@@ -2719,7 +3135,7 @@ static void printBipsRecursive(FILE *outf, int consensusBipLen, entry **consensu
       
       printBipsRecursive(outf, consensusBipLen, consensusBips, numberOfTrees, 
 			 *((int*)idx->value), listOfDirectChildren, bitVectorLength, numTips, nameList, 
-			 consensusBips[*((int*)idx->value)], printed, FALSE, printCounter);
+			 consensusBips[*((int*)idx->value)], printed, FALSE, printCounter, h, computeIC, tc);
       *printed  = TRUE;
       idx = idx->next; 
     }
@@ -2727,13 +3143,25 @@ static void printBipsRecursive(FILE *outf, int consensusBipLen, entry **consensu
   /* close the bipartition */
   if(currentBipIdx != consensusBipLen)
     {
-      double 
-	support = ((double)(currentBip->supportFromTreeset[0])) / ((double) (numberOfTrees));
-      
-      int 
-	branchLabel = (int)(0.5 + support * 100.0);
-      
-      fprintf(outf,"):1.0[%d]", branchLabel);
+      if(computeIC)
+	{
+	  double 
+	    ic = calculateIC(h, currentBip->bitVector, bitVectorLength, numberOfTrees, currentBip->supportFromTreeset[0]);
+
+	  *tc += ic;
+
+	  fprintf(outf,"):1.0[%1.2f]", ic);
+	}
+      else
+	{
+	  double 
+	    support = ((double)(currentBip->supportFromTreeset[0])) / ((double) (numberOfTrees));
+	  
+	  int 
+	    branchLabel = (int)(0.5 + support * 100.0);
+	  
+	  fprintf(outf,"):1.0[%d]", branchLabel);
+	}
       
       *printCounter = *printCounter + 1;
     }
@@ -2747,10 +3175,13 @@ static void printBipsRecursive(FILE *outf, int consensusBipLen, entry **consensu
 
 
 static void printSortedBips(entry **consensusBips, const int consensusBipLen, const int numTips, const unsigned int vectorLen, 
-			    const int numberOfTrees, FILE *outf, char **nameList , tree *tr, unsigned int *printCounter)
+			    const int numberOfTrees, FILE *outf, char **nameList , tree *tr, unsigned int *printCounter, hashtable *h, boolean computeIC)
 {
   int 
     i;
+
+  double
+    tc = 0.0;
 
   List 
     **listOfDirectChildren = (List**) rax_calloc(consensusBipLen + 1, sizeof(List*)); /* reserve one more: the last one is the bip with all species */
@@ -2887,7 +3318,22 @@ static void printSortedBips(entry **consensusBips, const int consensusBipLen, co
 		     numberOfTrees, consensusBipLen,
 		     listOfDirectChildren, vectorLen, 
 		     numTips, nameList, 
-		     topBip, printed, TRUE, printCounter);
+		     topBip, printed, TRUE, printCounter, h, computeIC, &tc);
+
+  if(computeIC)
+    {
+      double
+	rtc = tc / (double)(tr->mxtips - 3);
+      
+      printBothOpen("Tree certainty for this tree: %f\n", tc);
+      
+      /* Leonida: for consensus trees I also calculate the relative tree certainty by dividing 
+	 the tc by the total number of bipartitions of a tree with n (tr->mxtips) taxa 
+	 to penalize the consensi for potentially being unresolved */
+	 
+
+      printBothOpen("Relative tree certainty for this tree: %f\n\n", rtc);
+    }
 
   rax_free(topBip->bitVector);
   rax_free(topBip);
@@ -2921,7 +3367,7 @@ static void printSortedBips(entry **consensusBips, const int consensusBipLen, co
 
 
 
-void computeConsensusOnly(tree *tr, char *treeSetFileName, analdef *adef)
+void computeConsensusOnly(tree *tr, char *treeSetFileName, analdef *adef, boolean computeIC)
 {        
   hashtable 
     *h = initHashTable(tr->mxtips * FC_INIT * 10);
@@ -3029,16 +3475,26 @@ void computeConsensusOnly(tree *tr, char *treeSetFileName, analdef *adef)
   switch(tr->consensusType)
     {
     case MR_CONSENSUS:
-      strcat(consensusFileName,         "RAxML_MajorityRuleConsensusTree.");
+      if(computeIC)
+	strcat(consensusFileName,         "RAxML_MajorityRuleConsensusTree_IC.");
+      else
+	strcat(consensusFileName,         "RAxML_MajorityRuleConsensusTree.");
       break;
     case MRE_CONSENSUS:
-      strcat(consensusFileName,         "RAxML_MajorityRuleExtendedConsensusTree.");
+      if(computeIC)
+	strcat(consensusFileName,         "RAxML_MajorityRuleExtendedConsensusTree_IC.");
+      else
+	strcat(consensusFileName,         "RAxML_MajorityRuleExtendedConsensusTree.");
       break;
     case STRICT_CONSENSUS:
+      assert(!computeIC);
       strcat(consensusFileName,         "RAxML_StrictConsensusTree.");
       break;
     case USER_DEFINED :        
-      sprintf(someChar,         "RAxML_Threshold-%d-ConsensusTree.", tr->consensusUserThreshold);
+      if(computeIC)
+	sprintf(someChar,         "RAxML_Threshold-%d-ConsensusTree_IC.", tr->consensusUserThreshold);
+      else
+	sprintf(someChar,         "RAxML_Threshold-%d-ConsensusTree.", tr->consensusUserThreshold);
       strcat(consensusFileName, someChar);       
       break; 
     default:
@@ -3050,7 +3506,7 @@ void computeConsensusOnly(tree *tr, char *treeSetFileName, analdef *adef)
   outf = myfopen(consensusFileName, "wb");
 
   fprintf(outf, "(%s,", tr->nameList[1]);
-  printSortedBips(consensusBips, consensusBipsLen, tr->mxtips, vectorLength, numberOfTrees, outf, tr->nameList, tr, &printCounter);
+  printSortedBips(consensusBips, consensusBipsLen, tr->mxtips, vectorLength, numberOfTrees, outf, tr->nameList, tr, &printCounter, h, computeIC);
 
   assert(printCounter ==  (unsigned int)consensusBipsLen);
 
@@ -3061,16 +3517,25 @@ void computeConsensusOnly(tree *tr, char *treeSetFileName, analdef *adef)
   switch(tr->consensusType)
     {
     case MR_CONSENSUS:
-      printBothOpen("RAxML Majority Rule consensus tree written to file: %s\n", consensusFileName);
+      if(computeIC)
+	printBothOpen("RAxML Majority Rule consensus tree with IC values written to file: %s\n", consensusFileName);
+      else
+	printBothOpen("RAxML Majority Rule consensus tree written to file: %s\n", consensusFileName);
       break;
     case MRE_CONSENSUS:
-      printBothOpen("RAxML extended Majority Rule consensus tree written to file: %s\n", consensusFileName);
+      if(computeIC)
+	printBothOpen("RAxML extended Majority Rule consensus tree with IC values written to file: %s\n", consensusFileName);
+      else
+	printBothOpen("RAxML extended Majority Rule consensus tree written to file: %s\n", consensusFileName);
       break;
     case STRICT_CONSENSUS:
       printBothOpen("RAxML strict consensus tree written to file: %s\n", consensusFileName);
       break;
     case USER_DEFINED: 
-      printBothOpen("RAxML consensus tree with threshold %d written to file: %s\n", tr->consensusUserThreshold,  consensusFileName);
+      if(computeIC)
+	printBothOpen("RAxML consensus tree with threshold %d with IC values written to file: %s\n", tr->consensusUserThreshold,  consensusFileName);
+      else
+	printBothOpen("RAxML consensus tree with threshold %d written to file: %s\n", tr->consensusUserThreshold,  consensusFileName);
       break;
     default:
       assert(0);
@@ -3288,7 +3753,7 @@ void computeConsensusOnly(tree *tr, char *treeSetFileName, analdef *adef)
     topBipE,
     **consensusBips;
  
-  boolean 
+  boolean  
     *processed;
 
   char 
@@ -3323,9 +3788,7 @@ void computeConsensusOnly(tree *tr, char *treeSetFileName, analdef *adef)
 			      &bCount, treeVectorLength, FALSE, FALSE);
       
       assert(bCount == tr->mxtips - 3);                     
-    }
-
- 
+    } 
 
   if(tr->consensusType == MR_CONSENSUS || tr->consensusType == STRICT_CONSENSUS)
     {
@@ -3343,7 +3806,8 @@ void computeConsensusOnly(tree *tr, char *treeSetFileName, analdef *adef)
 	    {	
 	      int cnt = 0;
 	      
-	      unsigned int *set = e->treeVector;
+	      unsigned int 
+		*set = e->treeVector;
 	      
 	      for(l = 0; l < numberOfTrees; l++)					     
 		if((set[l / MASK_LENGTH] != 0) && (set[l / MASK_LENGTH] & mask32[l % MASK_LENGTH]))		    			    

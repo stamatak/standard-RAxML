@@ -161,37 +161,38 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "RAxML"
-#define programVersion     "7.5.4"
-#define programDate        "May 22 2013"
+#define programVersion     "7.5.5"
+#define programDate        "May 23 2013"
 
 
-#define  TREE_EVALUATION            0
-#define  BIG_RAPID_MODE             1
-#define  CALC_BIPARTITIONS          3
-#define  SPLIT_MULTI_GENE           4
-#define  CHECK_ALIGNMENT            5
-#define  PER_SITE_LL                6
-#define  PARSIMONY_ADDITION         7
-#define  CLASSIFY_ML                9
-#define  DISTANCE_MODE              11
-#define  GENERATE_BS                12
-#define  COMPUTE_ELW                13
-#define  BOOTSTOP_ONLY              14
-#define  COMPUTE_LHS                17
-#define  COMPUTE_BIPARTITION_CORRELATION 18
-#define  COMPUTE_RF_DISTANCE        20
-#define  MORPH_CALIBRATOR           21
-#define  CONSENSUS_ONLY             22
-#define  FAST_SEARCH                24        
-#define  EPA_SITE_SPECIFIC_BIAS     27
-#define  SH_LIKE_SUPPORTS           28
-#define  CLASSIFY_MP                29
-#define  ANCESTRAL_STATES           30
-#define  QUARTET_CALCULATION        31
-#define  THOROUGH_OPTIMIZATION      32
-#define  OPTIMIZE_BR_LEN_SCALER     33
-#define  ANCESTRAL_SEQUENCE_TEST    34
-#define  PLAUSIBILITY_CHECKER       25
+#define  TREE_EVALUATION                 0
+#define  BIG_RAPID_MODE                  1
+#define  CALC_BIPARTITIONS               2
+#define  SPLIT_MULTI_GENE                3
+#define  CHECK_ALIGNMENT                 4
+#define  PER_SITE_LL                     5
+#define  PARSIMONY_ADDITION              6
+#define  CLASSIFY_ML                     7
+#define  DISTANCE_MODE                   8
+#define  GENERATE_BS                     9
+#define  COMPUTE_ELW                     10
+#define  BOOTSTOP_ONLY                   11
+#define  COMPUTE_LHS                     12
+#define  COMPUTE_BIPARTITION_CORRELATION 13
+#define  COMPUTE_RF_DISTANCE             14
+#define  MORPH_CALIBRATOR                15
+#define  CONSENSUS_ONLY                  16
+#define  FAST_SEARCH                     17        
+#define  EPA_SITE_SPECIFIC_BIAS          18
+#define  SH_LIKE_SUPPORTS                19
+#define  CLASSIFY_MP                     20
+#define  ANCESTRAL_STATES                21
+#define  QUARTET_CALCULATION             22
+#define  THOROUGH_OPTIMIZATION           23
+#define  OPTIMIZE_BR_LEN_SCALER          24
+#define  ANCESTRAL_SEQUENCE_TEST         25
+#define  PLAUSIBILITY_CHECKER            26
+#define  CALC_BIPARTITIONS_IC            27
 
 #define M_GTRCAT         1
 #define M_GTRGAMMA       2
@@ -242,6 +243,8 @@
 #define DRAW_BIPARTITIONS_BEST 2
 #define BIPARTITIONS_BOOTSTOP  3
 #define BIPARTITIONS_RF  4
+#define GATHER_BIPARTITIONS_IC 5
+#define FIND_BIPARTITIONS_IC 6
 
 
 
@@ -448,6 +451,7 @@ typedef struct
 
   unsigned int *vector; 
   int support;   
+  double ic;
   struct noderec *oP;
   struct noderec *oQ;
 } branchInfo;
@@ -1017,6 +1021,7 @@ typedef  struct {
   boolean       checkForUndeterminedSequences;
   boolean       useQuartetGrouping;
   int           alignmentFileType;
+  boolean       calculateIC;
 } analdef;
 
 
@@ -1086,12 +1091,14 @@ extern boolean whitechar ( int ch );
 extern void errorExit ( int e );
 extern void printResult ( tree *tr, analdef *adef, boolean finalPrint );
 extern void printBootstrapResult ( tree *tr, analdef *adef, boolean finalPrint );
-extern void printBipartitionResult ( tree *tr, analdef *adef, boolean finalPrint );
+extern void printBipartitionResult ( tree *tr, analdef *adef, boolean finalPrint, boolean printIC);
 extern void printLog ( tree *tr, analdef *adef, boolean finalPrint );
 extern void printStartingTree ( tree *tr, analdef *adef, boolean finalPrint );
 extern void writeInfoFile ( analdef *adef, tree *tr, double t );
 extern int main ( int argc, char *argv[] );
 extern void calcBipartitions ( tree *tr, analdef *adef, char *bestTreeFileName, char *bootStrapFileName );
+extern void calcBipartitions_IC ( tree *tr, analdef *adef, char *bestTreeFileName, char *bootStrapFileName );
+
 extern void initReversibleGTR (tree *tr, int model);
 extern double LnGamma ( double alpha );
 extern double IncompleteGamma ( double x, double alpha, double ln_gamma_alpha );
@@ -1181,7 +1188,7 @@ extern boolean freeBestTree ( bestlist *bt );
 
 
 extern char *Tree2String ( char *treestr, tree *tr, nodeptr p, boolean printBranchLengths, boolean printNames, boolean printLikelihood, 
-			   boolean rellTree, boolean finalPrint, analdef *adef, int perGene, boolean branchLabelSupport, boolean printSHSupport);
+			   boolean rellTree, boolean finalPrint, analdef *adef, int perGene, boolean branchLabelSupport, boolean printSHSupport, boolean printIC);
 extern void printTreePerGene(tree *tr, analdef *adef, char *fileName, char *permission);
 
 
@@ -1194,7 +1201,7 @@ extern double treeLength(tree *tr, int model);
 
 extern void computeBootStopOnly(tree *tr, char *bootStrapFileName, analdef *adef);
 extern boolean bootStop(tree *tr, hashtable *h, int numberOfTrees, double *pearsonAverage, unsigned int **bitVectors, int treeVectorLength, unsigned int vectorLength);
-extern void computeConsensusOnly(tree *tr, char* treeSetFileName, analdef *adef);
+extern void computeConsensusOnly(tree *tr, char* treeSetFileName, analdef *adef, boolean computeIC);
 extern double evaluatePartialGeneric (tree *, int i, double ki, int _model);
 extern double evaluateGeneric (tree *tr, nodeptr p);
 extern void newviewGeneric (tree *tr, nodeptr p);

@@ -1260,7 +1260,7 @@ void fastSearch(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
 
  
 
-  Tree2String(tr->tree_string, tr, tr->start->back, FALSE, TRUE, FALSE, FALSE, FALSE, adef, SUMMARIZE_LH, FALSE, FALSE);
+  Tree2String(tr->tree_string, tr, tr->start->back, FALSE, TRUE, FALSE, FALSE, FALSE, adef, SUMMARIZE_LH, FALSE, FALSE, FALSE);
     
   f = myfopen(bestTreeFileName, "wb");
   fprintf(f, "%s", tr->tree_string);
@@ -1355,7 +1355,7 @@ void shSupports(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
   strcat(bestTreeFileName, "RAxML_fastTree.");
   strcat(bestTreeFileName,         run_id); 
 
-  Tree2String(tr->tree_string, tr, tr->start->back, FALSE, TRUE, FALSE, FALSE, FALSE, adef, SUMMARIZE_LH, FALSE, FALSE);
+  Tree2String(tr->tree_string, tr, tr->start->back, FALSE, TRUE, FALSE, FALSE, FALSE, adef, SUMMARIZE_LH, FALSE, FALSE, FALSE);
     
   f = myfopen(bestTreeFileName, "wb");
   fprintf(f, "%s", tr->tree_string);
@@ -1366,7 +1366,7 @@ void shSupports(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
   strcat(shSupportFileName, "RAxML_fastTreeSH_Support.");
   strcat(shSupportFileName,         run_id);
   
-  Tree2String(tr->tree_string, tr, tr->start->back, TRUE, TRUE, FALSE, FALSE, FALSE, adef, SUMMARIZE_LH, FALSE, TRUE);
+  Tree2String(tr->tree_string, tr, tr->start->back, TRUE, TRUE, FALSE, FALSE, FALSE, adef, SUMMARIZE_LH, FALSE, TRUE, FALSE);
   
   f = myfopen(shSupportFileName, "wb");
   fprintf(f, "%s", tr->tree_string);

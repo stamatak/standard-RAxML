@@ -455,7 +455,6 @@ static void optLG4X_Weights(tree *tr, linkageList *ll, int numberOfModels, int w
 static void optimizeWeights(tree *tr, double modelEpsilon, linkageList *ll, int numberOfModels)
 {
   int 
-    model,
     i;
   
   double 
@@ -2392,35 +2391,6 @@ static void optLG4X_Rate(tree *tr, double modelEpsilon, linkageList *ll, int num
      it is done after the rate optimization that modifies fracchange 
 ***/
 
-static void dummy()
-{
-  double 
-    values[6][4] = {{0.0, 0.0, 0.0, 0.0}, {10.0, 11.0, 200.0, 10.0}, {-1.0, 0.0, 0.0, -200.0}, {8.0, 1000.0, 900.0, 20.0}, {0.0, 0.0, 0.0, 0.0}, {100.0, 200.0, 300.0, 400.0}};
-
-  int 
-    i, j, k;
-
-  for(i = 0; i < 6; i++)
-    {
-      printf("D%d\n", i);
-      
-      for(j = 0; j < 4; j++)
-	{
-	  double 
-	    a = 0.0, 
-	    b = 0.0;
-	  
-	  a = exp(values[i][j]);
-	  //	  printf("a: %f\n", a);
-	  
-	  for(k = 0; k < 4; k++)
-	    b += exp(values[i][k]);
-
-	  printf("W%d: %f\n", j, a/b);
-	}
-    }
-  exit(1);
-}
 
 static void optLG4X(tree *tr, double modelEpsilon, linkageList *ll, int numberOfModels)
 {
