@@ -1128,7 +1128,7 @@ static void bitVectorInitravIC(unsigned int **bitVectors, nodeptr p, int numsp, 
 			freqSupported   = (double)supportedBips / (double)totalBips;
 			freqConflicting = (double)max           / (double)totalBips;	
 			//Leonida: please check the eqn. below
-			ic = log(2) + freqSupported * log(freqSupported) + freqConflicting * log(freqConflicting);
+			ic = (log(2.0) + freqSupported * log(freqSupported) + freqConflicting * log(freqConflicting)) / log(2.0);
 		      }
 		  }
 
@@ -3065,7 +3065,7 @@ static double calculateIC(hashtable *h, unsigned int *bitVector, unsigned int ve
 			
 	  freqSupported   = (double)supportedBips / (double)totalBips;
 	  freqConflicting = (double)max           / (double)totalBips;	
-	  ic = log(2) + freqSupported * log(freqSupported) + freqConflicting * log(freqConflicting);
+	  ic = (log(2.0) + freqSupported * log(freqSupported) + freqConflicting * log(freqConflicting)) / log(2.0);
 	}
     }
 
