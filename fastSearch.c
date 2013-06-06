@@ -1309,8 +1309,6 @@ void shSupports(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
  
   getStartingTree(tr, adef);
   
- 
-  
   if(adef->useBinaryModelFile)
     {
       readBinaryModel(tr);
@@ -1318,7 +1316,10 @@ void shSupports(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
       treeEvaluate(tr, 2);
     }
   else
-    modOpt(tr, adef, FALSE, 10.0);
+    {
+      evaluateGenericInitrav(tr, tr->start);
+      modOpt(tr, adef, FALSE, 10.0);
+    }
   
   printBothOpen("Time after model optimization: %f\n", gettime() - masterTime);
   
