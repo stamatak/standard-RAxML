@@ -8649,6 +8649,8 @@ static void computeELW(tree *tr, analdef *adef, char *bootStrapFileName)
 
 	  computeNextReplicate(tr, &adef->rapidBoot, originalRateCategories, originalInvariant, TRUE, TRUE);
 
+	  evaluateGenericInitrav(tr, tr->start);
+
 	  /* if this is the first replicate for this tree do a slightly more thorough br-len opt */
 	  /* we don't re-estimate ML model params (except branches) for every replicate to make things a bit faster */
 
