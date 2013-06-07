@@ -1030,6 +1030,8 @@ static unsigned int countIncompatibleBipartitions(unsigned int *toInsert, hashta
 		  else
 		    support = e->supportFromTreeset[0];
 
+		  //printf("%d\n", support);
+
 		  if(support > *max)
 		    *max = support;		  		
 		  
@@ -3038,34 +3040,44 @@ static double calculateIC(hashtable *h, unsigned int *bitVector, unsigned int ve
 
   totalBips = max + supportedBips;
 
+  //printf("supp %d max %d unsupp %d\n", supportedBips, max, unsupportedBips);
+
+  //make sure that the sum of raw supports is not higher than the number of trees 
+
+  assert(supportedBips + max <= numberOfTrees);
+
   // Leonida: here I am checking for the case that in the MRE there is an incompatible biparition that 
   // has higher support than the bipartition that was added to the MRE consensus tree
 
   if(max > supportedBips)
     {
-      printBothOpen("max %d supported %d\n", max, supportedBips);
-      printBothOpen("Something unexpected happend, please send an email with the input files and command line\n");
+      printBothOpen("\nmax %d supported %d\n", max, supportedBips);
+      printBothOpen("Something not very likely happend, please send an email with the input files and command line\n");
       printBothOpen("to Alexandros.Stamatakis@gmail.com.\n");
-      assert(0);
+      printBothOpen("Thank you :-)\n\n");      
+
+      freqSupported   = (double)max            / (double)totalBips;
+      freqConflicting = (double)supportedBips  / (double)totalBips;	
+      ic = -((log(2.0) + freqSupported * log(freqSupported) + freqConflicting * log(freqConflicting)) / log(2.0));     
+
+      //printf("IC %f\n", ic);
     }
-
-  //printf("supp %d max %d unsupp %d\n", supportedBips, max, unsupportedBips);
-
-  assert(supportedBips + max <= numberOfTrees);
-
-  if(supportedBips == numberOfTrees)
-    ic = 1.0;
   else
-    {	
-      if(supportedBips == 0)
-	ic = 0.0;
+    {
+      if(supportedBips == numberOfTrees)
+	ic = 1.0;
       else
-	{
-	  assert(max > 0);
-			
-	  freqSupported   = (double)supportedBips / (double)totalBips;
-	  freqConflicting = (double)max           / (double)totalBips;	
-	  ic = (log(2.0) + freqSupported * log(freqSupported) + freqConflicting * log(freqConflicting)) / log(2.0);
+	{	
+	  if(supportedBips == 0)
+	    ic = 0.0;
+	  else
+	    {
+	      assert(max > 0);
+	      
+	      freqSupported   = (double)supportedBips / (double)totalBips;
+	      freqConflicting = (double)max           / (double)totalBips;	
+	      ic = (log(2.0) + freqSupported * log(freqSupported) + freqConflicting * log(freqConflicting)) / log(2.0);
+	    }
 	}
     }
 
