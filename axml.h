@@ -161,8 +161,8 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "RAxML"
-#define programVersion     "7.5.7"
-#define programDate        "June 7 2013"
+#define programVersion     "7.5.8"
+#define programDate        "June 11 2013"
 
 
 #define  TREE_EVALUATION                 0
@@ -452,6 +452,7 @@ typedef struct
   unsigned int *vector; 
   int support;   
   double ic;
+  double icAll;
   struct noderec *oP;
   struct noderec *oQ;
 } branchInfo;
@@ -1022,6 +1023,7 @@ typedef  struct {
   boolean       useQuartetGrouping;
   int           alignmentFileType;
   boolean       calculateIC;
+  boolean       verboseIC;
 } analdef;
 
 

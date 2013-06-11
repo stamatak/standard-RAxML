@@ -3270,6 +3270,7 @@ static void initAdef(analdef *adef)
   adef->useQuartetGrouping = FALSE;
   adef->alignmentFileType = PHYLIP;
   adef->calculateIC = FALSE;
+  adef->verboseIC = FALSE;
 }
 
 
@@ -3626,9 +3627,14 @@ static int modelExists(char *model, analdef *adef)
 
 static int mygetopt(int argc, char **argv, char *opts, int *optind, char **optarg)
 {
-  static int sp = 1;
-  register int c;
-  register char *cp;
+  static 
+    int sp = 1;
+
+  register 
+    int c;
+  
+  register 
+    char *cp;
 
   if(sp == 1)
     {
@@ -3688,8 +3694,9 @@ static int mygetopt(int argc, char **argv, char *opts, int *optind, char **optar
 	}
       *optarg = 0;
     }
+ 
   return(c);
-  }
+}
 
 static void checkOutgroups(tree *tr, analdef *adef)
 {
@@ -3934,7 +3941,7 @@ static void printREADME(void)
   printf("      -s sequenceFileName -n outputFileName -m substitutionModel\n");
   printf("      [-a weightFileName] [-A secondaryStructureSubstModel]\n");
   printf("      [-b bootstrapRandomNumberSeed] [-B wcCriterionThreshold]\n");
-  printf("      [-c numberOfCategories] [-d] [-D]\n");
+  printf("      [-c numberOfCategories] [-C] [-d] [-D]\n");
   printf("      [-e likelihoodEpsilon] [-E excludeFileName]\n");
   printf("      [-f a|A|b|B|c|C|d|e|E|F|g|G|h|H|i|j|J|m|n|N|o|p|q|r|R|s|S|t|T|u|v|V|w|W|x|y] [-F]\n");
   printf("      [-g groupingFileName] [-G placementThreshold] [-h]\n");
@@ -3975,6 +3982,10 @@ static void printREADME(void)
   printf("\n");
   printf("              DEFAULT: 25\n");
   printf("\n"); 
+  printf("      -C      Enable verbose output for the \"-L\" and \"-f i\" options. This will produce more, as well as more verbose output files\n");
+  printf("\n");
+  printf("              DEFAULT: OFF\n");
+  printf("\n");
   printf("      -d      start ML optimization from random starting tree \n");
   printf("\n");
   printf("              DEFAULT: OFF\n");
@@ -4350,7 +4361,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 
 
   while(!bad_opt &&
-	((c = mygetopt(argc,argv,"R:T:E:N:B:L:P:S:Y:A:G:H:I:J:K:W:l:x:z:g:r:e:a:b:c:f:i:m:t:w:s:n:o:q:#:p:vudyjhkMDFQUOV", &optind, &optarg))!=-1))
+	((c = mygetopt(argc,argv,"R:T:E:N:B:L:P:S:Y:A:G:H:I:J:K:W:l:x:z:g:r:e:a:b:c:f:i:m:t:w:s:n:o:q:#:p:vudyjhkMDFQUOVC", &optind, &optarg))!=-1))
     {
     switch(c)
       {
@@ -4558,6 +4569,9 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 		  errorExit(0);
 	      }	
 	  }	     
+	break;
+      case 'C':
+	adef->verboseIC = TRUE;
 	break;
       case 'L':
 	adef->readTaxaOnly = TRUE;
@@ -5509,7 +5523,6 @@ static void makeFileNames(void)
   strcpy(bootstrapFileName,    workdir);
   strcpy(bipartitionsFileName, workdir);
   strcpy(bipartitionsFileNameBranchLabels, workdir);
-  strcpy(icFileName, workdir);
   strcpy(icFileNameBranchLabels, workdir);
   strcpy(ratesFileName,        workdir);
   strcpy(lengthFileName,       workdir);
@@ -5526,7 +5539,6 @@ static void makeFileNames(void)
   strcat(bootstrapFileName,    "RAxML_bootstrap.");
   strcat(bipartitionsFileName, "RAxML_bipartitions.");
   strcat(bipartitionsFileNameBranchLabels, "RAxML_bipartitionsBranchLabels.");
-  strcat(icFileName,             "RAxML_IC_Score.");
   strcat(icFileNameBranchLabels, "RAxML_IC_Score_BranchLabels.");
   strcat(ratesFileName,        "RAxML_perSiteRates.");
   strcat(lengthFileName,       "RAxML_treeLength.");
@@ -5543,7 +5555,6 @@ static void makeFileNames(void)
   strcat(bootstrapFileName,    run_id);
   strcat(bipartitionsFileName, run_id);
   strcat(bipartitionsFileNameBranchLabels, run_id);  
-  strcat(icFileName,             run_id);
   strcat(icFileNameBranchLabels, run_id); 
   strcat(ratesFileName,        run_id);
   strcat(lengthFileName,       run_id);
@@ -6031,17 +6042,18 @@ void printBipartitionResult(tree *tr, analdef *adef, boolean finalPrint, boolean
 {
   if(processID == 0 || adef->allInOne)
     {
-      FILE *logFile;
-
-      Tree2String(tr->tree_string, tr, tr->start->back, FALSE, TRUE, FALSE, TRUE, finalPrint, adef, NO_BRANCHES, FALSE, FALSE, printIC);
+      FILE 
+	*logFile;
+     
+      if(!printIC)
+	{
+	  Tree2String(tr->tree_string, tr, tr->start->back, FALSE, TRUE, FALSE, TRUE, finalPrint, adef, NO_BRANCHES, FALSE, FALSE, printIC);
+            
+	  logFile = myfopen(bipartitionsFileName, "ab");
       
-      if(printIC)
-	logFile = myfopen(icFileName, "ab");
-      else
-	logFile = myfopen(bipartitionsFileName, "ab");
-      
-      fprintf(logFile, "%s", tr->tree_string);
-      fclose(logFile);
+	  fprintf(logFile, "%s", tr->tree_string);
+	  fclose(logFile);
+	}
 
       Tree2String(tr->tree_string, tr, tr->start->back, FALSE, TRUE, FALSE, FALSE, finalPrint, adef, NO_BRANCHES, TRUE, FALSE, printIC);
       
@@ -6730,8 +6742,7 @@ static void finalizeInfoFile(tree *tr, analdef *adef)
 	  printBothOpen("Execution information file written to :  %s\n",infoFileName);
 	  break;
 	case CALC_BIPARTITIONS_IC:
-	  printBothOpen("\n\nTime for Computation of TC and IC scores %f\n", t);
-	  printBothOpen("Tree with IC scores written to file:  %s\n", icFileName);
+	  printBothOpen("\n\nTime for Computation of TC and IC scores %f\n", t);	 
 	  printBothOpen("Tree with IC scores as branch labels written to file:  %s\n", icFileNameBranchLabels);	  
 	  printBothOpen("Execution information file written to :  %s\n",infoFileName);
 	  break; 

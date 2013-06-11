@@ -298,7 +298,7 @@ static char *Tree2StringREC(char *treestr, tree *tr, nodeptr p, boolean printBra
 	      if(branchLabelSupport)
 		{
 		  if(printIC)
-		    sprintf(treestr, ":%8.20f[%1.2f]", p->z[0], p->bInf->ic);
+		    sprintf(treestr, ":%8.20f[%1.2f,%1.2f]", p->z[0], p->bInf->ic, p->bInf->icAll);
 		  else		    
 		    sprintf(treestr, ":%8.20f[%d]", p->z[0], p->bInf->support);
 		}
