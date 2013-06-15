@@ -1155,13 +1155,7 @@ static double computeIC_Value(unsigned int supportedBips, unsigned int *maxima, 
     supportFreq;
   
   boolean
-    negativeIC = FALSE;
-  
-  //I am not convinced that this is correct!
-  //needs some further thinking!
-
-  if(supportedBips == 0)
-    return 0.0;
+    negativeIC = FALSE;    
   
   if(computeIC_All)
     {
@@ -1180,7 +1174,7 @@ static double computeIC_Value(unsigned int supportedBips, unsigned int *maxima, 
 
   // must be larger than 0 in this case
 
-  assert(maxCounter > 0);
+  //assert(maxCounter > 0);
 
   // figure out if the competing bipartition is higher support 
   // can happen for MRE and when drawing IC values on best ML tree 
@@ -1202,9 +1196,17 @@ static double computeIC_Value(unsigned int supportedBips, unsigned int *maxima, 
   for(i = 0; i < loopLength; i++)
     totalBipsAll += maxima[i];  
 
+  //neither support for the actual bipartition, nor for the conflicting ones
+  //I am not sure that this will happen, but anyway
+  if(totalBipsAll == 0)
+    return 0.0;
+  
   supportFreq = (double)supportedBips / (double)totalBipsAll;
   
-  ic = log(n) + supportFreq * log(supportFreq);
+  if(supportedBips == 0)
+    ic = log(n);
+  else    
+    ic = log(n) + supportFreq * log(supportFreq);
 
   for(i = 0; i < loopLength; i++)
     {
@@ -1212,7 +1214,8 @@ static double computeIC_Value(unsigned int supportedBips, unsigned int *maxima, 
 
       supportFreq =  (double)maxima[i] / (double)totalBipsAll;
       
-      ic += supportFreq * log(supportFreq);
+      if(maxima[i] != 0)
+	ic += supportFreq * log(supportFreq);
     }
   
   ic /= log(n);

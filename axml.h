@@ -193,6 +193,7 @@
 #define  ANCESTRAL_SEQUENCE_TEST         25
 #define  PLAUSIBILITY_CHECKER            26
 #define  CALC_BIPARTITIONS_IC            27
+#define  ROOT_TREE                       28
 
 #define M_GTRCAT         1
 #define M_GTRGAMMA       2

@@ -3856,8 +3856,14 @@ static void printMinusFUsage(void)
   printf("              \"-f i\": calculate IC and TC scores (Salichos and Rokas 2013) on a tree provided with \"-t\" based on multiple trees\n");
   printf("                      (e.g., from a bootstrap) in a file specifed by \"-z\"\n");
 
+  printf("              \"-f I\": a simple tree rooting algorithm for unrooted trees.\n");
+  printf("                      It roots the tree by rooting it at the branch that best balances the subtree lengths\n");
+  printf("                      (sum over branches in the subtrees) of the left and right subtree.\n");
+  printf("                      A branch with an optimal balance does not always exist!\n");
+  printf("                      You need to specify the tree you want to root via \"-t\".\n"); 
+
   printf("              \"-f j\": generate a bunch of bootstrapped alignment files from an original alignemnt file.\n");
-  printf("                      You need to specify a seed with \"-b\" and the number of replicates with \"-#\" \n"); 
+  printf("                      You need to specify a seed with \"-b\" and the number of replicates with \"-#\" \n");   
 
   printf("              \"-f J\": Compute SH-like support values on a given tree passed via \"-t\".\n"); 
 
@@ -3943,7 +3949,7 @@ static void printREADME(void)
   printf("      [-b bootstrapRandomNumberSeed] [-B wcCriterionThreshold]\n");
   printf("      [-c numberOfCategories] [-C] [-d] [-D]\n");
   printf("      [-e likelihoodEpsilon] [-E excludeFileName]\n");
-  printf("      [-f a|A|b|B|c|C|d|e|E|F|g|G|h|H|i|j|J|m|n|N|o|p|q|r|R|s|S|t|T|u|v|V|w|W|x|y] [-F]\n");
+  printf("      [-f a|A|b|B|c|C|d|e|E|F|g|G|h|H|i|I|j|J|m|n|N|o|p|q|r|R|s|S|t|T|u|v|V|w|W|x|y] [-F]\n");
   printf("      [-g groupingFileName] [-G placementThreshold] [-h]\n");
   printf("      [-i initialRearrangementSetting] [-I autoFC|autoMR|autoMRE|autoMRE_IGN]\n");
   printf("      [-j] [-J MR|MR_DROP|MRE|STRICT|STRICT_DROP|T_<PERCENT>] [-k] [-K] \n");
@@ -4340,9 +4346,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 #endif
   
 
-  tr->useFastScaling = TRUE;
-
- 
+  tr->useFastScaling = TRUE; 
   tr->bootStopCriterion = -1;
   tr->wcThreshold = 0.03;
   tr->doCutoff = TRUE;
@@ -4823,6 +4827,10 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	    adef->readTaxaOnly = TRUE;
 	    adef->mode = CALC_BIPARTITIONS_IC;
 	    break;
+	  case 'I':
+	    adef->mode = ROOT_TREE;
+	    adef->readTaxaOnly = TRUE;
+	    break;
 	  case 'j':
 	    adef->mode = GENERATE_BS;
 	    adef->generateBS = TRUE;
@@ -5207,6 +5215,13 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	  printf("\n  Error, you are trying to split a multi-gene alignment into individual genes with the \"-f s\" option\n");
 	  printf("Without specifying a multiple model file with \"-q modelFileName\" \n");
 	}
+      errorExit(-1);
+    }
+
+  if(adef->mode == ROOT_TREE && !treeSet)
+    {
+      if(processID == 0)
+	printf("\n  Error, for the tree rooting algorithm you need to specify a file containing the tree you want to root via \"-t\"\n");
       errorExit(-1);
     }
 
@@ -5766,6 +5781,9 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
 	  break;
 	case PLAUSIBILITY_CHECKER:
 	  printBoth(infoFile, "\nRAxML large-tree plausibility-checker\n\n");
+	  break;
+	case ROOT_TREE:
+	  printBoth(infoFile, "\nRAxML tree rooting algorithm\n\n");
 	  break;
 	default:
 	  assert(0);
@@ -6765,6 +6783,9 @@ static void finalizeInfoFile(tree *tr, analdef *adef)
 	  break;
 	case THOROUGH_OPTIMIZATION:
 	  printBothOpen("\n\nTime for thorough tree optimization: %f\n\n", t);
+	  break;
+	case ROOT_TREE:
+	  printBothOpen("\n\nTime for tree rooting: %f\n\n", t);
 	  break;
 	default:
 	  assert(0);
@@ -9076,7 +9097,7 @@ static void extractTaxaFromTopology(tree *tr, rawdata *rdta, cruncheddata *cdta,
     }
 
   tr->nameHash = initStringHashTable(10 * taxaCount);
-  for(i = 1; i <= taxaCount; i++)
+  for(i = 1; i <= taxaCount; i++)   
     addword(tr->nameList[i], tr->nameHash, i);
 
   fclose(f);
@@ -10180,6 +10201,275 @@ static void ancestralSequenceTest(tree *tr)
   exit(0);  
 }
 
+static double distancesInitial(nodeptr p, double *distances, tree *tr, boolean fullTraversal)
+{
+  if(isTip(p->number, tr->mxtips))
+    return p->z[0];
+  else
+    {
+      double 
+	acc = 0.0;
+      
+      nodeptr 
+	q;                
+     
+      if(fullTraversal || !p->x)
+	{
+	  q = p->next;      
+
+	  while(q != p)
+	    {	 
+	      acc += distancesInitial(q->back, distances, tr, fullTraversal);
+	      q = q->next;
+	    }
+
+	  distances[p->number] = acc;
+	  p->x = 1;
+	  p->next->x = 0;
+	  p->next->next->x = 0;
+	}
+      else
+	acc = distances[p->number];
+
+      return acc + p->z[0];
+    }
+}
+
+
+
+static void distancesNewview(nodeptr p, double *distances, tree *tr, nodeptr *rootBranch, double *minimum)
+{ 
+  nodeptr 
+    q;                
+      
+  double 
+    left = 0.0,
+    right = 0.0;
+  
+  if(isTip(p->number, tr->mxtips))
+    {          
+      q = p->back;  
+
+      if(!isTip(q->number, tr->mxtips))
+	{
+	  if(!q->x)
+	    distancesInitial(q, distances, tr, FALSE);		  
+	  left = distances[q->number];	  
+	}                 
+
+      if(left <= p->z[0])
+	{	  
+	  //the balanced root is in this branch
+	  *rootBranch = p;
+	  *minimum = 0.0;
+	}
+      else
+	{	  	  	    
+	  double 
+	    diff = left - p->z[0];	    
+	  
+	  if(diff < *minimum)
+	    { 	     
+	      *minimum = diff;
+	      *rootBranch = p;
+	    }
+	}	
+    }
+  else
+    {          
+      q = p->back;  
+
+      if(!isTip(q->number, tr->mxtips))
+	{
+	  if(!q->x)
+	    distancesInitial(q, distances, tr, FALSE);	
+	  
+	  left = distances[q->number];	  
+	}
+      else
+	left = 0.0;
+      
+      if(!isTip(p->number, tr->mxtips))
+	{
+	  if(!p->x)
+	    distancesInitial(p, distances, tr, FALSE);	
+	  
+	  right = distances[p->number];	  
+	}
+      else
+	right = 0.0;
+                 
+      if(ABS(left - right) <= p->z[0])
+	{	 
+	  *rootBranch = p;
+	  *minimum = 0.0;
+	}
+      else
+	{
+	  double
+	    diff;
+
+	  if(left > right)	   
+	    diff = left - (right + p->z[0]);	    	    
+	  else	    
+	    diff = right - (left + p->z[0]);	  
+
+	  if(*minimum > diff)
+	    {	      
+	      *minimum = diff;
+	      *rootBranch = p;
+	    }
+	}
+
+      q = p->next;
+
+      while(q != p)
+	{
+	  distancesNewview(q->back, distances, tr, rootBranch, minimum);
+	  q = q->next;
+	}      
+    }
+}
+
+static void printTreeRec(FILE *f, nodeptr p, tree *tr, boolean rootDescendant)
+{
+  if(isTip(p->number, tr->mxtips))
+    {
+      if(rootDescendant)
+	fprintf(f, "%s", tr->nameList[p->number]);
+      else
+	fprintf(f, "%s:%f", tr->nameList[p->number], p->z[0]);
+    }
+  else
+    {
+      fprintf(f, "(");
+      printTreeRec(f, p->next->back, tr, FALSE);
+      fprintf(f, ",");
+      printTreeRec(f, p->next->next->back, tr, FALSE);
+      if(rootDescendant)
+	fprintf(f, ")");
+      else
+	fprintf(f, "):%f", p->z[0]);
+    }
+}
+
+static void printTree(nodeptr p, tree *tr, double *distances, FILE *f)
+{
+  double
+    leftRoot,
+    rightRoot,  
+    thisBranch = p->z[0],   
+    left = 0.0,
+    right = 0.0;
+
+  nodeptr 
+    q = p->back;
+
+  if(!isTip(p->number, tr->mxtips))
+    {
+      if(!p->x)
+	distancesInitial(p, distances, tr, FALSE);	
+	  
+      left = distances[p->number];	  
+    }
+  else
+    left = 0.0;
+
+   if(!isTip(q->number, tr->mxtips))
+    {
+      if(!q->x)
+	distancesInitial(q, distances, tr, FALSE);	
+	  
+      right = distances[q->number];	  
+    }
+   else
+     left = 0.0;
+
+   //printf("left %f right %f thisBranch %f\n", left, right, thisBranch);
+
+   if(ABS(left - right) <= thisBranch)
+     {      
+       if(left < right)
+	 {
+	   leftRoot = (right + thisBranch - left) / 2.0;
+	   rightRoot = thisBranch - leftRoot;
+	 }
+       else
+	 {
+	   rightRoot = (left + thisBranch - right) / 2.0;
+	   leftRoot = thisBranch - rightRoot;
+	 }	                            
+     }
+   else
+     {
+       if(left < right)
+	 {
+	   leftRoot  = thisBranch;
+	   rightRoot = 0.0;
+	 }
+       else
+	 {
+	   leftRoot  = 0.0;
+	   rightRoot = thisBranch;	   
+	 }
+     }
+
+   fprintf(f, "(");
+   printTreeRec(f, p, tr, TRUE);
+   fprintf(f, ":%f, (", leftRoot);
+   printTreeRec(f, q, tr, TRUE);
+   fprintf(f, ":%f);", rightRoot);
+}
+
+static void rootTree(tree *tr, analdef *adef)
+{
+  int 
+    i;
+
+  double
+    checkDistances,
+    minimum;
+  
+  char 
+    rootedTreeFile[1024];
+
+  FILE 
+    *f = myfopen(tree_file, "r");
+
+  double 
+    *distances = (double *)rax_malloc(sizeof(double) * 2 * tr->mxtips);
+
+  nodeptr 
+    rootBranch;
+
+  for(i = 0; i < 2 * tr->mxtips; i++)
+    distances[i] = 0.0;
+  
+  strcpy(rootedTreeFile,         workdir);
+  strcat(rootedTreeFile,         "RAxML_rootedTree.");
+  strcat(rootedTreeFile,         run_id);
+
+  treeReadLen(f, tr, TRUE, FALSE, TRUE, adef, TRUE);
+
+  fclose(f);
+
+  minimum = checkDistances = distancesInitial(tr->start->back, distances, tr, TRUE);
+
+  //printf("Tree Lenght: %f\n", checkDistances); 
+  
+  f = myfopen(rootedTreeFile, "w");
+
+  distancesNewview(tr->start->back, distances, tr, &rootBranch, &minimum);
+
+  printTree(rootBranch, tr, distances, f);
+  
+  fclose(f);
+
+  printBothOpen("RAxML-rooted tree using subtree length-balance printed to file:\n%s\n",  rootedTreeFile);
+
+  rax_free(distances);
+}
+
 int main (int argc, char *argv[])
 {
   rawdata      *rdta;
@@ -10237,10 +10527,9 @@ int main (int argc, char *argv[])
   get_args(argc,argv, adef, tr); 
   
 
-
   if(adef->readTaxaOnly)  
     {
-      if(adef->mode == PLAUSIBILITY_CHECKER)
+      if(adef->mode == PLAUSIBILITY_CHECKER || adef->mode == ROOT_TREE)
 	extractTaxaFromTopology(tr, rdta, cdta, tree_file);   
       else
 	extractTaxaFromTopology(tr, rdta, cdta, bootStrapFile);
@@ -10592,6 +10881,9 @@ int main (int argc, char *argv[])
     case PLAUSIBILITY_CHECKER:
       plausibilityChecker(tr, adef);
       exit(0);
+      break;
+    case ROOT_TREE:
+      rootTree(tr, adef);    
       break;
     default:
       assert(0);

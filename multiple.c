@@ -280,8 +280,9 @@ void computeNextReplicate(tree *tr, long *randomSeed, int *originalRateCategorie
   for(model = 0; model < tr->NumberOfModels; ++model)
     {
       int
+	maxWeight = 0,
 	ctr = 0,
-	totalWeight = 0,
+	//	totalWeight = 0,
 	realNumSites = tr->origNumSitePerModel[model],	
 	*wgtVirtualAln = (int*) rax_calloc(realNumSites, sizeof(int)); 
 
@@ -290,7 +291,9 @@ void computeNextReplicate(tree *tr, long *randomSeed, int *originalRateCategorie
 	  if(tr->originalModel[j] == model)
 	    {
 	      wgtVirtualAln[ctr++] = tr->originalWeights[j]; 
-	      totalWeight += tr->originalWeights[j] ; 
+	      //totalWeight += tr->originalWeights[j] ; 
+	      if(maxWeight < tr->originalWeights[j])
+		maxWeight = tr->originalWeights[j]; 
 	    }
 	}
 
@@ -303,7 +306,8 @@ void computeNextReplicate(tree *tr, long *randomSeed, int *originalRateCategorie
 	  int 
 	    pos = (int) (realNumSites * randum(randomSeed)); 
 	  
-	  if((int) (totalWeight * randum(randomSeed)) < wgtVirtualAln[pos] )
+	  //if((int) (totalWeight * randum(randomSeed)) < wgtVirtualAln[pos] )
+	  if((int) (maxWeight * randum(randomSeed)) < wgtVirtualAln[pos] )
 	    {
 	      weightBuffer[pos]++; 
 	      j++; 
