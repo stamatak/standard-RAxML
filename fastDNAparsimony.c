@@ -185,101 +185,37 @@ static void computeTraversalInfoParsimony(nodeptr p, int *ti, int *counter, int 
   *counter = *counter + 4;
 }
 
-
-
-#if (defined(__SIM_SSE3) || defined(__AVX))
 #define BIT_COUNT(x)  precomputed16_bitcount(x)
 
-/* 
-   The critical speed of this function
-   is mostly a machine/architecure issue
-   Nontheless, I decided not to use 
-   __builtin_popcount(x)
-   for better general portability, albeit it's worth testing
-   on x86 64 bit architectures
-*/
-#else
-#define BIT_COUNT(x)  precomputed16_bitcount(x)
-#endif
-
-
-
 #if (defined(__SIM_SSE3) || defined(__AVX))
-
-#ifdef __SIM_SSE3
-
-static unsigned int vectorCount(__m128i b)
-{
-  const unsigned int 
-    mu1 = 0x55555555,
-    mu2 = 0x33333333,
-    mu3 = 0x0F0F0F0F,
-    mu4 = 0x0000003F;
-  
-  unsigned int 
-    tcnt[4] __attribute__ ((aligned (BYTE_ALIGNMENT)));
-  
-  __m128i 
-    m1 = _mm_set_epi32 (mu1, mu1, mu1, mu1),
-    m2 = _mm_set_epi32 (mu2, mu2, mu2, mu2),
-    m3 = _mm_set_epi32 (mu3, mu3, mu3, mu3),
-    m4 = _mm_set_epi32 (mu4, mu4, mu4, mu4),
-    tmp1, 
-    tmp2;
- 
-
-  /* b = (b & 0x55555555) + (b >> 1 & 0x55555555); */
-  tmp1 = _mm_srli_epi32(b, 1);                    /* tmp1 = (b >> 1 & 0x55555555)*/
-  tmp1 = _mm_and_si128(tmp1, m1); 
-  tmp2 = _mm_and_si128(b, m1);                    /* tmp2 = (b & 0x55555555) */
-  b    = _mm_add_epi32(tmp1, tmp2);               /*  b = tmp1 + tmp2 */
-
-  /* b = (b & 0x33333333) + (b >> 2 & 0x33333333); */
-  tmp1 = _mm_srli_epi32(b, 2);                    /* (b >> 2 & 0x33333333) */
-  tmp1 = _mm_and_si128(tmp1, m2); 
-  tmp2 = _mm_and_si128(b, m2);                    /* (b & 0x33333333) */
-  b    = _mm_add_epi32(tmp1, tmp2);               /* b = tmp1 + tmp2 */
-
-  /* b = (b + (b >> 4)) & 0x0F0F0F0F; */
-  tmp1 = _mm_srli_epi32(b, 4);                    /* tmp1 = b >> 4 */
-  b = _mm_add_epi32(b, tmp1);                     /* b = b + (b >> 4) */
-  b = _mm_and_si128(b, m3);                       /*           & 0x0F0F0F0F */
-
-  /* b = b + (b >> 8); */
-  tmp1 = _mm_srli_epi32 (b, 8);                   /* tmp1 = b >> 8 */
-  b = _mm_add_epi32(b, tmp1);                     /* b = b + (b >> 8) */
-  
-  /* b = (b + (b >> 16)) & 0x0000003F; */
-  tmp1 = _mm_srli_epi32 (b, 16);                  /* b >> 16 */
-  b = _mm_add_epi32(b, tmp1);                     /* b + (b >> 16) */
-  b = _mm_and_si128(b, m4);                       /* (b >> 16) & 0x0000003F; */
-   
-  _mm_store_si128((__m128i *)tcnt, b);
-
-  return tcnt[0] + tcnt[1] + tcnt[2] + tcnt[3];
-}
-
-#endif
 
 static inline unsigned int populationCount(INT_TYPE v_N)
 {
-#ifdef __AVX
-  {
-    unsigned long int
-      res[4] __attribute__ ((aligned (BYTE_ALIGNMENT)));
-    unsigned int a, b;
+  unsigned int
+    res[INTS_PER_VECTOR] __attribute__ ((aligned (BYTE_ALIGNMENT)));
+  
+  unsigned int 
+    i,
+    a = 0;
     
-    _mm256_store_pd((double*)res, v_N);
+  VECTOR_STORE((CAST)res, v_N);
     
-    a = __builtin_popcountl(res[0]) + __builtin_popcountl(res[1]);
-    b = __builtin_popcountl(res[2]) + __builtin_popcountl(res[3]);
+  for(i = 0; i < INTS_PER_VECTOR; i++)
+    a += BIT_COUNT(res[i]);
     
-    return (a + b);	   
-  }
-#else	  
-  return (vectorCount(v_N)); 
-#endif
+  return a;	   
 }
+
+#else
+
+static inline unsigned int populationCount(unsigned int n)
+{
+  return BIT_COUNT(n);
+}
+
+#endif
+
+#if (defined(__SIM_SSE3) || defined(__AVX))
 
 void newviewParsimonyIterativeFast(tree *tr)
 {    
@@ -504,33 +440,7 @@ void newviewParsimonyIterativeFast(tree *tr)
     }
 }
 
-static inline unsigned int evaluatePopcount(INT_TYPE v_N)
-{
-#ifdef __AVX            	       	   	      
-  unsigned long int
-    res[4] __attribute__ ((aligned (BYTE_ALIGNMENT)));
-	     
-  unsigned int a, b;
-	     
-  _mm256_store_pd((double*)res, v_N);
-  
-  a = __builtin_popcountl(res[0]) + __builtin_popcountl(res[1]);
-  b = __builtin_popcountl(res[2]) + __builtin_popcountl(res[3]);
-	     
-  return (a + b);	            
-#else      	       
-  unsigned int
-    sum = 0,
-    counts[INTS_PER_VECTOR] __attribute__ ((aligned (BYTE_ALIGNMENT)));
 
-  VECTOR_STORE((CAST)counts, v_N);
-
-  sum += BIT_COUNT(counts[0]) + BIT_COUNT(counts[1]);
-  sum += BIT_COUNT(counts[2]) + BIT_COUNT(counts[3]);          
-
-  return sum;
-#endif
-}
 
 unsigned int evaluateParsimonyIterativeFast(tree *tr)
 {
@@ -584,7 +494,7 @@ unsigned int evaluateParsimonyIterativeFast(tree *tr)
 		 
 		 v_N = VECTOR_AND_NOT(v_N, allOne);
 		 
-		 sum += evaluatePopcount(v_N);
+		 sum += populationCount(v_N);
 		 
 		 if(sum >= bestScore)
 		   return sum;		   	       
@@ -614,7 +524,7 @@ unsigned int evaluateParsimonyIterativeFast(tree *tr)
 		 
 		 v_N = VECTOR_AND_NOT(v_N, allOne);
 		 
-		 sum += evaluatePopcount(v_N);
+		 sum += populationCount(v_N);
 		 
 		 if(sum >= bestScore)		 
 		   return sum;	        
@@ -650,7 +560,7 @@ unsigned int evaluateParsimonyIterativeFast(tree *tr)
 		  
 		  v_N = VECTOR_AND_NOT(v_N, allOne);
 		  
-		  sum += evaluatePopcount(v_N);	       
+		  sum += populationCount(v_N);	       
 		  
 		  if(sum >= bestScore)	    
 		    return sum;		    	       
@@ -688,7 +598,7 @@ unsigned int evaluateParsimonyIterativeFast(tree *tr)
 		 
 		 v_N = VECTOR_AND_NOT(v_N, allOne);
 		 
-		 sum += evaluatePopcount(v_N);	       
+		 sum += populationCount(v_N);	       
 		 
 		 if(sum >= bestScore)	      
 		   return sum;		       
@@ -767,7 +677,7 @@ void newviewParsimonyIterativeFast(tree *tr)
 		    this[0][i] = t_A | (t_N & o_A);
 		    this[1][i] = t_C | (t_N & o_C);		   
 		    
-		    totalScore += BIT_COUNT(t_N);   
+		    totalScore += populationCount(t_N);   
 		  }
 	      }
 	      break;
@@ -815,7 +725,7 @@ void newviewParsimonyIterativeFast(tree *tr)
 		    this[2][i] = t_G | (t_N & o_G);
 		    this[3][i] = t_T | (t_N & o_T); 
 		    
-		    totalScore += BIT_COUNT(t_N);   
+		    totalScore += populationCount(t_N);   
 		  }
 	      }
 	      break;
@@ -856,7 +766,7 @@ void newviewParsimonyIterativeFast(tree *tr)
 		    for(k = 0; k < 20; k++)		      
 		      this[k][i] = t_A[k] | (t_N & o_A[k]);		   
 		    
-		    totalScore += BIT_COUNT(t_N); 
+		    totalScore += populationCount(t_N); 
 		  }
 	      }
 	      break;
@@ -897,7 +807,7 @@ void newviewParsimonyIterativeFast(tree *tr)
 		    for(k = 0; k < states; k++)		      
 		      this[k][i] = t_A[k] | (t_N & o_A[k]);		   
 		    
-		    totalScore += BIT_COUNT(t_N); 
+		    totalScore += populationCount(t_N); 
 		  }
 	      }			      
 	    } 
@@ -959,7 +869,7 @@ unsigned int evaluateParsimonyIterativeFast(tree *tr)
 		 
 		  t_N = ~(t_A | t_C);
 
-		  sum += BIT_COUNT(t_N);    
+		  sum += populationCount(t_N);    
 		 
 		 if(sum >= bestScore)
 		   return sum;		   	       
@@ -992,7 +902,7 @@ unsigned int evaluateParsimonyIterativeFast(tree *tr)
 
 		  t_N = ~(t_A | t_C | t_G | t_T);
 
-		  sum += BIT_COUNT(t_N);     
+		  sum += populationCount(t_N);     
 		 
 		 if(sum >= bestScore)		 
 		   return sum;	        
@@ -1025,7 +935,7 @@ unsigned int evaluateParsimonyIterativeFast(tree *tr)
   	       
 		  t_N = ~t_N;
 
-		  sum += BIT_COUNT(t_N);      
+		  sum += populationCount(t_N);      
 		  
 		  if(sum >= bestScore)	    
 		    return sum;		    	       
@@ -1060,7 +970,7 @@ unsigned int evaluateParsimonyIterativeFast(tree *tr)
   	       
 		  t_N = ~t_N;
 
-		  sum += BIT_COUNT(t_N);      
+		  sum += populationCount(t_N);      
 		  		  		 
 		 if(sum >= bestScore)			  
 		   return sum;			   
@@ -1967,7 +1877,7 @@ void makeParsimonyTreeFast(tree *tr, analdef *adef, boolean full)
       }
     }    
   
-  /*printf("ADD: %d\n", tr->bestParsimony); */
+  //printf("ADD: %d\n", tr->bestParsimony); 
   
   nodeRectifier(tr);
   
@@ -1989,7 +1899,7 @@ void makeParsimonyTreeFast(tree *tr, analdef *adef, boolean full)
     }
   while(randomMP < startMP);
   
-  /*printf("OPT: %d %f\n", tr->bestParsimony, gettime() - t);*/
+  //printf("OPT: %d\n", tr->bestParsimony);
 
   
      

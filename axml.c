@@ -9345,7 +9345,9 @@ static char bits_in_16bits [0x1u << 16];
 static void compute_bits_in_16bits(void)
 {
     unsigned int i;    
-    
+
+    assert(sizeof(unsigned int) == 4);
+
     for (i = 0; i < (0x1u<<16); i++)
         bits_in_16bits[i] = iterated_bitcount(i);
     
