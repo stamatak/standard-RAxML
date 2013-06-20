@@ -1069,7 +1069,7 @@ extern entry *initEntry(void);
 extern void computeRogueTaxa(tree *tr, char* treeSetFileName, analdef *adef);
 extern unsigned int precomputed16_bitcount(unsigned int n);
 
-
+#define BIT_COUNT(x)  precomputed16_bitcount(x)
 
 
 

@@ -97,10 +97,6 @@ typedef struct
 } Array;
 
 
-
-
-#define BIT_COUNT(x)  precomputed16_bitcount(x)
-
 #define FLIP_NTH_BIT(bitVector,n) (bitVector[n / MASK_LENGTH] |= mask32[ n % MASK_LENGTH ])
 #define UNFLIP_NTH_BIT(bitVeoctor,n) (bitVector[n / MASK_LENGTH] &= ~mask32[ n % MASK_LENGTH ])
 #define NTH_BIT_IS_SET(bitVector,n) (bitVector[n / MASK_LENGTH] & mask32[n % MASK_LENGTH])

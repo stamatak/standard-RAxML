@@ -185,7 +185,7 @@ static void computeTraversalInfoParsimony(nodeptr p, int *ti, int *counter, int 
   *counter = *counter + 4;
 }
 
-#define BIT_COUNT(x)  precomputed16_bitcount(x)
+
 
 #if (defined(__SIM_SSE3) || defined(__AVX))
 

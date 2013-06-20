@@ -2210,7 +2210,7 @@ void plausibilityChecker(tree *tr, analdef *adef)
       */
 
       for(j = 0; j < vLength; j++)
-	taxa += __builtin_popcount(smallTreeMask[j]);
+	taxa += BIT_COUNT(smallTreeMask[j]);
       assert(taxa == tr->ntips);
 
       /* now re-hash the big tree by applying the above bit mask */
@@ -2252,7 +2252,7 @@ void plausibilityChecker(tree *tr, analdef *adef)
 		      for(j = 0; j < vLength; j++)
 			{
 			  masked[j] = (~bitVector[j]) & smallTreeMask[j];			     
-			  count += __builtin_popcount(masked[j]);
+			  count += BIT_COUNT(masked[j]);
 			}
 		    }
 		  else
@@ -2262,7 +2262,7 @@ void plausibilityChecker(tree *tr, analdef *adef)
 		      for(j = 0; j < vLength; j++)
 			{
 			  masked[j] = bitVector[j] & smallTreeMask[j];  
-			  count += __builtin_popcount(masked[j]);      
+			  count += BIT_COUNT(masked[j]);      
 			}
 		    }
 
