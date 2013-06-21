@@ -335,7 +335,7 @@ static int myGetline(char **lineptr, int *n, FILE *stream)
 
    if (*lineptr == NULL || *n < 2) 
     {
-      line = (char *)rax_realloc(*lineptr, chunkSize);
+      line = (char *)rax_realloc(*lineptr, chunkSize, FALSE);
       if (line == NULL)
 	return -1;
       *lineptr = line;
@@ -366,7 +366,7 @@ static int myGetline(char **lineptr, int *n, FILE *stream)
        /* Need to enlarge the line buffer.  */
        len = p - line;
        size *= 2;
-       line = rax_realloc (line, size);
+       line = rax_realloc (line, size, FALSE);
        if (line == NULL)
 	 goto lose;
        *lineptr = line;
@@ -471,7 +471,7 @@ void parsePartitions(analdef *adef, rawdata *rdta, tree *tr)
             
     numberPairs:
       pairsCount++;
-      partitions[i] = (int *)rax_realloc((void *)partitions[i], (1 + 3 * pairsCount) * sizeof(int));
+      partitions[i] = (int *)rax_realloc((void *)partitions[i], (1 + 3 * pairsCount) * sizeof(int), FALSE);
       partitions[i][0] = pairsCount;
       partitions[i][3 + 3 * (pairsCount - 1)] = -1; 	
       

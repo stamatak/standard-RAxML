@@ -32,12 +32,14 @@
 
 #include <assert.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #ifdef __AVX
 #define BYTE_ALIGNMENT 32
 #else
 #define BYTE_ALIGNMENT 16
 #endif
+
 
 #ifdef _USE_PTHREADS
 
@@ -161,8 +163,8 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "RAxML"
-#define programVersion     "7.6.0"
-#define programDate        "June 20 2013"
+#define programVersion     "7.6.1"
+#define programDate        "June 21 2013"
 
 
 #define  TREE_EVALUATION                 0

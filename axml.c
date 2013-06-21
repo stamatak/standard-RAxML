@@ -578,7 +578,7 @@ static void rax_getline_insptr_valid(char **lineptr, size_t *n, size_t ins_ptr )
 
       *n += n_inc;
           
-      *lineptr = (char*)rax_realloc((void*)(*lineptr), *n * sizeof(char));
+      *lineptr = (char*)rax_realloc((void*)(*lineptr), *n * sizeof(char), FALSE);
     
       assert(*lineptr != 0);
   }
@@ -3062,14 +3062,14 @@ static void allocPartitions(tree *tr)
 	tr->partitionData[i].globalScaler    = (unsigned int *)rax_calloc(2 * tr->mxtips, sizeof(unsigned int));  	         
 
       
-      tr->partitionData[i].left              = (double *)rax_malloc_aligned(pl->leftLength * (maxCategories + 1) * sizeof(double));
-      tr->partitionData[i].right             = (double *)rax_malloc_aligned(pl->rightLength * (maxCategories + 1) * sizeof(double));      
+      tr->partitionData[i].left              = (double *)rax_malloc(pl->leftLength * (maxCategories + 1) * sizeof(double));
+      tr->partitionData[i].right             = (double *)rax_malloc(pl->rightLength * (maxCategories + 1) * sizeof(double));      
       tr->partitionData[i].EIGN              = (double*)rax_malloc(pl->eignLength * sizeof(double));
-      tr->partitionData[i].EV                = (double*)rax_malloc_aligned(pl->evLength * sizeof(double));
+      tr->partitionData[i].EV                = (double*)rax_malloc(pl->evLength * sizeof(double));
       tr->partitionData[i].EI                = (double*)rax_malloc(pl->eiLength * sizeof(double));
       tr->partitionData[i].substRates        = (double *)rax_malloc(pl->substRatesLength * sizeof(double));
       tr->partitionData[i].frequencies       = (double*)rax_malloc(pl->frequenciesLength * sizeof(double));
-      tr->partitionData[i].tipVector         = (double *)rax_malloc_aligned(pl->tipVectorLength * sizeof(double));
+      tr->partitionData[i].tipVector         = (double *)rax_malloc(pl->tipVectorLength * sizeof(double));
 
 
       if(tr->partitionData[i].protModels == LG4 || tr->partitionData[i].protModels == LG4X)      
@@ -3080,11 +3080,11 @@ static void allocPartitions(tree *tr)
 	  for(k = 0; k < 4; k++)
 	    {	    
 	      tr->partitionData[i].EIGN_LG4[k]              = (double*)rax_malloc(pl->eignLength * sizeof(double));
-	      tr->partitionData[i].EV_LG4[k]                = (double*)rax_malloc_aligned(pl->evLength * sizeof(double));
+	      tr->partitionData[i].EV_LG4[k]                = (double*)rax_malloc(pl->evLength * sizeof(double));
 	      tr->partitionData[i].EI_LG4[k]                = (double*)rax_malloc(pl->eiLength * sizeof(double));
 	      tr->partitionData[i].substRates_LG4[k]        = (double *)rax_malloc(pl->substRatesLength * sizeof(double));
 	      tr->partitionData[i].frequencies_LG4[k]       = (double*)rax_malloc(pl->frequenciesLength * sizeof(double));
-	      tr->partitionData[i].tipVector_LG4[k]         = (double *)rax_malloc_aligned(pl->tipVectorLength * sizeof(double));
+	      tr->partitionData[i].tipVector_LG4[k]         = (double *)rax_malloc(pl->tipVectorLength * sizeof(double));
 	    }
 	}
 
@@ -3162,7 +3162,7 @@ static void allocNodex (tree *tr)
 	
       /* always multiply by 4 due to frequent switching between CAT and GAMMA in standard RAxML */
       
-      tr->partitionData[model].gapColumn = (double *)rax_malloc_aligned(((size_t)tr->innerNodes) *
+      tr->partitionData[model].gapColumn = (double *)rax_malloc(((size_t)tr->innerNodes) *
 								    ((size_t)4) * 
 								    ((size_t)(tr->partitionData[model].states)) *
 								    sizeof(double));		  		
@@ -3178,7 +3178,7 @@ static void allocNodex (tree *tr)
   tr->perSiteLL       = (double *)rax_malloc((size_t)tr->cdta->endsite * sizeof(double));
   assert(tr->perSiteLL != NULL);
 
-  tr->sumBuffer  = (double *)rax_malloc_aligned(memoryRequirements * sizeof(double));
+  tr->sumBuffer  = (double *)rax_malloc(memoryRequirements * sizeof(double));
   assert(tr->sumBuffer != NULL);
  
   offset = 0;
@@ -7017,7 +7017,7 @@ static void allocNodex(tree *tr, int tid, int n)
       
       /* always multiply by 4 due to frequent switching between CAT and GAMMA in standard RAxML */
 
-      tr->partitionData[model].gapColumn = (double *)rax_malloc_aligned(
+      tr->partitionData[model].gapColumn = (double *)rax_malloc(
 								    ((size_t)(tr->innerNodes)) *
 								    ((size_t)(4)) * 
 								    ((size_t)(tr->partitionData[model].states)) *
@@ -7035,7 +7035,7 @@ static void allocNodex(tree *tr, int tid, int n)
       assert(tr->perSiteLL != NULL);
     }
   
-  tr->sumBuffer  = (double *)rax_malloc_aligned(memoryRequirements * sizeof(double));
+  tr->sumBuffer  = (double *)rax_malloc(memoryRequirements * sizeof(double));
   assert(tr->sumBuffer != NULL);
    
   tr->y_ptr = (unsigned char *)rax_malloc(myLength * (size_t)(tr->mxtips) * sizeof(unsigned char));
@@ -7565,8 +7565,8 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 
 	}                                                
 
-      localTree->temporarySumBuffer = (double *)rax_malloc_aligned(sizeof(double) * localTree->contiguousVectorLength);
-      localTree->temporaryVector  = (double *)rax_malloc_aligned(sizeof(double) * localTree->contiguousVectorLength);      
+      localTree->temporarySumBuffer = (double *)rax_malloc(sizeof(double) * localTree->contiguousVectorLength);
+      localTree->temporaryVector  = (double *)rax_malloc(sizeof(double) * localTree->contiguousVectorLength);      
 
       localTree->temporaryScaling = (int *)rax_malloc(sizeof(int) * localTree->contiguousScalingLength);
                  
@@ -9040,7 +9040,7 @@ static void extractTaxaFromTopology(tree *tr, rawdata *rdta, cruncheddata *cdta,
 	      if(taxaCount == taxaSize)
 		{		  
 		  taxaSize *= 2;
-		  nameList = (char **)rax_realloc(nameList, sizeof(char*) * taxaSize);		 
+		  nameList = (char **)rax_realloc(nameList, sizeof(char*) * taxaSize, FALSE);		 
 		}
 	      
 	      nameList[taxaCount] = (char*)rax_malloc(sizeof(char) * (strlen(buffer) + 1));

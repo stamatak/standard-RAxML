@@ -184,7 +184,7 @@ static double evaluatePartialGTRCATPROT(int i, double ki, int counter,  traversa
   double   *x1, *x2; 
   int scale = 0, k, l;
   double 
-    *lVector = (double *)rax_malloc_aligned(sizeof(double) * 20 * mxtips),
+    *lVector = (double *)rax_malloc(sizeof(double) * 20 * mxtips),
     myEI[400]  __attribute__ ((aligned (BYTE_ALIGNMENT)));
 
   traversalInfo *trav = &ti[0];
@@ -327,7 +327,7 @@ static double evaluatePartialGTRCATPROT(int i, double ki, int counter,  traversa
   double  d[20];
   double   *x1, *x2; 
   int scale = 0, k, l;
-  double *lVector = (double *)rax_malloc_aligned(sizeof(double) * 20 * mxtips);
+  double *lVector = (double *)rax_malloc(sizeof(double) * 20 * mxtips);
 
   traversalInfo *trav = &ti[0];
 
@@ -900,7 +900,7 @@ static double evaluatePartialGTRCAT(int i, double ki, int counter,  traversalInf
   double  d[3];
   double   *x1, *x2; 
   int scale = 0, k;
-  double *lVector = (double *)rax_malloc_aligned(sizeof(double) * 4 * mxtips);    
+  double *lVector = (double *)rax_malloc(sizeof(double) * 4 * mxtips);    
 
   traversalInfo *trav = &ti[0];
  

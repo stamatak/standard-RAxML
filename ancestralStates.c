@@ -566,7 +566,7 @@ void newviewIterativeAncestral(tree *tr)
 	    case CAT:
 	      {	
 		double
-		  *diagptable = (double*)rax_malloc_aligned(tr->partitionData[model].numberOfCategories * states * states * sizeof(double));
+		  *diagptable = (double*)rax_malloc(tr->partitionData[model].numberOfCategories * states * states * sizeof(double));
 		
 		makeP_Flex(qz, rz, tr->partitionData[model].perSiteRates,
 			   tr->partitionData[model].EI,
@@ -592,7 +592,7 @@ void newviewIterativeAncestral(tree *tr)
 	    case GAMMA_I:
 	      {	
 		double
-		  *diagptable = (double*)rax_malloc_aligned(4 * states * states * sizeof(double));
+		  *diagptable = (double*)rax_malloc(4 * states * states * sizeof(double));
 		
 		makeP_Flex(qz, rz, tr->partitionData[model].gammaRates,
 			   tr->partitionData[model].EI,

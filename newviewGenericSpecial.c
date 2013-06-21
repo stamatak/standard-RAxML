@@ -7463,7 +7463,7 @@ void newviewIterative (tree *tr)
 		  if(x3_start)
 		    rax_free(x3_start);
 		 
-		  x3_start = (double*)rax_malloc_aligned(requiredLength);		 
+		  x3_start = (double*)rax_malloc(requiredLength);		 
 		  
 		  tr->partitionData[model].xVector[tInfo->pNumber - tr->mxtips - 1] = x3_start;
 		  
@@ -7486,7 +7486,7 @@ void newviewIterative (tree *tr)
 		      if(ex3)
 			rax_free(ex3);
 		 
-		      ex3 = (int*)rax_malloc_aligned(requiredExpLength);		 
+		      ex3 = (int*)rax_malloc(requiredExpLength);		 
 		  
 		      tr->partitionData[model].expVector[tInfo->pNumber - tr->mxtips - 1] = ex3;
 		  
