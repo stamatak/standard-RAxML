@@ -72,7 +72,6 @@
 #endif
 
 #include "axml.h"
-#include "mem_alloc.h"
 #include "globalVariables.h"
 
 

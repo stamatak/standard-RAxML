@@ -4,7 +4,6 @@
 #include <math.h>
 #include <assert.h>
 #include "axml.h"
-#include "mem_alloc.h"
 
 
 /* the define below makes the algorithm run much faster and should therefore always be used :-) */

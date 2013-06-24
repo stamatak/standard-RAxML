@@ -163,8 +163,8 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "RAxML"
-#define programVersion     "7.6.1"
-#define programDate        "June 21 2013"
+#define programVersion     "7.6.2"
+#define programDate        "June 24 2013"
 
 
 #define  TREE_EVALUATION                 0
@@ -1325,6 +1325,11 @@ extern void newviewIterativeAncestral(tree *tr);
 extern void newviewGenericAncestral(tree *tr, nodeptr p, boolean atRoot);
 extern void computeAncestralStates(tree *tr, double referenceLikelihood);
 extern void makeP_Flex(double z1, double z2, double *rptr, double *EI,  double *EIGN, int numberOfCategories, double *left, double *right, const int numStates);
+
+extern void *rax_malloc( size_t size );
+extern void *rax_realloc(void *p, size_t size, boolean needsMemoryAlignment);
+extern void rax_free(void *p);
+extern void *rax_calloc(size_t n, size_t size);
 
 #ifdef _WAYNE_MPI
 

@@ -40,7 +40,6 @@
 #include <ctype.h>
 #include <string.h>
 #include "axml.h"
-#include "mem_alloc.h"
 
 extern char run_id[128];
 extern char workdir[1024];

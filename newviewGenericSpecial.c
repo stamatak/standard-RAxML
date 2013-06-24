@@ -65,7 +65,6 @@ extern volatile int NumberOfThreads;
 extern pthread_mutex_t          mutex;
 #endif
 
-#include "mem_alloc.h"
 
 extern const unsigned int mask32[32];
 

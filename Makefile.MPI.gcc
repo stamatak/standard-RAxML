@@ -14,7 +14,7 @@ objs    = axml.o  optimizeModel.o multiple.o searchAlgo.o topologies.o parsePart
 
 all : raxmlHPC-MPI
 
-GLOBAL_DEPS = axml.h globalVariables.h mem_alloc.h
+GLOBAL_DEPS = axml.h globalVariables.h #mem_alloc.h
 
 raxmlHPC-MPI : $(objs)
 	$(CC) -o raxmlHPC-MPI $(objs) $(LIBRARIES) 

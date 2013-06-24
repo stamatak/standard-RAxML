@@ -68,8 +68,6 @@ extern int processID;
 extern int processes;
 #endif
 
-#include "mem_alloc.h"
-
 #define _NEW_MRE
 
 extern FILE *INFILE;

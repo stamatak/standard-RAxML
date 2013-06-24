@@ -12,7 +12,7 @@ objs    = axml.o  optimizeModel.o multiple.o searchAlgo.o topologies.o parsePart
 
 all : raxmlHPC-MPI-AVX
 
-GLOBAL_DEPS = axml.h globalVariables.h mem_alloc.h
+GLOBAL_DEPS = axml.h globalVariables.h #mem_alloc.h
 
 raxmlHPC-MPI-AVX : $(objs)
 	$(CC) -o raxmlHPC-MPI-AVX $(objs) $(LIBRARIES) 

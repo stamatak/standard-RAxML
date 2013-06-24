@@ -40,7 +40,6 @@
 #include <ctype.h>
 #include <string.h>
 #include "axml.h"
-#include "mem_alloc.h"
 
 
 static const double MNBRAK_GOLD =    1.618034;

@@ -76,8 +76,6 @@
 
 #include "axml.h"
 
-#include "mem_alloc.h"
-
 extern const unsigned int mask32[32]; 
 /* vector-specific stuff */
 

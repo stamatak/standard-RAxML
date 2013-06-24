@@ -42,8 +42,6 @@
 #include <ctype.h>
 #include <string.h>
 
-#include "mem_alloc.h"
-
 #include "axml.h"
 
 extern int Thorough;

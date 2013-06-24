@@ -15,7 +15,7 @@ objs    = axml.o  optimizeModel.o multiple.o searchAlgo.o topologies.o parsePart
 
 all : raxmlHPC-PTHREADS
 
-GLOBAL_DEPS = axml.h globalVariables.h mem_alloc.h compiler.h  gcc.h  ll_asm.h  ll_list.h
+GLOBAL_DEPS = axml.h globalVariables.h #mem_alloc.h compiler.h  gcc.h  ll_asm.h  ll_list.h
 
 raxmlHPC-PTHREADS : $(objs)
 	$(CC) -o raxmlHPC-PTHREADS $(objs) $(LIBRARIES) 

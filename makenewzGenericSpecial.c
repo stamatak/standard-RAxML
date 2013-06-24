@@ -49,8 +49,6 @@
 /*#include <tmmintrin.h>*/
 #endif
 
-#include "mem_alloc.h"
-
 #ifdef _USE_PTHREADS
 extern volatile double *reductionBuffer;
 extern volatile double *reductionBufferTwo;

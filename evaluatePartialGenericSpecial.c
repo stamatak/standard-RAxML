@@ -45,7 +45,6 @@
 #include <pmmintrin.h>
 #endif
 
-#include "mem_alloc.h"
 
 /********************** GTRCAT ***************************************/
 

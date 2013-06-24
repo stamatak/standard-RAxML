@@ -40,7 +40,6 @@
 #include <ctype.h>
 #include <string.h>
 #include "axml.h"
-#include "mem_alloc.h"
 
 #ifdef _WAYNE_MPI
 #include <mpi.h>

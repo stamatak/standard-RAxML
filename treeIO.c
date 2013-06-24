@@ -43,7 +43,6 @@
 #include <string.h>
 
 #include "axml.h"
-#include "mem_alloc.h"
 
 extern FILE *INFILE;
 extern char infoFileName[1024];

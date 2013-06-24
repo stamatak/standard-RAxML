@@ -44,9 +44,6 @@
 #include <string.h>
 #include <strings.h>
 
-
-#include "mem_alloc.h"
-
 #include "axml.h"
 
 /*****************************FUNCTIONS FOR READING MULTIPLE MODEL SPECIFICATIONS************************************************/

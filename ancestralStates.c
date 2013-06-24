@@ -44,7 +44,6 @@
 #include <string.h>
 
 #include "axml.h"
-#include "mem_alloc.h"
 
 extern char  workdir[1024];
 extern char run_id[128];

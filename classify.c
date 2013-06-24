@@ -57,8 +57,6 @@ extern volatile int NumberOfThreads;
 extern volatile int NumberOfJobs;
 #endif
 
-#include "mem_alloc.h"
-
 static double getBranch(tree *tr, double *b, double *bb)
 {
   double z = 0.0;
