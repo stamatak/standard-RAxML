@@ -92,7 +92,10 @@ static void setRateModel(tree *tr, int model, double rate, int position)
 
   assert(tr->partitionData[model].dataType != BINARY_DATA); 
 
-  assert(rate >= RATE_MIN && rate <= RATE_MAX);
+  if(!(tr->partitionData[model].dataType == SECONDARY_DATA ||
+       tr->partitionData[model].dataType == SECONDARY_DATA_6 ||
+       tr->partitionData[model].dataType == SECONDARY_DATA_7))
+    assert(rate >= RATE_MIN && rate <= RATE_MAX);
 
   if(tr->partitionData[model].nonGTR)
     {    
@@ -1921,8 +1924,9 @@ static void optRate(tree *tr, double modelEpsilon, linkageList *ll, int numberOf
 		{
 		  int 
 		    index = ll->ld[k].partitionList[j];
-		  
-		  tr->partitionData[index].substRates[rateNumber] = startRates[pos * numberOfRates + rateNumber];	             	  
+
+		  setRateModel(tr, index, startRates[pos * numberOfRates + rateNumber], rateNumber);
+		  //tr->partitionData[index].substRates[rateNumber] = startRates[pos * numberOfRates + rateNumber];	             	  
 		  initReversibleGTR(tr, index);
 		}
 	    }
@@ -1933,7 +1937,8 @@ static void optRate(tree *tr, double modelEpsilon, linkageList *ll, int numberOf
 		  int 
 		    index = ll->ld[k].partitionList[j];
 		  
-		  tr->partitionData[index].substRates[rateNumber] = _x[pos];	             	  
+		  setRateModel(tr, index, _x[pos], rateNumber);
+		  //tr->partitionData[index].substRates[rateNumber] = _x[pos];	             	  
 		  initReversibleGTR(tr, index);
 		}
 	    }
