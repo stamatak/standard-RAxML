@@ -3270,6 +3270,7 @@ static void initAdef(analdef *adef)
   adef->alignmentFileType = PHYLIP;
   adef->calculateIC = FALSE;
   adef->verboseIC = FALSE;
+  adef->stepwiseAdditionOnly = FALSE;
 }
 
 
@@ -3958,7 +3959,7 @@ static void printREADME(void)
   printf("      [-q multipleModelFileName] [-r binaryConstraintTree]\n");
   printf("      [-R binaryModelParamFile] [-S secondaryStructureFile] [-t userStartingTree]\n");
   printf("      [-T numberOfThreads] [-u] [-U] [-v] [-V] [-w outputDirectory] [-W slidingWindowSize]\n");
-  printf("      [-x rapidBootstrapRandomNumberSeed] [-y] [-Y quartetGroupingFileName|ancestralSequenceCandidatesFileName]\n");
+  printf("      [-x rapidBootstrapRandomNumberSeed] [-X] [-y] [-Y quartetGroupingFileName|ancestralSequenceCandidatesFileName]\n");
   printf("      [-z multipleTreesFile] [-#|-N numberOfRuns|autoFC|autoMR|autoMRE|autoMRE_IGN]\n");
   printf("\n");
   printf("      -a      Specify a column weight file name to assign individual weights to each column of \n");
@@ -4231,6 +4232,14 @@ static void printREADME(void)
   printf("              CAUTION: unlike in version 7.0.4 RAxML will conduct rapid BS replicates under \n");
   printf("              the model of rate heterogeneity you specified via \"-m\" and not by default under CAT\n");
   printf("\n");
+  printf("      -X      Same as the \"-y\" option below, however the parsimony search is more superficial.\n");
+  printf("              RAxML will only do a randomized stepwise addition order parsimony tree reconstruction\n");
+  printf("              without performing any additional SPRs.\n");
+  printf("              This may be helpful for very broad whole-genome datasets, since this can generate topologically\n");
+  printf("              more different starting trees.\n");
+  printf("\n");
+  printf("              DEFAULT: OFF\n");
+  printf("\n");   
   printf("      -y      If you want to only compute a parsimony starting tree with RAxML specify \"-y\",\n");
   printf("              the program will exit after computation of the starting tree\n");
   printf("\n");
@@ -4364,7 +4373,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 
 
   while(!bad_opt &&
-	((c = mygetopt(argc,argv,"R:T:E:N:B:L:P:S:Y:A:G:H:I:J:K:W:l:x:z:g:r:e:a:b:c:f:i:m:t:w:s:n:o:q:#:p:vudyjhkMDFQUOVC", &optind, &optarg))!=-1))
+	((c = mygetopt(argc,argv,"R:T:E:N:B:L:P:S:Y:A:G:H:I:J:K:W:l:x:z:g:r:e:a:b:c:f:i:m:t:w:s:n:o:q:#:p:vudyjhkMDFQUOVCX", &optind, &optarg))!=-1))
     {
     switch(c)
       {
@@ -4723,6 +4732,11 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	printVersionInfo(TRUE, (FILE*)NULL);
 	errorExit(0);
       case 'y':
+	adef->stepwiseAdditionOnly = FALSE;
+	adef->startingTreeOnly = 1;
+	break;
+      case 'X':
+	adef->stepwiseAdditionOnly = TRUE;
 	adef->startingTreeOnly = 1;
 	break;     
       case 'h':
@@ -5527,7 +5541,7 @@ static void makeFileNames(void)
 {
   int infoFileExists = 0;
 
-
+  strcpy(verboseSplitsFileName, workdir);
   strcpy(permFileName,         workdir);
   strcpy(resultFileName,       workdir);
   strcpy(logFileName,          workdir);
@@ -5544,6 +5558,7 @@ static void makeFileNames(void)
   strcpy(perSiteLLsFileName,  workdir);
   strcpy(binaryModelParamsOutputFileName,  workdir);
 
+  strcat(verboseSplitsFileName, "RAxML_verboseSplits.");
   strcat(permFileName,         "RAxML_parsimonyTree.");
   strcat(resultFileName,       "RAxML_result.");
   strcat(logFileName,          "RAxML_log.");
@@ -5560,6 +5575,7 @@ static void makeFileNames(void)
   strcat(perSiteLLsFileName,   "RAxML_perSiteLLs.");
   strcat(binaryModelParamsOutputFileName,   "RAxML_binaryModelParameters.");
 
+  strcat(verboseSplitsFileName, run_id);
   strcat(permFileName,         run_id);
   strcat(resultFileName,       run_id);
   strcat(logFileName,          run_id);

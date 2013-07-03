@@ -163,8 +163,8 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "RAxML"
-#define programVersion     "7.6.3"
-#define programDate        "June 25 2013"
+#define programVersion     "7.6.4"
+#define programDate        "July 3 2013"
 
 
 #define  TREE_EVALUATION                 0
@@ -1027,6 +1027,7 @@ typedef  struct {
   int           alignmentFileType;
   boolean       calculateIC;
   boolean       verboseIC;
+  boolean       stepwiseAdditionOnly;
 } analdef;
 
 

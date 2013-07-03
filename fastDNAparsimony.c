@@ -1879,23 +1879,26 @@ void makeParsimonyTreeFast(tree *tr, analdef *adef, boolean full)
   
   nodeRectifier(tr);
   
-  randomMP = tr->bestParsimony;        
-  
-  do
+  if(adef->stepwiseAdditionOnly == FALSE)
     {
-      startMP = randomMP;
-      nodeRectifier(tr);
-      for(i = 1; i <= tr->mxtips + tr->mxtips - 2; i++)
+      randomMP = tr->bestParsimony;        
+      
+      do
 	{
-	  rearrangeParsimony(tr, tr->nodep[i], 1, 20, FALSE);
-	  if(tr->bestParsimony < randomMP)
-	    {		
-	      restoreTreeRearrangeParsimony(tr);
-	      randomMP = tr->bestParsimony;
-	    }
-	}      		  	   
+	  startMP = randomMP;
+	  nodeRectifier(tr);
+	  for(i = 1; i <= tr->mxtips + tr->mxtips - 2; i++)
+	    {
+	      rearrangeParsimony(tr, tr->nodep[i], 1, 20, FALSE);
+	      if(tr->bestParsimony < randomMP)
+		{		
+		  restoreTreeRearrangeParsimony(tr);
+		  randomMP = tr->bestParsimony;
+		}
+	    }      		  	   
+	}
+      while(randomMP < startMP);
     }
-  while(randomMP < startMP);
   
   //printf("OPT: %d\n", tr->bestParsimony);
 

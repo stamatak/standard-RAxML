@@ -77,6 +77,7 @@ extern char bootStrapFile[1024];
 extern char tree_file[1024];
 extern char infoFileName[1024];
 extern char resultFileName[1024];
+extern char verboseSplitsFileName[1024];
 
 extern double masterTime;
 
@@ -1224,7 +1225,7 @@ static double computeIC_Value(unsigned int supportedBips, unsigned int *maxima, 
     return ic;
 }
 
-static void printSplit(FILE *f, unsigned int *bitVector, tree *tr)
+static void printSplit(FILE *f, FILE *v, unsigned int *bitVector, tree *tr, double support, double ic, unsigned int frequency)
 {
   int 
     i,
@@ -1245,14 +1246,19 @@ static void printSplit(FILE *f, unsigned int *bitVector, tree *tr)
     {
       if((bitVector[i / MASK_LENGTH] & mask32[i % MASK_LENGTH]))    	
 	{
+	  fprintf(v, "*");
 	  fprintf(f, "%s", tr->nameList[i+1]);	  	  
 	  taxa++;
 	  totalTaxa++;
 	  if(taxa < countLeftTaxa)
 	    fprintf(f, ", ");
 	}   
-    }
-  
+      else
+	fprintf(v, "-");
+    } 
+
+  fprintf(v, "\t%u/%f/%f\n", frequency, support * 100.0, ic);
+
   fprintf(f, "),(");
 
   taxa = 0;
@@ -1274,8 +1280,50 @@ static void printSplit(FILE *f, unsigned int *bitVector, tree *tr)
   fprintf(f, "));\n");
 }
 
+static void printFullySupportedSplit(tree *tr, unsigned int *bitVector, unsigned int numberOfTrees)
+{
+  FILE    
+    *v = myfopen(verboseSplitsFileName, "a");
+
+  int 
+    i;
+
+  fprintf(v, "partition: \n");
+
+  for(i = 0; i < tr->mxtips; i++)    
+    {
+      if((bitVector[i / MASK_LENGTH] & mask32[i % MASK_LENGTH]))    		
+	fprintf(v, "*");	  	
+      else
+	fprintf(v, "-");
+    } 
+
+  fprintf(v, "\t%u/%f/%f\n\n\n", numberOfTrees, 100.0, 1.0);
+
+  fclose(v);
+}
+
+static void printVerboseTaxonNames(tree *tr)
+{
+  FILE 
+    *f = myfopen(verboseSplitsFileName, "w");
+
+  int 
+    i;
+
+  fprintf(f, "\n");
+
+  for(i = 1; i <= tr->mxtips; i++)
+    fprintf(f, "%s \n", tr->nameList[i]);
+
+  fprintf(f, "\n");
+
+  fclose(f);
+  
+}
+
 static void printVerboseIC(tree *tr, unsigned int supportedBips, unsigned int *toInsert, unsigned int maxCounter, unsigned int *maxima, 
-			   unsigned int **maximaBitVectors, unsigned int numberOfTrees, int counter)
+			   unsigned int **maximaBitVectors, unsigned int numberOfTrees, int counter, double ic)
 {
   unsigned int 
     i;
@@ -1284,7 +1332,8 @@ static void printVerboseIC(tree *tr, unsigned int supportedBips, unsigned int *t
     support = (double)supportedBips / (double)numberOfTrees;
 
   FILE 
-    *f;
+    *f,
+    *v = myfopen(verboseSplitsFileName, "a");
 
   char 
     fileName[1024],
@@ -1301,7 +1350,9 @@ static void printVerboseIC(tree *tr, unsigned int supportedBips, unsigned int *t
 
   printBothOpen("Support for split number %d in tree: %f\n", counter, support);
 
-  printSplit(f, toInsert, tr);
+  fprintf(v, "partition: \n");
+
+  printSplit(f, v, toInsert, tr, support, ic, supportedBips);  
 
   for(i = 0; i < maxCounter; i++)
     {
@@ -1309,13 +1360,16 @@ static void printVerboseIC(tree *tr, unsigned int supportedBips, unsigned int *t
 
       printBothOpen("Support for conflicting split number %u: %f\n", i, support);
 
-      printSplit(f, maximaBitVectors[i], tr);    
+      printSplit(f, v, maximaBitVectors[i], tr, support, ic, maxima[i]);        
     }
  
   printBothOpen("All Newick-formatted splits for this bipartition have been written to file %s\n", fileName);
   printBothOpen("\n\n");
 
+  fprintf(v, "\n\n");
+
   fclose(f);
+  fclose(v);
 }
 
 
@@ -1381,6 +1435,9 @@ static void bitVectorInitravIC(tree *tr, unsigned int **bitVectors, nodeptr p, i
 		  {
 		    ic = 1.0;
 		    icAll = 1.0;
+
+		    if(verboseIC)
+		      printFullySupportedSplit(tr, toInsert, numberOfTrees);
 		  }
 		else
 		  {
@@ -1398,7 +1455,7 @@ static void bitVectorInitravIC(tree *tr, unsigned int **bitVectors, nodeptr p, i
 		    icAll = computeIC_Value(supportedBips, maxima, numberOfTrees, maxCounter, TRUE, FALSE);	
 		    
 		    if(verboseIC)		      
-		      printVerboseIC(tr, supportedBips, toInsert, maxCounter, maxima, maximaBitVectors, numberOfTrees, *countBranches);
+		      printVerboseIC(tr, supportedBips, toInsert, maxCounter, maxima, maximaBitVectors, numberOfTrees, *countBranches, ic);
 		    	     
 		  }
 
@@ -1464,7 +1521,10 @@ void calcBipartitions_IC(tree *tr, analdef *adef, char *bestTreeFileName, char *
   numberOfTaxa = readSingleTree(tr, bestTreeFileName, adef, FALSE, FALSE, TRUE);    
   
   bInf = (branchInfo*)rax_malloc(sizeof(branchInfo) * (tr->mxtips - 3));
-  
+
+  if(adef->verboseIC)
+    printVerboseTaxonNames(tr);
+
   if(numberOfTaxa != tr->mxtips)
     {
       printBothOpen("The number of taxa in the reference tree file \"%s\" is %d and\n",  bestTreeFileName, numberOfTaxa);
@@ -1508,6 +1568,9 @@ void calcBipartitions_IC(tree *tr, analdef *adef, char *bestTreeFileName, char *
 
   printBothOpen("Tree certainty including all conflicting bipartitions (TC-All) for this tree: %f\n", tcAll);
   printBothOpen("Relative tree certainty including all conflicting bipartitions (TC-All) for this tree: %f\n\n", rtcAll);
+
+  if(adef->verboseIC)
+    printBothOpen("Verbose PHYLIP-style formatted bipartition information written to file: %s\n\n",  verboseSplitsFileName);
 
   printBipartitionResult(tr, adef, TRUE, TRUE);    
 
@@ -3315,12 +3378,15 @@ static void calculateIC(tree *tr, hashtable *h, unsigned int *bitVector, unsigne
   *ic = 0.0,
   *icAll = 0.0;
 
-  //if the support is 100% we don't need to conisder any conflicting bipartitions and can save some time
+  //if the support is 100% we don't need to consider any conflicting bipartitions and can save some time
 
   if(supportedBips == numberOfTrees)
     {
       *ic = 1.0;
       *icAll = 1.0;
+      
+      if(verboseIC)
+	printFullySupportedSplit(tr, bitVector, numberOfTrees);
     }
   else
     {
@@ -3336,7 +3402,7 @@ static void calculateIC(tree *tr, hashtable *h, unsigned int *bitVector, unsigne
       *icAll = computeIC_Value(supportedBips, maxima, numberOfTrees, maxCounter, TRUE, FALSE);  
 
        if(verboseIC)		      
-	 printVerboseIC(tr, supportedBips, bitVector, maxCounter, maxima, maximaBitVectors, numberOfTrees, counter);
+	 printVerboseIC(tr, supportedBips, bitVector, maxCounter, maxima, maximaBitVectors, numberOfTrees, counter, *ic);
     }
 
   //printf("IC %f %f IC-all %f %fmaxima: %u\n", ic, _ic, icAll, _icAll, maxCounter);
@@ -3787,7 +3853,11 @@ void computeConsensusOnly(tree *tr, char *treeSetFileName, analdef *adef, boolea
   fprintf(outf, "(%s,", tr->nameList[1]);
   
   if(computeIC)
-    printSortedBips(consensusBips, consensusBipsLen, tr->mxtips, vectorLength, numberOfTrees, outf, tr->nameList, tr, &printCounter, h, computeIC, adef->verboseIC);
+    {
+      if(adef->verboseIC)
+	printVerboseTaxonNames(tr);
+      printSortedBips(consensusBips, consensusBipsLen, tr->mxtips, vectorLength, numberOfTrees, outf, tr->nameList, tr, &printCounter, h, computeIC, adef->verboseIC);
+    }
   else
     printSortedBips(consensusBips, consensusBipsLen, tr->mxtips, vectorLength, numberOfTrees, outf, tr->nameList, tr, &printCounter, h, computeIC, FALSE);
 
@@ -3796,12 +3866,15 @@ void computeConsensusOnly(tree *tr, char *treeSetFileName, analdef *adef, boolea
   /* ????? fprintf(outf, ");\n"); */
   
   fclose(outf);
-
+  
+  if(adef->verboseIC && computeIC)
+    printBothOpen("Verbose PHYLIP-style formatted bipartition information written to file: %s\n\n",  verboseSplitsFileName);
+  
   switch(tr->consensusType)
     {
     case MR_CONSENSUS:
-      if(computeIC)
-	printBothOpen("RAxML Majority Rule consensus tree with IC values written to file: %s\n", consensusFileName);
+      if(computeIC)	
+	printBothOpen("RAxML Majority Rule consensus tree with IC values written to file: %s\n\n", consensusFileName);	         
       else
 	printBothOpen("RAxML Majority Rule consensus tree written to file: %s\n", consensusFileName);
       break;
