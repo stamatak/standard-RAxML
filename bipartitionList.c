@@ -2585,6 +2585,8 @@ void plausibilityChecker(tree *tr, analdef *adef)
 
   treeFile = getNumberOfTrees(tr, bootStrapFile, adef); 
   
+  /* allocate a data structure for parsing the potentially mult-furcating tree */
+
   allocateMultifurcations(tr);
 
   /* loop over all small trees */
@@ -2785,6 +2787,8 @@ void plausibilityChecker(tree *tr, analdef *adef)
   fclose(treeFile);
   fclose(rfFile);    
   
+  /* free the data structure used for parsing the potentially multi-furcating tree */
+
   freeMultifurcations(tr);
 
   freeBitVectors(bitVectors, 2 * tr->mxtips);
