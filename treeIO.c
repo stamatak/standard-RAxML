@@ -1740,3 +1740,261 @@ void getStartingTree(tree *tr, analdef *adef)
 
 
 
+/****** functions for reading true multi-furcating trees *****/
+
+/****************************************************************************/
+
+static boolean addMultifurcation (FILE *fp, tree *tr, nodeptr _p, analdef *adef, int *nextnode)
+{   
+  nodeptr  
+    p, 
+    initial_p;
+  
+  int      
+    n, 
+    ch, 
+    fres;
+  
+  if ((ch = treeGetCh(fp)) == '(') 
+    { 
+      int 
+	i = 0;     
+      
+      initial_p = p = tr->multifurcations[*nextnode];      
+      *nextnode = *nextnode + 1;
+
+      do
+	{  		  
+	  p->next = tr->multifurcations[*nextnode];	 
+	  *nextnode = *nextnode + 1;
+	  p = p->next;
+	
+	  addMultifurcation(fp, tr, p, adef, nextnode);	  
+	  i++;
+	}  
+      while((ch = treeGetCh(fp)) == ',');
+
+      ungetc(ch, fp);
+
+      p->next = initial_p;
+           
+      if (! treeNeedCh(fp, ')', "in"))                
+	assert(0);                   
+
+      treeFlushLabel(fp);
+    }
+  else 
+    {   
+      ungetc(ch, fp);
+      if ((n = treeFindTipName(fp, tr, FALSE)) <= 0)          
+	return FALSE;
+      p = tr->nodep[n];
+      initial_p = p;
+      tr->start = p;
+      (tr->ntips)++;
+    }
+  
+ 
+  fres = treeFlushLen(fp);
+  if(!fres) 
+    return FALSE;
+      
+  hookupDefault(initial_p, _p, tr->numBranches);
+ 
+  return TRUE;          
+} 
+
+static void printMultiFurc(nodeptr p, tree *tr)
+{ 
+  if(isTip(p->number, tr->mxtips))    
+    printf("%s", tr->nameList[p->number]);   
+  else
+    {
+      nodeptr 
+	q = p->next;     
+      
+      printf("(");
+
+      while(q != p)
+	{	 
+	  printMultiFurc(q->back, 
+			 tr);
+	  q = q->next;
+	  if(q != p)
+	    printf(",");
+	}
+
+      printf(")");
+    }
+}
+
+void allocateMultifurcations(tree *tr)
+{ 
+  int
+    i,
+    tips  = tr->mxtips,
+    inter = tr->mxtips - 1; 
+  
+  tr->multifurcations = (nodeptr *)rax_malloc((tips + 3 * inter) * sizeof(nodeptr));
+
+  tr->multifurcations[0] = (node *) NULL;
+
+  for (i = 1; i <= tips; i++)
+    {
+      tr->multifurcations[i] = (nodeptr)rax_malloc(sizeof(node));      
+      memcpy(tr->multifurcations[i], tr->nodep[i], sizeof(node));
+      tr->multifurcations[i]->back = (node *) NULL;
+      tr->multifurcations[i]->next = (node *) NULL;
+    }
+
+  for(i = tips + 1; i < tips + 3 * inter; i++)
+    {     
+      tr->multifurcations[i] = (nodeptr)rax_malloc(sizeof(node));
+      tr->multifurcations[i]->number = i;     
+      tr->multifurcations[i]->back = (node *) NULL;
+      tr->multifurcations[i]->next = (node *) NULL;
+    }
+  
+}
+
+void freeMultifurcations(tree *tr)
+{
+  int
+    i,
+    tips  = tr->mxtips,
+    inter = tr->mxtips - 1; 
+
+  for (i = 1; i < tips + 3 * inter; i++)
+    rax_free(tr->multifurcations[i]);
+  
+  rax_free(tr->multifurcations);
+}
+
+static void relabelInnerNodes(nodeptr p, tree *tr, int n, int *nodeCounter)
+{
+  if(isTip(p->number, tr->mxtips))
+    {
+      assert(0);
+    }
+  else
+    {
+      nodeptr 
+	q = p->next;
+
+      int 
+	_n = n;
+
+      tr->multifurcations[p->number]->number = n;
+      p->x = 1;
+      
+      while(q != p)
+	{
+	  tr->multifurcations[q->number]->number = n;	
+	  q->x = 0;
+	  
+	  if(!isTip(q->back->number, tr->mxtips))
+	    {
+	      _n++;
+	      *nodeCounter = *nodeCounter + 1;
+	      relabelInnerNodes(q->back, tr, _n, nodeCounter);
+	    }
+	  q = q->next;
+	}  
+    }
+}
+
+
+int readMultifurcatingTree(FILE *fp, tree *tr, analdef *adef)
+{
+  nodeptr  
+    p,
+    initial_p;
+  
+  int    
+    innerBranches = 0,
+    nextnode,
+    i, 
+    ch,
+    tips  = tr->mxtips,
+    inter = tr->mxtips - 1;  
+ 
+  //clean up before parsing !
+    
+  for (i = 1; i < tips + 3 * inter; i++)     
+    {     
+      tr->multifurcations[i]->back = (node *) NULL;
+      tr->multifurcations[i]->next = (node *) NULL;    
+      tr->multifurcations[i]->x = 0;
+    }
+  
+  for(i = tips + 1; i < tips + 3 * inter; i++)   
+    tr->multifurcations[i]->number = i;
+
+  tr->ntips = 0;
+  nextnode  = tr->mxtips + 1;         
+
+  while((ch = treeGetCh(fp)) != '(');            
+
+  i = 0;
+
+  do
+    {         
+      if(i == 0)
+	{
+	  initial_p = p = tr->multifurcations[nextnode];	 
+	  nextnode++;
+	}
+      else
+	{
+	  p->next = tr->multifurcations[nextnode];	 	  
+	  p = p->next; 
+	  nextnode++;
+	}
+      
+      addMultifurcation(fp, tr, p, adef, &nextnode);       
+                   
+      i++;
+    }  
+  while((ch = treeGetCh(fp)) == ',');
+   
+  if(i < 3)
+    {
+      printBothOpen("You need to provide unrooted input trees!\n");
+      assert(0);
+    }
+ 
+  ungetc(ch, fp);
+  
+  p->next = initial_p;
+  
+  if (! treeNeedCh(fp, ')', "in"))                
+    assert(0);  
+
+  (void)treeFlushLabel(fp);
+  
+  if (! treeFlushLen(fp))                         
+    assert(0);
+ 
+  if (! treeNeedCh(fp, ';', "at end of"))       
+    assert(0);
+    
+  //printf("%d tips found, %d inner nodes used start %d maxtips %d\n", tr->ntips, tr->nextnode - tr->mxtips, tr->start->number, tr->mxtips);
+
+  assert(isTip(tr->start->number, tr->mxtips));
+
+  relabelInnerNodes(tr->start->back, tr, tr->mxtips + 1, &innerBranches);
+
+  //printf("Inner branches %d\n", innerBranches);
+
+  if(0)
+    {
+      printf("(");
+      printMultiFurc(tr->start, tr);
+      printf(",");
+      printMultiFurc(tr->start->back, tr);
+      printf(");\n");
+    }
+
+  return innerBranches;
+}
+

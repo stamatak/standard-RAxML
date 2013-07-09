@@ -388,6 +388,102 @@ static void newviewBipartitions(unsigned int **bitVectors, nodeptr p, int numsp,
   }     
 }
 
+
+/* compute bit-vectors representing bipartitions/splits for a multi-furcating tree */
+
+static void newviewBipartitionsMultifurcating(unsigned int **bitVectors, nodeptr p, int numsp, unsigned int vectorLength)
+{
+  if(isTip(p->number, numsp))
+    return;
+  {
+    nodeptr 
+      q,
+      firstDescendant;
+    
+    unsigned int       
+      *vector = bitVectors[p->number];
+   
+    unsigned 
+      int i;           
+    
+    int
+      x_set = 0,
+      number;
+    
+    /* Set the directional x token to the correct element in the 
+       cyclically linked list representing an inner node */
+
+    q = p->next;
+    
+    if(p->x)
+      x_set++;
+
+    p->x = 1;   
+    number = p->number;
+
+    while(q != p)
+      {
+	if(q->x) 
+	  x_set++;
+	q->x = 0;
+	assert(q->number == number);
+	q = q->next;
+      }
+   
+    assert(x_set == 1);
+
+    /* get the first connecting branch of the node to initialize the 
+       bipartition hash value and the bit vector representing this split.
+     */
+
+    firstDescendant = p->next->back;      
+    
+    /* if this is not a tip, we first need to recursively 
+       compute the hash values and bit-vectors for the subtree rooted at 
+       firstDescendant */
+
+    if(!isTip(firstDescendant->number, numsp))
+      {	
+	if(!firstDescendant->x)
+	  newviewBipartitionsMultifurcating(bitVectors, firstDescendant, numsp, vectorLength);
+      }
+	
+    /* initialize the bit vector of the current split by the bit vector of the first descandant */
+    
+    for(i = 0; i < vectorLength; i++)
+      vector[i] = bitVectors[firstDescendant->number][i];
+	
+    /* initialize the hash key of the current split by the hash key of the first descandant */
+
+    p->hash = firstDescendant->hash;
+    
+    /* handle all other descendants of this inner node potentially representing a multi-furcation */
+
+    q = p->next->next;
+
+    while(q != p)
+      {
+	/* update the has key by xoring with the current hash with the hash of this descendant */
+	
+	p->hash = p->hash ^ q->back->hash;
+	
+	if(!isTip(q->back->number, numsp))
+	  {	   
+	    if(!q->back->x)
+	      newviewBipartitionsMultifurcating(bitVectors, q->back, numsp, vectorLength);
+	  }
+	    	
+	/* update the bit-vector representing the current split by applying a bitwise with the bit vector of the descendant */
+	
+	for(i = 0; i < vectorLength; i++)
+	  vector[i] = bitVectors[q->back->number][i] | vector[i];	    	 
+	
+	q = q->next;
+      }     
+  }     
+}
+
+
 static void insertHash(unsigned int *bitVector, hashtable *h, unsigned int vectorLength, int bipNumber, hashNumberType position)
 {
   entry *e = initEntry();
@@ -1982,8 +2078,23 @@ static void setupMask(unsigned int *smallTreeMask, nodeptr p, int numsp)
     smallTreeMask[(p->number - 1) / MASK_LENGTH] |= mask32[(p->number - 1) % MASK_LENGTH];
   else
     {    
-      setupMask(smallTreeMask, p->next->back, numsp);	  
-      setupMask(smallTreeMask, p->next->next->back, numsp);      
+      nodeptr 
+	q = p->next;
+
+      /* I had to change this function to account for mult-furcating trees.
+	 In this case an inner node can have more than 3 cyclically linked 
+	 elements, because there might be more than 3 outgoing branches 
+	 from an inner node */
+
+      while(q != p)
+	{
+	  setupMask(smallTreeMask, q->back, numsp);
+	  q = q->next;
+	}
+      
+      //old code below 
+      //setupMask(smallTreeMask, p->next->back, numsp);	  
+      //setupMask(smallTreeMask, p->next->next->back, numsp);      
     }
 }
 
@@ -2092,7 +2203,7 @@ static int findHash(unsigned int *bitVector, hashtable *h, unsigned int vectorLe
 */
 
 static int bitVectorTraversePlausibility(unsigned int **bitVectors, nodeptr p, int numsp, unsigned int vectorLength, hashtable *h,
-				  int *countBranches, int firstTaxon, tree *tr)
+					 int *countBranches, int firstTaxon, tree *tr, boolean multifurcating)
 {
 
   /* trivial bipartition */
@@ -2111,14 +2222,20 @@ static int bitVectorTraversePlausibility(unsigned int **bitVectors, nodeptr p, i
 
       do 
 	{
-	  found = found + bitVectorTraversePlausibility(bitVectors, q->back, numsp, vectorLength, h, countBranches, firstTaxon, tr);
+	  found = found + bitVectorTraversePlausibility(bitVectors, q->back, numsp, vectorLength, h, countBranches, firstTaxon, tr, multifurcating);
 	  q = q->next;
 	}
       while(q != p);
            
-      /* compute the bipartition induced by the current branch p, p->back */
+      /* compute the bipartition induced by the current branch p, p->back,
+	 here we invoke two different functions, depending on whether we are dealing with 
+	 a multi-furcating or bifurcating tree.
+      */
 
-      newviewBipartitions(bitVectors, p, numsp, vectorLength);
+      if(multifurcating)
+	newviewBipartitionsMultifurcating(bitVectors, p, numsp, vectorLength);
+      else
+	newviewBipartitions(bitVectors, p, numsp, vectorLength);
       
       assert(p->x);      
 
@@ -2155,6 +2272,9 @@ static int bitVectorTraversePlausibility(unsigned int **bitVectors, nodeptr p, i
     }
 }
 
+#define _ONLY_BIFURCATING_TREES
+
+#ifdef _ONLY_BIFURCATING_TREES
 
 void plausibilityChecker(tree *tr, analdef *adef)
 {
@@ -2365,7 +2485,7 @@ void plausibilityChecker(tree *tr, analdef *adef)
       /* now traverse the small tree and count how many bipartitions it shares 
 	 with the corresponding induced tree from the large tree */
 
-      bips = bitVectorTraversePlausibility(bitVectors, tr->start->back, tr->mxtips, vLength, rehash, &bCounter, firstTaxon, tr);
+      bips = bitVectorTraversePlausibility(bitVectors, tr->start->back, tr->mxtips, vLength, rehash, &bCounter, firstTaxon, tr, FALSE);
       
       /* compute the relative RF */
 
@@ -2400,6 +2520,281 @@ void plausibilityChecker(tree *tr, analdef *adef)
   freeHashTable(h);
   rax_free(h);
 }
+
+#else
+
+void plausibilityChecker(tree *tr, analdef *adef)
+{
+  FILE 
+    *treeFile,
+    *rfFile;
+  
+  char 
+    rfFileName[1024];
+ 
+  /* init hash table for big reference tree */
+  
+  hashtable
+    *h      = initHashTable(tr->mxtips * 2 * 2);
+  
+  /* init the bit vectors we need for computing and storing bipartitions during 
+     the tree traversal */
+  unsigned int 
+    vLength, 
+    **bitVectors = initBitVector(tr, &vLength);
+   
+  int
+    branchCounter = 0,
+    i;
+
+  double 
+    avgRF = 0.0;
+
+  /* set up an output file name */
+
+  strcpy(rfFileName,         workdir);  
+  strcat(rfFileName,         "RAxML_RF-Distances.");
+  strcat(rfFileName,         run_id);
+
+  rfFile = myfopen(rfFileName, "wb");  
+
+  assert(adef->mode ==  PLAUSIBILITY_CHECKER);
+
+  /* open the big reference tree file and parse it */
+
+  treeFile = myfopen(tree_file, "r");
+
+  printBothOpen("Parsing reference tree %s\n", tree_file);
+
+  treeReadLen(treeFile, tr, FALSE, TRUE, TRUE, adef, TRUE);
+
+  assert(tr->mxtips == tr->ntips);
+
+  printBothOpen("The reference tree has %d tips\n", tr->ntips);
+
+  fclose(treeFile);
+  
+  /* extract all induced bipartitions from the big tree and store them in the hastable */
+  
+  bitVectorInitravSpecial(bitVectors, tr->nodep[1]->back, tr->mxtips, vLength, h, 0, BIPARTITIONS_RF, (branchInfo *)NULL,
+			  &branchCounter, 1, FALSE, FALSE);
+     
+  assert(branchCounter == tr->mxtips - 3);   
+  
+  /* now see how many small trees we have */
+
+  treeFile = getNumberOfTrees(tr, bootStrapFile, adef); 
+  
+  allocateMultifurcations(tr);
+
+  /* loop over all small trees */
+
+  for(i = 0; i < tr->numberOfTrees;  i++)
+    {
+      unsigned int
+	entryCount = 0,
+	k,
+	j,	
+	*masked    = (unsigned int *)rax_calloc(vLength, sizeof(unsigned int)),
+	*smallTreeMask = (unsigned int *)rax_calloc(vLength, sizeof(unsigned int));
+      
+      int
+	numberOfSplits = 0,
+	bCounter = 0,  
+	bips,
+	firstTaxon,
+	taxa = 0;
+      
+      /* allocate a has table for re-hashing the bipartitions of the big tree */
+
+      hashtable
+	*rehash = initHashTable(tr->mxtips * 2 * 2);
+
+      double
+	rf,
+	maxRF;
+      
+      /* parse the small tree */              
+
+      /* 
+	 instead of the standard tree parsing function, we parse a multi-furcating tree here.
+	 the function returns the number of inner branches/splits in the multi-furcating tree which can,
+	 of course be smaller than n-3, where n is the number of taxa in the tree.
+      */
+
+      numberOfSplits = readMultifurcatingTree(treeFile, tr, adef);
+      printBothOpen("Small tree %d has %d tips\n", i, tr->ntips);    
+
+      /* compute the maximum RF distance for computing the relative RF distance later-on */
+
+      /* note that here we need to pay attention, since the RF distance is not normalized 
+	 by 2 * (n-3) but we need to account for the fact that the multifurcating small tree 
+	 will potentially contain less bipartitions. 
+	 Hence the normalization factor is obtained as n-3 + numberOfSplits, where n-3 is the number 
+	 of bipartitions of the pruned down large reference tree for which we know that it is 
+	 bifurcating/strictly binary */
+
+      maxRF = (double)((tr->ntips - 3) + numberOfSplits);
+
+      /* now set up a bit mask where only the bits are set to one for those 
+	 taxa that are actually present in the small tree we just read */
+	 
+      /* note that I had to apply some small changes to this function to make it work for 
+	 multi-furcating trees ! */
+
+      setupMask(smallTreeMask, tr->start, tr->mxtips);
+      setupMask(smallTreeMask, tr->start->back, tr->mxtips);
+
+      /* now get the index of the first taxon of the small tree.
+	 we will use this to unambiguously store the bipartitions 
+      */
+
+      firstTaxon = tr->start->number;
+
+      /* make sure that this bit vector is set up correctly, i.e., that 
+	 it contains as many non-zero bits as there are taxa in this small tree 
+      */
+
+      for(j = 0; j < vLength; j++)
+	taxa += BIT_COUNT(smallTreeMask[j]);
+      assert(taxa == tr->ntips);
+
+      /* now re-hash the big tree by applying the above bit mask */
+
+
+      /* loop over hash table */
+
+      for(k = 0, entryCount = 0; k < h->tableSize; k++)	     
+	{    
+	  if(h->table[k] != NULL)
+	    {
+	      entry *e = h->table[k];
+
+	      /* we resolve collisions by chaining, hence the loop here */
+
+	      do
+		{
+		  unsigned int 
+		    *bitVector = e->bitVector; 
+		  
+		  hashNumberType 
+		    position;
+
+		  int 
+		    count = 0;
+	 
+		  /* double check that our tree mask contains the first taxon of the small tree */
+
+		  assert(smallTreeMask[(firstTaxon - 1) / MASK_LENGTH] & mask32[(firstTaxon - 1) % MASK_LENGTH]);
+
+		  /* if the first taxon is set then we will re-hash the bit-wise complement of the 
+		     bit vector.
+		     The count variable is used for a small optimization */
+
+		  if(bitVector[(firstTaxon - 1) / MASK_LENGTH] & mask32[(firstTaxon - 1) % MASK_LENGTH])		    
+		    {
+		      //hash complement
+		      
+		      for(j = 0; j < vLength; j++)
+			{
+			  masked[j] = (~bitVector[j]) & smallTreeMask[j];			     
+			  count += BIT_COUNT(masked[j]);
+			}
+		    }
+		  else
+		    {
+		      //hash this vector 
+		      
+		      for(j = 0; j < vLength; j++)
+			{
+			  masked[j] = bitVector[j] & smallTreeMask[j];  
+			  count += BIT_COUNT(masked[j]);      
+			}
+		    }
+
+		  /* note that padding the last bits is not required because they are set to 0 automatically by smallTreeMask */	
+		  
+		  /* make sure that we will re-hash  the canonic representation of the bipartition 
+		     where the bit for firstTaxon is set to 0!
+		   */
+
+		  assert(!(masked[(firstTaxon - 1) / MASK_LENGTH] & mask32[(firstTaxon - 1) % MASK_LENGTH]));
+	  
+		  /* only if the masked bipartition of the large tree is a non-trivial bipartition (two or more bits set to 1 
+		     will we re-hash it */
+
+		  if(count > 1)
+		    {
+		      /* compute hash */
+		      position = oat_hash((unsigned char *)masked, sizeof(unsigned int) * vLength);
+		      position = position % rehash->tableSize;
+		      
+		      /* re-hash to the new hash table that contains the bips of the large tree, pruned down 
+			 to the taxa contained in the small tree
+		       */
+		      insertHashPlausibility(masked, rehash, vLength, position);
+		    }		
+		  
+		  entryCount++;
+		  
+		  e = e->next;
+		}
+	      while(e != NULL);
+	    }
+	}
+
+      /* make sure that we tried to re-hash all bipartitions of the original tree */
+      
+      assert(entryCount == (unsigned int)(tr->mxtips - 3));
+
+      /* now traverse the small tree and count how many bipartitions it shares 
+	 with the corresponding induced tree from the large tree */
+      
+      /* the following function also had to be modified to account for multi-furcating trees ! */
+      
+      bips = bitVectorTraversePlausibility(bitVectors, tr->start->back, tr->mxtips, vLength, rehash, &bCounter, firstTaxon, tr, TRUE);
+      
+      /* compute the relative RF */
+
+      rf = (double)(2 * ((tr->ntips - 3) - bips)) / maxRF;           
+
+      avgRF += rf;
+
+      printBothOpen("Relative RF tree %d: %f\n\n", i, rf);
+
+      fprintf(rfFile, "%d %f\n", i, rf);
+
+      /* I also modified this assertion, we nee to make sure here that we checked all non-trivial splits/bipartitions 
+	 in the multi-furcating tree whech can be less than n - 3 ! */
+      
+      assert(bCounter == numberOfSplits);         
+
+      /* free masks and hast table for this iteration */
+
+      rax_free(smallTreeMask);
+      rax_free(masked);
+      freeHashTable(rehash);
+    }
+
+  printBothOpen("Average RF distance %f\n\n", avgRF / (double)tr->numberOfTrees);
+
+  printBothOpen("Total execution time: %f secs\n\n", gettime() - masterTime);
+
+  printBothOpen("\nFile containing all %d pair-wise RF distances written to file %s\n\n", tr->numberOfTrees, rfFileName);
+
+  fclose(treeFile);
+  fclose(rfFile);    
+  
+  freeMultifurcations(tr);
+
+  freeBitVectors(bitVectors, 2 * tr->mxtips);
+  rax_free(bitVectors);
+  
+  freeHashTable(h);
+  rax_free(h);
+}
+
+#endif
 
 /********************************************************/
 
