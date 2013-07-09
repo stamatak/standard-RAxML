@@ -614,9 +614,13 @@ static ssize_t rax_getline(char **lineptr, size_t *n, FILE *h)
 
     if(c == '\r') 
       {
+	//this is the original GNU implementation
 	/* windows line-end: must be followed by a '\n'. Don't tolerate anything else. */
-	c = fgetc(h);
-	assert(c == '\n');
+	//c = fgetc(h);
+	//assert(c == '\n');
+
+	//fixed to essentialy replace windows line endings by '\n'
+	c = '\n';
       }
 
     /* insert character (including '\n') into buffer */
@@ -624,7 +628,7 @@ static ssize_t rax_getline(char **lineptr, size_t *n, FILE *h)
     (*lineptr)[ins_ptr] = c;
     ++ins_ptr;
 
-    if(c == '\n')       
+    if(c == '\n')      
       break;    
   }
 
