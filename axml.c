@@ -10367,6 +10367,7 @@ static void printTreeRec(FILE *f, nodeptr p, tree *tr, boolean rootDescendant)
       printTreeRec(f, p->next->back, tr, FALSE);
       fprintf(f, ",");
       printTreeRec(f, p->next->next->back, tr, FALSE);
+      
       if(rootDescendant)
 	fprintf(f, ")");
       else
@@ -10435,11 +10436,21 @@ static void printTree(nodeptr p, tree *tr, double *distances, FILE *f)
 	 }
      }
 
+   //descend into right subtree and print it
+
    fprintf(f, "(");
    printTreeRec(f, p, tr, TRUE);
+
+   //finished right subtree, print attachment branch of right subtree
+   //noew descent into left subtree
+
    fprintf(f, ":%f, (", leftRoot);
    printTreeRec(f, q, tr, TRUE);
-   fprintf(f, ":%f);", rightRoot);
+   
+   //finished left subtree, now print its branch to the root node 
+   //and we are done 
+
+   fprintf(f, "):%f);", rightRoot);
 }
 
 static void rootTree(tree *tr, analdef *adef)
@@ -10564,8 +10575,6 @@ int main (int argc, char *argv[])
 #if (defined(_WAYNE_MPI) || defined (_QUARTET_MPI))
   MPI_Barrier(MPI_COMM_WORLD);
 #endif
-
-  
 
   if(adef->useInvariant && adef->likelihoodEpsilon > 0.001)
     {
