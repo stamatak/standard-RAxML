@@ -776,6 +776,7 @@ typedef  struct  {
   int              *constraintVector;
   int              numberOfSecondaryColumns;
   boolean          searchConvergenceCriterion;
+  int              branchLabelCounter;
   int              ntips;
   int              nextnode;
   int              NumberOfModels;
@@ -1200,7 +1201,7 @@ extern void printTreePerGene(tree *tr, analdef *adef, char *fileName, char *perm
 
 
 extern int treeFindTipName(FILE *fp, tree *tr, boolean check);
-extern int treeReadLen (FILE *fp, tree *tr, boolean readBranches, boolean readNodeLabels, boolean topologyOnly, analdef *adef, boolean completeTree);
+extern int treeReadLen (FILE *fp, tree *tr, boolean readBranches, boolean readNodeLabels, boolean topologyOnly, analdef *adef, boolean completeTree, boolean storeBranchLabels);
 extern boolean treeReadLenMULT ( FILE *fp, tree *tr, analdef *adef );
 
 extern int readMultifurcatingTree(FILE *fp, tree *tr, analdef *adef);

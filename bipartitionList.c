@@ -891,7 +891,7 @@ static int readSingleTree(tree *tr, char *fileName, analdef *adef, boolean readB
 
   rewind(f);
 
-  treeReadLen(f, tr, readBranches, readNodeLabels, TRUE, adef, completeTree);
+  treeReadLen(f, tr, readBranches, readNodeLabels, TRUE, adef, completeTree, FALSE);
   
   numberOfTaxa = tr->ntips;
 
@@ -949,7 +949,7 @@ void calcBipartitions(tree *tr, analdef *adef, char *bestTreeFileName, char *boo
       int 
 	bCount = 0;
       
-      treeReadLen(treeFile, tr, FALSE, FALSE, TRUE, adef, TRUE);
+      treeReadLen(treeFile, tr, FALSE, FALSE, TRUE, adef, TRUE, FALSE);
       assert(tr->ntips == tr->mxtips);
       
       bitVectorInitravSpecial(bitVectors, tr->nodep[1]->back, tr->mxtips, vLength, h, 0, DRAW_BIPARTITIONS_BEST, bInf, &bCount, 0, FALSE, FALSE);      
@@ -1636,7 +1636,7 @@ void calcBipartitions_IC(tree *tr, analdef *adef, char *bestTreeFileName, char *
     {                     
       bCount = 0;
       
-      treeReadLen(treeFile, tr, FALSE, FALSE, TRUE, adef, TRUE);
+      treeReadLen(treeFile, tr, FALSE, FALSE, TRUE, adef, TRUE, FALSE);
       assert(tr->ntips == tr->mxtips);
       
       bitVectorInitravIC(tr, bitVectors, tr->nodep[1]->back, tr->mxtips, vLength, h, 0, GATHER_BIPARTITIONS_IC, (branchInfo*)NULL, &bCount, 0, FALSE, FALSE, &tc, &tcAll, FALSE);      
@@ -1722,7 +1722,7 @@ void compareBips(tree *tr, char *bootStrapFileName, analdef *adef)
       int 
 	bCounter = 0;
       
-      treeReadLen(treeFile, tr, FALSE, FALSE, TRUE, adef, TRUE);                
+      treeReadLen(treeFile, tr, FALSE, FALSE, TRUE, adef, TRUE, FALSE);                
       assert(tr->mxtips == tr->ntips); 
 
       bitVectorInitravSpecial(bitVectors, tr->nodep[1]->back, tr->mxtips, vLength, h, 0, BIPARTITIONS_ALL, (branchInfo*)NULL, &bCounter, 0, FALSE, FALSE);
@@ -1744,7 +1744,7 @@ void compareBips(tree *tr, char *bootStrapFileName, analdef *adef)
 	bCounter = 0;
 
 
-      treeReadLen(treeFile, tr, FALSE, FALSE, TRUE, adef, TRUE);      
+      treeReadLen(treeFile, tr, FALSE, FALSE, TRUE, adef, TRUE, FALSE);      
       assert(tr->mxtips == tr->ntips);
       
       bitVectorInitravSpecial(bitVectors, tr->nodep[1]->back, tr->mxtips, vLength, h, 1, BIPARTITIONS_ALL, (branchInfo*)NULL, &bCounter, 0, FALSE, FALSE);
@@ -1884,7 +1884,7 @@ void computeRF(tree *tr, char *bootStrapFileName, analdef *adef)
 	bCounter = 0,      
 	lcount   = 0;
       
-      lcount = treeReadLen(treeFile, tr, FALSE, TRUE, TRUE, adef, TRUE); 
+      lcount = treeReadLen(treeFile, tr, FALSE, TRUE, TRUE, adef, TRUE, FALSE); 
 
       
       
@@ -2320,7 +2320,7 @@ void plausibilityChecker(tree *tr, analdef *adef)
 
   printBothOpen("Parsing reference tree %s\n", tree_file);
 
-  treeReadLen(treeFile, tr, FALSE, TRUE, TRUE, adef, TRUE);
+  treeReadLen(treeFile, tr, FALSE, TRUE, TRUE, adef, TRUE, FALSE);
 
   assert(tr->mxtips == tr->ntips);
 
@@ -2367,7 +2367,7 @@ void plausibilityChecker(tree *tr, analdef *adef)
       
       /* parse the small tree */
 
-      treeReadLen(treeFile, tr, FALSE, TRUE, TRUE, adef, TRUE);
+      treeReadLen(treeFile, tr, FALSE, TRUE, TRUE, adef, TRUE, FALSE);
       printBothOpen("Small tree %d has %d tips\n", i, tr->ntips);
 
       /* compute the maximum RF distance for computing the relative RF distance later-on */
@@ -2566,7 +2566,7 @@ void plausibilityChecker(tree *tr, analdef *adef)
 
   printBothOpen("Parsing reference tree %s\n", tree_file);
 
-  treeReadLen(treeFile, tr, FALSE, TRUE, TRUE, adef, TRUE);
+  treeReadLen(treeFile, tr, FALSE, TRUE, TRUE, adef, TRUE, FALSE);
 
   assert(tr->mxtips == tr->ntips);
 
@@ -3279,7 +3279,7 @@ void computeBootStopOnly(tree *tr, char *bootStrapFileName, analdef *adef)
 	bCount = 0;           
      
 
-      treeReadLen(treeFile, tr, FALSE, FALSE, TRUE, adef, TRUE); 
+      treeReadLen(treeFile, tr, FALSE, FALSE, TRUE, adef, TRUE, FALSE); 
       assert(tr->mxtips == tr->ntips);
       
       bitVectorInitravSpecial(bitVectors, tr->nodep[1]->back, tr->mxtips, vectorLength, h, (i - 1), BIPARTITIONS_BOOTSTOP, (branchInfo *)NULL,
@@ -3398,7 +3398,7 @@ boolean computeBootStopMPI(tree *tr, char *bootStrapFileName, analdef *adef, dou
       int 
 	bCount = 0;          
      
-      treeReadLen(treeFile, tr, FALSE, FALSE, TRUE, adef, TRUE); 
+      treeReadLen(treeFile, tr, FALSE, FALSE, TRUE, adef, TRUE, FALSE); 
       assert(tr->mxtips == tr->ntips);
       
       bitVectorInitravSpecial(bitVectors, tr->nodep[1]->back, tr->mxtips, vectorLength, h, (i - 1), BIPARTITIONS_BOOTSTOP, (branchInfo *)NULL,
@@ -4159,7 +4159,7 @@ void computeConsensusOnly(tree *tr, char *treeSetFileName, analdef *adef, boolea
       int 
 	bCount = 0;
       
-      treeReadLen(treeFile, tr, FALSE, FALSE, TRUE, adef, TRUE);               
+      treeReadLen(treeFile, tr, FALSE, FALSE, TRUE, adef, TRUE, FALSE);               
       
       assert(tr->mxtips == tr->ntips);
       
@@ -4535,7 +4535,7 @@ void computeConsensusOnly(tree *tr, char *treeSetFileName, analdef *adef)
       int 
 	bCount = 0;
       
-      treeReadLen(treeFile, tr, FALSE, FALSE, TRUE, adef, TRUE);               
+      treeReadLen(treeFile, tr, FALSE, FALSE, TRUE, adef, TRUE, FALSE);               
       
       assert(tr->mxtips == tr->ntips);
       

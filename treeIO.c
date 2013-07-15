@@ -843,29 +843,64 @@ static void  treeEchoContext (FILE *fp1, FILE *fp2, int n)
   }
 } /* treeEchoContext */
 
+static boolean treeNeedCh (FILE *fp, int c1, char *where);
 
-static boolean treeProcessLength (FILE *fp, double *dptr)
+
+static boolean treeProcessLength (FILE *fp, double *dptr, int *branchLabel, boolean storeBranchLabels, tree *tr)
 {
-  int  ch;
+  int
+    res,
+    ch;
   
-  if ((ch = treeGetCh(fp)) == EOF)  return FALSE;    /*  Skip comments */
+  if((ch = treeGetCh(fp)) == EOF)  
+    return FALSE;    /*  Skip comments */
   (void) ungetc(ch, fp);
   
-  if (fscanf(fp, "%lf", dptr) != 1) {
-    printf("ERROR: treeProcessLength: Problem reading branch length\n");
-    treeEchoContext(fp, stdout, 40);
-    printf("\n");
-    return  FALSE;
-  }
+  if(fscanf(fp, "%lf", dptr) != 1) 
+    {
+      printf("ERROR: treeProcessLength: Problem reading branch length\n");
+      treeEchoContext(fp, stdout, 40);
+      printf("\n");
+      return  FALSE;
+    }
+    
+  if((ch = getc(fp)) != EOF)
+    {
+      if(ch == '[')
+	{
+	  if(fscanf(fp, "%d", branchLabel) != 1)
+	    goto handleError;	      
+
+	  //printf("Branch label: %d\n", *branchLabel);
+	  
+	  if((ch = getc(fp)) != ']')
+	    {
+	    handleError:
+	      printf("ERROR: treeProcessLength: Problem reading branch label\n");
+	      treeEchoContext(fp, stdout, 40);
+	      printf("\n");
+	      return FALSE;
+	    }	    
+
+	  if(storeBranchLabels)
+	    tr->branchLabelCounter = tr->branchLabelCounter + 1;
+
+	}
+      else
+	(void)ungetc(ch, fp);
+    }
   
   return  TRUE;
 }
 
 
-static int treeFlushLen (FILE  *fp)
+static int treeFlushLen (FILE  *fp, tree *tr)
 {
-  double  dummy;  
-  int     ch;
+  double  
+    dummy;  
+  int 
+    dummyLabel,     
+    ch;
   
   ch = treeGetCh(fp);
   
@@ -874,7 +909,8 @@ static int treeFlushLen (FILE  *fp)
       ch = treeGetCh(fp);
       
       ungetc(ch, fp);
-      if(!treeProcessLength(fp, & dummy)) return 0;
+      if(!treeProcessLength(fp, &dummy, &dummyLabel, FALSE, tr)) 
+	return 0;
       return 1;	  
     }
   
@@ -913,7 +949,7 @@ static boolean treeNeedCh (FILE *fp, int c1, char *where)
 
 
 
-static boolean addElementLen (FILE *fp, tree *tr, nodeptr p, boolean readBranchLengths, boolean readNodeLabels, int *lcount, analdef *adef)
+static boolean addElementLen (FILE *fp, tree *tr, nodeptr p, boolean readBranchLengths, boolean readNodeLabels, int *lcount, analdef *adef, boolean storeBranchLabels)
 {   
   nodeptr  q;
   int      n, ch, fres;
@@ -945,9 +981,9 @@ static boolean addElementLen (FILE *fp, tree *tr, nodeptr p, boolean readBranchL
       
       q = tr->nodep[n];
 
-      if (! addElementLen(fp, tr, q->next, readBranchLengths, readNodeLabels, lcount, adef))        return FALSE;
+      if (! addElementLen(fp, tr, q->next, readBranchLengths, readNodeLabels, lcount, adef, storeBranchLabels))        return FALSE;
       if (! treeNeedCh(fp, ',', "in"))             return FALSE;
-      if (! addElementLen(fp, tr, q->next->next, readBranchLengths, readNodeLabels, lcount, adef))  return FALSE;
+      if (! addElementLen(fp, tr, q->next->next, readBranchLengths, readNodeLabels, lcount, adef, storeBranchLabels))  return FALSE;
       if (! treeNeedCh(fp, ')', "in"))             return FALSE;
       
       if(readNodeLabels)
@@ -982,9 +1018,19 @@ static boolean addElementLen (FILE *fp, tree *tr, nodeptr p, boolean readBranchL
   
   if(readBranchLengths)
     {
-      double branch;
+      double 
+	branch;
+      
+      int 
+	startCounter = tr->branchLabelCounter,
+	endCounter,
+	branchLabel = -1;
+      
       if (! treeNeedCh(fp, ':', "in"))                 return FALSE;
-      if (! treeProcessLength(fp, &branch))            return FALSE;
+      if (! treeProcessLength(fp, &branch, &branchLabel, storeBranchLabels, tr))            
+	return FALSE;
+
+      endCounter = tr->branchLabelCounter;
       
       /*printf("Branch %8.20f %d\n", branch, tr->numBranches);*/
       if(adef->mode == CLASSIFY_ML)
@@ -1002,10 +1048,17 @@ static boolean addElementLen (FILE *fp, tree *tr, nodeptr p, boolean readBranchL
 	}
       else
 	hookup(p, q, &branch, tr->numBranches);
+
+      if(storeBranchLabels && (endCounter > startCounter))
+	{
+	  assert(!isTip(p->number, tr->mxtips) && !isTip(q->number, tr->mxtips));
+	  assert(branchLabel >= 0);
+	  p->support = q->support = branchLabel;
+	}
     }
   else
     {
-      fres = treeFlushLen(fp);
+      fres = treeFlushLen(fp, tr);
       if(!fres) return FALSE;
       
       hookupDefault(p, q, tr->numBranches);
@@ -1164,15 +1217,17 @@ static nodeptr uprootTree (tree *tr, nodeptr p, boolean readBranchLengths, boole
 }
 
 
-int treeReadLen (FILE *fp, tree *tr, boolean readBranches, boolean readNodeLabels, boolean topologyOnly, analdef *adef, boolean completeTree)
+int treeReadLen (FILE *fp, tree *tr, boolean readBranches, boolean readNodeLabels, boolean topologyOnly, analdef *adef, boolean completeTree, boolean storeBranchLabels)
 {
   nodeptr  
     p;
   
-  int      
+  int 
     i, 
     ch, 
     lcount = 0; 
+
+  tr->branchLabelCounter = 0;
 
   for (i = 1; i <= tr->mxtips; i++) 
     {
@@ -1235,17 +1290,17 @@ int treeReadLen (FILE *fp, tree *tr, boolean readBranches, boolean readNodeLabel
     }
   
        
-  if (! addElementLen(fp, tr, p, readBranches, readNodeLabels, &lcount, adef))                 
+  if (! addElementLen(fp, tr, p, readBranches, readNodeLabels, &lcount, adef, storeBranchLabels))                 
     assert(0);
   if (! treeNeedCh(fp, ',', "in"))                
     assert(0);
-  if (! addElementLen(fp, tr, p->next, readBranches, readNodeLabels, &lcount, adef))
+  if (! addElementLen(fp, tr, p->next, readBranches, readNodeLabels, &lcount, adef, storeBranchLabels))
     assert(0);
   if (! tr->rooted) 
     {
       if ((ch = treeGetCh(fp)) == ',') 
 	{ 
-	  if (! addElementLen(fp, tr, p->next->next, readBranches, readNodeLabels, &lcount, adef))
+	  if (! addElementLen(fp, tr, p->next->next, readBranches, readNodeLabels, &lcount, adef, storeBranchLabels))
 	    assert(0);	    
 	}
       else 
@@ -1278,7 +1333,7 @@ int treeReadLen (FILE *fp, tree *tr, boolean readBranches, boolean readNodeLabel
 
   (void) treeFlushLabel(fp);
   
-  if (! treeFlushLen(fp))                         
+  if (! treeFlushLen(fp, tr))                         
     assert(0);
  
   if (! treeNeedCh(fp, ';', "at end of"))       
@@ -1477,7 +1532,7 @@ static boolean  addElementLenMULT (FILE *fp, tree *tr, nodeptr p, int partitionC
       hookupDefault(p, q, tr->numBranches);
     }
   
-  fres = treeFlushLen(fp);
+  fres = treeFlushLen(fp, tr);
   if(!fres) return FALSE;
     
   return TRUE;          
@@ -1590,7 +1645,7 @@ boolean treeReadLenMULT (FILE *fp, tree *tr, analdef *adef)
     
   if (! treeNeedCh(fp, ')', "in"))                return FALSE;
   (void) treeFlushLabel(fp);
-  if (! treeFlushLen(fp))                         return FALSE;
+  if (! treeFlushLen(fp, tr))                         return FALSE;
    
   if (! treeNeedCh(fp, ';', "at end of"))       return FALSE;
   
@@ -1641,37 +1696,37 @@ void getStartingTree(tree *tr, analdef *adef)
 	      tr->leftRootNode  = (nodeptr)NULL;
 	      tr->rightRootNode = (nodeptr)NULL;
 
-	      treeReadLen(INFILE, tr, FALSE, FALSE, FALSE, adef, TRUE);
+	      treeReadLen(INFILE, tr, FALSE, FALSE, FALSE, adef, TRUE, FALSE);
 
 	      assert(tr->leftRootNode && tr->rightRootNode);
 	      break;
 	    case CLASSIFY_MP:
-	      treeReadLen(INFILE, tr, TRUE, FALSE, TRUE, adef, FALSE);
+	      treeReadLen(INFILE, tr, TRUE, FALSE, TRUE, adef, FALSE, FALSE);
 	      break;
 	    case OPTIMIZE_BR_LEN_SCALER:
-	      treeReadLen(INFILE, tr, TRUE, FALSE, FALSE, adef, TRUE);
+	      treeReadLen(INFILE, tr, TRUE, FALSE, FALSE, adef, TRUE, FALSE);
 	      break;
 	    case CLASSIFY_ML:
 	      if(adef->useBinaryModelFile)
 		{
 		  if(tr->saveMemory)				 
-		    treeReadLen(INFILE, tr, TRUE, FALSE, TRUE, adef, FALSE);	          	       
+		    treeReadLen(INFILE, tr, TRUE, FALSE, TRUE, adef, FALSE, FALSE);	          	       
 		  else		   
-		    treeReadLen(INFILE, tr, TRUE, FALSE, FALSE, adef, FALSE);
+		    treeReadLen(INFILE, tr, TRUE, FALSE, FALSE, adef, FALSE, FALSE);
 		}
 	      else
 		{
 		  if(tr->saveMemory)				 
-		    treeReadLen(INFILE, tr, FALSE, FALSE, TRUE, adef, FALSE);	          	       
+		    treeReadLen(INFILE, tr, FALSE, FALSE, TRUE, adef, FALSE, FALSE);	          	       
 		  else		   
-		    treeReadLen(INFILE, tr, FALSE, FALSE, FALSE, adef, FALSE);
+		    treeReadLen(INFILE, tr, FALSE, FALSE, FALSE, adef, FALSE, FALSE);
 		}
 	      break;
 	    default:	     
 	      if(tr->saveMemory)				 
-		treeReadLen(INFILE, tr, FALSE, FALSE, TRUE, adef, FALSE);	          	       
+		treeReadLen(INFILE, tr, FALSE, FALSE, TRUE, adef, FALSE, FALSE);	          	       
 	      else		   
-		treeReadLen(INFILE, tr, FALSE, FALSE, FALSE, adef, FALSE);
+		treeReadLen(INFILE, tr, FALSE, FALSE, FALSE, adef, FALSE, FALSE);
 	      break;
 	    }
 	}
@@ -1795,7 +1850,7 @@ static boolean addMultifurcation (FILE *fp, tree *tr, nodeptr _p, analdef *adef,
     }
   
  
-  fres = treeFlushLen(fp);
+  fres = treeFlushLen(fp, tr);
   if(!fres) 
     return FALSE;
       
@@ -1972,7 +2027,7 @@ int readMultifurcatingTree(FILE *fp, tree *tr, analdef *adef)
 
   (void)treeFlushLabel(fp);
   
-  if (! treeFlushLen(fp))                         
+  if (! treeFlushLen(fp, tr))                         
     assert(0);
  
   if (! treeNeedCh(fp, ';', "at end of"))       

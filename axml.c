@@ -8310,7 +8310,7 @@ static void computeLHTest(tree *tr, analdef *adef, char *bootStrapFileName)
 	sum2 = 0.0, 
 	sd;           
 
-      treeReadLen(treeFile, tr, FALSE, FALSE, FALSE, adef, TRUE);
+      treeReadLen(treeFile, tr, FALSE, FALSE, FALSE, adef, TRUE, FALSE);
      
 
       if(tr->optimizeAllTrees)
@@ -8379,7 +8379,7 @@ static void computePerSiteLLs(tree *tr, analdef *adef, char *bootStrapFileName)
 	k, 
 	j;
            
-      treeReadLen(treeFile, tr, FALSE, FALSE, FALSE, adef, TRUE);
+      treeReadLen(treeFile, tr, FALSE, FALSE, FALSE, adef, TRUE, FALSE);
       assert(tr->ntips == tr->mxtips);
       
       if(i == 0) 
@@ -8506,7 +8506,7 @@ static void computeAllLHs(tree *tr, analdef *adef, char *bootStrapFileName)
    
   for(i = 0; i < tr->numberOfTrees; i++)
     {            
-      treeReadLen(treeFile, tr, FALSE, FALSE, FALSE, adef, TRUE);
+      treeReadLen(treeFile, tr, FALSE, FALSE, FALSE, adef, TRUE, FALSE);
       resetBranches(tr); 
       
       if(i == 0)
@@ -8640,7 +8640,7 @@ static void computeELW(tree *tr, analdef *adef, char *bootStrapFileName)
 
   /* read in the first tree and optimize ML params on it */  
   
-  treeReadLen(treeFile, tr, FALSE, FALSE, FALSE, adef, TRUE);   
+  treeReadLen(treeFile, tr, FALSE, FALSE, FALSE, adef, TRUE, FALSE);   
   
   modOpt(tr, adef, TRUE, adef->likelihoodEpsilon);
   rewind(treeFile);
@@ -8669,7 +8669,7 @@ static void computeELW(tree *tr, analdef *adef, char *bootStrapFileName)
 
       /* read in new tree */
      
-      treeReadLen(treeFile, tr, FALSE, FALSE, FALSE, adef, TRUE);  
+      treeReadLen(treeFile, tr, FALSE, FALSE, FALSE, adef, TRUE, FALSE);  
       
       if(tr->optimizeAllTrees)
 	{
@@ -10352,7 +10352,7 @@ static void distancesNewview(nodeptr p, double *distances, tree *tr, nodeptr *ro
     }
 }
 
-static void printTreeRec(FILE *f, nodeptr p, tree *tr, boolean rootDescendant)
+static void printTreeRec(FILE *f, nodeptr p, tree *tr, boolean rootDescendant, boolean printBranchLabels)
 {
   if(isTip(p->number, tr->mxtips))
     {
@@ -10364,18 +10364,26 @@ static void printTreeRec(FILE *f, nodeptr p, tree *tr, boolean rootDescendant)
   else
     {
       fprintf(f, "(");
-      printTreeRec(f, p->next->back, tr, FALSE);
+      printTreeRec(f, p->next->back, tr, FALSE, printBranchLabels);
       fprintf(f, ",");
-      printTreeRec(f, p->next->next->back, tr, FALSE);
+      printTreeRec(f, p->next->next->back, tr, FALSE, printBranchLabels);
       
       if(rootDescendant)
 	fprintf(f, ")");
       else
-	fprintf(f, "):%f", p->z[0]);
+	{
+	  if(printBranchLabels && !isTip(p->number, tr->mxtips) && !isTip(p->back->number, tr->mxtips))
+	    {
+	      assert(p->support == p->back->support);
+	      fprintf(f, "):%f[%d]", p->z[0], p->support);
+	    }
+	  else
+	    fprintf(f, "):%f", p->z[0]);
+	}
     }
 }
 
-static void printTree(nodeptr p, tree *tr, double *distances, FILE *f)
+static void printTree(nodeptr p, tree *tr, double *distances, FILE *f, boolean printBranchLabels)
 {
   double
     leftRoot,
@@ -10439,18 +10447,30 @@ static void printTree(nodeptr p, tree *tr, double *distances, FILE *f)
    //descend into right subtree and print it
 
    fprintf(f, "(");
-   printTreeRec(f, p, tr, TRUE);
+   printTreeRec(f, p, tr, TRUE, printBranchLabels);
 
    //finished right subtree, print attachment branch of right subtree
    //noew descent into left subtree
-
-   fprintf(f, ":%f, (", leftRoot);
-   printTreeRec(f, q, tr, TRUE);
+   
+   if(printBranchLabels && !isTip(p->number, tr->mxtips) && !isTip(q->number, tr->mxtips))
+     {
+       assert(p->support == q->support);
+       fprintf(f, ":%f[%d], (", leftRoot, p->support);
+     }
+   else
+     fprintf(f, ":%f, (", leftRoot);
+   printTreeRec(f, q, tr, TRUE, printBranchLabels);
    
    //finished left subtree, now print its branch to the root node 
    //and we are done 
 
-   fprintf(f, "):%f);", rightRoot);
+   if(printBranchLabels && !isTip(p->number, tr->mxtips) && !isTip(q->number, tr->mxtips))
+     {
+       assert(p->support == q->support);
+       fprintf(f, "):%f[%d]);", rightRoot, q->support);
+     }
+   else
+     fprintf(f, "):%f);", rightRoot);
 }
 
 static void rootTree(tree *tr, analdef *adef)
@@ -10460,19 +10480,20 @@ static void rootTree(tree *tr, analdef *adef)
 
   double
     checkDistances,
-    minimum;
+    minimum,
+    *distances = (double *)rax_malloc(sizeof(double) * 2 * tr->mxtips);
   
   char 
     rootedTreeFile[1024];
 
   FILE 
     *f = myfopen(tree_file, "r");
-
-  double 
-    *distances = (double *)rax_malloc(sizeof(double) * 2 * tr->mxtips);
-
+   
   nodeptr 
     rootBranch;
+
+  boolean 
+    printBranchLabels = FALSE;
 
   for(i = 0; i < 2 * tr->mxtips; i++)
     distances[i] = 0.0;
@@ -10481,7 +10502,14 @@ static void rootTree(tree *tr, analdef *adef)
   strcat(rootedTreeFile,         "RAxML_rootedTree.");
   strcat(rootedTreeFile,         run_id);
 
-  treeReadLen(f, tr, TRUE, FALSE, TRUE, adef, TRUE);
+  treeReadLen(f, tr, TRUE, FALSE, TRUE, adef, TRUE, TRUE);
+
+  if(tr->branchLabelCounter > 0)
+    {
+      assert(tr->branchLabelCounter == (tr->ntips - 3));
+      printBranchLabels = TRUE;
+      printBothOpen("\nYour input tree contains branch labels, these will also be printed in the output tree ...\n\n");
+    }
 
   fclose(f);
 
@@ -10493,7 +10521,7 @@ static void rootTree(tree *tr, analdef *adef)
 
   distancesNewview(tr->start->back, distances, tr, &rootBranch, &minimum);
 
-  printTree(rootBranch, tr, distances, f);
+  printTree(rootBranch, tr, distances, f, printBranchLabels);
   
   fclose(f);
 

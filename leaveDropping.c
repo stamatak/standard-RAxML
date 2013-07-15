@@ -1571,7 +1571,7 @@ void computeRogueTaxa(tree *tr,  char* treeSetFileName, analdef *adef)
       int 
 	bCount = 0;
       
-      treeReadLen(treeFile, tr, FALSE, FALSE, TRUE, adef, TRUE);
+      treeReadLen(treeFile, tr, FALSE, FALSE, TRUE, adef, TRUE, FALSE);
       
       assert(tr->mxtips == tr->ntips);
      
@@ -1628,7 +1628,7 @@ void computeRogueTaxa(tree *tr,  char* treeSetFileName, analdef *adef)
 	  
 	  /*printf("Tree %d\n", i);*/
 	  
-	  treeReadLen(treeFile, tr, FALSE, FALSE, TRUE, adef, TRUE);
+	  treeReadLen(treeFile, tr, FALSE, FALSE, TRUE, adef, TRUE, FALSE);
 	  
 	  assert(tr->mxtips == tr->ntips);
 	  
