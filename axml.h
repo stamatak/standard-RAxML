@@ -163,7 +163,7 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "RAxML"
-#define programVersion     "7.6.7"
+#define programVersion     "7.6.8"
 #define programDate        "July 15 2013"
 
 
