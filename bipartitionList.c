@@ -2529,6 +2529,9 @@ void plausibilityChecker(tree *tr, analdef *adef)
     *treeFile,
     *rfFile;
   
+  tree 
+    *smallTree = (tree *)rax_malloc(sizeof(tree));
+
   char 
     rfFileName[1024];
  
@@ -2587,7 +2590,7 @@ void plausibilityChecker(tree *tr, analdef *adef)
   
   /* allocate a data structure for parsing the potentially mult-furcating tree */
 
-  allocateMultifurcations(tr);
+  allocateMultifurcations(tr, smallTree);
 
   /* loop over all small trees */
 
@@ -2624,8 +2627,8 @@ void plausibilityChecker(tree *tr, analdef *adef)
 	 of course be smaller than n-3, where n is the number of taxa in the tree.
       */
 
-      numberOfSplits = readMultifurcatingTree(treeFile, tr, adef);
-      printBothOpen("Small tree %d has %d tips\n", i, tr->ntips);    
+      numberOfSplits = readMultifurcatingTree(treeFile, smallTree, adef);
+      printBothOpen("Small tree %d has %d tips\n", i, smallTree->ntips);    
 
       /* compute the maximum RF distance for computing the relative RF distance later-on */
 
@@ -2636,7 +2639,7 @@ void plausibilityChecker(tree *tr, analdef *adef)
 	 of bipartitions of the pruned down large reference tree for which we know that it is 
 	 bifurcating/strictly binary */
 
-      maxRF = (double)((tr->ntips - 3) + numberOfSplits);
+      maxRF = (double)((smallTree->ntips - 3) + numberOfSplits);
 
       /* now set up a bit mask where only the bits are set to one for those 
 	 taxa that are actually present in the small tree we just read */
@@ -2644,14 +2647,14 @@ void plausibilityChecker(tree *tr, analdef *adef)
       /* note that I had to apply some small changes to this function to make it work for 
 	 multi-furcating trees ! */
 
-      setupMask(smallTreeMask, tr->start, tr->mxtips);
-      setupMask(smallTreeMask, tr->start->back, tr->mxtips);
+      setupMask(smallTreeMask, smallTree->start,       smallTree->mxtips);
+      setupMask(smallTreeMask, smallTree->start->back, smallTree->mxtips);
 
       /* now get the index of the first taxon of the small tree.
 	 we will use this to unambiguously store the bipartitions 
       */
 
-      firstTaxon = tr->start->number;
+      firstTaxon = smallTree->start->number;
 
       /* make sure that this bit vector is set up correctly, i.e., that 
 	 it contains as many non-zero bits as there are taxa in this small tree 
@@ -2659,7 +2662,7 @@ void plausibilityChecker(tree *tr, analdef *adef)
 
       for(j = 0; j < vLength; j++)
 	taxa += BIT_COUNT(smallTreeMask[j]);
-      assert(taxa == tr->ntips);
+      assert(taxa == smallTree->ntips);
 
       /* now re-hash the big tree by applying the above bit mask */
 
@@ -2754,11 +2757,11 @@ void plausibilityChecker(tree *tr, analdef *adef)
       
       /* the following function also had to be modified to account for multi-furcating trees ! */
       
-      bips = bitVectorTraversePlausibility(bitVectors, tr->start->back, tr->mxtips, vLength, rehash, &bCounter, firstTaxon, tr, TRUE);
+      bips = bitVectorTraversePlausibility(bitVectors, smallTree->start->back, smallTree->mxtips, vLength, rehash, &bCounter, firstTaxon, smallTree, TRUE);
       
       /* compute the relative RF */
 
-      rf = (double)(2 * ((tr->ntips - 3) - bips)) / maxRF;           
+      rf = (double)(2 * ((smallTree->ntips - 3) - bips)) / maxRF;           
 
       avgRF += rf;
 
@@ -2776,6 +2779,7 @@ void plausibilityChecker(tree *tr, analdef *adef)
       rax_free(smallTreeMask);
       rax_free(masked);
       freeHashTable(rehash);
+      rax_free(rehash);
     }
 
   printBothOpen("Average RF distance %f\n\n", avgRF / (double)tr->numberOfTrees);
@@ -2789,7 +2793,8 @@ void plausibilityChecker(tree *tr, analdef *adef)
   
   /* free the data structure used for parsing the potentially multi-furcating tree */
 
-  freeMultifurcations(tr);
+  freeMultifurcations(smallTree);
+  rax_free(smallTree);
 
   freeBitVectors(bitVectors, 2 * tr->mxtips);
   rax_free(bitVectors);

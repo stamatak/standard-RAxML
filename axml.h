@@ -163,8 +163,8 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "RAxML"
-#define programVersion     "7.6.8"
-#define programDate        "July 15 2013"
+#define programVersion     "7.6.9"
+#define programDate        "July 16 2013"
 
 
 #define  TREE_EVALUATION                 0
@@ -767,7 +767,6 @@ typedef  struct  {
   double          *likelihoods;
   int             *invariant;
   node           **nodep;
-  node           **multifurcations;
   node            *start;
   int              mxtips;
   int              mxtipsVector[NUM_BRANCHES];
@@ -1206,7 +1205,7 @@ extern boolean treeReadLenMULT ( FILE *fp, tree *tr, analdef *adef );
 
 extern int readMultifurcatingTree(FILE *fp, tree *tr, analdef *adef);
 extern void freeMultifurcations(tree *tr);
-extern void allocateMultifurcations(tree *tr);
+extern void allocateMultifurcations(tree *tr, tree *smallTree);
 
 extern void getStartingTree ( tree *tr, analdef *adef );
 extern double treeLength(tree *tr, int model);

@@ -849,7 +849,6 @@ static boolean treeNeedCh (FILE *fp, int c1, char *where);
 static boolean treeProcessLength (FILE *fp, double *dptr, int *branchLabel, boolean storeBranchLabels, tree *tr)
 {
   int
-    res,
     ch;
   
   if((ch = treeGetCh(fp)) == EOF)  
@@ -1815,12 +1814,12 @@ static boolean addMultifurcation (FILE *fp, tree *tr, nodeptr _p, analdef *adef,
       int 
 	i = 0;     
       
-      initial_p = p = tr->multifurcations[*nextnode];      
+      initial_p = p = tr->nodep[*nextnode];      
       *nextnode = *nextnode + 1;
 
       do
 	{  		  
-	  p->next = tr->multifurcations[*nextnode];	 
+	  p->next = tr->nodep[*nextnode];	 
 	  *nextnode = *nextnode + 1;
 	  p = p->next;
 	
@@ -1883,31 +1882,40 @@ static void printMultiFurc(nodeptr p, tree *tr)
     }
 }
 
-void allocateMultifurcations(tree *tr)
+void allocateMultifurcations(tree *tr, tree *smallTree)
 { 
   int
     i,
-    tips  = tr->mxtips,
-    inter = tr->mxtips - 1; 
-  
-  tr->multifurcations = (nodeptr *)rax_malloc((tips + 3 * inter) * sizeof(nodeptr));
+    tips,
+    inter; 
 
-  tr->multifurcations[0] = (node *) NULL;
+  smallTree->numBranches = tr->numBranches;
+
+  smallTree->mxtips = tr->mxtips;
+
+  smallTree->nameHash = tr->nameHash;
+
+  tips  = tr->mxtips;
+  inter = tr->mxtips - 1;
+  
+  smallTree->nodep = (nodeptr *)rax_malloc((tips + 3 * inter) * sizeof(nodeptr));
+
+  smallTree->nodep[0] = (node *) NULL;
 
   for (i = 1; i <= tips; i++)
     {
-      tr->multifurcations[i] = (nodeptr)rax_malloc(sizeof(node));      
-      memcpy(tr->multifurcations[i], tr->nodep[i], sizeof(node));
-      tr->multifurcations[i]->back = (node *) NULL;
-      tr->multifurcations[i]->next = (node *) NULL;
+      smallTree->nodep[i] = (nodeptr)rax_malloc(sizeof(node));      
+      memcpy(smallTree->nodep[i], tr->nodep[i], sizeof(node));
+      smallTree->nodep[i]->back = (node *) NULL;
+      smallTree->nodep[i]->next = (node *) NULL;
     }
 
   for(i = tips + 1; i < tips + 3 * inter; i++)
     {     
-      tr->multifurcations[i] = (nodeptr)rax_malloc(sizeof(node));
-      tr->multifurcations[i]->number = i;     
-      tr->multifurcations[i]->back = (node *) NULL;
-      tr->multifurcations[i]->next = (node *) NULL;
+      smallTree->nodep[i] = (nodeptr)rax_malloc(sizeof(node));
+      smallTree->nodep[i]->number = i;     
+      smallTree->nodep[i]->back = (node *) NULL;
+      smallTree->nodep[i]->next = (node *) NULL;
     }
   
 }
@@ -1920,9 +1928,9 @@ void freeMultifurcations(tree *tr)
     inter = tr->mxtips - 1; 
 
   for (i = 1; i < tips + 3 * inter; i++)
-    rax_free(tr->multifurcations[i]);
+    rax_free(tr->nodep[i]);
   
-  rax_free(tr->multifurcations);
+  rax_free(tr->nodep);
 }
 
 static void relabelInnerNodes(nodeptr p, tree *tr, int n, int *nodeCounter)
@@ -1939,12 +1947,12 @@ static void relabelInnerNodes(nodeptr p, tree *tr, int n, int *nodeCounter)
       int 
 	_n = n;
 
-      tr->multifurcations[p->number]->number = n;
+      tr->nodep[p->number]->number = n;
       p->x = 1;
       
       while(q != p)
 	{
-	  tr->multifurcations[q->number]->number = n;	
+	  tr->nodep[q->number]->number = n;	
 	  q->x = 0;
 	  
 	  if(!isTip(q->back->number, tr->mxtips))
@@ -1977,13 +1985,13 @@ int readMultifurcatingTree(FILE *fp, tree *tr, analdef *adef)
     
   for (i = 1; i < tips + 3 * inter; i++)     
     {     
-      tr->multifurcations[i]->back = (node *) NULL;
-      tr->multifurcations[i]->next = (node *) NULL;    
-      tr->multifurcations[i]->x = 0;
+      tr->nodep[i]->back = (node *) NULL;
+      tr->nodep[i]->next = (node *) NULL;    
+      tr->nodep[i]->x = 0;
     }
   
   for(i = tips + 1; i < tips + 3 * inter; i++)   
-    tr->multifurcations[i]->number = i;
+    tr->nodep[i]->number = i;
 
   tr->ntips = 0;
   nextnode  = tr->mxtips + 1;         
@@ -1996,12 +2004,12 @@ int readMultifurcatingTree(FILE *fp, tree *tr, analdef *adef)
     {         
       if(i == 0)
 	{
-	  initial_p = p = tr->multifurcations[nextnode];	 
+	  initial_p = p = tr->nodep[nextnode];	 
 	  nextnode++;
 	}
       else
 	{
-	  p->next = tr->multifurcations[nextnode];	 	  
+	  p->next = tr->nodep[nextnode];	 	  
 	  p = p->next; 
 	  nextnode++;
 	}
