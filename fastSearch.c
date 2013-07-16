@@ -749,7 +749,7 @@ static void storeBranches(tree *tr, nodeptr p, double *pqz, double *pz1, double 
 }
 
 
-static int SHSupport(int nPos, int nBootstrap, int *col, double loglk[3], double *siteloglk[3]) 
+static int SHSupport(int nPos, int nBootstrap, int *col, double loglk[3], double *siteloglk[3], int lower, int upper, boolean perPartition) 
 {
   double
     resampleDelta,
@@ -777,15 +777,17 @@ static int SHSupport(int nPos, int nBootstrap, int *col, double loglk[3], double
       diff = ABS(loglk[1] - loglk[0]);
       /*printf("%1.80f %1.80f\n", loglk[0], loglk[1]);*/
       shittySplit = TRUE;
-      assert(diff < 0.1);
+      if(!perPartition)
+	assert(diff < 0.1);
     }
 
   if(loglk[2] >= loglk[0])
     {
       diff = ABS(loglk[2] - loglk[0]);
       /*printf("%1.80f %1.80f\n", loglk[0], loglk[2]);*/
-      shittySplit = TRUE;
-      assert(diff < 0.1);
+      shittySplit = TRUE; 
+      if(!perPartition)
+	assert(diff < 0.1);
     }
 
   if(loglk[0] > loglk[2] && loglk[0] > loglk[1])
@@ -800,6 +802,7 @@ static int SHSupport(int nPos, int nBootstrap, int *col, double loglk[3], double
       
   if(shittySplit)
     return 0;
+    
 
   /*
     printf("%f %f %f\n", loglk[0], loglk[1], loglk[2]);
@@ -813,9 +816,11 @@ static int SHSupport(int nPos, int nBootstrap, int *col, double loglk[3], double
       for (i = 0; i < 3; i++)
 	resampled[i] = -loglk[i];
       
-      for (j = 0; j < nPos; j++) 
+      for (j = lower; j < upper; j++) 
 	{
-	  int pos = col[iBoot * nPos + j];
+	  int 
+	    pos = col[iBoot * nPos + j];
+	  
 	  for (i = 0; i < 3; i++)
 	    resampled[i] += pos * siteloglk[i][j];
 	}
@@ -886,6 +891,7 @@ static void doNNIs(tree *tr, nodeptr p, double *lhVectors[3], boolean shSupport,
   if(!isTip(q->number, tr->mxtips))
     {	
       int 
+	model,
 	whichNNI = 0;
       
       nodeptr	 
@@ -893,7 +899,12 @@ static void doNNIs(tree *tr, nodeptr p, double *lhVectors[3], boolean shSupport,
 	qb2 = q->next->next->back;  
       
       double 		 
-	lh[3];         
+	lh[3],
+	*lhv[3];         
+
+      lhv[0] = (double*)rax_malloc(sizeof(double) * tr->NumberOfModels);
+      lhv[1] = (double*)rax_malloc(sizeof(double) * tr->NumberOfModels);
+      lhv[2] = (double*)rax_malloc(sizeof(double) * tr->NumberOfModels);
 
       *innerBranches = *innerBranches + 1;
           
@@ -908,6 +919,9 @@ static void doNNIs(tree *tr, nodeptr p, double *lhVectors[3], boolean shSupport,
 	evaluateGeneric(tr, p);
       
       lh[0] = tr->likelihood;
+
+      for(model = 0; model < tr->NumberOfModels; model++)
+	lhv[0][model] = tr->perPartitionLH[model];
             
       storeBranches(tr, p, pqz_0, pz1_0, pz2_0, qz1_0, qz2_0);
                 
@@ -934,7 +948,10 @@ static void doNNIs(tree *tr, nodeptr p, double *lhVectors[3], boolean shSupport,
       else
 	evaluateGeneric(tr, p);
       
-      lh[1] = tr->likelihood;		
+      lh[1] = tr->likelihood;	
+	
+      for(model = 0; model < tr->NumberOfModels; model++)
+	lhv[1][model] = tr->perPartitionLH[model];
       
       storeBranches(tr, p, pqz_1, pz1_1, pz2_1, qz1_1, qz2_1);
       
@@ -966,6 +983,9 @@ static void doNNIs(tree *tr, nodeptr p, double *lhVectors[3], boolean shSupport,
       
       lh[2] = tr->likelihood;            
       
+      for(model = 0; model < tr->NumberOfModels; model++)
+	lhv[2][model] = tr->perPartitionLH[model];
+
       storeBranches(tr, p, pqz_2, pz1_2, pz2_2, qz1_2, qz2_2);	 
       
       if(lh[2] > lh[0] && lh[2] > lh[1])
@@ -1016,7 +1036,31 @@ static void doNNIs(tree *tr, nodeptr p, double *lhVectors[3], boolean shSupport,
 	*interchanges = *interchanges + 1;
       
       if(shSupport)	  
-	p->bInf->support = SHSupport(tr->cdta->endsite, 1000, tr->resample, lh, lhVectors);	   
+	{	 
+	  p->bInf->support = SHSupport(tr->cdta->endsite, 1000, tr->resample, lh, lhVectors, 0, tr->cdta->endsite, FALSE);	   
+
+	  //printf("ALL: %f %f %f ", lh[0], lh[1], lh[2]);
+
+	  for(model = 0; model < tr->NumberOfModels; model++)
+	    {	     
+	      double
+		perPartitionLH[3];
+
+	      perPartitionLH[0] = lhv[0][model];
+	      perPartitionLH[1] = lhv[1][model];
+	      perPartitionLH[2] = lhv[2][model];
+
+	      p->bInf->supports[model] = SHSupport(tr->cdta->endsite, 1000, tr->resample, perPartitionLH, lhVectors, tr->partitionData[model].lower, tr->partitionData[model].upper, TRUE);
+
+	      //printf(" p%d %f %f %f ", model, perPartitionLH[0], perPartitionLH[1], perPartitionLH[2]);
+	    }
+
+	  //printf("\n");	
+	}
+
+      rax_free(lhv[0]);
+      rax_free(lhv[1]);
+      rax_free(lhv[2]);	       
     }	  
 
   
@@ -1258,7 +1302,7 @@ void fastSearch(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
 
  
 
-  Tree2String(tr->tree_string, tr, tr->start->back, FALSE, TRUE, FALSE, FALSE, FALSE, adef, SUMMARIZE_LH, FALSE, FALSE, FALSE);
+  Tree2String(tr->tree_string, tr, tr->start->back, FALSE, TRUE, FALSE, FALSE, FALSE, adef, SUMMARIZE_LH, FALSE, FALSE, FALSE, FALSE);
     
   f = myfopen(bestTreeFileName, "wb");
   fprintf(f, "%s", tr->tree_string);
@@ -1290,17 +1334,23 @@ void shSupports(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
     *f;
 
   int
+    i,
     interchanges = 0,
     counter = 0;
 
   assert(adef->restart);
     
   tr->resample = permutationSH(tr, 1000, 12345);
-    
+  
+  //a tiny bit dirty here, all allocs should be cleaned up!
+  
   lhVectors[0] = (double *)rax_malloc(sizeof(double) * tr->cdta->endsite);
   lhVectors[1] = (double *)rax_malloc(sizeof(double) * tr->cdta->endsite);
   lhVectors[2] = (double *)rax_malloc(sizeof(double) * tr->cdta->endsite);
-  tr->bInf = (branchInfo*)rax_malloc(sizeof(branchInfo) * (tr->mxtips - 3));       
+  tr->bInf = (branchInfo*)rax_malloc(sizeof(branchInfo) * (tr->mxtips - 3)); 
+  
+  for(i = 0; i < tr->mxtips - 3; i++)
+    tr->bInf[i].supports = (int*)rax_malloc(sizeof(int) * tr->NumberOfModels);
 
   initModel(tr, rdta, cdta, adef);        
  
@@ -1316,7 +1366,7 @@ void shSupports(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
   else
     {
       evaluateGenericInitrav(tr, tr->start);
-      modOpt(tr, adef, FALSE, 10.0);
+      modOpt(tr, adef, FALSE, 1.0);
     }
   
   printBothOpen("Time after model optimization: %f\n", gettime() - masterTime);
@@ -1354,7 +1404,7 @@ void shSupports(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
   strcat(bestTreeFileName, "RAxML_fastTree.");
   strcat(bestTreeFileName,         run_id); 
 
-  Tree2String(tr->tree_string, tr, tr->start->back, FALSE, TRUE, FALSE, FALSE, FALSE, adef, SUMMARIZE_LH, FALSE, FALSE, FALSE);
+  Tree2String(tr->tree_string, tr, tr->start->back, FALSE, TRUE, FALSE, FALSE, FALSE, adef, SUMMARIZE_LH, FALSE, FALSE, FALSE, FALSE);
     
   f = myfopen(bestTreeFileName, "wb");
   fprintf(f, "%s", tr->tree_string);
@@ -1365,7 +1415,7 @@ void shSupports(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
   strcat(shSupportFileName, "RAxML_fastTreeSH_Support.");
   strcat(shSupportFileName,         run_id);
   
-  Tree2String(tr->tree_string, tr, tr->start->back, TRUE, TRUE, FALSE, FALSE, FALSE, adef, SUMMARIZE_LH, FALSE, TRUE, FALSE);
+  Tree2String(tr->tree_string, tr, tr->start->back, TRUE, TRUE, FALSE, FALSE, FALSE, adef, SUMMARIZE_LH, FALSE, TRUE, FALSE, FALSE);
   
   f = myfopen(shSupportFileName, "wb");
   fprintf(f, "%s", tr->tree_string);
@@ -1373,9 +1423,27 @@ void shSupports(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
       
   printBothOpen("RAxML NNI-optimized tree written to file: %s\n", bestTreeFileName);
   
-  printBothOpen("Same tree with SH-like supports written to file: %s\n", shSupportFileName);
+  printBothOpen("\nSame tree with SH-like supports written to file: %s\n", shSupportFileName);
+
+  if(tr->NumberOfModels > 1)
+    {
+      char     
+	shSupportPerPartitionFileName[1024];
+      
+      strcpy(shSupportPerPartitionFileName, workdir); 
+      strcat(shSupportPerPartitionFileName, "RAxML_fastTree_perPartition_SH_Support.");
+      strcat(shSupportPerPartitionFileName,         run_id);
   
-  printBothOpen("Total execution time: %f\n", gettime() - masterTime);
+      Tree2String(tr->tree_string, tr, tr->start->back, TRUE, TRUE, FALSE, FALSE, FALSE, adef, SUMMARIZE_LH, FALSE, FALSE, FALSE, TRUE);
+      
+      f = myfopen(shSupportPerPartitionFileName, "wb");
+      fprintf(f, "%s", tr->tree_string);
+      fclose(f);  
+      
+      printBothOpen("\nSame tree with SH-like support for each partition written to file: %s\n", shSupportPerPartitionFileName);
+    }
+  
+  printBothOpen("\nTotal execution time: %f\n", gettime() - masterTime);
 
   exit(0);
 }

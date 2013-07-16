@@ -1150,7 +1150,7 @@ void doAllInOne(tree *tr, analdef *adef)
   strcat(bestTreeFileName, "RAxML_bestTree.");
   strcat(bestTreeFileName,         run_id);
    
-  Tree2String(tr->tree_string, tr, tr->start->back, TRUE, TRUE, FALSE, FALSE, TRUE, adef, SUMMARIZE_LH, FALSE, FALSE, FALSE);
+  Tree2String(tr->tree_string, tr, tr->start->back, TRUE, TRUE, FALSE, FALSE, TRUE, adef, SUMMARIZE_LH, FALSE, FALSE, FALSE, FALSE);
   f = myfopen(bestTreeFileName, "wb");
   fprintf(f, "%s", tr->tree_string);
   fclose(f);
@@ -1687,7 +1687,7 @@ void doInference(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
       strcat(bestTreeFileName,         run_id);
       
      
-      Tree2String(tr->tree_string, tr, tr->start->back, TRUE, TRUE, FALSE, FALSE, TRUE, adef, SUMMARIZE_LH, FALSE, FALSE, FALSE);
+      Tree2String(tr->tree_string, tr, tr->start->back, TRUE, TRUE, FALSE, FALSE, TRUE, adef, SUMMARIZE_LH, FALSE, FALSE, FALSE, FALSE);
       
       f = myfopen(bestTreeFileName, "wb");
       fprintf(f, "%s", tr->tree_string);

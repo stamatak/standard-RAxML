@@ -5964,7 +5964,7 @@ void printResult(tree *tr, analdef *adef, boolean finalPrint)
     case TREE_EVALUATION:
 
 
-      Tree2String(tr->tree_string, tr, tr->start->back, TRUE, TRUE, FALSE, FALSE, finalPrint, adef, SUMMARIZE_LH, FALSE, FALSE, FALSE);
+      Tree2String(tr->tree_string, tr, tr->start->back, TRUE, TRUE, FALSE, FALSE, finalPrint, adef, SUMMARIZE_LH, FALSE, FALSE, FALSE, FALSE);
 
       logFile = myfopen(temporaryFileName, "wb");
       fprintf(logFile, "%s", tr->tree_string);
@@ -5992,8 +5992,7 @@ void printResult(tree *tr, analdef *adef, boolean finalPrint)
 		{
 		case GAMMA:
 		case GAMMA_I:
-		  Tree2String(tr->tree_string, tr, tr->start->back, TRUE, TRUE, FALSE, FALSE, finalPrint, adef,
-			      SUMMARIZE_LH, FALSE, FALSE, FALSE);
+		  Tree2String(tr->tree_string, tr, tr->start->back, TRUE, TRUE, FALSE, FALSE, finalPrint, adef, SUMMARIZE_LH, FALSE, FALSE, FALSE, FALSE);
 
 		  logFile = myfopen(temporaryFileName, "wb");
 		  fprintf(logFile, "%s", tr->tree_string);
@@ -6003,8 +6002,7 @@ void printResult(tree *tr, analdef *adef, boolean finalPrint)
 		    printTreePerGene(tr, adef, temporaryFileName, "wb");
 		  break;
 		case CAT:
-		  Tree2String(tr->tree_string, tr, tr->start->back, FALSE, TRUE, FALSE, FALSE, finalPrint, adef,
-			      NO_BRANCHES, FALSE, FALSE, FALSE);
+		  Tree2String(tr->tree_string, tr, tr->start->back, FALSE, TRUE, FALSE, FALSE, finalPrint, adef, NO_BRANCHES, FALSE, FALSE, FALSE, FALSE);
 
 		  logFile = myfopen(temporaryFileName, "wb");
 		  fprintf(logFile, "%s", tr->tree_string);
@@ -6017,8 +6015,7 @@ void printResult(tree *tr, analdef *adef, boolean finalPrint)
 	    }
 	  else
 	    {
-	      Tree2String(tr->tree_string, tr, tr->start->back, FALSE, TRUE, FALSE, FALSE, finalPrint, adef,
-			  NO_BRANCHES, FALSE, FALSE, FALSE);
+	      Tree2String(tr->tree_string, tr, tr->start->back, FALSE, TRUE, FALSE, FALSE, finalPrint, adef, NO_BRANCHES, FALSE, FALSE, FALSE, FALSE);
 	      logFile = myfopen(temporaryFileName, "wb");
 	      fprintf(logFile, "%s", tr->tree_string);
 	      fclose(logFile);
@@ -6048,7 +6045,7 @@ void printBootstrapResult(tree *tr, analdef *adef, boolean finalPrint)
     {
       if(adef->bootstrapBranchLengths)
 	{
-	  Tree2String(tr->tree_string, tr, tr->start->back, TRUE, TRUE, FALSE, FALSE, finalPrint, adef, SUMMARIZE_LH, FALSE, FALSE, FALSE);
+	  Tree2String(tr->tree_string, tr, tr->start->back, TRUE, TRUE, FALSE, FALSE, finalPrint, adef, SUMMARIZE_LH, FALSE, FALSE, FALSE, FALSE);
 
 	  logFile = myfopen(fileName, "ab");
 	  fprintf(logFile, "%s", tr->tree_string);
@@ -6059,7 +6056,7 @@ void printBootstrapResult(tree *tr, analdef *adef, boolean finalPrint)
 	}
       else
 	{
-	  Tree2String(tr->tree_string, tr, tr->start->back, FALSE, TRUE, FALSE, FALSE, finalPrint, adef, NO_BRANCHES, FALSE, FALSE, FALSE);
+	  Tree2String(tr->tree_string, tr, tr->start->back, FALSE, TRUE, FALSE, FALSE, finalPrint, adef, NO_BRANCHES, FALSE, FALSE, FALSE, FALSE);
 	  
 	  logFile = myfopen(fileName, "ab");
 	  fprintf(logFile, "%s", tr->tree_string);
@@ -6084,7 +6081,7 @@ void printBipartitionResult(tree *tr, analdef *adef, boolean finalPrint, boolean
      
       if(!printIC)
 	{
-	  Tree2String(tr->tree_string, tr, tr->start->back, FALSE, TRUE, FALSE, TRUE, finalPrint, adef, NO_BRANCHES, FALSE, FALSE, printIC);
+	  Tree2String(tr->tree_string, tr, tr->start->back, FALSE, TRUE, FALSE, TRUE, finalPrint, adef, NO_BRANCHES, FALSE, FALSE, printIC, FALSE);
             
 	  logFile = myfopen(bipartitionsFileName, "ab");
       
@@ -6092,7 +6089,7 @@ void printBipartitionResult(tree *tr, analdef *adef, boolean finalPrint, boolean
 	  fclose(logFile);
 	}
 
-      Tree2String(tr->tree_string, tr, tr->start->back, FALSE, TRUE, FALSE, FALSE, finalPrint, adef, NO_BRANCHES, TRUE, FALSE, printIC);
+      Tree2String(tr->tree_string, tr, tr->start->back, FALSE, TRUE, FALSE, FALSE, finalPrint, adef, NO_BRANCHES, TRUE, FALSE, printIC, FALSE);
       
       if(printIC)
 	logFile = myfopen(icFileNameBranchLabels, "ab");
@@ -6168,7 +6165,7 @@ void printLog(tree *tr, analdef *adef, boolean finalPrint)
 	      sprintf(treeID, "%d", tr->checkPointCounter);
 	      strcat(checkPoints, treeID);
 
-	      Tree2String(tr->tree_string, tr, tr->start->back, FALSE, TRUE, FALSE, FALSE, finalPrint, adef, NO_BRANCHES, FALSE, FALSE, FALSE);
+	      Tree2String(tr->tree_string, tr, tr->start->back, FALSE, TRUE, FALSE, FALSE, finalPrint, adef, NO_BRANCHES, FALSE, FALSE, FALSE, FALSE);
 
 	      logFile = myfopen(checkPoints, "ab");
 	      fprintf(logFile, "%s", tr->tree_string);
@@ -6198,7 +6195,7 @@ void printStartingTree(tree *tr, analdef *adef, boolean finalPrint)
       FILE *treeFile;
       char temporaryFileName[1024] = "", treeID[64] = "";
 
-      Tree2String(tr->tree_string, tr, tr->start->back, FALSE, TRUE, FALSE, FALSE, finalPrint, adef, NO_BRANCHES, FALSE, FALSE, FALSE);
+      Tree2String(tr->tree_string, tr, tr->start->back, FALSE, TRUE, FALSE, FALSE, finalPrint, adef, NO_BRANCHES, FALSE, FALSE, FALSE, FALSE);
 
       if(adef->randomStartingTree)
 	strcpy(temporaryFileName, randomFileName);
@@ -8543,8 +8540,7 @@ static void computeAllLHs(tree *tr, analdef *adef, char *bootStrapFileName)
       list[i].tree = i;
       list[i].lh   = tr->likelihood;
 
-      Tree2String(tr->tree_string, tr, tr->start->back, TRUE, TRUE, FALSE, FALSE,
-		  TRUE, adef, SUMMARIZE_LH, FALSE, FALSE, FALSE);
+      Tree2String(tr->tree_string, tr, tr->start->back, TRUE, TRUE, FALSE, FALSE, TRUE, adef, SUMMARIZE_LH, FALSE, FALSE, FALSE, FALSE);
 
       fprintf(result, "%s", tr->tree_string);
 
@@ -10004,7 +10000,7 @@ static void thoroughTreeOptimization(tree *tr, analdef *adef, rawdata *rdta, cru
   strcat(bestTreeFileName, "RAxML_bestTree.");
   strcat(bestTreeFileName,         run_id);
 
-  Tree2String(tr->tree_string, tr, tr->start->back, TRUE, TRUE, FALSE, FALSE, TRUE, adef, SUMMARIZE_LH, FALSE, FALSE, FALSE);
+  Tree2String(tr->tree_string, tr, tr->start->back, TRUE, TRUE, FALSE, FALSE, TRUE, adef, SUMMARIZE_LH, FALSE, FALSE, FALSE, FALSE);
   f = myfopen(bestTreeFileName, "wb");
   fprintf(f, "%s", tr->tree_string);
   fclose(f);

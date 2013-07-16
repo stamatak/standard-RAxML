@@ -1642,7 +1642,7 @@ void computeRogueTaxa(tree *tr,  char* treeSetFileName, analdef *adef)
 	  
 	  assert((unsigned)tips == ((unsigned)tr->mxtips - droppedTaxaNum));
 	  
-	  Tree2String(tr->tree_string, tr, tr->start->back, FALSE, TRUE, FALSE, FALSE, FALSE, adef, NO_BRANCHES, FALSE, FALSE, FALSE);
+	  Tree2String(tr->tree_string, tr, tr->start->back, FALSE, TRUE, FALSE, FALSE, FALSE, adef, NO_BRANCHES, FALSE, FALSE, FALSE, FALSE);
 	  fprintf(outf, "%s", tr->tree_string);
 	  
 	  /*printf("%u %u\n", (unsigned)tips, ((unsigned)tr->mxtips - droppedTaxaNum));*/

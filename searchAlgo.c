@@ -1505,9 +1505,7 @@ void computeBIGRAPID (tree *tr, analdef *adef, boolean estimateModel)
 	if(ABS(bestLH - tr->likelihood) < 0.000001)
 	  {
 	    printf("%d %f\n", i, tr->likelihood);
-	    Tree2String(tr->tree_string, tr, tr->start->back, FALSE, TRUE, FALSE, 
-			FALSE, 
-			FALSE, adef, NO_BRANCHES, FALSE, FALSE, FALSE);
+	    Tree2String(tr->tree_string, tr, tr->start->back, FALSE, TRUE, FALSE, FALSE, FALSE, adef, NO_BRANCHES, FALSE, FALSE, FALSE, FALSE);
 	    
 	    fprintf(f, "%s\n", tr->tree_string); 
 	  }

@@ -163,7 +163,7 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "RAxML"
-#define programVersion     "7.6.9"
+#define programVersion     "7.7.0"
 #define programDate        "July 16 2013"
 
 
@@ -453,7 +453,8 @@ typedef struct
   epaBranchData *epa;
 
   unsigned int *vector; 
-  int support;   
+  int support;
+  int *supports;
   double ic;
   double icAll;
   struct noderec *oP;
@@ -1195,7 +1196,7 @@ extern boolean freeBestTree ( bestlist *bt );
 
 
 extern char *Tree2String ( char *treestr, tree *tr, nodeptr p, boolean printBranchLengths, boolean printNames, boolean printLikelihood, 
-			   boolean rellTree, boolean finalPrint, analdef *adef, int perGene, boolean branchLabelSupport, boolean printSHSupport, boolean printIC);
+			   boolean rellTree, boolean finalPrint, analdef *adef, int perGene, boolean branchLabelSupport, boolean printSHSupport, boolean printIC, boolean printSHSupports);
 extern void printTreePerGene(tree *tr, analdef *adef, char *fileName, char *permission);
 
 
