@@ -10451,10 +10451,10 @@ static void printTree(nodeptr p, tree *tr, double *distances, FILE *f, boolean p
    if(printBranchLabels && !isTip(p->number, tr->mxtips) && !isTip(q->number, tr->mxtips))
      {
        assert(p->support == q->support);
-       fprintf(f, ":%f[%d], (", leftRoot, p->support);
+       fprintf(f, ":%f[%d], ", leftRoot, p->support);
      }
    else
-     fprintf(f, ":%f, (", leftRoot);
+     fprintf(f, ":%f, ", leftRoot);
    printTreeRec(f, q, tr, TRUE, printBranchLabels);
    
    //finished left subtree, now print its branch to the root node 
@@ -10463,10 +10463,10 @@ static void printTree(nodeptr p, tree *tr, double *distances, FILE *f, boolean p
    if(printBranchLabels && !isTip(p->number, tr->mxtips) && !isTip(q->number, tr->mxtips))
      {
        assert(p->support == q->support);
-       fprintf(f, "):%f[%d]);", rightRoot, q->support);
+       fprintf(f, ":%f[%d]);", rightRoot, q->support);
      }
    else
-     fprintf(f, "):%f);", rightRoot);
+     fprintf(f, ":%f);", rightRoot);
 }
 
 static void rootTree(tree *tr, analdef *adef)

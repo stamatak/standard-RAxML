@@ -3674,7 +3674,7 @@ static void mre(hashtable *h, boolean icp, entry*** sbi, int* len, int which, in
 
       if(!bootStopping)
 	{
-	  /*printf("Parallel region \n" );*/
+	  //printf("Parallel region \n" );
 
 	  tr->h = h;
 	  NumberOfJobs = tr->h->entryCount;
@@ -3965,7 +3965,7 @@ static void printSortedBips(entry **consensusBips, const int consensusBipLen, co
   /* find the parent of each bip (in the tree they represent) and construct some kind of hashtable this way */
 #ifdef _USE_PTHREADS
 
-  /* printf("Parallel region\n"); */
+  //printf("Parallel region 2\n");
 
   NumberOfJobs = consensusBipLen;
   tr->consensusBipLen = consensusBipLen; 
