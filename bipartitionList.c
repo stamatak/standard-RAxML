@@ -3678,7 +3678,7 @@ static void mre(hashtable *h, boolean icp, entry*** sbi, int* len, int which, in
 
 	  tr->h = h;
 	  NumberOfJobs = tr->h->entryCount;
-	  tr->sectionEnd = NumberOfThreads * MRE_MIN_AMOUNT_JOBS_PER_THREAD;
+	  tr->sectionEnd = MIN(NumberOfJobs, NumberOfThreads * MRE_MIN_AMOUNT_JOBS_PER_THREAD); //NumberOfThreads * MRE_MIN_AMOUNT_JOBS_PER_THREAD;
 	  tr->len = len;
 	  tr->sbi = (*sbi);
 	  tr->maxBips = n - 3;	

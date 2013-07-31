@@ -259,7 +259,7 @@ void reductionCleanup(tree *tr, int *originalRateCategories, int *originalInvari
 
 
 
-
+/* old problematic code by Andre
 
 void computeNextReplicate(tree *tr, long *randomSeed, int *originalRateCategories, int *originalInvariant, boolean isRapid, boolean fixRates)
 { 
@@ -377,10 +377,114 @@ void computeNextReplicate(tree *tr, long *randomSeed, int *originalRateCategorie
     printf("count=%d\ttr->rdta->sites=%d\n",count, tr->rdta->sites );
   assert(count == tr->rdta->sites);
 }
-
+*/
 
   
 
+void computeNextReplicate(tree *tr, long *randomSeed, int *originalRateCategories, int *originalInvariant, boolean isRapid, boolean fixRates)
+{ 
+  int 
+    pos, 
+    nonzero, 
+    j, 
+    model, 
+    w,
+    *weightBuffer, 
+    endsite,
+    *weights, 
+    i, 
+    l;  
+
+  for(j = 0; j < tr->originalCrunchedLength; j++)
+    tr->cdta->aliaswgt[j] = 0;
+
+      	  
+  for(model = 0; model < tr->NumberOfModels; model++)
+    {
+      int
+	nonzero = 0,
+	pos = 0;        	 
+      
+      for (j = 0; j < tr->originalCrunchedLength; j++)  
+	{
+	  if(tr->originalModel[j] == model)
+	    nonzero += tr->originalWeights[j];
+	}				          
+      
+      weightBuffer = (int *)rax_calloc(nonzero, sizeof(int));	 
+     
+      for (j = 0; j < nonzero; j++)
+	weightBuffer[(int) (nonzero*randum(randomSeed))]++;                        	      
+      
+      for(j = 0; j < tr->originalCrunchedLength; j++) 
+	{
+	  if(model == tr->originalModel[j])
+	    {
+	      for(w = 0; w < tr->originalWeights[j]; w++)	  	  	 
+		{
+		  tr->cdta->aliaswgt[j] += weightBuffer[pos];
+		  pos++;		      
+		}				   
+	    }
+	}  
+
+      rax_free(weightBuffer);	        
+    }       
+
+  endsite = 0;
+  
+  for (j = 0; j < tr->originalCrunchedLength; j++) 
+    {	      
+      if(tr->cdta->aliaswgt[j] > 0)
+	endsite++;      
+    }          
+  
+  weights = tr->cdta->aliaswgt;
+
+  for(i = 0; i < tr->rdta->numsp; i++)
+    {     
+      unsigned char 
+	*yPos    = &(tr->rdta->y0[((size_t)tr->originalCrunchedLength) * ((size_t)i)]),
+	*origSeq = &(tr->rdta->yBUF[((size_t)tr->originalCrunchedLength) * ((size_t)i)]);
+      
+      for(j = 0, l = 0; j < tr->originalCrunchedLength; j++)      
+	if(tr->cdta->aliaswgt[j] > 0)	  	    
+	  yPos[l++] = origSeq[j];	                   
+    }
+
+  for(j = 0, l = 0; j < tr->originalCrunchedLength; j++)
+    {     
+      if(weights[j])	
+	{
+	  tr->cdta->aliaswgt[l]     = tr->cdta->aliaswgt[j];
+	  tr->dataVector[l]         = tr->originalDataVector[j];
+	  tr->model[l]              = tr->originalModel[j];
+
+	  if(isRapid)
+	    {	     
+	      tr->cdta->rateCategory[l] = originalRateCategories[j];
+	      tr->invariant[l]          = originalInvariant[j];
+	    }
+	  
+	  l++;
+	}
+    }
+
+  tr->cdta->endsite = endsite;
+  fixModelIndices(tr, endsite, fixRates);
+
+  {
+    int
+      count = 0;
+    
+    for(j = 0; j < tr->cdta->endsite; j++)
+      count += tr->cdta->aliaswgt[j];  
+
+    if(count != tr->rdta->sites)
+      printf("count=%d\ttr->rdta->sites=%d\n",count, tr->rdta->sites );
+    assert(count == tr->rdta->sites);
+  }
+}
 
 
 
