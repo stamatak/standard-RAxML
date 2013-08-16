@@ -383,9 +383,7 @@ void computeNextReplicate(tree *tr, long *randomSeed, int *originalRateCategorie
 
 void computeNextReplicate(tree *tr, long *randomSeed, int *originalRateCategories, int *originalInvariant, boolean isRapid, boolean fixRates)
 { 
-  int 
-    pos, 
-    nonzero, 
+  int    
     j, 
     model, 
     w,

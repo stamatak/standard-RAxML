@@ -1819,7 +1819,7 @@ void getStartingTree(tree *tr, analdef *adef)
 
 /****************************************************************************/
 
-static boolean addMultifurcation (FILE *fp, tree *tr, nodeptr _p, analdef *adef, int *nextnode)
+static void addMultifurcation (FILE *fp, tree *tr, nodeptr _p, analdef *adef, int *nextnode)
 {   
   nodeptr  
     p, 
@@ -1862,7 +1862,7 @@ static boolean addMultifurcation (FILE *fp, tree *tr, nodeptr _p, analdef *adef,
     {   
       ungetc(ch, fp);
       if ((n = treeFindTipName(fp, tr, FALSE)) <= 0)          
-	return FALSE;
+	assert(0);
       p = tr->nodep[n];
       initial_p = p;
       tr->start = p;
@@ -1872,17 +1872,17 @@ static boolean addMultifurcation (FILE *fp, tree *tr, nodeptr _p, analdef *adef,
  
   fres = treeFlushLen(fp, tr);
   if(!fres) 
-    return FALSE;
+    assert(0);
       
   hookupDefault(initial_p, _p, tr->numBranches);
- 
-  return TRUE;          
 } 
 
 static void printMultiFurc(nodeptr p, tree *tr)
 { 
-  if(isTip(p->number, tr->mxtips))    
-    printf("%s", tr->nameList[p->number]);   
+  if(isTip(p->number, tr->mxtips))  
+    {     
+      printf("%s", tr->nameList[p->number]);   
+    }
   else
     {
       nodeptr 
@@ -1915,6 +1915,8 @@ void allocateMultifurcations(tree *tr, tree *smallTree)
   smallTree->mxtips = tr->mxtips;
 
   smallTree->nameHash = tr->nameHash;
+
+  smallTree->nameList = tr->nameList;
 
   tips  = tr->mxtips;
   inter = tr->mxtips - 1;
@@ -2014,6 +2016,8 @@ int readMultifurcatingTree(FILE *fp, tree *tr, analdef *adef)
   for(i = tips + 1; i < tips + 3 * inter; i++)   
     tr->nodep[i]->number = i;
 
+  
+
   tr->ntips = 0;
   nextnode  = tr->mxtips + 1;         
 
@@ -2041,15 +2045,41 @@ int readMultifurcatingTree(FILE *fp, tree *tr, analdef *adef)
     }  
   while((ch = treeGetCh(fp)) == ',');
    
-  if(i < 3)
+
+  if(i < 2)
+    assert(0);
+  else
     {
-      printBothOpen("You need to provide unrooted input trees!\n");
-      assert(0);
+      if(i == 2)
+	{
+	  nodeptr 
+	    q = initial_p->back,
+	    r = initial_p->next->back;	  
+
+	  //printBothOpen("you provided a rooted tree, we need an unrooted one, RAxML will remove the root!\n");
+	  
+	  assert(initial_p->next->next == (node *)NULL);
+	  assert(tr->start != initial_p);
+	  assert(tr->start != initial_p->next);
+	  assert(tr->start->back != initial_p);
+	  assert(tr->start->back != initial_p->next);
+	  hookupDefault(q, r, tr->numBranches);	  
+	}
     }
+      
+
+  /*  
+      if(i < 3)
+      {
+      printBothOpen("You need to provide unrooted input trees!\n");      
+      assert(0);
+      }
+  */
  
   ungetc(ch, fp);
   
-  p->next = initial_p;
+  if(i > 2)
+    p->next = initial_p;
   
   if (! treeNeedCh(fp, ')', "in"))                
     assert(0);  
@@ -2062,23 +2092,23 @@ int readMultifurcatingTree(FILE *fp, tree *tr, analdef *adef)
   if (! treeNeedCh(fp, ';', "at end of"))       
     assert(0);
     
-  //printf("%d tips found, %d inner nodes used start %d maxtips %d\n", tr->ntips, tr->nextnode - tr->mxtips, tr->start->number, tr->mxtips);
+  //printf("%d tips found, %d inner nodes used start %d maxtips %d\n", tr->ntips, nextnode - tr->mxtips, tr->start->number, tr->mxtips);
 
-  assert(isTip(tr->start->number, tr->mxtips));
+  assert(isTip(tr->start->number, tr->mxtips));  
 
   relabelInnerNodes(tr->start->back, tr, tr->mxtips + 1, &innerBranches);
 
-  //printf("Inner branches %d\n", innerBranches);
+  //printf("Inner branches %d\n", innerBranches); 
 
   if(0)
-    {
-      printf("(");
-      printMultiFurc(tr->start, tr);
+    {      
+      printf("(");      
+      printMultiFurc(tr->start, tr);      
       printf(",");
       printMultiFurc(tr->start->back, tr);
       printf(");\n");
     }
-
+ 
   return innerBranches;
 }
 
