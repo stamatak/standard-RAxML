@@ -1819,6 +1819,16 @@ void getStartingTree(tree *tr, analdef *adef)
 
 /****************************************************************************/
 
+static void nextNodeOutOfBounds(tree *tr, int nextnode)
+{
+  if(nextnode >= tr->maxNodes)
+    {
+      printf("The tree RAxML is trying to parse contains more nodes than expected.\n");
+      printf("RAxML will exit now, please check your input trees!\n");
+      assert(0);
+    }
+}
+
 static void addMultifurcation (FILE *fp, tree *tr, nodeptr _p, analdef *adef, int *nextnode)
 {   
   nodeptr  
@@ -1835,13 +1845,16 @@ static void addMultifurcation (FILE *fp, tree *tr, nodeptr _p, analdef *adef, in
       int 
 	i = 0;     
       
+      nextNodeOutOfBounds(tr, *nextnode);      
       initial_p = p = tr->nodep[*nextnode];      
       *nextnode = *nextnode + 1;
 
       do
-	{  		  
+	{  
+	  nextNodeOutOfBounds(tr, *nextnode); 	  	 		  
 	  p->next = tr->nodep[*nextnode];	 
 	  *nextnode = *nextnode + 1;
+
 	  p = p->next;
 	
 	  addMultifurcation(fp, tr, p, adef, nextnode);	  
@@ -1914,6 +1927,8 @@ void allocateMultifurcations(tree *tr, tree *smallTree)
 
   smallTree->mxtips = tr->mxtips;
 
+  //printf("Small tree tiups: %d\n", smallTree->mxtips);
+
   smallTree->nameHash = tr->nameHash;
 
   smallTree->nameList = tr->nameList;
@@ -1922,6 +1937,8 @@ void allocateMultifurcations(tree *tr, tree *smallTree)
   inter = tr->mxtips - 1;
   
   smallTree->nodep = (nodeptr *)rax_malloc((tips + 3 * inter) * sizeof(nodeptr));
+
+  smallTree->maxNodes = tips + 3 * inter;
 
   smallTree->nodep[0] = (node *) NULL;
 
@@ -2029,11 +2046,13 @@ int readMultifurcatingTree(FILE *fp, tree *tr, analdef *adef)
     {         
       if(i == 0)
 	{
+	  nextNodeOutOfBounds(tr, nextnode);
 	  initial_p = p = tr->nodep[nextnode];	 
 	  nextnode++;
 	}
       else
 	{
+	  nextNodeOutOfBounds(tr, nextnode);
 	  p->next = tr->nodep[nextnode];	 	  
 	  p = p->next; 
 	  nextnode++;

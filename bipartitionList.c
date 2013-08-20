@@ -1330,13 +1330,13 @@ static double computeIC_Value(unsigned int supportedBips, unsigned int *maxima, 
       negativeIC = TRUE;
       
       if(warnNegativeIC)
-	{
-	  printBothOpen("\nMax conflicting bipartition frequency: %d is larger than frequency of the included bipartition: %d\n", maxima[0], supportedBips);
-	  printBothOpen("This is interesting, but not unexpected when computing extended Majority Rule consensus trees.\n");
-	  printBothOpen("Please send an email with the input files and command line\n");
-	  printBothOpen("to Alexandros.Stamatakis@gmail.com.\n");
-	  printBothOpen("Thank you :-)\n\n");   
-	}
+	 {
+	   printBothOpen("\nMax conflicting bipartition frequency: %d is larger than frequency of the included bipartition: %d\n", maxima[0], supportedBips);
+	   printBothOpen("This is interesting, but not unexpected when computing extended Majority Rule consensus trees.\n");
+	   printBothOpen("Please send an email with the input files and command line\n");
+	   printBothOpen("to Alexandros.Stamatakis@gmail.com.\n");
+	   printBothOpen("Thank you :-)\n\n");   
+	 }      
     }
 
   for(i = 0; i < loopLength; i++)
@@ -1718,8 +1718,10 @@ void calcBipartitions_IC(tree *tr, analdef *adef, char *bestTreeFileName, char *
       int 
 	numberOfSplits;                
       
-      bCount = 0;
+      bCount = 0;      
       
+      //printf("tree %d\n", i);
+
       inputTree->start = (nodeptr)NULL;
 
       numberOfSplits = readMultifurcatingTree(treeFile, inputTree, adef);
@@ -3912,7 +3914,7 @@ static void calculateIC(tree *tr, hashtable *h, unsigned int *bitVector, unsigne
 	  
 	  assert(supportedBips + maxima[0] <= numberOfTrees);
 	  
-	  *ic    = computeIC_Value(supportedBips, maxima, numberOfTrees, maxCounter, FALSE, TRUE);
+	  *ic    = computeIC_Value(supportedBips, maxima, numberOfTrees, maxCounter, FALSE, FALSE);
 	  *icAll = computeIC_Value(supportedBips, maxima, numberOfTrees, maxCounter, TRUE, FALSE);  
 	  
 	  if(verboseIC)		      

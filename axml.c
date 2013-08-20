@@ -5496,8 +5496,11 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	char 
 	  dir[1024] = "";
 	
+	printf("Warning, you specified a working directory via \"-w\"\n");
+	printf("Keep in mind that RAxML only accepts absolute path names, nor realtive ones!\n");
+
 #ifndef WIN32
-	if(resultDir[0] != separator[0])
+	if(resultDir[0] != separator[0])	  
 	  strcat(dir, separator);
 #endif
 	
@@ -6442,9 +6445,9 @@ void printModelParams(tree *tr, analdef *adef)
 				   "G", "H", "I", "J", "K", "L", "M", "N",
 				   "O", "P", "Q", "R", "S", "T", "U", "V"}; 
 
-	    printRatesRest(32, r, freqNames);
+	    printRatesRest(tr->partitionData[model].states, r, freqNames);
 	    printBothOpen("\n");
-	    printFreqs(32, f, freqNames);
+	    printFreqs(tr->partitionData[model].states, f, freqNames);
 	  }
 	  break;
 	case GENERIC_64:
@@ -8337,6 +8340,11 @@ static void computeLHTest(tree *tr, analdef *adef, char *bootStrapFileName)
 	  sum  += wtemp;
 	  sum2 += wtemp * temp;
 	}
+
+      double 
+	gra =  weightSum * (sum2 - sum*sum / weightSum) / (weightSum - 1);
+
+      printf("Gra: %f\n", sum);
 
       sd = sqrt( weightSum * (sum2 - sum*sum / weightSum) / (weightSum - 1) );
       /* this is for a 5% p level */
