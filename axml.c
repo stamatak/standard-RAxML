@@ -8341,10 +8341,7 @@ static void computeLHTest(tree *tr, analdef *adef, char *bootStrapFileName)
 	  sum2 += wtemp * temp;
 	}
 
-      double 
-	gra =  weightSum * (sum2 - sum*sum / weightSum) / (weightSum - 1);
-
-      printf("Gra: %f\n", sum);
+     
 
       sd = sqrt( weightSum * (sum2 - sum*sum / weightSum) / (weightSum - 1) );
       /* this is for a 5% p level */
