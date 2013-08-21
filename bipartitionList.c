@@ -80,6 +80,15 @@ extern volatile branchInfo      **branchInfos;
 extern volatile int NumberOfThreads;
 extern volatile int NumberOfJobs;
 
+static void checkTreeNumber(int numberOfTrees, char *fileName)
+{
+  if(numberOfTrees <= 1)
+    {
+      printf("RAxML is expecting to read more than one tree in file %s for this operation on a set of trees!\n", fileName);
+      printf("The program will exit now\n");      
+      exit(-1);
+    }
+}
 
 static void mre(hashtable *h, boolean icp, entry*** sbi, int* len, int which, int n, unsigned int vectorLength, boolean sortp, tree *tr, boolean bootStopping);
 
@@ -937,7 +946,9 @@ void calcBipartitions(tree *tr, analdef *adef, char *bestTreeFileName, char *boo
   treeFile = getNumberOfTrees(tr, bootStrapFileName, adef);
 
   numberOfTrees = tr->numberOfTrees;
-  
+
+  checkTreeNumber(numberOfTrees, bootStrapFileName);
+
   for(i = 0; i < numberOfTrees; i++)
     {                
       int 
@@ -1710,6 +1721,7 @@ void calcBipartitions_IC(tree *tr, analdef *adef, char *bestTreeFileName, char *
 
   numberOfTrees = tr->numberOfTrees;
 
+  checkTreeNumber(numberOfTrees, bootStrapFileName);
   //multifurcations  
   allocateMultifurcations(tr, inputTree);
 
@@ -1813,6 +1825,8 @@ void compareBips(tree *tr, char *bootStrapFileName, analdef *adef)
   treeFile = getNumberOfTrees(tr, bootStrapFileName, adef);  
   numberOfTreesAll = tr->numberOfTrees;
               
+  checkTreeNumber(numberOfTreesAll, bootStrapFileName);
+
   for(i = 0; i < numberOfTreesAll; i++)
     { 
       int 
@@ -1833,7 +1847,8 @@ void compareBips(tree *tr, char *bootStrapFileName, analdef *adef)
   treeFile = getNumberOfTrees(tr, tree_file, adef);
   
   numberOfTreesStop = tr->numberOfTrees;   
-       
+  checkTreeNumber(numberOfTreesStop, tree_file);
+
   for(i = 0; i < numberOfTreesStop; i++)
     {              
       int 
@@ -1961,7 +1976,9 @@ void computeRF(tree *tr, char *bootStrapFileName, analdef *adef)
   hashtable *h = (hashtable *)NULL;   
   
   numberOfTrees = tr->numberOfTrees;
-  
+
+  checkTreeNumber(numberOfTrees, bootStrapFileName);
+
   h = initHashTable(tr->mxtips * 2 * numberOfTrees); 
 
   if(numberOfTrees % MASK_LENGTH == 0)
@@ -2434,6 +2451,8 @@ void plausibilityChecker(tree *tr, analdef *adef)
   /* now see how many small trees we have */
 
   treeFile = getNumberOfTrees(tr, bootStrapFile, adef); 
+
+  checkTreeNumber(tr->numberOfTrees, bootStrapFile);
   
   /* loop over all small trees */
 
@@ -2682,8 +2701,10 @@ void plausibilityChecker(tree *tr, analdef *adef)
   
   /* now see how many small trees we have */
 
-  treeFile = getNumberOfTrees(tr, bootStrapFile, adef); 
-  
+  treeFile = getNumberOfTrees(tr, bootStrapFile, adef);
+
+  checkTreeNumber(tr->numberOfTrees, bootStrapFile);
+
   /* allocate a data structure for parsing the potentially mult-furcating tree */
 
   allocateMultifurcations(tr, smallTree);
@@ -3343,6 +3364,8 @@ void computeBootStopOnly(tree *tr, char *bootStrapFileName, analdef *adef)
   FILE 
     *treeFile = getNumberOfTrees(tr, bootStrapFileName, adef);
 
+  checkTreeNumber(tr->numberOfTrees, bootStrapFileName);
+
   assert((FC_SPACING % 2 == 0) && (FC_THRESHOLD < BOOTSTOP_PERMUTATIONS));
    
   numberOfTrees = tr->numberOfTrees;
@@ -3473,6 +3496,8 @@ boolean computeBootStopMPI(tree *tr, char *bootStrapFileName, analdef *adef, dou
     *treeFile = getNumberOfTrees(tr, bootStrapFileName, adef);
   
   numberOfTrees = tr->numberOfTrees;
+
+  checkTreeNumber(numberOfTrees, bootStrapFileName);
 
   if(numberOfTrees % 2 != 0)
     numberOfTrees--;
@@ -4284,6 +4309,8 @@ void computeConsensusOnly(tree *tr, char *treeSetFileName, analdef *adef, boolea
 
   numberOfTrees = tr->numberOfTrees; 
 
+  checkTreeNumber(numberOfTrees, treeSetFileName);
+
   tr->mr_thresh = ((double)numberOfTrees / 2.0);   
 
   assert(sizeof(unsigned char) == 1);
@@ -4669,10 +4696,11 @@ void computeConsensusOnly(tree *tr, char *treeSetFileName, analdef *adef)
   FILE 
     *outf,
     *treeFile = getNumberOfTrees(tr, treeSetFileName, adef);
-
      
   numberOfTrees = tr->numberOfTrees; 
-  
+
+  checkTreeNumber(numberOfTrees, treeSetFileName);
+
   mr_thresh = ((double)numberOfTrees / 2.0);  
   
   assert(sizeof(unsigned char) == 1);
