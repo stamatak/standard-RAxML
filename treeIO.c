@@ -1973,7 +1973,7 @@ void freeMultifurcations(tree *tr)
   rax_free(tr->nodep);
 }
 
-static void relabelInnerNodes(nodeptr p, tree *tr, int n, int *nodeCounter)
+static void relabelInnerNodes(nodeptr p, tree *tr, int *number, int *nodeCounter)
 {
   if(isTip(p->number, tr->mxtips))
     {
@@ -1985,21 +1985,22 @@ static void relabelInnerNodes(nodeptr p, tree *tr, int n, int *nodeCounter)
 	q = p->next;
 
       int 
-	_n = n;
-
-      tr->nodep[p->number]->number = n;
+	_n = *number;      
+      
+      tr->nodep[p->number]->number = _n;
       p->x = 1;
+
+     *number = *number + 1;
       
       while(q != p)
 	{
-	  tr->nodep[q->number]->number = n;	
+	  tr->nodep[q->number]->number = _n;	
 	  q->x = 0;
 	  
 	  if(!isTip(q->back->number, tr->mxtips))
-	    {
-	      _n++;
+	    {	    
 	      *nodeCounter = *nodeCounter + 1;
-	      relabelInnerNodes(q->back, tr, _n, nodeCounter);
+	      relabelInnerNodes(q->back, tr, number, nodeCounter);
 	    }
 	  q = q->next;
 	}  
@@ -2014,6 +2015,7 @@ int readMultifurcatingTree(FILE *fp, tree *tr, analdef *adef)
     initial_p;
   
   int    
+    innerNodeNumber,
     innerBranches = 0,
     nextnode,
     i, 
@@ -2115,7 +2117,11 @@ int readMultifurcatingTree(FILE *fp, tree *tr, analdef *adef)
 
   assert(isTip(tr->start->number, tr->mxtips));  
 
-  relabelInnerNodes(tr->start->back, tr, tr->mxtips + 1, &innerBranches);
+  innerNodeNumber = tr->mxtips + 1;
+
+  relabelInnerNodes(tr->start->back, tr, &innerNodeNumber, &innerBranches);
+
+  //printf("Inner node number: %d\n", innerNodeNumber);
 
   //printf("Inner branches %d\n", innerBranches); 
 
