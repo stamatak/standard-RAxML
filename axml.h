@@ -163,8 +163,8 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "RAxML"
-#define programVersion     "7.7.6"
-#define programDate        "August 29 2013"
+#define programVersion     "7.7.7"
+#define programDate        "August 30 2013"
 
 
 #define  TREE_EVALUATION                 0
@@ -645,6 +645,13 @@ typedef struct
 } lhList;
 
 
+
+typedef struct idlist
+{
+  int value; 
+  struct idlist *next; 
+} IdList;   
+
 typedef struct List_{
   void *value; 			
   struct List_ *next; 
@@ -886,7 +893,7 @@ typedef  struct  {
 
   /* used for printBip */
   boolean *hasAncestor; 
-  List **listOfDirectChildren;
+  IdList **listOfDirectChildren;
   unsigned int bitVectorLength;                 /* we now need this also in sequential mode */
   entry **consensusBips;
   int consensusBipLen;          /* also used in mre */  
@@ -897,12 +904,8 @@ typedef  struct  {
   /* for parallel hash insert */
   pthread_mutex_t** mutexesForHashing; 
 
-
- 
-
 #endif
-
-
+  
   int *origNumSitePerModel;
 
 } tree;

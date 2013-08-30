@@ -7777,12 +7777,9 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 		       issubset(bipA->bitVector, bipB->bitVector, tr->bitVectorLength, firstIndex))
 		      { 
 			/* i is child of j */		    
-			List 
-			  *elem = (List*) rax_malloc(sizeof(List));
-			
-			elem->value = rax_calloc(1, sizeof(int));
-			
-			*(int*)elem->value = i;
+			IdList 
+			  *elem = (IdList*) rax_calloc(1,sizeof(IdList));
+			elem->value = i;
 			
 			pthread_mutex_lock(tr->mutexesForHashing[j]); /* LOCKED */
 			

@@ -3956,18 +3956,18 @@ static void calculateIC(tree *tr, hashtable *h, unsigned int *bitVector, unsigne
 /******* IC function end ***************/
 
 static void printBipsRecursive(tree *tr, FILE *outf, int consensusBipLen, entry **consensusBips, int numberOfTrees, 
-			       int currentBipIdx, List **listOfDirectChildren, int bitVectorLength, int numTips, 
+			       int currentBipIdx, IdList **listOfDirectChildren, int bitVectorLength, int numTips, 
 			       char **nameList, entry *currentBip, boolean *printed, boolean topLevel, unsigned int *printCounter, hashtable 
 			       *h, boolean computeIC, double *tc, double *tcAll, boolean verboseIC)
 {
-  List 
+  IdList 
     *idx; 
   
   int 
     i;
   
   unsigned int 
-    *currentBitVector = (unsigned int*)rax_malloc(bitVectorLength * sizeof(unsigned int));  
+    *currentBitVector = (unsigned int*)rax_calloc(bitVectorLength,  sizeof(unsigned int));  
 
   /* open bip */
   if(*printed)
@@ -3985,7 +3985,7 @@ static void printBipsRecursive(tree *tr, FILE *outf, int consensusBipLen, entry 
       
       while(idx)
 	{
-	  currentBitVector[i] = currentBitVector[i] & ~ consensusBips[*((int*)idx->value)]->bitVector[i]; 
+	  currentBitVector[i] = currentBitVector[i] & ~ consensusBips[idx->value]->bitVector[i]; 
 	  idx = idx->next;
 	}
     }
@@ -4013,8 +4013,8 @@ static void printBipsRecursive(tree *tr, FILE *outf, int consensusBipLen, entry 
 	} 
       
       printBipsRecursive(tr, outf, consensusBipLen, consensusBips, numberOfTrees, 
-			 *((int*)idx->value), listOfDirectChildren, bitVectorLength, numTips, nameList, 
-			 consensusBips[*((int*)idx->value)], printed, FALSE, printCounter, h, computeIC, tc, tcAll, verboseIC);
+			 idx->value, listOfDirectChildren, bitVectorLength, numTips, nameList, 
+			 consensusBips[idx->value], printed, FALSE, printCounter, h, computeIC, tc, tcAll, verboseIC);
       *printed  = TRUE;
       idx = idx->next; 
     }
@@ -4067,8 +4067,8 @@ static void printSortedBips(entry **consensusBips, const int consensusBipLen, co
     tc = 0.0,
     tcAll = 0.0;
 
-  List 
-    **listOfDirectChildren = (List**) rax_calloc(consensusBipLen + 1, sizeof(List*)); /* reserve one more: the last one is the bip with all species */
+  IdList 
+    **listOfDirectChildren = (IdList**) rax_calloc(consensusBipLen + 1, sizeof(IdList*)); /* reserve one more: the last one is the bip with all species */
   
   boolean 
     *hasAncestor = (boolean*) rax_calloc(consensusBipLen, sizeof(boolean)),
@@ -4076,13 +4076,6 @@ static void printSortedBips(entry **consensusBips, const int consensusBipLen, co
   
   entry 
     *topBip; 
-
-#ifndef _USE_PTHREADS
-  List 
-    *elems = (List*)rax_malloc((size_t)consensusBipLen *  sizeof(List));
-  int 
-    *intList = (int*)rax_malloc(sizeof(int) * (size_t)consensusBipLen); 
-#endif 
 
   /* sort the consensusBips by the amount of tips they contain */
   
@@ -4093,7 +4086,7 @@ static void printSortedBips(entry **consensusBips, const int consensusBipLen, co
 
   /* create an artificial entry for the top */
   topBip = (entry *)rax_malloc(sizeof(entry));
-  topBip->bitVector = rax_malloc(sizeof(unsigned int) * vectorLen);  
+  topBip->bitVector = rax_calloc(sizeof(unsigned int), vectorLen);  
   
   for(i = 1; i < numTips ; i++)
     topBip->bitVector[i / MASK_LENGTH] |= mask32[i % MASK_LENGTH];  
@@ -4134,8 +4127,7 @@ static void printSortedBips(entry **consensusBips, const int consensusBipLen, co
 #else 
   {
     int 
-      j,
-      highestId = 0; 
+      j; 
 
     for(i = 0; i < consensusBipLen; i++)
       {
@@ -4154,21 +4146,10 @@ static void printSortedBips(entry **consensusBips, const int consensusBipLen, co
 	    if((unsigned int)consensusBips[i]->amountTips < (unsigned int)consensusBips[j]->amountTips
 	       && issubset(consensusBips[i]->bitVector, consensusBips[j]->bitVector, vectorLen, firstIndex))
 	      { 	      
-		List 
-		  *elem = &(elems[highestId]); 
-		
-		int 
-		  *nmbr = &(intList[highestId]); 
-		
-		highestId++; 
-		
-		elem->value = rax_calloc(1, sizeof(int));
-		
-		*nmbr = i; 
-		elem->value = nmbr; 
-		elem->next = (listOfDirectChildren[j])
-		  ?listOfDirectChildren[j]
-		  :NULL;
+		IdList
+		  *elem = (IdList*) rax_calloc(1,sizeof(IdList)); 
+		elem->value = i; 
+		elem->next = listOfDirectChildren[j];
 		listOfDirectChildren[j] = elem;
 		hasAncestor[i] = TRUE;
 		break;
@@ -4186,13 +4167,10 @@ static void printSortedBips(entry **consensusBips, const int consensusBipLen, co
   for(i = 0; i < consensusBipLen; i++)
     if( ! hasAncestor[i])
       {
-	List *elem  = (List*) rax_malloc(sizeof(List));
-	/* elem->value = &i;  */
-	elem->value = rax_calloc(1, sizeof(int)); /* TODO omg this needs refactoring... */
-	*(int*)elem->value = i;
-	elem->next = (listOfDirectChildren[consensusBipLen]) 
-	  ? listOfDirectChildren[consensusBipLen]
-	  : NULL;
+	IdList
+	  *elem  = rax_calloc(1,sizeof(IdList)); 
+	elem->value = i; 
+	elem->next = listOfDirectChildren[consensusBipLen];  
 	listOfDirectChildren[consensusBipLen] = elem;       
       }
   
@@ -4226,49 +4204,21 @@ static void printSortedBips(entry **consensusBips, const int consensusBipLen, co
   rax_free(topBip);
   rax_free(printed);
   rax_free(hasAncestor);
-  
-  // TODO: Andre please fix this!
 
-  /* for(i = 0; i < consensusBipLen + 1; i++)
-    { 
-      List 
-	*ptr = listOfDirectChildren[i];
+  for( i = 0; i < consensusBipLen + 1; ++i)
+    {
+      IdList
+	*iter = listOfDirectChildren[i]; 
       
-      while(ptr != NULL)
+      while(iter != NULL)
 	{
-	  List 
-	    *n = ptr->next;
-	  //rax_free(ptr->value);
-	  rax_free(ptr);
-	  ptr = n;
-	} 
+	  IdList *nxt = iter->next; 
+	  rax_free(iter); 
+	  iter = nxt; 
+	}
     }
-  */
-
+  
   rax_free(listOfDirectChildren);
-
-#ifndef _USE_PTHREADS
-  rax_free(elems);
-  rax_free(intList);
-#endif
-
-
-  /* here is a bug, when I try to rax_free the memory on the veryBig (55K)
-     dataset. When rax_freeing the toplevel bips
-     (listOfDirectChildren[consensusBipLen]), he complains of sth like
-     a double rax_free. At this point the value of ptr is not 0, however
-     the memory cannot be accessed. Also got a "bus error" instead of
-     the described error here. This is very strange, I already have
-     accessed the stuff I try to rax_free.   */
-  /* for(i = 0; i < consensusBipLen+1; i++) */
-  /*   { */
-  /*     list *ptr = listOfDirectChildren[i]; */
-  /*     while(ptr){ */
-  /* 	list *n = ptr->next; */
-  /* 	/\* rax_free(ptr);		/\\* TODO pthreads: last one  *\\/ *\/ */
-  /* 	ptr = n; */
-  /*     } */
-  /*   } */
 }
 
 
