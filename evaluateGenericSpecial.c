@@ -2794,6 +2794,8 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 	  else
 	    z = pz[0];
 
+	  //printf("branch %f\n", z);
+
 	  if(writeVector)
 	    {	     	      
 	      switch(tr->rateHetModel)
@@ -3145,6 +3147,8 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 
 	  if(width > 0)
 	    {
+	      //printf("%d %f\n", model, partitionLikelihood);
+
 	      assert(partitionLikelihood < 0.0);
 	  
 	      if(tr->useFastScaling)		    	      		      
