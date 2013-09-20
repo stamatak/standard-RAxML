@@ -4244,7 +4244,7 @@ static void setupSecondaryStructureSymmetries(tree *tr)
 	      break;
 	      
 	    case SEC_16:
-	      tr->partitionData[1].nonGTR = FALSE;
+	      tr->partitionData[model].nonGTR = FALSE;
 	      break;
 	    case SEC_16_A:
 	      {

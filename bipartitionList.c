@@ -1766,8 +1766,8 @@ void calcBipartitions_IC(tree *tr, analdef *adef, char *bestTreeFileName, char *
 
   rtcAll = tcAll / (double)(tr->mxtips - 3);
 
-  printBothOpen("Tree certainty including all conflicting bipartitions (TC-All) for this tree: %f\n", tcAll);
-  printBothOpen("Relative tree certainty including all conflicting bipartitions (TC-All) for this tree: %f\n\n", rtcAll);
+  printBothOpen("Tree certainty including all conflicting bipartitions (TCA) for this tree: %f\n", tcAll);
+  printBothOpen("Relative tree certainty including all conflicting bipartitions (TCA) for this tree: %f\n\n", rtcAll);
 
   if(adef->verboseIC)
     printBothOpen("Verbose PHYLIP-style formatted bipartition information written to file: %s\n\n",  verboseSplitsFileName);
@@ -4196,8 +4196,8 @@ static void printSortedBips(entry **consensusBips, const int consensusBipLen, co
 	 
       printBothOpen("Relative tree certainty for this tree: %f\n\n", rtc);
 
-      printBothOpen("Tree certainty including all conflicting bipartitions (TC-All) for this tree: %f\n", tcAll);
-      printBothOpen("Relative tree certainty including all conflicting bipartitions (TC-All) for this tree: %f\n\n", rtcAll);
+      printBothOpen("Tree certainty including all conflicting bipartitions (TCA) for this tree: %f\n", tcAll);
+      printBothOpen("Relative tree certainty including all conflicting bipartitions (TCA) for this tree: %f\n\n", rtcAll);
     }
 
   rax_free(topBip->bitVector);
