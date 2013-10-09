@@ -167,89 +167,98 @@ static void genericBaseFrequencies(tree *tr, const int numFreqs, rawdata *rdta, 
 
   unsigned char  *yptr;  
 	  
-  for(l = 0; l < numFreqs; l++)	    
-    pfreqs[l] = 1.0 / ((double)numFreqs);
-	  
-  for (k = 1; k <= 8; k++) 
-    {	     	   	    	      			
-      for(l = 0; l < numFreqs; l++)
-	sumf[l] = 0.0;
-	      
-      for (i = 0; i < rdta->numsp; i++) 
-	{		 
-	  yptr =  &(rdta->y0[((size_t)i) * ((size_t)tr->originalCrunchedLength)]);
-	  
-	  for(j = lower; j < upper; j++) 
-	    {
-	      unsigned int code = bitMask[yptr[j]];
-	      assert(code >= 1);
-	      
-	      for(l = 0; l < numFreqs; l++)
-		{
-		  if((code >> l) & 1)
-		    temp[l] = pfreqs[l];
-		  else
-		    temp[l] = 0.0;
-		}		      	      
-	      
-	      for(l = 0, acc = 0.0; l < numFreqs; l++)
-		{
-		  if(temp[l] != 0.0)
-		    acc += temp[l];
-		}
-	      
-	      wj = ((double)cdta->aliaswgt[j]) / acc;
-	      
-	      for(l = 0; l < numFreqs; l++)
-		{
-		  if(temp[l] != 0.0)		    
-		    sumf[l] += wj * temp[l];			     				   			     		   
-		}
-	    }
-	}	    	      
-      
-      for(l = 0, acc = 0.0; l < numFreqs; l++)
-	{
-	  if(sumf[l] != 0.0)
-	    acc += sumf[l];
-	}
-	      
-      for(l = 0; l < numFreqs; l++)
-	pfreqs[l] = sumf[l] / acc;	     
+
+  if(tr->partitionData[model].optimizeBaseFrequencies)
+    {   
+      for(l = 0; l < numFreqs; l++)	    
+	tr->partitionData[model].frequencies[l] = 1.0 / ((double)numFreqs);
     }
-  
-  if(smoothFrequencies)         
-    smoothFreqs(numFreqs, pfreqs,  tr->partitionData[model].frequencies, &(tr->partitionData[model]));	   
-  else    
+  else
     {
-      boolean 
-	zeroFreq = FALSE;
-
-      char 
-	typeOfData[1024];
-
-      getDataTypeString(tr, model, typeOfData);  
-
-      for(l = 0; l < numFreqs; l++)
-	{
-	  if(pfreqs[l] == 0.0)
+      
+      for(l = 0; l < numFreqs; l++)	    
+	pfreqs[l] = 1.0 / ((double)numFreqs);
+      
+      for (k = 1; k <= 8; k++) 
+	{	     	   	    	      			
+	  for(l = 0; l < numFreqs; l++)
+	    sumf[l] = 0.0;
+	  
+	  for (i = 0; i < rdta->numsp; i++) 
+	    {		 
+	      yptr =  &(rdta->y0[((size_t)i) * ((size_t)tr->originalCrunchedLength)]);
+	      
+	      for(j = lower; j < upper; j++) 
+		{
+		  unsigned int code = bitMask[yptr[j]];
+		  assert(code >= 1);
+		  
+		  for(l = 0; l < numFreqs; l++)
+		    {
+		      if((code >> l) & 1)
+			temp[l] = pfreqs[l];
+		      else
+			temp[l] = 0.0;
+		    }		      	      
+		  
+		  for(l = 0, acc = 0.0; l < numFreqs; l++)
+		    {
+		      if(temp[l] != 0.0)
+			acc += temp[l];
+		    }
+		  
+		  wj = ((double)cdta->aliaswgt[j]) / acc;
+		  
+		  for(l = 0; l < numFreqs; l++)
+		    {
+		      if(temp[l] != 0.0)		    
+			sumf[l] += wj * temp[l];			     				   			     		   
+		    }
+		}
+	    }	    	      
+	  
+	  for(l = 0, acc = 0.0; l < numFreqs; l++)
 	    {
-	      printBothOpen("Empirical base frequency for state number %d is equal to zero in %s data partition %s\n", l, typeOfData, tr->partitionData[model].partitionName);
-	      printBothOpen("Since this is probably not what you want to do, RAxML will soon exit.\n\n");
-	      zeroFreq = TRUE;
+	      if(sumf[l] != 0.0)
+		acc += sumf[l];
 	    }
+	  
+	  for(l = 0; l < numFreqs; l++)
+	    pfreqs[l] = sumf[l] / acc;	     
 	}
-
-      if(zeroFreq)
-	exit(-1);
-
-      for(l = 0; l < numFreqs; l++)
+      
+      if(smoothFrequencies)         
+	smoothFreqs(numFreqs, pfreqs,  tr->partitionData[model].frequencies, &(tr->partitionData[model]));	   
+      else    
 	{
-	  assert(pfreqs[l] > 0.0);
-	  tr->partitionData[model].frequencies[l] = pfreqs[l];
-	}     
-    }  
- 
+	  boolean 
+	    zeroFreq = FALSE;
+	  
+	  char 
+	    typeOfData[1024];
+	  
+	  getDataTypeString(tr, model, typeOfData);  
+	  
+	  for(l = 0; l < numFreqs; l++)
+	    {
+	      if(pfreqs[l] == 0.0)
+		{
+		  printBothOpen("Empirical base frequency for state number %d is equal to zero in %s data partition %s\n", l, typeOfData, tr->partitionData[model].partitionName);
+		  printBothOpen("Since this is probably not what you want to do, RAxML will soon exit.\n\n");
+		  zeroFreq = TRUE;
+		}
+	    }
+	  
+	  if(zeroFreq)
+	    exit(-1);
+	  
+	  for(l = 0; l < numFreqs; l++)
+	    {
+	      assert(pfreqs[l] > 0.0);
+	      tr->partitionData[model].frequencies[l] = pfreqs[l];
+	    }     
+	}  
+    }
 }
 
 
@@ -279,7 +288,7 @@ static void baseFrequenciesGTR(rawdata *rdta, cruncheddata *cdta, tree *tr)
 	  switch(tr->multiStateModel)
 	    {
 	    case ORDERED_MULTI_STATE:
-	    case MK_MULTI_STATE:	   
+	    case MK_MULTI_STATE:	      
 	      {	       
 		int i;
 		double 
@@ -3628,7 +3637,10 @@ void initReversibleGTR(tree *tr, int model)
 		 tipVector, 
 		 model);
      break;   
-   case AA_DATA:
+   case AA_DATA: 
+
+     assert(!(tr->partitionData[model].usePredefinedProtFreqs && tr->partitionData[model].optimizeBaseFrequencies));
+     
      if(!((tr->partitionData[model].protModels == GTR) || (tr->partitionData[model].protModels == GTR_UNLINKED)))
        {
 	 double 
@@ -3642,15 +3654,23 @@ void initReversibleGTR(tree *tr, int model)
 	     int 
 	       i;
 	    
+	     //don't allow base freq opt for LG4 and LG4X models!
+
+	     //assert(!tr->partitionData[model].optimizeBaseFrequencies);
+
 	     for(i = 0; i < 4; i++)
 	       {	
 		 initProtMat(f, tr->partitionData[model].protModels, &(tr->partitionData[model].substRates_LG4[i][0]), model, tr, i);
 		 
-		 if(tr->partitionData[model].usePredefinedProtFreqs == TRUE)	       	  	  
-		   for(l = 0; l < 20; l++)		
-		     tr->partitionData[model].frequencies_LG4[i][l] = f[l];
+		 if(tr->partitionData[model].usePredefinedProtFreqs == TRUE)
+		   {
+		     for(l = 0; l < 20; l++)		
+		       tr->partitionData[model].frequencies_LG4[i][l] = f[l];
+		   }
 		 else
-		   memcpy(tr->partitionData[model].frequencies_LG4[i], frequencies, 20 * sizeof(double));
+		   {		    
+		     memcpy(tr->partitionData[model].frequencies_LG4[i], frequencies, 20 * sizeof(double));
+		   }
 	       }
 	   }
 	 else
@@ -3666,13 +3686,44 @@ void initReversibleGTR(tree *tr, int model)
 	     if(tr->partitionData[model].protModels == PROT_FILE)
 	       assert(tr->partitionData[model].usePredefinedProtFreqs == TRUE);  
 	     
-	     if(tr->partitionData[model].usePredefinedProtFreqs == TRUE)	       	  	  
-	       for(l = 0; l < 20; l++)		
-		 frequencies[l] = f[l];
-	   }		   
-       }  
-     else          
-       assert(tr->partitionData[model].usePredefinedProtFreqs == FALSE);
+	     if(tr->partitionData[model].usePredefinedProtFreqs == TRUE)
+	       {
+		 for(l = 0; l < 20; l++)		
+		   frequencies[l] = f[l];
+	       }
+	     else
+	       {
+		 //nothing to do here, the base freqs have already been initialized or optimized
+		 //don't overwrite them!
+		 
+		 /*
+		   if(tr->partitionData[model].optimizeBaseFrequencies)
+		   {
+		   for(l = 0; l < 20; l++)		
+		   frequencies[l] = 1.0 / 20.0;
+		   }
+		 */
+	       }
+	     
+	   }	   
+       }
+     else 
+       {
+	 assert(tr->partitionData[model].usePredefinedProtFreqs == FALSE);
+
+	 //nothing to do here, the base freqs have already been initialized or optimized
+	 //don't overwrite them!
+
+	 /*
+	   if(tr->partitionData[model].optimizeBaseFrequencies)
+	   {
+	   int l;
+	   
+	   for(l = 0; l < 20; l++)		
+	   frequencies[l] = 1.0 / 20.0;
+	   }
+	 */
+       }
 
      if(tr->partitionData[model].protModels == LG4 || tr->partitionData[model].protModels == LG4X)
        {
@@ -3682,9 +3733,7 @@ void initReversibleGTR(tree *tr, int model)
 	 double 
 	   *fracchanges_LG4[4],
 	   acc = 0.0;
-
-	 /* TODO frac change !*/
-
+	
 	 for(i = 0; i < 4; i++)
 	   {
 	     fracchanges_LG4[i]  = (double *)rax_malloc(tr->NumberOfModels * sizeof(double));
@@ -4386,6 +4435,9 @@ void initModel(tree *tr, rawdata *rdta, cruncheddata *cdta, analdef *adef)
 
   for(model = 0; model < tr->NumberOfModels; model++)
     {
+      int 
+	k;
+
       tr->partitionData[model].alpha = 1.0;                
       tr->partitionData[model].brLenScaler = 1.0;
 
@@ -4394,6 +4446,9 @@ void initModel(tree *tr, rawdata *rdta, cruncheddata *cdta, analdef *adef)
 
       initReversibleGTR(tr, model);               
       makeGammaCats(tr->partitionData[model].alpha, tr->partitionData[model].gammaRates, 4, tr->useGammaMedian); 
+
+      for(k = 0; k < tr->partitionData[model].states; k++)
+	tr->partitionData[model].freqExponents[k] = 0.0;
 
       for(j = 0; j < 4; j++)
 	{

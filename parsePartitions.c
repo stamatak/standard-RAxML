@@ -224,62 +224,102 @@ static void analyzeIdentifier(char **ch, int modelNumber, tree *tr)
 		  found = TRUE;
 		}
 	      
-
-	      if(i != GTR && i != GTR_UNLINKED)
+	      if(!found)
 		{
+		  if(i != GTR && i != GTR_UNLINKED)
+		    {
+		      strcpy(thisModel, protModels[i]);
+		      strcat(thisModel, "F");
+		      
+		      if(strcasecmp(model, thisModel) == 0)
+			{	      
+			  tr->initialPartitionData[modelNumber].protModels = i;		  
+			  tr->initialPartitionData[modelNumber].usePredefinedProtFreqs  = FALSE;
+			  tr->initialPartitionData[modelNumber].dataType   = AA_DATA;		     
+			  found = TRUE;
+			}
+		    }
+		}
+	      
+	      
+	      if(!found)
+		{		  
 		  strcpy(thisModel, protModels[i]);
-		  strcat(thisModel, "F");
-		  
+		  strcat(thisModel, "X");
+		      
 		  if(strcasecmp(model, thisModel) == 0)
 		    {	      
 		      tr->initialPartitionData[modelNumber].protModels = i;		  
 		      tr->initialPartitionData[modelNumber].usePredefinedProtFreqs  = FALSE;
 		      tr->initialPartitionData[modelNumber].dataType   = AA_DATA;		     
+		      tr->initialPartitionData[modelNumber].optimizeBaseFrequencies = TRUE;
 		      found = TRUE;
-		    }
+		    }		
 		}
 	      
+
 	      if(found && (tr->initialPartitionData[modelNumber].protModels == GTR || tr->initialPartitionData[modelNumber].protModels == GTR_UNLINKED))
 		tr->initialPartitionData[modelNumber].usePredefinedProtFreqs  = FALSE;		    		
 	    }
 	  
 	  if(!found)
 	    {		  	  
-	      if(strcasecmp(model, "DNA") == 0)
+	      if(strcasecmp(model, "DNA") == 0 || strcasecmp(model, "DNAX") == 0)
 		{	     	      
 		  tr->initialPartitionData[modelNumber].protModels = -1;		  
 		  tr->initialPartitionData[modelNumber].usePredefinedProtFreqs  = FALSE;
 		  tr->initialPartitionData[modelNumber].dataType   = DNA_DATA;
+
+		  if(strcasecmp(model, "DNAX") == 0)
+		    tr->initialPartitionData[modelNumber].optimizeBaseFrequencies = TRUE;
+		  else
+		    tr->initialPartitionData[modelNumber].optimizeBaseFrequencies = FALSE;
 		  
 		  found = TRUE;
 		}	  
 	      else
 		{	    	  
-		  if(strcasecmp(model, "BIN") == 0)
+		  if(strcasecmp(model, "BIN") == 0 || strcasecmp(model, "BINX") == 0)
 		    {	     	      
 		      tr->initialPartitionData[modelNumber].protModels = -1;		  
 		      tr->initialPartitionData[modelNumber].usePredefinedProtFreqs  = FALSE;
 		      tr->initialPartitionData[modelNumber].dataType   = BINARY_DATA;
+
+		      if(strcasecmp(model, "BINX") == 0)
+			tr->initialPartitionData[modelNumber].optimizeBaseFrequencies = TRUE;
+		      else
+			tr->initialPartitionData[modelNumber].optimizeBaseFrequencies = FALSE;
 		      
 		      found = TRUE;
 		    }
 		  else
 		    {
-		      if(strcasecmp(model, "MULTI") == 0)
+		      if(strcasecmp(model, "MULTI") == 0 || strcasecmp(model, "MULTIX") == 0)
 			{	     	      
 			  tr->initialPartitionData[modelNumber].protModels = -1;		  
 			  tr->initialPartitionData[modelNumber].usePredefinedProtFreqs  = FALSE;
 			  tr->initialPartitionData[modelNumber].dataType   = GENERIC_32;
+
+			  if(strcasecmp(model, "MULTIX") == 0)
+			    tr->initialPartitionData[modelNumber].optimizeBaseFrequencies = TRUE;
+			  else
+			    tr->initialPartitionData[modelNumber].optimizeBaseFrequencies = FALSE;
 			  
 			  found = TRUE;
 			}
 		      else
 			{
-			  if(strcasecmp(model, "CODON") == 0)
+			  if(strcasecmp(model, "CODON") == 0 || strcasecmp(model, "CODONX") == 0)
 			    {	     	      
 			      tr->initialPartitionData[modelNumber].protModels = -1;		  
 			      tr->initialPartitionData[modelNumber].usePredefinedProtFreqs  = FALSE;
 			      tr->initialPartitionData[modelNumber].dataType   = GENERIC_64;
+
+			      
+			      if(strcasecmp(model, "CODONX") == 0)
+				tr->initialPartitionData[modelNumber].optimizeBaseFrequencies = TRUE;
+			      else
+				tr->initialPartitionData[modelNumber].optimizeBaseFrequencies = FALSE;
 			      
 			      found = TRUE;
 			    }
@@ -427,6 +467,7 @@ void parsePartitions(analdef *adef, rawdata *rdta, tree *tr)
     {     
       tr->initialPartitionData[i].protModels = adef->proteinMatrix;
       tr->initialPartitionData[i].usePredefinedProtFreqs  = adef->protEmpiricalFreqs;
+      tr->initialPartitionData[i].optimizeBaseFrequencies = FALSE;
       tr->initialPartitionData[i].dataType   = -1;
     }
 
@@ -931,22 +972,38 @@ void handleExcludeFile(tree *tr, analdef *adef, rawdata *rdta)
 		    
 		    strcpy(AAmodel, protModels[tr->partitionData[i].protModels]);
 		    if(tr->partitionData[i].usePredefinedProtFreqs == FALSE)
-		      strcat(AAmodel, "F");		  
+		      strcat(AAmodel, "F");
+		    if(tr->partitionData[i].optimizeBaseFrequencies)
+		      strcat(AAmodel, "X");
+
+		    assert(!(tr->partitionData[i].optimizeBaseFrequencies && tr->partitionData[i].usePredefinedProtFreqs));
 		    
 		    fprintf(newFile, "%s, ", AAmodel);
 		  }
 		  break;
 		case DNA_DATA:
-		  fprintf(newFile, "DNA, ");
+		  if(tr->partitionData[i].optimizeBaseFrequencies)
+		    fprintf(newFile, "DNAX, ");
+		  else
+		    fprintf(newFile, "DNA, ");
 		  break;
 		case BINARY_DATA:
-		  fprintf(newFile, "BIN, ");
+		  if(tr->partitionData[i].optimizeBaseFrequencies)
+		    fprintf(newFile, "BINX, ");
+		  else
+		    fprintf(newFile, "BIN, ");
 		  break;
 		case GENERIC_32:
-		  fprintf(newFile, "MULTI, ");
+		  if(tr->partitionData[i].optimizeBaseFrequencies)
+		    fprintf(newFile, "MULTIX, ");
+		  else
+		    fprintf(newFile, "MULTI, ");
 		  break;
 		case GENERIC_64:
-		  fprintf(newFile, "CODON, ");
+		  if(tr->partitionData[i].optimizeBaseFrequencies)
+		    fprintf(newFile, "CODONX, ");
+		  else
+		    fprintf(newFile, "CODON, ");
 		  break;
 		default:
 		  assert(0);
@@ -1300,8 +1357,9 @@ void parseSecondaryStructure(tree *tr, analdef *adef, int sites)
 	      strcpy(partBuffer[i].partitionName, tr->extendedPartitionData[i].partitionName);
 	      strcpy(partBuffer[i].proteinSubstitutionFileName, tr->extendedPartitionData[i].proteinSubstitutionFileName);
 	      partBuffer[i].dataType =  tr->extendedPartitionData[i].dataType;
-	      partBuffer[i].protModels=  tr->extendedPartitionData[i].protModels;
-	      partBuffer[i].usePredefinedProtFreqs=  tr->extendedPartitionData[i].usePredefinedProtFreqs;	      
+	      partBuffer[i].protModels =  tr->extendedPartitionData[i].protModels;
+	      partBuffer[i].usePredefinedProtFreqs =  tr->extendedPartitionData[i].usePredefinedProtFreqs;	      
+	      partBuffer[i].optimizeBaseFrequencies =  tr->extendedPartitionData[i].optimizeBaseFrequencies;
 	    }
 
 	  for(i = 0; i < tr->NumberOfModels; i++)
@@ -1317,7 +1375,8 @@ void parseSecondaryStructure(tree *tr, analdef *adef, int sites)
 	      strcpy(tr->extendedPartitionData[i].proteinSubstitutionFileName, partBuffer[i].proteinSubstitutionFileName);
 	      tr->extendedPartitionData[i].dataType =  partBuffer[i].dataType;
 	      tr->extendedPartitionData[i].protModels= partBuffer[i].protModels;
-	      tr->extendedPartitionData[i].usePredefinedProtFreqs=  partBuffer[i].usePredefinedProtFreqs;	      
+	      tr->extendedPartitionData[i].usePredefinedProtFreqs=  partBuffer[i].usePredefinedProtFreqs;
+	      tr->extendedPartitionData[i].optimizeBaseFrequencies =  partBuffer[i].optimizeBaseFrequencies;
 	      rax_free(partBuffer[i].partitionName);
 	    }
 	  rax_free(partBuffer);
@@ -1361,7 +1420,7 @@ void parseSecondaryStructure(tree *tr, analdef *adef, int sites)
 	    }
 
 	  tr->extendedPartitionData[i].protModels= -1;
-	  tr->extendedPartitionData[i].usePredefinedProtFreqs=  FALSE;	 
+	  tr->extendedPartitionData[i].usePredefinedProtFreqs =  FALSE;	 
 
 	  tr->NumberOfModels++;	 
 	  

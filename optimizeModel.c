@@ -69,12 +69,13 @@ extern volatile double          *reductionBuffer;
 /* TODO remove at some point */
 #define _DEBUG_MODEL_OPTIMIZATION 
 
-#define ALPHA_F 0
-#define INVAR_F 1
-#define RATE_F  2
-#define SCALER_F 3
-#define LXRATE_F 4
+#define ALPHA_F    0
+#define INVAR_F    1
+#define RATE_F     2
+#define SCALER_F   3
+#define LXRATE_F   4
 #define LXWEIGHT_F 5
+#define FREQ_F     6
 
 
 static void brentGeneric(double *ax, double *bx, double *cx, double *fb, double tol, double *xmin, double *result, int numberOfModels, 
@@ -293,11 +294,11 @@ static void changeModelParameters(int index, int rateNumber, double value, int w
       break;
     case LXWEIGHT_F:
       updateWeights(tr, index, rateNumber, value);
-      break;
-	
-      /*case FREQ_F:
+      break;	
+    case FREQ_F:
       {
-	int 
+	int
+	  states = tr->partitionData[index].states,
 	  j;
 
 	double 
@@ -305,15 +306,21 @@ static void changeModelParameters(int index, int rateNumber, double value, int w
 
 	tr->partitionData[index].freqExponents[rateNumber] = value;
 
-	for(j = 0; j < 4; j++)
+	for(j = 0; j < states; j++)
 	  w += exp(tr->partitionData[index].freqExponents[j]);
 
-	for(j = 0; j < 4; j++)	    	    
+	for(j = 0; j < states; j++)	    	    
 	  tr->partitionData[index].frequencies[j] = exp(tr->partitionData[index].freqExponents[j]) / w;
 	
+	/*
+	  for(j = 0; j < states; j++)
+	  printf("%f ", tr->partitionData[index].frequencies[j]);
+	  printf("\n");
+	*/
+
 	initReversibleGTR(tr, index);
       }
-      break;*/
+      break;
     default:
       assert(0);
     }
@@ -454,6 +461,8 @@ static void evaluateChange(tree *tr, int rateNumber, double *value, double *resu
     case LXWEIGHT_F:
       assert(rateNumber != -1);
       break;
+    case FREQ_F:
+      break;
     default:
       assert(0);
     }	
@@ -483,6 +492,9 @@ static void evaluateChange(tree *tr, int rateNumber, double *value, double *resu
     case LXWEIGHT_F:
       masterBarrier(THREAD_OPT_LG4X_RATES, tr);
       break;
+    case FREQ_F:
+      masterBarrier(THREAD_OPT_RATE, tr);
+      break;
     default:
       assert(0);
     }	
@@ -510,8 +522,10 @@ static void evaluateChange(tree *tr, int rateNumber, double *value, double *resu
     case RATE_F:
     case ALPHA_F:
     case SCALER_F:
-    case LXRATE_F:    
-      evaluateGenericInitrav(tr, tr->start);  
+    case LXRATE_F: 
+    case FREQ_F:
+      evaluateGenericInitrav(tr, tr->start);
+      //printf("%f \n", tr->likelihood);
       break;
     case LXWEIGHT_F:
     case INVAR_F:
@@ -521,6 +535,8 @@ static void evaluateChange(tree *tr, int rateNumber, double *value, double *resu
       assert(0);
     }
 #endif
+
+ 
 
   //nested optimization for LX4 model, now optimize the weights!
 
@@ -1227,9 +1243,9 @@ static void optParamGeneric(tree *tr, double modelEpsilon, linkageList *ll, int 
 		  memcpy(&startExponents[pos * 4], tr->partitionData[index].weightExponents, 4 * sizeof(double));
 		  memcpy(&startWeights[pos * 4], tr->partitionData[index].weights,    4 * sizeof(double));
 		  break;
-		  /*case FREQ_F:
+		case FREQ_F:
 		  startValues[pos] = tr->partitionData[index].freqExponents[rateNumber];
-		  break;*/
+		  break;
 		default:
 		  assert(0);
 		}
@@ -1283,6 +1299,7 @@ static void optParamGeneric(tree *tr, double modelEpsilon, linkageList *ll, int 
 	{ 
 	  if(startLH[pos] > endLH[pos])
 	    {
+	      //printf("revert\n");
 	      //if the initial likelihood was better than the likelihodo after optimization, we set the values back 
 	      //to their original values 
 
@@ -1303,6 +1320,8 @@ static void optParamGeneric(tree *tr, double modelEpsilon, linkageList *ll, int 
 	    }
 	  else
 	    {
+	      //	      printf("accept\n");
+
 	      //otherwise we set the value to the optimized value 
 	      //this used to be a bug in standard RAxML, before I fixed it 
 	      //I was not using _x[pos] as value that needs to be set 
@@ -1322,6 +1341,7 @@ static void optParamGeneric(tree *tr, double modelEpsilon, linkageList *ll, int 
 #ifdef _USE_PTHREADS
   switch(whichParameterType)
     {
+    case FREQ_F:
     case RATE_F:      
       masterBarrier(THREAD_COPY_RATES, tr);
       break;
@@ -1351,11 +1371,12 @@ static void optParamGeneric(tree *tr, double modelEpsilon, linkageList *ll, int 
     case ALPHA_F:       
     case INVAR_F:     
       break;
-    case SCALER_F:     
+    case SCALER_F:       
       evaluateGenericInitrav(tr, tr->start);
       break;
     case LXRATE_F:
-    case LXWEIGHT_F:
+    case LXWEIGHT_F: 
+    case FREQ_F:  
       break;
     default:
       assert(0);
@@ -1388,6 +1409,88 @@ static void optParamGeneric(tree *tr, double modelEpsilon, linkageList *ll, int 
 #endif
 
 }
+
+
+static void optFreqs(tree *tr, double modelEpsilon, linkageList *ll, int numberOfModels, int states)
+{ 
+  int 
+    rateNumber;
+
+  double
+    freqMin = -1000000.0,
+    freqMax = 200.0;
+  
+  for(rateNumber = 0; rateNumber < states; rateNumber++)   
+    optParamGeneric(tr, modelEpsilon, ll, numberOfModels, rateNumber, freqMin, freqMax, FREQ_F);   
+}
+
+static void optBaseFreqs(tree *tr, double modelEpsilon, linkageList *ll)
+{
+  int 
+    i,
+    states,
+    dnaPartitions = 0,
+    aaPartitions  = 0;
+
+  /* first do DNA */
+
+  for(i = 0; i < ll->entries; i++)
+    {
+      switch(tr->partitionData[ll->ld[i].partitionList[0]].dataType)
+	{
+	case DNA_DATA:	
+	  states = tr->partitionData[ll->ld[i].partitionList[0]].states;	 
+	  if(tr->partitionData[ll->ld[i].partitionList[0]].optimizeBaseFrequencies)
+	    {
+	      ll->ld[i].valid = TRUE;
+	      dnaPartitions++;  	    
+	    }
+	  else
+	     ll->ld[i].valid = FALSE;
+	  break;       
+	case AA_DATA:
+	  ll->ld[i].valid = FALSE;
+	  break;
+	default:
+	  assert(0);
+	}      
+    }   
+
+  if(dnaPartitions > 0)
+    optFreqs(tr, modelEpsilon, ll, dnaPartitions, states);
+  
+  /* then AA */
+
+  
+  for(i = 0; i < ll->entries; i++)
+    {
+      switch(tr->partitionData[ll->ld[i].partitionList[0]].dataType)
+	{
+	case AA_DATA:	  
+	  states = tr->partitionData[ll->ld[i].partitionList[0]].states; 	      
+	  if(tr->partitionData[ll->ld[i].partitionList[0]].optimizeBaseFrequencies)
+	    {
+	      ll->ld[i].valid = TRUE;
+	      aaPartitions++;		
+	    }
+	  else
+	    ll->ld[i].valid = FALSE; 
+	  break;
+	case DNA_DATA:	    
+	  ll->ld[i].valid = FALSE;
+	  break;
+	default:
+	  assert(0);
+	}	 
+    }
+
+  if(aaPartitions > 0)      
+    optFreqs(tr, modelEpsilon, ll, aaPartitions, states);
+
+  for(i = 0; i < ll->entries; i++)
+    ll->ld[i].valid = TRUE;
+}
+
 
 
 static void optRates(tree *tr, double modelEpsilon, linkageList *ll, int numberOfModels, int states)
@@ -2802,7 +2905,8 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
     *alphaList,
     *invarList,
     *rateList,
-    *scalerList; 
+    *scalerList,
+    *freqList; 
   /*
     int linkedAlpha[4] = {0, 0, 0, 0};   
     int linkedInvar[4] = {0, 0, 0, 0}; 
@@ -2827,6 +2931,7 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
   invarList = initLinkageList(unlinked, tr);
   rateList  = initLinkageListGTR(tr);
   scalerList = initLinkageList(unlinked, tr);
+  freqList = initLinkageList(unlinked, tr);
     
   if(!(adef->mode == CLASSIFY_ML))
     tr->start = tr->nodep[1];
@@ -2912,6 +3017,19 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
       evaluateGenericInitrav(tr, tr->start); 
       printf("after br-len 1 %1.40f\n", tr->likelihood);
 #endif
+
+      evaluateGenericInitrav(tr, tr->start);
+
+      optBaseFreqs(tr, modelEpsilon, freqList);
+      
+      evaluateGenericInitrav(tr, tr->start);
+      
+      treeEvaluate(tr, 0.0625);
+
+#ifdef _DEBUG_MOD_OPT
+      evaluateGenericInitrav(tr, tr->start); 
+      printf("after optBaseFreqs 1 %f\n", tr->likelihood);
+#endif 
 
       switch(tr->rateHetModel)
 	{	  

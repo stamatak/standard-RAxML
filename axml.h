@@ -163,8 +163,8 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "RAxML"
-#define programVersion     "7.7.8"
-#define programDate        "Sept 6 2013"
+#define programVersion     "7.7.9"
+#define programDate        "Oct 9 2013"
 
 
 #define  TREE_EVALUATION                 0
@@ -553,6 +553,7 @@ typedef struct {
   int     autoProtModels;
   boolean usePredefinedProtFreqs;
   int     mxtips;
+  boolean optimizeBaseFrequencies;
   int     numberOfCategories;
   int             **expVector;
   double          **xVector;
@@ -595,6 +596,7 @@ typedef struct {
   /* LG4 */
 
   double *frequencies;
+  double *freqExponents;
   double *tipVector;
  
   double *substRates;
@@ -1034,6 +1036,7 @@ typedef  struct {
   boolean       calculateIC;
   boolean       verboseIC;
   boolean       stepwiseAdditionOnly;
+  boolean       optimizeBaseFrequencies;
 } analdef;
 
 

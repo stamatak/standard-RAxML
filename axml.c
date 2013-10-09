@@ -236,6 +236,7 @@ partitionLengths *getPartitionLengths(pInfo *p)
   pLength.symmetryVectorLength = (states * states - states) / 2;
   pLength.frequencyGroupingLength = states;
   pLength.nonGTR = FALSE;
+  //pLength.optimizeBaseFrequencies = FALSE;
 
   return (&pLengths[dataType]); 
 }
@@ -1814,7 +1815,13 @@ static void getinput(analdef *adef, rawdata *rdta, cruncheddata *cdta, tree *tr)
 	  else
 	    tr->initialPartitionData[0].usePredefinedProtFreqs  = TRUE;
 	  
-	  
+	  if(adef->optimizeBaseFrequencies)
+	    {	     
+	      tr->initialPartitionData[0].optimizeBaseFrequencies  = TRUE;
+	      tr->initialPartitionData[0].usePredefinedProtFreqs  = FALSE;
+	    }
+	  else
+	    tr->initialPartitionData[0].optimizeBaseFrequencies  = FALSE;
 
 	  tr->NumberOfModels = 1;
 	  
@@ -1830,7 +1837,6 @@ static void getinput(analdef *adef, rawdata *rdta, cruncheddata *cdta, tree *tr)
 	    dataType = GENERIC_64;
 	     
 	     
-
 	  assert(dataType == BINARY_DATA || dataType == DNA_DATA || dataType == AA_DATA || 
 		 dataType == GENERIC_32  || dataType == GENERIC_64);
 
@@ -1840,6 +1846,7 @@ static void getinput(analdef *adef, rawdata *rdta, cruncheddata *cdta, tree *tr)
 	    {
 	      tr->initialPartitionData[0].protModels = PROT_FILE;
 	      tr->initialPartitionData[0].usePredefinedProtFreqs  = TRUE;
+	      tr->initialPartitionData[0].optimizeBaseFrequencies = FALSE;
 	      strcpy(tr->initialPartitionData[0].proteinSubstitutionFileName, proteinModelFileName);
 	    }
 	  
@@ -1864,6 +1871,7 @@ static void getinput(analdef *adef, rawdata *rdta, cruncheddata *cdta, tree *tr)
 	      tr->extendedPartitionData[i].dataType   = tr->initialPartitionData[i].dataType;	      
 	      tr->extendedPartitionData[i].protModels = tr->initialPartitionData[i].protModels;
 	      tr->extendedPartitionData[i].usePredefinedProtFreqs  = tr->initialPartitionData[i].usePredefinedProtFreqs;
+	      tr->extendedPartitionData[i].optimizeBaseFrequencies  = tr->initialPartitionData[i].optimizeBaseFrequencies;
 	    }
 	  
 	  parseSecondaryStructure(tr, adef, rdta->sites);
@@ -2753,6 +2761,11 @@ static void checkSequences(tree *tr, rawdata *rdta, analdef *adef)
 				strcpy(AAmodel, protModels[tr->partitionData[i].protModels]);
 				if(tr->partitionData[i].usePredefinedProtFreqs == FALSE)
 				  strcat(AAmodel, "F");
+
+				if(tr->partitionData[i].optimizeBaseFrequencies == TRUE)
+				  strcat(AAmodel, "X");
+
+				assert(!(tr->partitionData[i].optimizeBaseFrequencies && tr->partitionData[i].usePredefinedProtFreqs));
 				
 				fprintf(newFile, "%s, ", AAmodel);
 			      }
@@ -2760,17 +2773,29 @@ static void checkSequences(tree *tr, rawdata *rdta, analdef *adef)
 			      fprintf(newFile, "[%s], ", tr->partitionData[i].proteinSubstitutionFileName);
 			  }
 			  break;
-			case DNA_DATA:
-			  fprintf(newFile, "DNA, ");
+			case DNA_DATA:	
+			  if(tr->partitionData[i].optimizeBaseFrequencies == TRUE)
+			    fprintf(newFile, "DNAX, ");
+			  else
+			    fprintf(newFile, "DNA, ");
 			  break;
-			case BINARY_DATA:
-			  fprintf(newFile, "BIN, ");
+			case BINARY_DATA:	
+			  if(tr->partitionData[i].optimizeBaseFrequencies == TRUE)
+			    fprintf(newFile, "BINX, ");
+			  else
+			    fprintf(newFile, "BIN, ");
 			  break;
-			case GENERIC_32:
-			  fprintf(newFile, "MULTI, ");
+			case GENERIC_32:	
+			  if(tr->partitionData[i].optimizeBaseFrequencies == TRUE)
+			    fprintf(newFile, "MULTIX, ");
+			  else
+			    fprintf(newFile, "MULTI, ");
 			  break;
 			case GENERIC_64:
-			  fprintf(newFile, "CODON, ");
+			  if(tr->partitionData[i].optimizeBaseFrequencies == TRUE)
+			    fprintf(newFile, "CODONX, ");
+			  else
+			    fprintf(newFile, "CODON, ");
 			  break;
 			default:
 			  assert(0);
@@ -3072,7 +3097,9 @@ static void allocPartitions(tree *tr)
       tr->partitionData[i].EI                = (double*)rax_malloc(pl->eiLength * sizeof(double));
       tr->partitionData[i].substRates        = (double *)rax_malloc(pl->substRatesLength * sizeof(double));
       tr->partitionData[i].frequencies       = (double*)rax_malloc(pl->frequenciesLength * sizeof(double));
+      tr->partitionData[i].freqExponents     = (double*)rax_malloc(pl->frequenciesLength * sizeof(double));
       tr->partitionData[i].tipVector         = (double *)rax_malloc(pl->tipVectorLength * sizeof(double));
+      
 
 
       if(tr->partitionData[i].protModels == LG4 || tr->partitionData[i].protModels == LG4X)      
@@ -3098,8 +3125,7 @@ static void allocPartitions(tree *tr)
       tr->partitionData[i].unscaled_perSiteRates = (double *)rax_malloc(sizeof(double) * tr->maxCategories);
       
       
-      tr->partitionData[i].nonGTR = FALSE;
-       
+      tr->partitionData[i].nonGTR = FALSE;     
       
 
       tr->partitionData[i].gammaRates = (double*)rax_malloc(sizeof(double) * 4);
@@ -3275,6 +3301,7 @@ static void initAdef(analdef *adef)
   adef->calculateIC = FALSE;
   adef->verboseIC = FALSE;
   adef->stepwiseAdditionOnly = FALSE;
+  adef->optimizeBaseFrequencies = FALSE;
 }
 
 
@@ -3315,6 +3342,38 @@ static int modelExists(char *model, analdef *adef)
       return 1;
     }
 
+  if(strcmp(model, "BINGAMMAX\0") == 0)
+    {
+      adef->model = M_BINGAMMA;
+      adef->useInvariant = FALSE;
+      adef->optimizeBaseFrequencies = TRUE;
+      return 1;
+    }
+
+  if(strcmp(model, "BINCATX\0") == 0)
+    {
+      adef->model = M_BINCAT;
+      adef->useInvariant = FALSE;
+      adef->optimizeBaseFrequencies = TRUE;
+      return 1;
+    }
+
+   if(strcmp(model, "BINGAMMAIX\0") == 0)
+    {
+      adef->model = M_BINGAMMA;
+      adef->useInvariant = TRUE;
+      adef->optimizeBaseFrequencies = TRUE;
+      return 1;
+    }
+
+   if(strcmp(model, "BINCATIX\0") == 0)
+    {
+      adef->model = M_BINCAT;
+      adef->useInvariant = TRUE;
+      adef->optimizeBaseFrequencies = TRUE;
+      return 1;
+    }
+
   /*********** 32 state ****************************/
 
   if(strcmp(model, "MULTIGAMMAI\0") == 0)
@@ -3344,6 +3403,39 @@ static int modelExists(char *model, analdef *adef)
       adef->useInvariant = TRUE;
       return 1;
     }
+
+  if(strcmp(model, "MULTIGAMMAX\0") == 0)
+    {
+      adef->model = M_32GAMMA;
+      adef->useInvariant = FALSE; 
+      adef->optimizeBaseFrequencies = TRUE;
+      return 1;
+    }
+
+  if(strcmp(model, "MULTICATX\0") == 0)
+    {
+      adef->model = M_32CAT;
+      adef->useInvariant = FALSE;
+      adef->optimizeBaseFrequencies = TRUE;
+      return 1;
+    }
+  
+   if(strcmp(model, "MULTIGAMMAIX\0") == 0)
+    {
+      adef->model = M_32GAMMA;
+      adef->useInvariant = TRUE;
+      adef->optimizeBaseFrequencies = TRUE;
+      return 1;
+    }
+
+    if(strcmp(model, "MULTICATIX\0") == 0)
+    {
+      adef->model = M_32CAT;
+      adef->useInvariant = TRUE; 
+      adef->optimizeBaseFrequencies = TRUE;
+      return 1;
+    }
+
 
   /*********** 64 state ****************************/
 
@@ -3375,6 +3467,37 @@ static int modelExists(char *model, analdef *adef)
       return 1;
     }
 
+  if(strcmp(model, "CODONGAMMAX\0") == 0)
+    {
+      adef->model = M_64GAMMA;
+      adef->useInvariant = FALSE;
+      adef->optimizeBaseFrequencies = TRUE;
+      return 1;
+    }
+
+  if(strcmp(model, "CODONCATX\0") == 0)
+    {
+      adef->model = M_64CAT;
+      adef->useInvariant = FALSE; 
+      adef->optimizeBaseFrequencies = TRUE;
+      return 1;
+    }
+  
+   if(strcmp(model, "CODONGAMMAIX\0") == 0)
+    {
+      adef->model = M_64GAMMA;
+      adef->useInvariant = TRUE; 
+      adef->optimizeBaseFrequencies = TRUE;
+      return 1;
+    }
+
+   if(strcmp(model, "CODONCATIX\0") == 0)
+    {
+      adef->model = M_64CAT;
+      adef->useInvariant = TRUE;
+      adef->optimizeBaseFrequencies = TRUE;
+      return 1;
+    }
 
   /*********** DNA **********************/
 
@@ -3411,6 +3534,47 @@ static int modelExists(char *model, analdef *adef)
     }
 
 
+  if(strcmp(model, "GTRGAMMAX\0") == 0)
+    {
+      adef->model = M_GTRGAMMA;
+      adef->useInvariant = FALSE;
+      adef->optimizeBaseFrequencies = TRUE;
+
+      //printf("opt base freqs!\n");
+      return 1;
+    }
+  
+  if(strcmp(model, "GTRCATX\0") == 0)
+    {
+      adef->model = M_GTRCAT;
+      adef->useInvariant = FALSE; 
+      adef->optimizeBaseFrequencies = TRUE;
+      return 1;
+    }
+
+   if(strcmp(model, "GTRGAMMAIX\0") == 0)
+    {
+      adef->model = M_GTRGAMMA;
+      adef->useInvariant = TRUE;
+      adef->optimizeBaseFrequencies = TRUE;
+      return 1;
+    }
+
+   if(strcmp(model, "GTRCATI\0") == 0)
+     {
+       adef->model = M_GTRCAT;
+       adef->useInvariant = TRUE;
+       adef->optimizeBaseFrequencies = TRUE;
+       return 1;
+     }
+
+   if(strcmp(model, "GTRCATIX\0") == 0)
+     {
+       adef->model = M_GTRCAT;
+       adef->useInvariant = TRUE;
+       adef->optimizeBaseFrequencies = TRUE;
+       return 1;
+     }
 
 
   /*************** AA GTR ********************/
@@ -3452,6 +3616,45 @@ static int modelExists(char *model, analdef *adef)
       return 1;
     }
   
+   if(strcmp(model, "PROTCATGTRX\0") == 0)
+    {
+      adef->model = M_PROTCAT;
+      adef->proteinMatrix = GTR;
+      adef->useInvariant = FALSE;
+      adef->protEmpiricalFreqs = 0;
+      adef->optimizeBaseFrequencies = TRUE;
+      return 1;
+    }
+
+  if(strcmp(model, "PROTGAMMAGTRX\0") == 0)
+    {
+      adef->model = M_PROTGAMMA;
+      adef->proteinMatrix = GTR;
+      adef->useInvariant = FALSE;
+      adef->protEmpiricalFreqs = 0;
+       adef->optimizeBaseFrequencies = TRUE;
+      return 1;
+    }
+
+  if(strcmp(model, "PROTGAMMAIGTRX\0") == 0)
+    {
+      adef->model = M_PROTGAMMA;
+      adef->proteinMatrix = GTR;
+      adef->useInvariant = TRUE; 
+      adef->protEmpiricalFreqs = 0;
+      adef->optimizeBaseFrequencies = TRUE;
+      return 1;
+    }
+
+  if(strcmp(model, "PROTCATIGTR\0") == 0)
+    {
+      adef->model = M_PROTCAT;
+      adef->proteinMatrix = GTR;
+      adef->useInvariant = TRUE;
+      adef->protEmpiricalFreqs = 0;
+      adef->optimizeBaseFrequencies = TRUE;
+      return 1;
+    }
   /*************** AA GTR_UNLINKED ********************/
 
   if(strcmp(model, "PROTCATGTR_UNLINKED\0") == 0)    
@@ -3462,6 +3665,18 @@ static int modelExists(char *model, analdef *adef)
       adef->proteinMatrix = GTR_UNLINKED;
       adef->useInvariant = FALSE;
       adef->protEmpiricalFreqs = 1;
+      return 1;
+    }
+
+  if(strcmp(model, "PROTCATGTR_UNLINKED_X\0") == 0)    
+    {
+      printf("Advisory: GTR_UNLINKED only has an effect if specified in the partition file\n");
+
+      adef->model = M_PROTCAT;
+      adef->proteinMatrix = GTR_UNLINKED;
+      adef->useInvariant = FALSE;
+      adef->protEmpiricalFreqs = 0; 
+      adef->optimizeBaseFrequencies = TRUE;
       return 1;
     }
 
@@ -3487,6 +3702,18 @@ static int modelExists(char *model, analdef *adef)
       return 1;
     }
 
+  if(strcmp(model, "PROTGAMMAGTR_UNLINKED_X\0") == 0)
+    {
+      printf("Advisory: GTR_UNLINKED only has an effect if specified in the partition file\n");
+      
+      adef->model = M_PROTGAMMA;
+      adef->proteinMatrix = GTR_UNLINKED;
+      adef->useInvariant = FALSE;
+      adef->protEmpiricalFreqs = 0;
+       adef->optimizeBaseFrequencies = TRUE;
+      return 1;
+    }
+
   if(strcmp(model, "PROTGAMMAIGTR_UNLINKED\0") == 0)
     {
       printf("Advisory: GTR_UNLINKED only has an effect if specified in the partition file\n");
@@ -3497,6 +3724,30 @@ static int modelExists(char *model, analdef *adef)
       return 1;
     }
   
+  if(strcmp(model, "PROTGAMMAIGTR_UNLINKED_X\0") == 0)
+    {
+      printf("Advisory: GTR_UNLINKED only has an effect if specified in the partition file\n");
+      
+      adef->model = M_PROTGAMMA;
+      adef->proteinMatrix = GTR_UNLINKED;
+      adef->useInvariant = TRUE;
+      adef->protEmpiricalFreqs = 0;
+      adef->optimizeBaseFrequencies = TRUE;
+      return 1;
+    }
+
+   if(strcmp(model, "PROTCATIGTR_UNLINKED_X\0") == 0)
+    {
+      printf("Advisory: GTR_UNLINKED only has an effect if specified in the partition file\n");
+      
+      adef->model = M_PROTCAT;
+      adef->proteinMatrix = GTR_UNLINKED;
+      adef->useInvariant = TRUE;
+      adef->protEmpiricalFreqs = 0;
+       adef->optimizeBaseFrequencies = TRUE;
+      return 1;
+    }
+
   /****************** AA ************************/
 
   for(i = 0; i < NUM_PROT_MODELS - 2; i++)
@@ -3527,6 +3778,20 @@ static int modelExists(char *model, analdef *adef)
 	  return 1;
 	}
 
+      /* check CATX */
+
+      strcpy(thisModel, "PROTCAT");
+      strcat(thisModel, protModels[i]);
+      strcat(thisModel, "X");
+
+      if(strcmp(model, thisModel) == 0)
+	{
+	  adef->model = M_PROTCAT;
+	  adef->proteinMatrix = i;
+	  adef->protEmpiricalFreqs = 0;
+	  adef->optimizeBaseFrequencies = TRUE;
+	  return 1;
+	}     
 
       /* check CATI */
 
@@ -3556,6 +3821,21 @@ static int modelExists(char *model, analdef *adef)
 	  return 1;
 	}
 
+      /* check CATIX */
+
+      strcpy(thisModel, "PROTCATI");
+      strcat(thisModel, protModels[i]);
+      strcat(thisModel, "X");
+
+      if(strcmp(model, thisModel) == 0)
+	{
+	  adef->model = M_PROTCAT;
+	  adef->proteinMatrix = i;
+	  adef->protEmpiricalFreqs = 1;
+	  adef->useInvariant = TRUE; 
+	  adef->optimizeBaseFrequencies = TRUE;
+	  return 1;
+	}
 
       /****************check GAMMA ************************/
 
@@ -3568,10 +3848,7 @@ static int modelExists(char *model, analdef *adef)
 	  adef->proteinMatrix = i;
 	  adef->useInvariant = FALSE;
 	  return 1;
-	}
-
-     
-
+	}     
 
       /*check GAMMAI*/
 
@@ -3603,6 +3880,22 @@ static int modelExists(char *model, analdef *adef)
 	}
 
      
+       /* check GAMMAmodelX */
+
+      strcpy(thisModel, "PROTGAMMA");
+      strcat(thisModel, protModels[i]);
+      strcat(thisModel, "X");
+
+      if(strcmp(model, thisModel) == 0)
+	{	 
+	  adef->model = M_PROTGAMMA;
+	  adef->proteinMatrix = i;
+	  adef->protEmpiricalFreqs = 0;
+	  adef->useInvariant = FALSE;
+	  adef->optimizeBaseFrequencies = TRUE;
+	  return 1;
+	}
+
       /* check GAMMAImodelF */
 
       strcpy(thisModel, "PROTGAMMAI");
@@ -3615,6 +3908,22 @@ static int modelExists(char *model, analdef *adef)
 	  adef->proteinMatrix = i;
 	  adef->protEmpiricalFreqs = 1;
 	  adef->useInvariant = TRUE;
+	  return 1;
+	}
+
+      /* check GAMMAImodelX */
+
+      strcpy(thisModel, "PROTGAMMAI");
+      strcat(thisModel, protModels[i]);
+      strcat(thisModel, "X");
+
+      if(strcmp(model, thisModel) == 0)
+	{
+	  adef->model = M_PROTGAMMA;
+	  adef->proteinMatrix = i;
+	  adef->protEmpiricalFreqs = 0;
+	  adef->useInvariant = TRUE;
+	  adef->optimizeBaseFrequencies = TRUE;
 	  return 1;
 	}
 
@@ -4080,43 +4389,53 @@ static void printREADME(void)
   printf("      -m      Model of Binary (Morphological), Nucleotide, Multi-State, or Amino Acid Substitution: \n");
   printf("\n");
   printf("              BINARY:\n\n");
-  printf("                \"-m BINCAT\"         : Optimization of site-specific\n");
+  printf("                \"-m BINCAT[X]\"      : Optimization of site-specific\n");
   printf("                                      evolutionary rates which are categorized into numberOfCategories distinct \n");
   printf("                                      rate categories for greater computational efficiency. Final tree might be evaluated\n");
-  printf("                                      automatically under BINGAMMA, depending on the tree search option\n");
-  printf("                \"-m BINCATI\"        : Optimization of site-specific\n");
+  printf("                                      automatically under BINGAMMA, depending on the tree search option.\n");
+  printf("                                      With the optional \"X\" appendix you can specify a ML estimate of base frequencies.\n");  
+  printf("                \"-m BINCATI[X]\"     : Optimization of site-specific\n");
   printf("                                      evolutionary rates which are categorized into numberOfCategories distinct \n");
   printf("                                      rate categories for greater computational efficiency. Final tree might be evaluated\n");
-  printf("                                      automatically under BINGAMMAI, depending on the tree search option \n");
-  printf("                \"-m BINGAMMA\"       : GAMMA model of rate \n");
-  printf("                                      heterogeneity (alpha parameter will be estimated)\n");
-  printf("                \"-m BINGAMMAI\"      : Same as BINGAMMA, but with estimate of proportion of invariable sites\n");
+  printf("                                      automatically under BINGAMMAI, depending on the tree search option.\n");
+  printf("                                      With the optional \"X\" appendix you can specify a ML estimate of base frequencies.\n");  
+  printf("                \"-m BINGAMMA[X]\"    : GAMMA model of rate heterogeneity (alpha parameter will be estimated).\n");
+  printf("                                      With the optional \"X\" appendix you can specify a ML estimate of base frequencies.\n");  
+  printf("                \"-m BINGAMMAI[X]\"   : Same as BINGAMMA, but with estimate of proportion of invariable sites.\n");
+  printf("                                      With the optional \"X\" appendix you can specify a ML estimate of base frequencies.\n");  
   printf("\n");
   printf("              NUCLEOTIDES:\n\n");
-  printf("                \"-m GTRCAT\"         : GTR + Optimization of substitution rates + Optimization of site-specific\n");
+  printf("                \"-m GTRCAT[X]\"      : GTR + Optimization of substitution rates + Optimization of site-specific\n");
   printf("                                      evolutionary rates which are categorized into numberOfCategories distinct \n");
   printf("                                      rate categories for greater computational efficiency.  Final tree might be evaluated\n");
-  printf("                                      under GTRGAMMA, depending on the tree search option\n");  
-  printf("                \"-m GTRCATI\"        : GTR + Optimization of substitution rates + Optimization of site-specific\n");
+  printf("                                      under GTRGAMMA, depending on the tree search option.\n");  
+  printf("                                      With the optional \"X\" appendix you can specify a ML estimate of base frequencies.\n");  
+  printf("                \"-m GTRCATI[X]\"     : GTR + Optimization of substitution rates + Optimization of site-specific\n");
   printf("                                      evolutionary rates which are categorized into numberOfCategories distinct \n");
   printf("                                      rate categories for greater computational efficiency.  Final tree might be evaluated\n");
-  printf("                                      under GTRGAMMAI, depending on the tree search option\n");
-  printf("                \"-m GTRGAMMA\"       : GTR + Optimization of substitution rates + GAMMA model of rate \n");
-  printf("                                      heterogeneity (alpha parameter will be estimated)\n");  
-  printf("                \"-m GTRGAMMAI\"      : Same as GTRGAMMA, but with estimate of proportion of invariable sites \n");
+  printf("                                      under GTRGAMMAI, depending on the tree search option.\n");
+  printf("                                      With the optional \"X\" appendix you can specify a ML estimate of base frequencies.\n");  
+  printf("                \"-m GTRGAMMA[X]\"    : GTR + Optimization of substitution rates + GAMMA model of rate \n");
+  printf("                                      heterogeneity (alpha parameter will be estimated).\n");  
+  printf("                                      With the optional \"X\" appendix you can specify a ML estimate of base frequencies.\n");  
+  printf("                \"-m GTRGAMMAI[X]\"   : Same as GTRGAMMA, but with estimate of proportion of invariable sites.\n");
+  printf("                                      With the optional \"X\" appendix you can specify a ML estimate of base frequencies.\n");  
   printf("\n");
   printf("              MULTI-STATE:\n\n");
-  printf("                \"-m MULTICAT\"         : Optimization of site-specific\n");
+  printf("                \"-m MULTICAT[X]\"    : Optimization of site-specific\n");
   printf("                                      evolutionary rates which are categorized into numberOfCategories distinct \n");
   printf("                                      rate categories for greater computational efficiency. Final tree might be evaluated\n");
-  printf("                                      automatically under MULTIGAMMA, depending on the tree search option\n");
-  printf("                \"-m MULTICATI\"        : Optimization of site-specific\n");
+  printf("                                      automatically under MULTIGAMMA, depending on the tree search option.\n"); 
+  printf("                                      With the optional \"X\" appendix you can specify a ML estimate of base frequencies.\n");  
+  printf("                \"-m MULTICATI[X]\"   : Optimization of site-specific\n");
   printf("                                      evolutionary rates which are categorized into numberOfCategories distinct \n");
   printf("                                      rate categories for greater computational efficiency. Final tree might be evaluated\n");
-  printf("                                      automatically under MULTIGAMMAI, depending on the tree search option \n");
-  printf("                \"-m MULTIGAMMA\"       : GAMMA model of rate \n");
-  printf("                                      heterogeneity (alpha parameter will be estimated)\n");
-  printf("                \"-m MULTIGAMMAI\"      : Same as MULTIGAMMA, but with estimate of proportion of invariable sites\n");
+  printf("                                      automatically under MULTIGAMMAI, depending on the tree search option.\n");
+  printf("                                      With the optional \"X\" appendix you can specify a ML estimate of base frequencies.\n");  
+  printf("                \"-m MULTIGAMMA[X]\"  : GAMMA model of rate heterogeneity (alpha parameter will be estimated).\n");
+  printf("                                      With the optional \"X\" appendix you can specify a ML estimate of base frequencies.\n");  
+  printf("                \"-m MULTIGAMMAI[X]\" : Same as MULTIGAMMA, but with estimate of proportion of invariable sites.\n");
+  printf("                                      With the optional \"X\" appendix you can specify a ML estimate of base frequencies.\n");  
   printf("\n");
   printf("                You can use up to 32 distinct character states to encode multi-state regions, they must be used in the following order:\n");
   printf("                0, 1, 2, 3, 4, 5, 6, 7, 8, 9, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V\n");
@@ -4124,17 +4443,21 @@ static void printREADME(void)
   printf("                The substitution model for the multi-state regions can be selected via the \"-K\" option\n");
   printf("\n");
   printf("              AMINO ACIDS:\n\n");
-  printf("                \"-m PROTCATmatrixName[F]\"         : specified AA matrix + Optimization of substitution rates + Optimization of site-specific\n");
+  printf("                \"-m PROTCATmatrixName[F|X]\"       : specified AA matrix + Optimization of substitution rates + Optimization of site-specific\n");
   printf("                                                    evolutionary rates which are categorized into numberOfCategories distinct \n");
   printf("                                                    rate categories for greater computational efficiency.   Final tree might be evaluated\n");
-  printf("                                                    automatically under PROTGAMMAmatrixName[f], depending on the tree search option\n");  
-  printf("                \"-m PROTCATImatrixName[F]\"        : specified AA matrix + Optimization of substitution rates + Optimization of site-specific\n");
+  printf("                                                    automatically under PROTGAMMAmatrixName[F|X], depending on the tree search option.\n");  
+  printf("                                                    With the optional \"X\" appendix you can specify a ML estimate of base frequencies.\n");  
+  printf("                \"-m PROTCATImatrixName[F|X]\"      : specified AA matrix + Optimization of substitution rates + Optimization of site-specific\n");
   printf("                                                    evolutionary rates which are categorized into numberOfCategories distinct \n");
   printf("                                                    rate categories for greater computational efficiency.   Final tree might be evaluated\n");
-  printf("                                                    automatically under PROTGAMMAImatrixName[f], depending on the tree search option\n");
-  printf("                \"-m PROTGAMMAmatrixName[F]\"       : specified AA matrix + Optimization of substitution rates + GAMMA model of rate \n");
-  printf("                                                    heterogeneity (alpha parameter will be estimated)\n");  
-  printf("                \"-m PROTGAMMAImatrixName[F]\"      : Same as PROTGAMMAmatrixName[F], but with estimate of proportion of invariable sites \n");
+  printf("                                                    automatically under PROTGAMMAImatrixName[F|X], depending on the tree search option.\n");
+  printf("                                                    With the optional \"X\" appendix you can specify a ML estimate of base frequencies.\n");  
+  printf("                \"-m PROTGAMMAmatrixName[F|X]\"     : specified AA matrix + Optimization of substitution rates + GAMMA model of rate \n");
+  printf("                                                    heterogeneity (alpha parameter will be estimated).\n"); 
+  printf("                                                    With the optional \"X\" appendix you can specify a ML estimate of base frequencies.\n");  
+  printf("                \"-m PROTGAMMAImatrixName[F|X]\"    : Same as PROTGAMMAmatrixName[F|X], but with estimate of proportion of invariable sites.\n");
+  printf("                                                    With the optional \"X\" appendix you can specify a ML estimate of base frequencies.\n");  
   printf("\n");
   printf("                Available AA substitution models:\n");
   printf("                ");
@@ -4988,12 +5311,14 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	    if(processID == 0)
 	      {
 		printf("Model %s does not exist\n\n", model);
-                printf("For BINARY data use: BINCAT                or BINGAMMA                or\n");
-		printf("                     BINCATI               or BINGAMMAI                 \n");
-		printf("For DNA data use:    GTRCAT                or GTRGAMMA                or\n");
-		printf("                     GTRCATI               or GTRGAMMAI                 \n");
-		printf("For AA data use:     PROTCATmatrixName[F]  or PROTGAMMAmatrixName[F]  or\n");
-		printf("                     PROTCATImatrixName[F] or PROTGAMMAImatrixName[F]   \n");
+                printf("For BINARY data use:  BINCAT[X]             or BINGAMMA[X]             or\n");
+		printf("                      BINCATI[X]            or BINGAMMAI[X]              \n");
+		printf("For DNA data use:     GTRCAT[X]             or GTRGAMMA[X]             or\n");
+		printf("                      GTRCATI[X]            or GTRGAMMAI[X]              \n");
+		printf("For Multi-state data: MULTICAT[X]          or MULTIGAMMA[X]           or\n");
+		printf("                      MULTICATI[X]         or MULTIGAMMAI[X]            \n");		
+		printf("For AA data use:      PROTCATmatrixName[F|X]  or PROTGAMMAmatrixName[F|X]  or\n");
+		printf("                      PROTCATImatrixName[F|X] or PROTGAMMAImatrixName[F|X]   \n");
 		printf("The AA substitution matrix can be one of the following: \n");
 		
 		{
@@ -5010,9 +5335,10 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 		  printf("%s\n\n", protModels[i]);
 		}
 		
-		printf("With the optional \"F\" appendix you can specify if you want to use empirical base frequencies\n");
+		printf("With the optional \"F\" appendix you can specify if you want to use empirical base frequencies.\n");
+		printf("With the optional \"X\" appendix you can specify that you want to do a ML estimate of base frequencies.\n");
 		printf("Please note that for mixed models you can in addition specify the per-gene model in\n");
-		printf("the mixed model file (see manual for details)\n");
+		printf("the mixed model file (see manual for details).\n");
 	      }
 	    errorExit(-1);
 	  }
@@ -5650,7 +5976,11 @@ void printBaseFrequencies(tree *tr)
 	  int i;
 
 	  printBothOpen("Partition: %d with name: %s\n", model, tr->partitionData[model].partitionName);
-	  printBothOpen("Base frequencies: ");
+
+	  if(tr->partitionData[model].optimizeBaseFrequencies)
+	    printBothOpen("Initial base frequencies, prior to ML estimate: ");
+	  else
+	    printBothOpen("Base frequencies: ");
 	  
 	  if(tr->partitionData[model].protModels == LG4 || tr->partitionData[model].protModels == LG4X)
 	    {
@@ -5884,14 +6214,19 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
 		case DNA_DATA:
 		  printBoth(infoFile, "DataType: DNA\n");		  
 		  printBoth(infoFile, "Substitution Matrix: GTR\n");
+		  if(tr->partitionData[model].optimizeBaseFrequencies)
+		    printBoth(infoFile, "Base frequencies: ML estimate\n");
 		  break;
 		case AA_DATA:
 		  assert(tr->partitionData[model].protModels >= 0 && tr->partitionData[model].protModels < NUM_PROT_MODELS);
 		  printBoth(infoFile, "DataType: AA\n");
 		  if(tr->partitionData[model].protModels != PROT_FILE)
 		    {		     		     
-		      printBoth(infoFile, "Substitution Matrix: %s\n", protModels[tr->partitionData[model].protModels]);		      
-		      printBoth(infoFile, "Using %s base frequencies\n", (tr->partitionData[model].usePredefinedProtFreqs == TRUE)?"fixed":"empirical");		      
+		      printBoth(infoFile, "Substitution Matrix: %s\n", protModels[tr->partitionData[model].protModels]);
+		      if(!tr->partitionData[model].optimizeBaseFrequencies)
+			printBoth(infoFile, "Using %s base frequencies\n", (tr->partitionData[model].usePredefinedProtFreqs == TRUE)?"fixed":"empirical");		      
+		      else
+			printBoth(infoFile, "Using ML estimate of base frequencies\n");
 		    }
 		  else
 		    {
@@ -5901,19 +6236,27 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
 		  break;
 		case BINARY_DATA:
 		  printBoth(infoFile, "DataType: BINARY/MORPHOLOGICAL\n");		  
-		  printBoth(infoFile, "Substitution Matrix: Uncorrected\n");
+		  printBoth(infoFile, "Substitution Matrix: Uncorrected\n"); 
+		  if(tr->partitionData[model].optimizeBaseFrequencies)
+		    printBoth(infoFile, "Base frequencies: ML estimate\n");
 		  break;
 		case SECONDARY_DATA:
 		  printBoth(infoFile, "DataType: SECONDARY STRUCTURE\n");		  
-		  printBoth(infoFile, "Substitution Matrix: %s\n", secondaryModelList[tr->secondaryStructureModel]);
+		  printBoth(infoFile, "Substitution Matrix: %s\n", secondaryModelList[tr->secondaryStructureModel]); 
+		  if(tr->partitionData[model].optimizeBaseFrequencies)
+		    printBoth(infoFile, "Base frequencies: ML estimate\n");
 		  break;
 		case SECONDARY_DATA_6:
 		  printBoth(infoFile, "DataType: SECONDARY STRUCTURE 6 STATE\n");		  
 		  printBoth(infoFile, "Substitution Matrix: %s\n", secondaryModelList[tr->secondaryStructureModel]);
+		  if(tr->partitionData[model].optimizeBaseFrequencies)
+		    printBoth(infoFile, "Base frequencies: ML estimate\n");
 		  break;
 		case SECONDARY_DATA_7:
 		  printBoth(infoFile, "DataType: SECONDARY STRUCTURE 7 STATE\n");		 
-		  printBoth(infoFile, "Substitution Matrix: %s\n", secondaryModelList[tr->secondaryStructureModel]);
+		  printBoth(infoFile, "Substitution Matrix: %s\n", secondaryModelList[tr->secondaryStructureModel]); 
+		  if(tr->partitionData[model].optimizeBaseFrequencies)
+		    printBoth(infoFile, "Base frequencies: ML estimate\n");
 		  break;
 		case GENERIC_32:
 		  printBoth(infoFile, "DataType: Multi-State with %d distinct states in use (maximum 32)\n",tr->partitionData[model].states);		  
@@ -5931,9 +6274,13 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
 		    default:
 		      assert(0);
 		    }
+		  if(tr->partitionData[model].optimizeBaseFrequencies)
+		     printBoth(infoFile, "Base frequencies: ML estimate\n");
 		  break;
 		case GENERIC_64:
-		  printBoth(infoFile, "DataType: Codon\n");		  
+		  printBoth(infoFile, "DataType: Codon\n"); 
+		  if(tr->partitionData[model].optimizeBaseFrequencies)
+		    printBoth(infoFile, "Base frequencies: ML estimate\n");		  
 		  break;		
 		default:
 		  assert(0);
@@ -6280,8 +6627,19 @@ void writeInfoFile(analdef *adef, tree *tr, double t)
 			fprintf(infoFile, "rates[%d] ac ag at cg ct gt: ", model);
 			for(k = 0; k < rates; k++)
 			  fprintf(infoFile, "%f ", tr->partitionData[model].substRates[k]);
-		      }		 
+		      }	
 
+		    if(tr->partitionData[model].optimizeBaseFrequencies)
+		      {
+			int
+			  k,
+			  states = tr->partitionData[model].states;
+			
+			fprintf(infoFile, "ML estimate base freqs[%d]: ", model);
+			
+			for(k = 0; k < states; k++)
+			  fprintf(infoFile, "%f ", tr->partitionData[model].frequencies[k]);
+		      }
 		  }
 
 		fprintf(infoFile, "\n");
@@ -6547,7 +6905,7 @@ static void finalizeInfoFile(tree *tr, analdef *adef)
 		    if(tr->partitionData[model].protModels == GTR)
 		      linkedProteinGTR = TRUE;
 		    
-		    if(!tr->partitionData[model].usePredefinedProtFreqs)
+		    if(!tr->partitionData[model].usePredefinedProtFreqs || tr->partitionData[model].optimizeBaseFrequencies)
 		      params += 19;
 		    break;
 		  case GENERIC_32:
@@ -6586,6 +6944,8 @@ static void finalizeInfoFile(tree *tr, analdef *adef)
 		      int 
 			states = tr->partitionData[model].states;
 		      
+		      assert(!tr->partitionData[model].optimizeBaseFrequencies);
+
 		      switch(tr->secondaryStructureModel)
 			{
 			case SEC_6_A:
@@ -6989,6 +7349,7 @@ static void initPartition(tree *tr, tree *localTree, int tid)
 	  localTree->partitionData[model].dataType   = tr->partitionData[model].dataType;
 	  localTree->partitionData[model].protModels = tr->partitionData[model].protModels;
 	  localTree->partitionData[model].usePredefinedProtFreqs  = tr->partitionData[model].usePredefinedProtFreqs;
+	  localTree->partitionData[model].optimizeBaseFrequencies  = tr->partitionData[model].optimizeBaseFrequencies;
 	  localTree->partitionData[model].mxtips     = tr->partitionData[model].mxtips;
 	  localTree->partitionData[model].lower      = tr->partitionData[model].lower;
 	  localTree->partitionData[model].upper      = tr->partitionData[model].upper;
@@ -7016,7 +7377,6 @@ static void allocNodex(tree *tr, int tid, int n)
   computeFraction(tr, tid, n);
 
   allocPartitions(tr);
-
 
   for(model = 0; model < (size_t)tr->NumberOfModels; model++)
     {
@@ -9193,6 +9553,8 @@ void writeBinaryModel(tree *tr)
       myfwrite(tr->partitionData[model].EI, sizeof(double),  pLengths[dataType].eiLength, f);  
 
       myfwrite(tr->partitionData[model].frequencies, sizeof(double),  pLengths[dataType].frequenciesLength, f);
+      myfwrite(tr->partitionData[model].freqExponents, sizeof(double),  pLengths[dataType].frequenciesLength, f);
+
       myfwrite(tr->partitionData[model].tipVector, sizeof(double),  pLengths[dataType].tipVectorLength, f);  
       myfwrite(tr->partitionData[model].substRates, sizeof(double),  pLengths[dataType].substRatesLength, f);           
       myfwrite(&(tr->partitionData[model].alpha), sizeof(double),  1, f);
@@ -9292,6 +9654,8 @@ void readBinaryModel(tree *tr)
       myfread(tr->partitionData[model].EI,   sizeof(double), (size_t)(pLengths[dataType].eiLength), f);  
 
       myfread(tr->partitionData[model].frequencies, sizeof(double),  (size_t)(pLengths[dataType].frequenciesLength), f);
+      myfread(tr->partitionData[model].freqExponents, sizeof(double),  (size_t)(pLengths[dataType].frequenciesLength), f);     
+
       myfread(tr->partitionData[model].tipVector,   sizeof(double),  (size_t)(pLengths[dataType].tipVectorLength),   f);  
       myfread(tr->partitionData[model].substRates,  sizeof(double),  (size_t)(pLengths[dataType].substRatesLength),  f);     
       
@@ -9305,6 +9669,8 @@ void readBinaryModel(tree *tr)
 
       myfread(tr->partitionData[model].perSiteRates,          sizeof(double), tr->partitionData[model].numberOfCategories, f);
       myfread(tr->partitionData[model].unscaled_perSiteRates, sizeof(double), tr->partitionData[model].numberOfCategories, f);
+
+      
 
       readLG4(tr, model, dataType, f, pLengths);
     }
