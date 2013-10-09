@@ -9668,9 +9668,7 @@ void readBinaryModel(tree *tr)
       myfread(&(tr->partitionData[model].autoProtModels), sizeof(int), 1, f);
 
       myfread(tr->partitionData[model].perSiteRates,          sizeof(double), tr->partitionData[model].numberOfCategories, f);
-      myfread(tr->partitionData[model].unscaled_perSiteRates, sizeof(double), tr->partitionData[model].numberOfCategories, f);
-
-      
+      myfread(tr->partitionData[model].unscaled_perSiteRates, sizeof(double), tr->partitionData[model].numberOfCategories, f);      
 
       readLG4(tr, model, dataType, f, pLengths);
     }
