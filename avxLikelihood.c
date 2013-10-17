@@ -16,7 +16,7 @@
 
 #ifdef _FMA
 #include <x86intrin.h>
-#define FMAMACC(a,b,c) _mm256_macc_pd(b,c,a)
+#define FMAMACC(a,b,c) _mm256_fmadd_pd(b,c,a) 
 #endif
 
 extern const unsigned int mask32[32];
@@ -2897,7 +2897,7 @@ void newviewGTRGAMMAPROT_AVX_LG4(int tipCase,
 		    __m256d x1px2v = _mm256_set1_pd(x1px2);	
 	    		 
 #ifdef _FMA
-		    __m256d ev = _mm256_load_pd(&extEV[l * 20 + 0]);
+		    __m256d ev = _mm256_load_pd(&extEV[k][l * 20 + 0]);
 		    vv[0] = FMAMACC(vv[0],x1px2v, ev);
 #else
 		    vv[0] = _mm256_add_pd(vv[0],_mm256_mul_pd(x1px2v, _mm256_load_pd(&extEV[k][l * 20 + 0])));
@@ -2905,7 +2905,7 @@ void newviewGTRGAMMAPROT_AVX_LG4(int tipCase,
 		    _mm256_store_pd(&v[0],vv[0]);
 
 #ifdef _FMA
-		    ev = _mm256_load_pd(&extEV[l * 20 + 4]);
+		    ev = _mm256_load_pd(&extEV[k][l * 20 + 4]);
 		    vv[1] = FMAMACC(vv[1],x1px2v, ev);
 #else
 		    vv[1] = _mm256_add_pd(vv[1],_mm256_mul_pd(x1px2v, _mm256_load_pd(&extEV[k][l * 20 + 4])));
@@ -2913,7 +2913,7 @@ void newviewGTRGAMMAPROT_AVX_LG4(int tipCase,
 		    _mm256_store_pd(&v[4],vv[1]);
 
 #ifdef _FMA
-		    ev = _mm256_load_pd(&extEV[l * 20 + 8]);
+		    ev = _mm256_load_pd(&extEV[k][l * 20 + 8]);
 		    vv[2] = FMAMACC(vv[2],x1px2v, ev);
 #else
 		    vv[2] = _mm256_add_pd(vv[2],_mm256_mul_pd(x1px2v, _mm256_load_pd(&extEV[k][l * 20 + 8])));
@@ -2921,7 +2921,7 @@ void newviewGTRGAMMAPROT_AVX_LG4(int tipCase,
 		    _mm256_store_pd(&v[8],vv[2]);
 		    
 #ifdef _FMA
-		    ev = _mm256_load_pd(&extEV[l * 20 + 12]);
+		    ev = _mm256_load_pd(&extEV[k][l * 20 + 12]);
 		    vv[3] = FMAMACC(vv[3],x1px2v, ev);
 #else
 		    vv[3] = _mm256_add_pd(vv[3],_mm256_mul_pd(x1px2v, _mm256_load_pd(&extEV[k][l * 20 + 12])));
@@ -2930,7 +2930,7 @@ void newviewGTRGAMMAPROT_AVX_LG4(int tipCase,
 
 
 #ifdef _FMA
-		    ev = _mm256_load_pd(&extEV[l * 20 + 16]);
+		    ev = _mm256_load_pd(&extEV[k][l * 20 + 16]);
 		    vv[4] = FMAMACC(vv[4],x1px2v, ev);
 #else
 		    vv[4] = _mm256_add_pd(vv[4],_mm256_mul_pd(x1px2v, _mm256_load_pd(&extEV[k][l * 20 + 16])));
@@ -3066,7 +3066,7 @@ void newviewGTRGAMMAPROT_AVX_LG4(int tipCase,
 		  
 		  /************************************************************************************************************/
 #ifdef _FMA		    
-		  __m256d ev =  _mm256_load_pd(&extEV[20 * l + 0]);
+		  __m256d ev =  _mm256_load_pd(&extEV[k][20 * l + 0]);
 		  vv[0] = FMAMACC(vv[0], al, ev);		 
 #else
 		  vv[0] = _mm256_add_pd(vv[0],_mm256_mul_pd(al, _mm256_load_pd(&extEV[k][20 * l + 0])));			  		 		  
@@ -3074,7 +3074,7 @@ void newviewGTRGAMMAPROT_AVX_LG4(int tipCase,
 		  _mm256_store_pd(&v[0],vv[0]);
 
 #ifdef _FMA		    
-		  ev =  _mm256_load_pd(&extEV[20 * l + 4]);
+		  ev =  _mm256_load_pd(&extEV[k][20 * l + 4]);
 		  vv[1] = FMAMACC(vv[1], al, ev);		 
 #else
 		  vv[1] = _mm256_add_pd(vv[1],_mm256_mul_pd(al, _mm256_load_pd(&extEV[k][20 * l + 4])));		  		 
@@ -3082,7 +3082,7 @@ void newviewGTRGAMMAPROT_AVX_LG4(int tipCase,
 		  _mm256_store_pd(&v[4],vv[1]);
 
 #ifdef _FMA		    
-		  ev =  _mm256_load_pd(&extEV[20 * l + 8]);
+		  ev =  _mm256_load_pd(&extEV[k][20 * l + 8]);
 		  vv[2] = FMAMACC(vv[2], al, ev);		 
 #else
 		  vv[2] = _mm256_add_pd(vv[2],_mm256_mul_pd(al, _mm256_load_pd(&extEV[k][20 * l + 8])));		  		 
@@ -3090,7 +3090,7 @@ void newviewGTRGAMMAPROT_AVX_LG4(int tipCase,
 		  _mm256_store_pd(&v[8],vv[2]);
 
 #ifdef _FMA		    
-		  ev =  _mm256_load_pd(&extEV[20 * l + 12]);
+		  ev =  _mm256_load_pd(&extEV[k][20 * l + 12]);
 		  vv[3] = FMAMACC(vv[3], al, ev);		 
 #else
 		  vv[3] = _mm256_add_pd(vv[3],_mm256_mul_pd(al, _mm256_load_pd(&extEV[k][20 * l + 12])));		  		 
@@ -3098,7 +3098,7 @@ void newviewGTRGAMMAPROT_AVX_LG4(int tipCase,
 		  _mm256_store_pd(&v[12],vv[3]);
 
 #ifdef _FMA		    
-		  ev =  _mm256_load_pd(&extEV[20 * l + 16]);
+		  ev =  _mm256_load_pd(&extEV[k][20 * l + 16]);
 		  vv[4] = FMAMACC(vv[4], al, ev);		 
 #else
 		  vv[4] = _mm256_add_pd(vv[4],_mm256_mul_pd(al, _mm256_load_pd(&extEV[k][20 * l + 16])));			 	  
