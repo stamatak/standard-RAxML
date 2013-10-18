@@ -1913,11 +1913,13 @@ void classifyML(tree *tr, analdef *adef)
     for(i = 0; i < tr->numberOfTipsForInsertion; i++)    
       {
 	double
+	  all,
 	  maxprob = 0.0,
 	  lmax = 0.0,
 	  acc = 0.0;
 	
-	int 	   
+	int 
+	  k,
 	  validEntries = 0;
 
 	for(j =  0; j < tr->numberOfBranches; j++) 
@@ -1931,7 +1933,7 @@ void classifyML(tree *tr, analdef *adef)
 	qsort(inf, tr->numberOfBranches, sizeof(info), infoCompare);	 
 
 	for(j =  0; j < tr->numberOfBranches; j++) 
-	  if(inf[j].lh == unlikely)	     
+	  if(inf[j].lh == unlikely)
 	    break;
 	  else	     
 	    validEntries++;	     	      
@@ -1939,8 +1941,11 @@ void classifyML(tree *tr, analdef *adef)
 	assert(validEntries > 0);
 
 	j = 0;
-	  
+
 	lmax = inf[0].lh;
+
+	for(k = 0, all = 0.0; k < validEntries; k++)
+	  all += exp(inf[k].lh - lmax);
 
 	fprintf(treeFile, "\t{\"p\":[");
 
@@ -1964,16 +1969,10 @@ void classifyML(tree *tr, analdef *adef)
 	while(j < validEntries && j < 7)	  
 #endif
 	  { 
-	    int 
-	      k;
-	    
+
 	    double 
-	      all = 0.0,
 	      prob = 0.0;
 
-	    for(k =  0; k < validEntries; k++) 	   
-	      all += exp(inf[k].lh - lmax);	     
-	      
 	    acc += (prob = (exp(inf[j].lh - lmax) / all));
 	      
 	    if(j == 0)
@@ -2095,11 +2094,13 @@ void classifyML(tree *tr, analdef *adef)
     for(i = 0; i < tr->numberOfTipsForInsertion; i++)    
       {
 	double
+	  all,
 	  entropy = 0.0,
 	  lmax = 0.0,
 	  acc = 0.0;
 	
-	int 
+	int
+	  k,
 	  validEntries = 0;
 	
 	for(j =  0; j < tr->numberOfBranches; j++) 
@@ -2111,7 +2112,7 @@ void classifyML(tree *tr, analdef *adef)
 	qsort(inf, tr->numberOfBranches, sizeof(info), infoCompare);	 
 	
 	for(j =  0; j < tr->numberOfBranches; j++) 
-	  if(inf[j].lh == unlikely)	     
+	  if(inf[j].lh == unlikely)
 	    break;
 	  else	     
 	    validEntries++;	     	      
@@ -2121,18 +2122,14 @@ void classifyML(tree *tr, analdef *adef)
 	j = 0;
 	
 	lmax = inf[0].lh;
-	
+	   
+	for(k = 0, all = 0.0; k < validEntries; k++)
+	  all += exp(inf[k].lh - lmax);
+
 	while(acc <= 0.95 && j < validEntries)	  
 	  { 
-	    int 
-	      k;
-	    
 	    double 
-	      all = 0.0,
 	      prob = 0.0;
-	    
-	    for(k =  0; k < validEntries; k++) 	   
-	      all += exp(inf[k].lh - lmax);	     
 	    
 	    acc += (prob = (exp(inf[j].lh - lmax) / all));
 	    
@@ -2145,16 +2142,9 @@ void classifyML(tree *tr, analdef *adef)
 	
 	while(j < validEntries)
 	  { 
-	    int 
-	      k;
-	    
 	    double 
-	      all = 0.0,
 	      prob = 0.0;
-	    
-	    for(k =  0; k < validEntries; k++) 	   
-	      all += exp(inf[k].lh - lmax);	     
-	    
+
 	    prob = exp(inf[j].lh - lmax) / all;	      	    
 	    
 	    if(prob > 0)
