@@ -69,6 +69,7 @@ void *rax_malloc_aligned(size_t size)
 
 void *rax_malloc( size_t size ) 
 {
+#ifndef WIN32
   void 
     *ptr = (void *)NULL;
   
@@ -79,6 +80,9 @@ void *rax_malloc( size_t size )
     assert(0);
   
   return ptr;
+#else
+  return _aligned_malloc(size, BYTE_ALIGNMENT);
+#endif
 }
 
 void *rax_realloc(void *p, size_t size, boolean needsMemoryAlignment) 
@@ -95,12 +99,22 @@ void *rax_realloc(void *p, size_t size, boolean needsMemoryAlignment)
       return (void*)NULL;
     }
   else
-    return realloc(p, size);
+    {
+#ifndef WIN32
+      return realloc(p, size);
+#else
+      return _aligned_realloc(p, size, BYTE_ALIGNMENT);
+#endif
+    }
 }
 
 void rax_free(void *p) 
 {
-  free(p);
+#ifndef WIN32
+   free(p);
+#else
+  _aligned_free(p);
+#endif
 }
 
 void *rax_calloc(size_t n, size_t size) 
