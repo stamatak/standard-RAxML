@@ -158,7 +158,9 @@ static linkageList* initLinkageList(int *linkList, tree *tr)
     numberOfModels = 0,
     i,
     pos;
-  linkageList* ll = (linkageList*)rax_malloc(sizeof(linkageList));
+  
+  linkageList* 
+    ll = (linkageList*)rax_malloc(sizeof(linkageList));
       
   for(i = 0; i < tr->NumberOfModels; i++)
     {
@@ -1430,7 +1432,9 @@ static void optBaseFreqs(tree *tr, double modelEpsilon, linkageList *ll)
     i,
     states,
     dnaPartitions = 0,
-    aaPartitions  = 0;
+    aaPartitions  = 0,
+    binPartitions = 0,
+    multPartitions = 0;
 
   /* first do DNA */
 
@@ -1448,7 +1452,13 @@ static void optBaseFreqs(tree *tr, double modelEpsilon, linkageList *ll)
 	  else
 	     ll->ld[i].valid = FALSE;
 	  break;       
+	case BINARY_DATA:
 	case AA_DATA:
+	case SECONDARY_DATA:
+	case SECONDARY_DATA_6:
+	case SECONDARY_DATA_7:
+	case GENERIC_32:
+	case GENERIC_64:
 	  ll->ld[i].valid = FALSE;
 	  break;
 	default:
@@ -1476,7 +1486,13 @@ static void optBaseFreqs(tree *tr, double modelEpsilon, linkageList *ll)
 	  else
 	    ll->ld[i].valid = FALSE; 
 	  break;
-	case DNA_DATA:	    
+	case DNA_DATA:
+	case BINARY_DATA:      
+	case SECONDARY_DATA:
+	case SECONDARY_DATA_6:
+	case SECONDARY_DATA_7:
+	case GENERIC_32:
+	case GENERIC_64:	    
 	  ll->ld[i].valid = FALSE;
 	  break;
 	default:
@@ -1486,6 +1502,75 @@ static void optBaseFreqs(tree *tr, double modelEpsilon, linkageList *ll)
 
   if(aaPartitions > 0)      
     optFreqs(tr, modelEpsilon, ll, aaPartitions, states);
+
+  /* then binary */
+
+  for(i = 0; i < ll->entries; i++)
+    {
+      switch(tr->partitionData[ll->ld[i].partitionList[0]].dataType)
+	{
+	case BINARY_DATA:	  
+	  states = tr->partitionData[ll->ld[i].partitionList[0]].states; 	      
+	  if(tr->partitionData[ll->ld[i].partitionList[0]].optimizeBaseFrequencies)
+	    {
+	      ll->ld[i].valid = TRUE;
+	      binPartitions++;		
+	    }
+	  else
+	    ll->ld[i].valid = FALSE; 
+	  break;
+	case DNA_DATA:	  
+	case AA_DATA:      
+	case SECONDARY_DATA:
+	case SECONDARY_DATA_6:
+	case SECONDARY_DATA_7:
+	case GENERIC_32:
+	case GENERIC_64:	    
+	  ll->ld[i].valid = FALSE;
+	  break;
+	default:
+	  assert(0);
+	}	 
+    }
+
+  if(binPartitions > 0)      
+    optFreqs(tr, modelEpsilon, ll, binPartitions, states);
+
+  /* then multi */
+
+  for(i = 0; i < ll->entries; i++)
+    {
+      switch(tr->partitionData[ll->ld[i].partitionList[0]].dataType)
+	{
+	case GENERIC_32:	  
+	  states = tr->partitionData[ll->ld[i].partitionList[0]].states; 	      
+	  if(tr->partitionData[ll->ld[i].partitionList[0]].optimizeBaseFrequencies)
+	    {
+	      ll->ld[i].valid = TRUE;
+	      multPartitions++;		
+	    }
+	  else
+	    ll->ld[i].valid = FALSE; 
+	  break;
+	case DNA_DATA:
+	case AA_DATA:
+	case BINARY_DATA:      
+	case SECONDARY_DATA:
+	case SECONDARY_DATA_6:
+	case SECONDARY_DATA_7:      
+	case GENERIC_64:	    
+	  ll->ld[i].valid = FALSE;
+	  break;
+	default:
+	  assert(0);
+	}	 
+    }
+
+  if(multPartitions > 0)      
+    optFreqs(tr, modelEpsilon, ll, multPartitions, states);
+
+  /* done */
+
 
   for(i = 0; i < ll->entries; i++)
     ll->ld[i].valid = TRUE;
@@ -3107,6 +3192,7 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
 
       if(tr->likelihood < currentLikelihood)
 	{
+	 
 	  if(fabs(tr->likelihood - currentLikelihood) > MIN(0.0000001, likelihoodEpsilon))
 	    {
 	      printf("%1.40f %1.40f\n", tr->likelihood, currentLikelihood);

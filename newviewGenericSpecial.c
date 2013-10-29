@@ -474,6 +474,154 @@ static void newviewFlexGamma(int tipCase,
 
 
 
+static void newviewAscGamma(int tipCase,
+			    double *x1, double *x2, double *x3, double *extEV, double *tipVector,
+			    int *ex3, 
+			    const int n, double *left, double *right, 			    
+			    const int numStates)
+{
+  
+  int  
+    i, j, l, k, scale;
+  
+  const int 
+    statesSquare = numStates * numStates,
+    gammaStates = 4 * numStates;
+
+  double 
+    *vl, *vr, al, ar, *v, x1px2;
+
+  unsigned char 
+    tip[32];
+
+  ascertainmentBiasSequence(tip, numStates);
+  
+  switch(tipCase)
+    {
+    case TIP_TIP:
+      {
+	for(i = 0; i < n; i++)
+	  {
+	    for(k = 0; k < 4; k++)
+	      {
+		vl = &(tipVector[numStates * tip[i]]);
+		vr = &(tipVector[numStates * tip[i]]);
+		v =  &(x3[gammaStates * i + numStates * k]);
+
+		for(l = 0; l < numStates; l++)
+		  v[l] = 0;
+
+		for(l = 0; l < numStates; l++)
+		  {
+		    al = 0.0;
+		    ar = 0.0;
+		    for(j = 0; j < numStates; j++)
+		      {
+			al += vl[j] * left[k * statesSquare + l * numStates + j];
+			ar += vr[j] * right[k * statesSquare + l * numStates + j];
+		      }
+
+		    x1px2 = al * ar;
+		    for(j = 0; j < numStates; j++)
+		      v[j] += x1px2 * extEV[numStates * l + j];
+		  }
+	      }	    
+	  }
+      }
+      break;
+    case TIP_INNER:
+      {
+	for (i = 0; i < n; i++)
+	  {
+	    for(k = 0; k < 4; k++)
+	      {
+		vl = &(tipVector[numStates * tip[i]]);
+		vr = &(x2[gammaStates * i + numStates * k]);
+		v =  &(x3[gammaStates * i + numStates * k]);
+
+		for(l = 0; l < numStates; l++)
+		  v[l] = 0;
+
+		for(l = 0; l < numStates; l++)
+		  {
+		    al = 0.0;
+		    ar = 0.0;
+		    for(j = 0; j < numStates; j++)
+		      {
+			al += vl[j] * left[k * statesSquare + l * numStates + j];
+			ar += vr[j] * right[k * statesSquare + l * numStates + j];
+		      }
+
+		    x1px2 = al * ar;
+		    for(j = 0; j < numStates; j++)
+		      v[j] += x1px2 * extEV[numStates * l + j];
+		  }
+	      }
+	   
+	    v = &x3[gammaStates * i];
+	    scale = 1;
+	    for(l = 0; scale && (l < gammaStates); l++)
+	      scale = (ABS(v[l]) <  minlikelihood);
+
+	    if(scale)
+	      {		
+		for(l = 0; l < gammaStates; l++)
+		  v[l] *= twotothe256;
+		
+		ex3[i]  += 1;	      
+	      }
+	  }
+      }
+      break;
+    case INNER_INNER:
+      for (i = 0; i < n; i++)
+       {
+	 for(k = 0; k < 4; k++)
+	   {
+	     vl = &(x1[gammaStates * i + numStates * k]);
+	     vr = &(x2[gammaStates * i + numStates * k]);
+	     v =  &(x3[gammaStates * i + numStates * k]);
+
+	     for(l = 0; l < numStates; l++)
+	       v[l] = 0;
+
+	     for(l = 0; l < numStates; l++)
+	       {
+		 al = 0.0;
+		 ar = 0.0;
+		 for(j = 0; j < numStates; j++)
+		   {
+		     al += vl[j] * left[k * statesSquare + l * numStates + j];
+		     ar += vr[j] * right[k * statesSquare + l * numStates + j];
+		   }
+
+		 x1px2 = al * ar;
+		 for(j = 0; j < numStates; j++)
+		   v[j] += x1px2 * extEV[numStates * l + j];
+	       }
+	   }
+	 
+	 v = &(x3[gammaStates * i]);
+	 scale = 1;
+	 for(l = 0; scale && (l < gammaStates); l++)
+	   scale = ((ABS(v[l]) <  minlikelihood));
+
+	 if(scale)
+	   {	    
+	     for(l = 0; l < gammaStates; l++)
+	       v[l] *= twotothe256;
+	     
+	     ex3[i]  += 1;	    
+	   }
+       }
+      break;
+    default:
+      assert(0);
+    }  
+}
+
+
+
 
 
 
@@ -7401,7 +7549,10 @@ void newviewIterative (tree *tr)
 		*right    = (double*)NULL,
 		*x1_gapColumn = (double*)NULL,
 		*x2_gapColumn = (double*)NULL,
-		*x3_gapColumn = (double*)NULL,	       
+		*x3_gapColumn = (double*)NULL,	
+		*x1_ascColumn = (double*)NULL,
+		*x2_ascColumn = (double*)NULL,
+		*x3_ascColumn = (double*)NULL,
 		qz, 
 		rz;
 	      
@@ -7413,7 +7564,8 @@ void newviewIterative (tree *tr)
 	      int		
 		scalerIncrement = 0,
 		*wgt = (int*)NULL,	       
-		*ex3 = (int*)NULL;
+		*ex3 = (int*)NULL,
+		*ex3_asc = (int*)NULL;
 	      
 	      unsigned char
 		*tipX1 = (unsigned char *)NULL,
@@ -7424,6 +7576,7 @@ void newviewIterative (tree *tr)
 		rateHet,
 		states = (size_t)tr->partitionData[model].states,
 		width = tr->partitionData[model].width,
+		ascWidth = (size_t)tr->partitionData[model].states,
 		availableLength =  tr->partitionData[model].xSpaceVector[(tInfo->pNumber - tr->mxtips - 1)],			       
 		requiredLength;
 	       
@@ -7431,6 +7584,8 @@ void newviewIterative (tree *tr)
 		rateHet = 1;
 	      else
 		rateHet = 4;
+
+	      
 
 	      if(tr->saveMemory)
 		{ 
@@ -7507,6 +7662,21 @@ void newviewIterative (tree *tr)
 		      x2_gapColumn   = &(tr->partitionData[model].tipVector[gapOffset]);
 		      x3_gapColumn   = &tr->partitionData[model].gapColumn[(tInfo->pNumber - tr->mxtips - 1) * states * rateHet];
 		    }
+#ifdef _USE_PTHREADS
+		  if(tr->partitionData[model].ascBias && tr->threadID == 0)
+#else
+		    if(tr->partitionData[model].ascBias)
+#endif
+		      {		     
+		      size_t
+			k;
+		      
+		      x3_ascColumn = &tr->partitionData[model].ascVector[(tInfo->pNumber - tr->mxtips - 1) * tr->partitionData[model].ascOffset];
+		      ex3_asc = &tr->partitionData[model].ascExpVector[(tInfo->pNumber - tr->mxtips - 1) * ascWidth];
+
+		      for(k = 0; k < ascWidth; k++)
+			ex3_asc[k] = 0;		      
+		    }
 		  
 		  if(!tr->useFastScaling)
 		    {
@@ -7528,16 +7698,37 @@ void newviewIterative (tree *tr)
 		      x1_gapColumn   = &(tr->partitionData[model].tipVector[gapOffset]);
 		      x2_gapColumn   = &tr->partitionData[model].gapColumn[(tInfo->rNumber - tr->mxtips - 1) * states * rateHet];
 		      x3_gapColumn   = &tr->partitionData[model].gapColumn[(tInfo->pNumber - tr->mxtips - 1) * states * rateHet];
-		    }		
-		  
+		    }	
+	
+#ifdef _USE_PTHREADS
+		  if(tr->partitionData[model].ascBias && tr->threadID == 0)
+#else
+		    if(tr->partitionData[model].ascBias)
+#endif		
+		    {	
+		      size_t
+			k;
+
+		      int 
+			*ex2_asc;
+		      
+		      x2_ascColumn = &tr->partitionData[model].ascVector[(tInfo->rNumber - tr->mxtips - 1) * tr->partitionData[model].ascOffset];
+		      x3_ascColumn = &tr->partitionData[model].ascVector[(tInfo->pNumber - tr->mxtips - 1) * tr->partitionData[model].ascOffset];
+		      
+		      ex2_asc = &tr->partitionData[model].ascExpVector[(tInfo->rNumber - tr->mxtips - 1) * ascWidth];
+		      ex3_asc = &tr->partitionData[model].ascExpVector[(tInfo->pNumber - tr->mxtips - 1) * ascWidth];
+
+		      for(k = 0; k < ascWidth; k++)
+			ex3_asc[k] = ex2_asc[k];
+		    }
+
 		  if(!tr->useFastScaling)
 		    {
 		      size_t 
 			k;
-		      int
-			*ex2;
 		      
-		      ex2      = tr->partitionData[model].expVector[tInfo->rNumber - tr->mxtips - 1];		     
+		      int
+			*ex2 = tr->partitionData[model].expVector[tInfo->rNumber - tr->mxtips - 1];		     
 		      
 		      for(k = 0; k < width; k++)
 			ex3[k] = ex2[k];
@@ -7553,7 +7744,31 @@ void newviewIterative (tree *tr)
 		      x2_gapColumn   = &tr->partitionData[model].gapColumn[(tInfo->rNumber - tr->mxtips - 1) * states * rateHet];
 		      x3_gapColumn   = &tr->partitionData[model].gapColumn[(tInfo->pNumber - tr->mxtips - 1) * states * rateHet];
 		    }
-		  
+#ifdef _USE_PTHREADS
+	      if(tr->partitionData[model].ascBias && tr->threadID == 0)
+#else
+		if(tr->partitionData[model].ascBias)
+#endif		  
+		    {		     
+		      size_t
+			k;
+
+		      int 
+			*ex1_asc,
+			*ex2_asc;
+		      
+		      x1_ascColumn = &tr->partitionData[model].ascVector[(tInfo->qNumber - tr->mxtips - 1) * tr->partitionData[model].ascOffset];
+		      x2_ascColumn = &tr->partitionData[model].ascVector[(tInfo->rNumber - tr->mxtips - 1) * tr->partitionData[model].ascOffset];
+		      x3_ascColumn = &tr->partitionData[model].ascVector[(tInfo->pNumber - tr->mxtips - 1) * tr->partitionData[model].ascOffset];
+		      
+		      ex1_asc = &tr->partitionData[model].ascExpVector[(tInfo->qNumber - tr->mxtips - 1) * ascWidth];
+		      ex2_asc = &tr->partitionData[model].ascExpVector[(tInfo->rNumber - tr->mxtips - 1) * ascWidth];
+		      ex3_asc = &tr->partitionData[model].ascExpVector[(tInfo->pNumber - tr->mxtips - 1) * ascWidth];
+
+		      for(k = 0; k < ascWidth; k++)
+			ex3_asc[k] = ex1_asc[k] + ex2_asc[k];
+		    }
+
 		  if(!tr->useFastScaling)
 		    {
 		      size_t
@@ -7587,7 +7802,9 @@ void newviewIterative (tree *tr)
 		  qz = tInfo->qz[0];
 		  rz = tInfo->rz[0];
 		}
-	      	     	      
+	      	  
+	     
+	      
 	      switch(tr->partitionData[model].dataType)
 		{
 		case BINARY_DATA:
@@ -7616,7 +7833,8 @@ void newviewIterative (tree *tr)
 			newviewGTRGAMMA_BINARY(tInfo->tipCase,
 					       x1_start, x2_start, x3_start, tr->partitionData[model].EV, tr->partitionData[model].tipVector,
 					       ex3, tipX1, tipX2,
-					       width, left, right, wgt, &scalerIncrement, tr->useFastScaling);
+					       width, left, right, wgt, &scalerIncrement, tr->useFastScaling);			
+
 		      }
 		      break;
 		    default:
@@ -7981,6 +8199,20 @@ void newviewIterative (tree *tr)
 		default:
 		  assert(0);
 		}
+#ifdef _USE_PTHREADS
+	      if(tr->partitionData[model].ascBias && tr->threadID == 0)
+#else
+		if(tr->partitionData[model].ascBias)
+#endif	     	      
+		{
+		  newviewAscGamma(tInfo->tipCase,
+				  x1_ascColumn, x2_ascColumn, x3_ascColumn,
+				  tr->partitionData[model].EV,
+				  tr->partitionData[model].tipVector,
+				  ex3_asc,
+				  states, left, right, states);			   
+		}
+
 	      if(tr->useFastScaling)
 		{
 

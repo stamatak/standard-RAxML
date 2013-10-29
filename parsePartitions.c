@@ -261,65 +261,174 @@ static void analyzeIdentifier(char **ch, int modelNumber, tree *tr)
 	      if(found && (tr->initialPartitionData[modelNumber].protModels == GTR || tr->initialPartitionData[modelNumber].protModels == GTR_UNLINKED))
 		tr->initialPartitionData[modelNumber].usePredefinedProtFreqs  = FALSE;		    		
 	    }
+
+	   /* AA with Asc bias*/
+	  
+	  if(!found)
+	    {
+	      for(i = 0; i < NUM_PROT_MODELS && !found; i++)
+		{	
+		  strcpy(thisModel, "ASC_");
+		  strcat(thisModel, protModels[i]);
+		  
+		  if(strcasecmp(model, thisModel) == 0)
+		    {	      	      
+		      tr->initialPartitionData[modelNumber].protModels = i;		  
+		      tr->initialPartitionData[modelNumber].usePredefinedProtFreqs = TRUE;
+		      tr->initialPartitionData[modelNumber].dataType   = AA_DATA;		  
+		      found = TRUE;
+		    }
+		  
+		  if(!found)
+		    {
+		      if(i != GTR && i != GTR_UNLINKED)
+			{
+			  strcpy(thisModel, protModels[i]);
+			  strcat(thisModel, "F");
+			  
+			  if(strcasecmp(model, thisModel) == 0)
+			    {	      
+			      tr->initialPartitionData[modelNumber].protModels = i;		  
+			      tr->initialPartitionData[modelNumber].usePredefinedProtFreqs  = FALSE;
+			      tr->initialPartitionData[modelNumber].dataType   = AA_DATA;		     
+			      found = TRUE;
+			    }
+			}
+		    }
+		  
+	      
+		  if(!found)
+		    {		  
+		      strcpy(thisModel, protModels[i]);
+		      strcat(thisModel, "X");
+		      
+		      if(strcasecmp(model, thisModel) == 0)
+			{	      
+			  tr->initialPartitionData[modelNumber].protModels = i;		  
+			  tr->initialPartitionData[modelNumber].usePredefinedProtFreqs  = FALSE;
+			  tr->initialPartitionData[modelNumber].dataType   = AA_DATA;		     
+			  tr->initialPartitionData[modelNumber].optimizeBaseFrequencies = TRUE;
+			  found = TRUE;
+			}		
+		    }
+		  
+		  if(found)
+		    tr->initialPartitionData[modelNumber].ascBias = TRUE;
+
+		  if(found && (tr->initialPartitionData[modelNumber].protModels == GTR || tr->initialPartitionData[modelNumber].protModels == GTR_UNLINKED))
+		    tr->initialPartitionData[modelNumber].usePredefinedProtFreqs  = FALSE;		    		
+		}
+	    }
+	  
+
 	  
 	  if(!found)
 	    {		  	  
-	      if(strcasecmp(model, "DNA") == 0 || strcasecmp(model, "DNAX") == 0)
+	      if(strcasecmp(model, "DNA") == 0 || strcasecmp(model, "DNAX") == 0 || strcasecmp(model, "ASC_DNA") == 0 || strcasecmp(model, "ASC_DNAX") == 0)
 		{	     	      
 		  tr->initialPartitionData[modelNumber].protModels = -1;		  
 		  tr->initialPartitionData[modelNumber].usePredefinedProtFreqs  = FALSE;
 		  tr->initialPartitionData[modelNumber].dataType   = DNA_DATA;
 
-		  if(strcasecmp(model, "DNAX") == 0)
-		    tr->initialPartitionData[modelNumber].optimizeBaseFrequencies = TRUE;
+		  if(strcasecmp(model, "DNAX") == 0 || strcasecmp(model, "ASC_DNAX") == 0)
+		    {
+		      if(strcasecmp(model, "ASC_DNAX") == 0)
+			tr->initialPartitionData[modelNumber].ascBias = TRUE;
+		      else
+			tr->initialPartitionData[modelNumber].ascBias = FALSE;
+		      tr->initialPartitionData[modelNumber].optimizeBaseFrequencies = TRUE;
+		    }
 		  else
-		    tr->initialPartitionData[modelNumber].optimizeBaseFrequencies = FALSE;
+		    {
+		      if(strcasecmp(model, "ASC_DNA") == 0)
+			tr->initialPartitionData[modelNumber].ascBias = TRUE;
+		      else
+			tr->initialPartitionData[modelNumber].ascBias = FALSE;
+		      tr->initialPartitionData[modelNumber].optimizeBaseFrequencies = FALSE;
+		    }
+		      
 		  
 		  found = TRUE;
 		}	  
 	      else
 		{	    	  
-		  if(strcasecmp(model, "BIN") == 0 || strcasecmp(model, "BINX") == 0)
+		  if(strcasecmp(model, "BIN") == 0 || strcasecmp(model, "BINX") == 0 || strcasecmp(model, "ASC_BIN") == 0 || strcasecmp(model, "ASC_BINX") == 0)
 		    {	     	      
 		      tr->initialPartitionData[modelNumber].protModels = -1;		  
 		      tr->initialPartitionData[modelNumber].usePredefinedProtFreqs  = FALSE;
 		      tr->initialPartitionData[modelNumber].dataType   = BINARY_DATA;
-
-		      if(strcasecmp(model, "BINX") == 0)
-			tr->initialPartitionData[modelNumber].optimizeBaseFrequencies = TRUE;
+		      
+		      if(strcasecmp(model, "BINX") == 0 || strcasecmp(model, "ASC_BINX") == 0)
+			{
+			  if(strcasecmp(model, "ASC_BINX") == 0)
+			    tr->initialPartitionData[modelNumber].ascBias = TRUE;
+			  else
+			    tr->initialPartitionData[modelNumber].ascBias = FALSE;
+			  tr->initialPartitionData[modelNumber].optimizeBaseFrequencies = TRUE;
+			}
 		      else
-			tr->initialPartitionData[modelNumber].optimizeBaseFrequencies = FALSE;
+			{
+			  if(strcasecmp(model, "ASC_BIN") == 0)
+			    tr->initialPartitionData[modelNumber].ascBias = TRUE;
+			  else
+			    tr->initialPartitionData[modelNumber].ascBias = FALSE;
+			  tr->initialPartitionData[modelNumber].optimizeBaseFrequencies = FALSE;
+			}
 		      
 		      found = TRUE;
 		    }
 		  else
 		    {
-		      if(strcasecmp(model, "MULTI") == 0 || strcasecmp(model, "MULTIX") == 0)
+		      if(strcasecmp(model, "MULTI") == 0 || strcasecmp(model, "MULTIX") == 0 || strcasecmp(model, "ASC_MULTI") == 0 || strcasecmp(model, "ASC_MULTIX") == 0)
 			{	     	      
 			  tr->initialPartitionData[modelNumber].protModels = -1;		  
 			  tr->initialPartitionData[modelNumber].usePredefinedProtFreqs  = FALSE;
 			  tr->initialPartitionData[modelNumber].dataType   = GENERIC_32;
 
-			  if(strcasecmp(model, "MULTIX") == 0)
-			    tr->initialPartitionData[modelNumber].optimizeBaseFrequencies = TRUE;
+			  if(strcasecmp(model, "MULTIX") == 0 || strcasecmp(model, "ASC_MULTIX") == 0)
+			    {
+			      if(strcasecmp(model, "ASC_MULTIX") == 0)
+				tr->initialPartitionData[modelNumber].ascBias = TRUE;
+			      else
+				tr->initialPartitionData[modelNumber].ascBias = FALSE;
+			      tr->initialPartitionData[modelNumber].optimizeBaseFrequencies = TRUE;
+			    }
 			  else
-			    tr->initialPartitionData[modelNumber].optimizeBaseFrequencies = FALSE;
+			    {
+			      if(strcasecmp(model, "ASC_MULTI") == 0)
+				tr->initialPartitionData[modelNumber].ascBias = TRUE;
+			      else
+				tr->initialPartitionData[modelNumber].ascBias = FALSE;
+			      tr->initialPartitionData[modelNumber].optimizeBaseFrequencies = FALSE;
+			    }
 			  
 			  found = TRUE;
 			}
 		      else
 			{
-			  if(strcasecmp(model, "CODON") == 0 || strcasecmp(model, "CODONX") == 0)
+			  if(strcasecmp(model, "CODON") == 0 || strcasecmp(model, "CODONX") == 0 || strcasecmp(model, "ASC_CODON") == 0 || strcasecmp(model, "ASC_CODONX") == 0)
 			    {	     	      
 			      tr->initialPartitionData[modelNumber].protModels = -1;		  
 			      tr->initialPartitionData[modelNumber].usePredefinedProtFreqs  = FALSE;
 			      tr->initialPartitionData[modelNumber].dataType   = GENERIC_64;
-
 			      
-			      if(strcasecmp(model, "CODONX") == 0)
-				tr->initialPartitionData[modelNumber].optimizeBaseFrequencies = TRUE;
+			      if(strcasecmp(model, "CODONX") == 0 || strcasecmp(model, "ASC_CODONX") == 0)
+				{
+				  if(strcasecmp(model, "ASC_CODONX") == 0)
+				    tr->initialPartitionData[modelNumber].ascBias = TRUE;
+				  else
+				    tr->initialPartitionData[modelNumber].ascBias = FALSE;
+				  tr->initialPartitionData[modelNumber].optimizeBaseFrequencies = TRUE;
+				}
 			      else
-				tr->initialPartitionData[modelNumber].optimizeBaseFrequencies = FALSE;
+				{
+				  if(strcasecmp(model, "ASC_CODON") == 0)
+				    tr->initialPartitionData[modelNumber].ascBias = TRUE;
+				  else
+				    tr->initialPartitionData[modelNumber].ascBias = FALSE;
+				  tr->initialPartitionData[modelNumber].optimizeBaseFrequencies = FALSE;
+				}
+			     
 			      
 			      found = TRUE;
 			    }
@@ -970,7 +1079,13 @@ void handleExcludeFile(tree *tr, analdef *adef, rawdata *rdta)
 		  {
 		    char AAmodel[1024];
 		    
-		    strcpy(AAmodel, protModels[tr->partitionData[i].protModels]);
+		    if(tr->partitionData[i].ascBias)
+		      {
+			strcpy(AAmodel, "ASC_");
+			strcat(AAmodel, protModels[tr->partitionData[i].protModels]);
+		      }
+		    else
+		      strcpy(AAmodel, protModels[tr->partitionData[i].protModels]);
 		    if(tr->partitionData[i].usePredefinedProtFreqs == FALSE)
 		      strcat(AAmodel, "F");
 		    if(tr->partitionData[i].optimizeBaseFrequencies)
@@ -983,27 +1098,67 @@ void handleExcludeFile(tree *tr, analdef *adef, rawdata *rdta)
 		  break;
 		case DNA_DATA:
 		  if(tr->partitionData[i].optimizeBaseFrequencies)
-		    fprintf(newFile, "DNAX, ");
+		    {
+		      if(tr->partitionData[i].ascBias)
+			fprintf(newFile, "ASC_DNAX, ");
+		      else
+			fprintf(newFile, "DNAX, ");
+		    }
 		  else
-		    fprintf(newFile, "DNA, ");
+		    {
+		      if(tr->partitionData[i].ascBias)
+			fprintf(newFile, "ASC_DNA, ");
+		      else
+			fprintf(newFile, "DNA, ");
+		    }
 		  break;
 		case BINARY_DATA:
 		  if(tr->partitionData[i].optimizeBaseFrequencies)
-		    fprintf(newFile, "BINX, ");
+		    {
+		      if(tr->partitionData[i].ascBias)
+			fprintf(newFile, "ASC_BINX, ");
+		      else
+			fprintf(newFile, "BINX, ");
+		    }
 		  else
-		    fprintf(newFile, "BIN, ");
+		    {
+		      if(tr->partitionData[i].ascBias)
+			fprintf(newFile, "ASC_BIN, ");
+		      else
+			fprintf(newFile, "BIN, ");
+		    }
 		  break;
 		case GENERIC_32:
 		  if(tr->partitionData[i].optimizeBaseFrequencies)
-		    fprintf(newFile, "MULTIX, ");
+		    {
+		      if(tr->partitionData[i].ascBias)
+			fprintf(newFile, "ASC_MULTIX, ");
+		      else
+			fprintf(newFile, "MULTIX, ");
+		    }
 		  else
-		    fprintf(newFile, "MULTI, ");
+		    {
+		      if(tr->partitionData[i].ascBias)
+			fprintf(newFile, "ASC_MULTI, ");
+		      else
+			fprintf(newFile, "MULTI, ");
+		    }
 		  break;
 		case GENERIC_64:
 		  if(tr->partitionData[i].optimizeBaseFrequencies)
-		    fprintf(newFile, "CODONX, ");
+		    {
+		      if(tr->partitionData[i].ascBias)
+			fprintf(newFile, "ASC_CODONX, ");
+		      else
+			fprintf(newFile, "CODONX, ");
+		    }
 		  else
-		    fprintf(newFile, "CODON, ");
+		    {
+		      if(tr->partitionData[i].ascBias)
+			fprintf(newFile, "ASC_CODON, ");
+		      else
+			fprintf(newFile, "CODON, ");
+		    }
 		  break;
 		default:
 		  assert(0);

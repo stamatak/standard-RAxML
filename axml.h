@@ -163,8 +163,8 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "RAxML"
-#define programVersion     "7.8.1"
-#define programDate        "Oct 18 2013"
+#define programVersion     "7.8.2"
+#define programDate        "Oct 29 2013"
 
 
 #define  TREE_EVALUATION                 0
@@ -562,6 +562,16 @@ typedef struct {
  
   unsigned char            **yVector;
  
+
+  //asc bias
+  boolean ascBias;  
+  int     ascOffset;
+  int     *ascExpVector;
+  double  *ascSumBuffer;
+  double  *ascVector;
+  //asc bias end
+
+
   char   *partitionName;
   char   proteinSubstitutionFileName[2048];
   double externalAAMatrix[420];
@@ -1037,6 +1047,7 @@ typedef  struct {
   boolean       verboseIC;
   boolean       stepwiseAdditionOnly;
   boolean       optimizeBaseFrequencies;
+  boolean       ascertainmentBias;
 } analdef;
 
 
@@ -1068,6 +1079,8 @@ typedef struct
 } partitionLengths;
 
 /****************************** FUNCTIONS ****************************************************/
+
+extern void ascertainmentBiasSequence(unsigned char tip[32], int numStates);
 
 extern void computePlacementBias(tree *tr, analdef *adef);
 

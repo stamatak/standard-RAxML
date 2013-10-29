@@ -1159,6 +1159,76 @@ static void coreGammaFlex(double *gammaRates, double *EIGN, double *sumtable, in
 
 
 
+static double coreGammaAsc(double *gammaRates, double *EIGN, double *sumtable, int upper,
+			   volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double lz, const int numStates)
+{
+  double  
+    diagptable[1024], 
+    lh = 0.0,
+    dlnLdlz = 0.0,
+    d2lnLdlz2 = 0.0,
+    ki, 
+    kisqr;
+
+  int     
+    i, 
+    j, 
+    l;  
+
+  const int 
+    gammaStates = 4 * numStates;
+
+  for(i = 0; i < 4; i++)
+    {
+      ki = gammaRates[i];
+      kisqr = ki * ki;
+
+      for(l = 1; l < numStates; l++)
+	{
+	  diagptable[i * gammaStates + l * 4]     = EXP(EIGN[l-1] * ki * lz);
+	  diagptable[i * gammaStates + l * 4 + 1] = EIGN[l-1] * ki;
+	  diagptable[i * gammaStates + l * 4 + 2] = EIGN[l-1] * EIGN[l-1] * kisqr;
+	}
+    }
+
+  for (i = 0; i < upper; i++)
+    {
+      double
+	*sum = &sumtable[i * gammaStates],
+	tmp,
+	inv_Li   = 0.0,
+	dlnLidlz = 0.0,
+	d2lnLidlz2 = 0.0;
+
+      for(j = 0; j < 4; j++)
+	{
+	  inv_Li += sum[j * numStates];
+
+	  for(l = 1; l < numStates; l++)
+	    {
+	      inv_Li     += (tmp = diagptable[j * gammaStates + l * 4] * sum[j * numStates + l]);
+	      dlnLidlz   += tmp * diagptable[j * gammaStates + l * 4 + 1];
+	      d2lnLidlz2 += tmp * diagptable[j * gammaStates + l * 4 + 2];
+	    }	  
+	}    
+            
+      inv_Li = 0.25 * FABS(inv_Li);         
+      dlnLidlz *= 0.25;
+      d2lnLidlz2 *= 0.25;
+       
+      lh        += inv_Li;	  	 
+      dlnLdlz   += dlnLidlz;
+      d2lnLdlz2 += d2lnLidlz2;       
+    } 
+
+  *ext_dlnLdlz   = (dlnLdlz / (lh - 1.0));
+  *ext_d2lnLdlz2 = (((lh - 1.0) * (d2lnLdlz2) - (dlnLdlz * dlnLdlz)) / ((lh - 1.0) * (lh - 1.0)));  
+
+  return lh;
+}
+
+
+
 
 static void coreGammaInvarFlex(double *gammaRates, double *EIGN, double *sumtable, int upper, int *wrptr,
 			       volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double lz, double *frequencies,
@@ -2104,7 +2174,7 @@ static void coreGTRGAMMA(const int upper, double *sumtable,
 
       _mm_storel_pd(&inv_Li, a0);     
       _mm_storel_pd(&dlnLidlz, a1);
-      _mm_storel_pd(&d2lnLidlz2, a2); 
+      _mm_storel_pd(&d2lnLidlz2, a2);       
 
       inv_Li = 1.0 / inv_Li;
      
@@ -2114,7 +2184,6 @@ static void coreGTRGAMMA(const int upper, double *sumtable,
       dlnLdlz   += wrptr[i] * dlnLidlz;
       d2lnLdlz2 += wrptr[i] * (d2lnLidlz2 - dlnLidlz * dlnLidlz);
     }
-
  
   *ext_dlnLdlz   = dlnLdlz;
   *ext_d2lnLdlz2 = d2lnLdlz2; 
@@ -2401,6 +2470,69 @@ static void sumGAMMAPROT_GAPPED_SAVE(int tipCase, double *sumtable, double *x1, 
 }
 
 #endif
+
+static void sumGammaAsc(int tipCase, double *sumtable, double *x1, double *x2, double *tipVector,
+			int n, const int numStates)
+{
+  int i, l, k;
+  double *left, *right, *sum;
+
+  const int gammaStates = numStates * 4;
+
+  unsigned char 
+    tip[32];
+
+  ascertainmentBiasSequence(tip, numStates);
+
+  switch(tipCase)
+    {
+    case TIP_TIP:
+      for(i = 0; i < n; i++)
+	{
+	  left  = &(tipVector[numStates * tip[i]]);
+	  right = &(tipVector[numStates * tip[i]]);
+
+	  for(l = 0; l < 4; l++)
+	    {
+	      sum = &sumtable[i * gammaStates + l * numStates];
+	      for(k = 0; k < numStates; k++)
+		sum[k] = left[k] * right[k];
+	    }
+	}
+      break;
+    case TIP_INNER:
+      for(i = 0; i < n; i++)
+	{
+	  left = &(tipVector[numStates * tip[i]]);
+
+	  for(l = 0; l < 4; l++)
+	    {
+	      right = &(x2[gammaStates * i + l * numStates]);
+	      sum = &sumtable[i * gammaStates + l * numStates];
+
+	      for(k = 0; k < numStates; k++)
+		sum[k] = left[k] * right[k];
+	    }
+	}
+      break;
+    case INNER_INNER:
+      for(i = 0; i < n; i++)
+	{
+	  for(l = 0; l < 4; l++)
+	    {
+	      left  = &(x1[gammaStates * i + l * numStates]);
+	      right = &(x2[gammaStates * i + l * numStates]);
+	      sum   = &(sumtable[i * gammaStates + l * numStates]);
+
+	      for(k = 0; k < numStates; k++)
+		sum[k] = left[k] * right[k];
+	    }
+	}
+      break;
+    default:
+      assert(0);
+    }
+}
 
 
 static void sumGammaFlex(int tipCase, double *sumtable, double *x1, double *x2, double *tipVector,
@@ -3380,7 +3512,7 @@ static void coreGTRGAMMASECONDARYINVAR_7(double *gammaRates, double *EIGN, doubl
 
 
 static void getVects(tree *tr, unsigned char **tipX1, unsigned char **tipX2, double **x1_start, double **x2_start, int *tipCase, int model,
-		     double **x1_gapColumn, double **x2_gapColumn, unsigned int **x1_gap, unsigned int **x2_gap)
+		     double **x1_gapColumn, double **x2_gapColumn, unsigned int **x1_gap, unsigned int **x2_gap,  double **x1_start_asc, double **x2_start_asc)
 {
   int 
     rateHet,
@@ -3392,9 +3524,13 @@ static void getVects(tree *tr, unsigned char **tipX1, unsigned char **tipX2, dou
     rateHet = 1;
   else
     rateHet = 4;
-   
+  
+  *x1_start_asc = (double*)NULL;
+  *x2_start_asc = (double*)NULL;
+  
   *x1_start = (double*)NULL,
   *x2_start = (double*)NULL;
+  
   *tipX1 = (unsigned char*)NULL,
   *tipX2 = (unsigned char*)NULL;
 
@@ -3408,6 +3544,15 @@ static void getVects(tree *tr, unsigned char **tipX1, unsigned char **tipX2, dou
 	      *tipX1 = tr->partitionData[model].yVector[qNumber];
 	      *x2_start = tr->partitionData[model].xVector[pNumber - tr->mxtips - 1];
 	      
+#ifdef _USE_PTHREADS
+	      if(tr->partitionData[model].ascBias && tr->threadID == 0)
+#else
+		if(tr->partitionData[model].ascBias)
+#endif
+		{
+		  *x2_start_asc = &tr->partitionData[model].ascVector[(pNumber - tr->mxtips - 1) * tr->partitionData[model].ascOffset];
+		}
+
 	      if(tr->saveMemory)
 		{
 		  *x2_gap = &(tr->partitionData[model].gapVector[pNumber * tr->partitionData[model].gapVectorLength]);
@@ -3419,6 +3564,16 @@ static void getVects(tree *tr, unsigned char **tipX1, unsigned char **tipX2, dou
 	      *tipX1 = tr->partitionData[model].yVector[pNumber];
 	      *x2_start = tr->partitionData[model].xVector[qNumber - tr->mxtips - 1];
 	      
+#ifdef _USE_PTHREADS
+	      if(tr->partitionData[model].ascBias && tr->threadID == 0)
+#else
+		if(tr->partitionData[model].ascBias)
+#endif	      
+	     
+		{
+		  *x2_start_asc = &tr->partitionData[model].ascVector[(qNumber - tr->mxtips - 1) * tr->partitionData[model].ascOffset];
+		}
+
 	      if(tr->saveMemory)
 		{
 		  *x2_gap = &(tr->partitionData[model].gapVector[qNumber * tr->partitionData[model].gapVectorLength]);
@@ -3428,7 +3583,7 @@ static void getVects(tree *tr, unsigned char **tipX1, unsigned char **tipX2, dou
 	}
       else
 	{
-	  *tipCase = TIP_TIP;
+	  *tipCase = TIP_TIP;	  
 	  *tipX1 = tr->partitionData[model].yVector[pNumber];
 	  *tipX2 = tr->partitionData[model].yVector[qNumber];
 	}
@@ -3439,6 +3594,17 @@ static void getVects(tree *tr, unsigned char **tipX1, unsigned char **tipX2, dou
 
       *x1_start = tr->partitionData[model].xVector[pNumber - tr->mxtips - 1];
       *x2_start = tr->partitionData[model].xVector[qNumber - tr->mxtips - 1];
+
+
+#ifdef _USE_PTHREADS
+      if(tr->partitionData[model].ascBias && tr->threadID == 0)
+#else
+	if(tr->partitionData[model].ascBias)
+#endif
+	{
+	  *x1_start_asc = &tr->partitionData[model].ascVector[(pNumber - tr->mxtips - 1) * tr->partitionData[model].ascOffset];
+	  *x2_start_asc = &tr->partitionData[model].ascVector[(qNumber - tr->mxtips - 1) * tr->partitionData[model].ascOffset];
+	}           
       
       if(tr->saveMemory)
 	{
@@ -3464,6 +3630,8 @@ void makenewzIterative(tree *tr)
   double
     *x1_start = (double*)NULL,
     *x2_start = (double*)NULL,
+    *x1_start_asc = (double*)NULL,
+    *x2_start_asc = (double*)NULL,
     *x1_gapColumn = (double*)NULL,
     *x2_gapColumn = (double*)NULL;
 
@@ -3488,7 +3656,7 @@ void makenewzIterative(tree *tr)
 	    states = tr->partitionData[model].states;
 
 	 
-	  getVects(tr, &tipX1, &tipX2, &x1_start, &x2_start, &tipCase, model, &x1_gapColumn, &x2_gapColumn, &x1_gap, &x2_gap);
+	  getVects(tr, &tipX1, &tipX2, &x1_start, &x2_start, &tipCase, model, &x1_gapColumn, &x2_gapColumn, &x1_gap, &x2_gap, &x1_start_asc, &x2_start_asc);
 	 
 
 	  switch(tr->partitionData[model].dataType)
@@ -3641,6 +3809,15 @@ void makenewzIterative(tree *tr)
 	    default:
 	      assert(0);
 	    }
+#ifdef _USE_PTHREADS
+	  if(tr->partitionData[model].ascBias && tr->threadID == 0)
+#else
+	    if(tr->partitionData[model].ascBias)
+#endif	 
+	    {
+	      sumGammaAsc(tipCase, tr->partitionData[model].ascSumBuffer, x1_start_asc, x2_start_asc, tr->partitionData[model].tipVector,
+			  states, states);
+	    }
 	}
     }
 }
@@ -3656,7 +3833,7 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
     branchIndex;
 
   double 
-    lz;
+    lz;  
 
   _dlnLdlz[0]   = 0.0;
   _d2lnLdlz2[0] = 0.0;
@@ -3687,7 +3864,7 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 	    d2lnLdlz2 = 0.0;
 	  
 
-	    sumBuffer = tr->partitionData[model].sumBuffer;
+	  sumBuffer = tr->partitionData[model].sumBuffer;
 
 
 	  if(tr->multiBranch)
@@ -3892,14 +4069,54 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 	      assert(0);
 	    }
 
-	  _dlnLdlz[branchIndex]   = _dlnLdlz[branchIndex]   + dlnLdlz;
-	  _d2lnLdlz2[branchIndex] = _d2lnLdlz2[branchIndex] + d2lnLdlz2;
+	 
+	  
+#ifdef _USE_PTHREADS
+	  if(tr->partitionData[model].ascBias && tr->threadID == 0)
+#else
+	    if(tr->partitionData[model].ascBias)
+#endif      
+	    {
+	      size_t
+		i;
+
+	      double 
+		correction;
+
+	      int	     
+		w = 0;
+	      
+	      volatile double 
+		d1 = 0.0,
+		d2 = 0.0;	      	    
+	      
+	      for(i = tr->partitionData[model].lower; i < tr->partitionData[model].upper; i++)
+		w += tr->cdta->aliaswgt[i];	
+	      
+	      correction = coreGammaAsc(tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, tr->partitionData[model].ascSumBuffer, states,
+					&d1,  &d2, lz, states);	  
+	     
+	      correction = 1.0 - correction;
+
+	      _dlnLdlz[branchIndex]   =  dlnLdlz - (double)w * d1;
+	      _d2lnLdlz2[branchIndex] = d2lnLdlz2-  (double)w * d2;
+	    }  
+	    else
+	      {
+		 _dlnLdlz[branchIndex]   = _dlnLdlz[branchIndex]   + dlnLdlz;
+		 _d2lnLdlz2[branchIndex] = _d2lnLdlz2[branchIndex] + d2lnLdlz2;
+		//printf("lh: %f branch %f\n", like, -lz * tr->fracchange);
+	      }
 	}
     }
 
 #ifdef _DEBUG_MULTI_EPA
   printf("\n");
 #endif 	  
+
+#ifdef _DEBUG_ASC
+  printf("\n\n");
+#endif
 
 }
 
@@ -4054,7 +4271,7 @@ static void topLevelMakenewz(tree *tr, double *z0, int _maxiter, double *result)
 	{
 	  if(tr->curvatOK[i] == TRUE && outerConverged[i] == FALSE)
 	    {
-	      if (d2lnLdlz2[i] < 0.0)
+	      if(d2lnLdlz2[i] < 0.0)
 		{
 		  double 
 		    tantmp = -dlnLdlz[i] / d2lnLdlz2[i];

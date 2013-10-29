@@ -90,7 +90,6 @@ boolean initrav (tree *tr, nodeptr p)
 
 //#define _DEBUG_UPDATE
 
-
 boolean update(tree *tr, nodeptr p)
 {       
   nodeptr  q; 
@@ -128,9 +127,20 @@ boolean update(tree *tr, nodeptr p)
 	    _deltaz = deltaz;
 	    
 	  if(ABS(z[i] - z0[i]) > _deltaz)  
-	    {	      
+	    {	    
+	      /*
+		#ifdef _DEBUG_UPDATE  
+		printf("accept\n");
+		#endif
+	      */
 	      smoothedPartitions[i] = FALSE;       
 	    }	 
+	  /*
+	    #ifdef _DEBUG_UPDATE
+	    else
+	    printf("reject\n");
+	    #endif
+	  */
 	  	  
 	  p->z[i] = q->z[i] = z[i];	 
 	}
@@ -143,8 +153,8 @@ boolean update(tree *tr, nodeptr p)
     {
       if(fabs(tr->likelihood - startLH) > 0.01)
 	{
-	  printf("%f %f\n", startLH, tr->likelihood);
-	  assert(0);      
+	  printf("%f %f\n", startLH, tr->likelihood);	  
+	  assert(0);             
 	}
     }
 #endif

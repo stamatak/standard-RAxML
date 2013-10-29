@@ -233,7 +233,7 @@ void  newviewGTRGAMMA_AVX(int tipCase,
 	      }	    
 
 	    if(scale)
-	      {
+	      {		
 		xv[0] = _mm256_mul_pd(xv[0], twoto);
 		xv[1] = _mm256_mul_pd(xv[1], twoto);
 		xv[2] = _mm256_mul_pd(xv[2], twoto);
@@ -300,7 +300,7 @@ void  newviewGTRGAMMA_AVX(int tipCase,
 	      }
 
 	     if(scale)
-	      {
+	      {	
 		xv[0] = _mm256_mul_pd(xv[0], twoto);
 		xv[1] = _mm256_mul_pd(xv[1], twoto);
 		xv[2] = _mm256_mul_pd(xv[2], twoto);

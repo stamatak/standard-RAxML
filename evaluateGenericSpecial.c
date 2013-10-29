@@ -56,6 +56,37 @@ extern volatile int NumberOfThreads;
 extern const unsigned int mask32[32];
 
 
+void ascertainmentBiasSequence(unsigned char tip[32], int numStates)
+{ 
+  assert(numStates <= 32 && numStates > 1);
+
+  switch(numStates)
+    {
+    case 2:     
+      tip[0] = 1;
+      tip[1] = 2;
+      break;
+    case 4:
+      tip[0] = 1;
+      tip[1] = 2;
+      tip[2] = 4;
+      tip[3] = 8;
+      break;
+    default:
+      {
+	int 
+	  i;
+	for(i = 0; i < numStates; i++)
+	  {
+	    tip[i] = i;
+	    //printf("%c ", inverseMeaningPROT[i]);
+	  }
+	//printf("\n");
+      }
+      break;
+    }
+}
+
 static void calcDiagptableFlex(double z, int numberOfCategories, double *rptr, double *EIGN, double *diagptable, const int numStates)
 {
   int 
@@ -218,8 +249,105 @@ static double evaluateCatFlex(int *ex1, int *ex2, int *cptr, int *wptr,
   return  sum;         
 } 
 
+//asc
 
+static double evaluateGammaAsc(int *ex1, int *ex2,
+				double *x1, double *x2,  
+				double *tipVector, 
+				unsigned char *tipX1, int n, double *diagptable, const int numStates)
+{
+  double
+    exponent,
+    logMin = LOG(twotothe256),
+    sum = 0.0, 
+    unobserved,
+    term,
+    *left, 
+    *right;
+  
+  int     
+    i, 
+    j, 
+    l;   
+  
+  const int 
+    gammaStates = numStates * 4;
+         
+  unsigned char 
+    tip[32];
 
+  ascertainmentBiasSequence(tip, numStates);
+   
+  if(tipX1)
+    {               
+      for (i = 0; i < n; i++) 
+	{
+	  left = &(tipVector[numStates * tip[i]]);	  	  
+	  
+	  for(j = 0, term = 0.0; j < 4; j++)
+	    {
+	      right = &(x2[gammaStates * i + numStates * j]);
+	      
+	      for(l = 0; l < numStates; l++)
+		term += left[l] * right[l] * diagptable[j * numStates + l];	      
+	    }	 	  	 
+
+	  exponent = ((double)ex2[i] * logMin);	  
+
+	  assert(exponent < 700.0);
+
+	  unobserved = 0.25 * FABS(term) * exp(exponent);	    
+	  
+#ifdef _DEBUG_ASC
+	  if(ex2[i] > 0)
+	    {
+	      printf("s %d\n", ex2[i]);
+	      assert(0);
+	    }
+#endif	  
+	    
+	  sum += unobserved;
+	}              
+    }              
+  else
+    {           
+      for (i = 0; i < n; i++) 
+	{	  	 	             
+	  
+	  for(j = 0, term = 0.0; j < 4; j++)
+	    {
+	      left  = &(x1[gammaStates * i + numStates * j]);
+	      right = &(x2[gammaStates * i + numStates * j]);	    
+	      
+	      for(l = 0; l < numStates; l++)
+		term += left[l] * right[l] * diagptable[j * numStates + l];	
+	    }
+	  
+	  //because of the way we scale for sites that only consist of a single character
+	  //ex1 and ex2 will mostly be zero, so there is no re-scaling that needs to be done
+
+	  exponent = ((double)(ex1[i] + ex2[i]) * logMin);
+	  
+#ifdef _DEBUG_ASC
+	  if(ex2[i] > 0 || ex1[i] > 0)
+	    {
+	      printf("s %d %d\n", ex1[i], ex2[i]);
+	      assert(0);
+	    }
+#endif
+
+	  assert(exponent < 700.0);
+	  
+	  unobserved = 0.25 * FABS(term) * exp(exponent);	  	  
+  
+	  sum += unobserved;
+	}             
+    }        
+
+  return  sum;
+}
+
+//asc
 
 static double evaluateGammaFlex(int *ex1, int *ex2, int *wptr,
 				double *x1, double *x2,  
@@ -2698,7 +2826,8 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 	{	
 	  int 
 	    width = tr->partitionData[model].width,
-	    states = tr->partitionData[model].states;
+	    states = tr->partitionData[model].states,
+	    ascWidth = tr->partitionData[model].states;
 	  
 	  double 
 	    z, 
@@ -2707,7 +2836,9 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 	  
 	  int    
 	    *ex1 = (int*)NULL, 
-	    *ex2 = (int*)NULL;
+	    *ex2 = (int*)NULL,
+	    *ex1_asc = (int*)NULL, 
+	    *ex2_asc = (int*)NULL;
 	  
 	  unsigned int
 	    *x1_gap = (unsigned int*)NULL,
@@ -2717,6 +2848,8 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 	    *weights    = tr->partitionData[model].weights,
 	    *x1_start   = (double*)NULL, 
 	    *x2_start   = (double*)NULL,
+	    *x1_start_asc   = (double*)NULL, 
+	    *x2_start_asc   = (double*)NULL,
 	    *diagptable = (double*)NULL,
 	    *x1_gapColumn = (double*)NULL,
 	    *x2_gapColumn = (double*)NULL;
@@ -2728,6 +2861,8 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 	    _vector = tr->partitionData[model].perSiteLL;
 	  else
 	    _vector = (double*)NULL;
+
+
 
 	 
 	  diagptable = tr->partitionData[model].left;
@@ -2748,7 +2883,17 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 		      x2_gapColumn   = &tr->partitionData[model].gapColumn[(pNumber - tr->mxtips - 1) * states * rateHet];
 		    }
 
-		  tip = tr->partitionData[model].yVector[qNumber];	 	      
+		  tip = tr->partitionData[model].yVector[qNumber];
+		  
+#ifdef _USE_PTHREADS
+		  if(tr->partitionData[model].ascBias && tr->threadID == 0)
+#else
+		    if(tr->partitionData[model].ascBias)
+#endif		  
+		    { 
+		      x2_start_asc = &tr->partitionData[model].ascVector[(pNumber - tr->mxtips - 1) * tr->partitionData[model].ascOffset];		     
+		      ex2_asc = &tr->partitionData[model].ascExpVector[(pNumber - tr->mxtips - 1) * ascWidth];
+		    }    
 		}           
 	      else
 		{
@@ -2766,6 +2911,16 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 		    }
 		  
 		  tip = tr->partitionData[model].yVector[pNumber];
+
+#ifdef _USE_PTHREADS
+		  if(tr->partitionData[model].ascBias && tr->threadID == 0)
+#else
+		    if(tr->partitionData[model].ascBias)
+#endif		 
+		    {		      
+		      x2_start_asc = &tr->partitionData[model].ascVector[(qNumber - tr->mxtips - 1) * tr->partitionData[model].ascOffset];		     
+		      ex2_asc = &tr->partitionData[model].ascExpVector[(qNumber - tr->mxtips - 1) * ascWidth];
+		    }		  
 		}
 	    }
 	  else
@@ -2786,6 +2941,19 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 		  ex1      = tr->partitionData[model].expVector[pNumber - tr->mxtips - 1];
 		  ex2      = tr->partitionData[model].expVector[qNumber - tr->mxtips - 1];     
 		}
+
+#ifdef _USE_PTHREADS
+	      if(tr->partitionData[model].ascBias && tr->threadID == 0)
+#else
+		if(tr->partitionData[model].ascBias)
+#endif	      
+		 {
+		   x1_start_asc = &tr->partitionData[model].ascVector[(pNumber - tr->mxtips - 1) * tr->partitionData[model].ascOffset];
+		   x2_start_asc = &tr->partitionData[model].ascVector[(qNumber - tr->mxtips - 1) * tr->partitionData[model].ascOffset];
+
+		   ex1_asc = &tr->partitionData[model].ascExpVector[(pNumber - tr->mxtips - 1) * ascWidth];
+		   ex2_asc = &tr->partitionData[model].ascExpVector[(qNumber - tr->mxtips - 1) * ascWidth];
+		 }
 	    }
 
 
@@ -3143,16 +3311,51 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 		default:
 		  assert(0);
 		}
-	    }	
-
+	    }
+	   
 	  if(width > 0)
-	    {
+	    {	      
 	      //printf("%d %f\n", model, partitionLikelihood);
 
 	      assert(partitionLikelihood < 0.0);
 	  
 	      if(tr->useFastScaling)		    	      		      
-		partitionLikelihood += (tr->partitionData[model].globalScaler[pNumber] + tr->partitionData[model].globalScaler[qNumber]) * LOG(minlikelihood);		    		
+		partitionLikelihood += (tr->partitionData[model].globalScaler[pNumber] + tr->partitionData[model].globalScaler[qNumber]) * LOG(minlikelihood);		    
+
+#ifdef _USE_PTHREADS
+	      if(tr->partitionData[model].ascBias && tr->threadID == 0)
+#else
+		if(tr->partitionData[model].ascBias)
+#endif	  	      
+		  {
+		    size_t
+		      i;
+		    
+		    int	       
+		      w = 0;
+		    
+		    double 		   		  
+		      correction = evaluateGammaAsc(ex1_asc, ex2_asc, x1_start_asc, x2_start_asc, tr->partitionData[model].tipVector,
+						    tip, ascWidth, diagptable, ascWidth);			 		 	       
+		    
+		    
+		    
+		    for(i = tr->partitionData[model].lower; i < tr->partitionData[model].upper; i++)
+		      w += tr->cdta->aliaswgt[i];		  		  	      	     
+	      
+		    partitionLikelihood = partitionLikelihood - (double)w * LOG(1.0 - correction);	     	      
+	      
+#ifdef _DEBUG_ASC 	      
+		    printf("E w: %f %f ARG %f ragu %f\n", partitionLikelihood, (double)w, 1.0 - correction, (double)w * LOG(1.0 - correction));
+#endif	      		    
+		  }
+	      
+	      if(partitionLikelihood >= 0.0)
+		{
+		  printf("psotive log like: %f for partition %d\n", partitionLikelihood, model);
+		  assert(0);
+		}
+	      
 	    }
 	  
 	  result += partitionLikelihood;	  
