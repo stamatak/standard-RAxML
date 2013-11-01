@@ -322,7 +322,7 @@ static void coreGTRCAT_BINARY(int upper, int numberOfCategories, double *sum,
       inv_Li = sum[2 * i];
       inv_Li += (tmp_0 = d[0] * sum[2 * i + 1]);
 
-      inv_Li = 1.0/inv_Li;
+      inv_Li = 1.0/FABS(inv_Li);
 
       dlnLidlz   = tmp_0 * e[0];
       d2lnLidlz2 = tmp_0 * e[1];
@@ -416,7 +416,7 @@ static void coreGTRCAT(int upper, int numberOfCategories, double *sum,
       _mm_storel_pd(&dlnLidlz, dlnLidlzv);                 
       _mm_storel_pd(&d2lnLidlz2, d2lnLidlz2v);      
 
-      inv_Li = 1.0/inv_Li;
+      inv_Li = 1.0/FABS(inv_Li);
 
       dlnLidlz   *= inv_Li;
       d2lnLidlz2 *= inv_Li;
@@ -481,7 +481,7 @@ static void coreGTRCAT(int upper, int numberOfCategories, double *sum,
       inv_Li += (tmp_1 = d[1] * sum[4 * i + 2]);
       inv_Li += (tmp_2 = d[2] * sum[4 * i + 3]);
 
-      inv_Li = 1.0/inv_Li;
+      inv_Li = 1.0/FABS(inv_Li);
 
       dlnLidlz   = tmp_0 * e[0];
       d2lnLidlz2 = tmp_0 * e[1];
@@ -936,7 +936,7 @@ static void coreGTRCATPROT(double *EIGN, double lz, int numberOfCategories, doub
       _mm_storel_pd(&dlnLidlz, a1);                 
       _mm_storel_pd(&d2lnLidlz2, a2);
       
-      inv_Li = 1.0/inv_Li;
+      inv_Li = 1.0/FABS(inv_Li);
 
       dlnLidlz   *= inv_Li;
       d2lnLidlz2 *= inv_Li;
@@ -1000,7 +1000,7 @@ static void coreGTRCATPROT(double *EIGN, double lz, int numberOfCategories, doub
 	  d2lnLidlz2 += tmp *  e[l];
 	}
 
-      inv_Li = 1.0/inv_Li;
+      inv_Li = 1.0/FABS(inv_Li);
 
       dlnLidlz   *= inv_Li;
       d2lnLidlz2 *= inv_Li;
@@ -1074,7 +1074,7 @@ static void coreCatFlex(double *EIGN, double lz, int numberOfCategories, double 
 	  d2lnLidlz2 += tmp *  e[l];
 	}
 
-      inv_Li = 1.0/inv_Li;
+      inv_Li = 1.0/FABS(inv_Li);
 
       dlnLidlz   *= inv_Li;
       d2lnLidlz2 *= inv_Li;
@@ -1144,7 +1144,7 @@ static void coreGammaFlex(double *gammaRates, double *EIGN, double *sumtable, in
 	    }
 	}
 
-      inv_Li = 1.0 / inv_Li;
+      inv_Li = 1.0 / FABS(inv_Li);
 
       dlnLidlz   *= inv_Li;
       d2lnLidlz2 *= inv_Li;
@@ -1292,7 +1292,7 @@ static void coreGammaInvarFlex(double *gammaRates, double *EIGN, double *sumtabl
 	    }
 	}
 
-       inv_Li *= scaler;
+       inv_Li = FABS(inv_Li) * scaler;
 
        if(iptr[i] < numStates)
 	 inv_Li += freqs[iptr[i]];
@@ -1361,7 +1361,7 @@ static void coreGTRCATSECONDARY(double *EIGN, double lz, int numberOfCategories,
 	  d2lnLidlz2 += tmp *  e[l];
 	}
 
-      inv_Li = 1.0/inv_Li;
+      inv_Li = 1.0/FABS(inv_Li);
 
       dlnLidlz   *= inv_Li;
       d2lnLidlz2 *= inv_Li;
@@ -1423,7 +1423,7 @@ static void coreGTRCATSECONDARY_6(double *EIGN, double lz, int numberOfCategorie
 	  d2lnLidlz2 += tmp *  e[l];
 	}
 
-      inv_Li = 1.0/inv_Li;
+      inv_Li = 1.0/FABS(inv_Li);
 
       dlnLidlz   *= inv_Li;
       d2lnLidlz2 *= inv_Li;
@@ -1485,7 +1485,7 @@ static void coreGTRCATSECONDARY_7(double *EIGN, double lz, int numberOfCategorie
 	  d2lnLidlz2 += tmp *  e[l];
 	}
 
-      inv_Li = 1.0/inv_Li;
+      inv_Li = 1.0/FABS(inv_Li);
 
       dlnLidlz   *= inv_Li;
       d2lnLidlz2 *= inv_Li;
@@ -1548,7 +1548,7 @@ static void coreGTRGAMMAINVAR_BINARY(double propInvar, double *frequencies, doub
 	  d2lnLidlz2 += tmp_1 * diagptable[3 * j + 2];
 	 }
 
-      inv_Li *= scaler;
+      inv_Li = FABS(inv_Li) * scaler;
 
       if(iptr[i] < 2)
 	inv_Li += freqs[iptr[i]];
@@ -1630,7 +1630,7 @@ static void coreGTRGAMMAINVAR(double propInvar, double *frequencies, double *gam
 	     }
 	 }
 
-      inv_Li *= scaler;
+       inv_Li = FABS(inv_Li) * scaler;
 
       if(iptr[i] < 4)
 	inv_Li += freqs[iptr[i]];
@@ -1936,7 +1936,7 @@ static void coreGTRGAMMA_BINARY(const int upper, double *sumtable,
 	  d2lnLidlz2 += tmp_1 * diagptable[3 * j + 2];
 	}
 
-      inv_Li = 1.0 / inv_Li;
+      inv_Li = 1.0 / FABS(inv_Li);
 
       dlnLidlz   *= inv_Li;
       d2lnLidlz2 *= inv_Li;
@@ -2016,7 +2016,7 @@ static void coreGTRGAMMA_BINARY(const int upper, double *sumtable,
       _mm_storel_pd(&dlnLidlz, a1);
       _mm_storel_pd(&d2lnLidlz2, a2); 
 
-      inv_Li = 1.0 / inv_Li;
+      inv_Li = 1.0 / FABS(inv_Li);
      
       dlnLidlz   *= inv_Li;
       d2lnLidlz2 *= inv_Li;     
@@ -2088,7 +2088,7 @@ static void coreGTRGAMMA(const int upper, double *sumtable,
 	    }
 	}
 
-      inv_Li = 1.0 / inv_Li;
+      inv_Li = 1.0 / FABS(inv_Li);
 
       dlnLidlz   *= inv_Li;
       d2lnLidlz2 *= inv_Li;
@@ -2176,7 +2176,7 @@ static void coreGTRGAMMA(const int upper, double *sumtable,
       _mm_storel_pd(&dlnLidlz, a1);
       _mm_storel_pd(&d2lnLidlz2, a2);       
 
-      inv_Li = 1.0 / inv_Li;
+      inv_Li = 1.0 / FABS(inv_Li);
      
       dlnLidlz   *= inv_Li;
       d2lnLidlz2 *= inv_Li;     
@@ -2825,7 +2825,7 @@ static void coreGTRGAMMAPROT(double *gammaRates, double *EIGN, double *sumtable,
       _mm_storel_pd(&dlnLidlz, a1);
       _mm_storel_pd(&d2lnLidlz2, a2);
 
-      inv_Li = 1.0 / inv_Li;
+      inv_Li = 1.0 / FABS(inv_Li);
 
       dlnLidlz   *= inv_Li;
       d2lnLidlz2 *= inv_Li;
@@ -2914,7 +2914,7 @@ static void coreGTRGAMMAPROT_LG4(double *gammaRates, double *EIGN[4], double *su
 	  d2lnLidlz2 += weights[j] * l2; 
 	}
 
-      inv_Li = 1.0 / inv_Li;
+      inv_Li = 1.0 / FABS(inv_Li);
 
       dlnLidlz   *= inv_Li;
       d2lnLidlz2 *= inv_Li;
@@ -2973,7 +2973,7 @@ static void coreGTRGAMMAPROT(double *gammaRates, double *EIGN, double *sumtable,
 	    }
 	}
 
-      inv_Li = 1.0 / inv_Li;
+      inv_Li = 1.0 / FABS(inv_Li);
 
       dlnLidlz   *= inv_Li;
       d2lnLidlz2 *= inv_Li;
@@ -3038,7 +3038,7 @@ static void coreGTRGAMMAPROT_LG4(double *gammaRates, double *EIGN[4], double *su
 	  d2lnLidlz2 += weights[j] * a3;
 	}
 
-      inv_Li = 1.0 / inv_Li;
+      inv_Li = 1.0 / FABS(inv_Li);
 
       dlnLidlz   *= inv_Li;
       d2lnLidlz2 *= inv_Li;
@@ -3100,7 +3100,7 @@ static void coreGTRGAMMASECONDARY(double *gammaRates, double *EIGN, double *sumt
 	    }
 	}
 
-      inv_Li = 1.0 / inv_Li;
+      inv_Li = 1.0 / FABS(inv_Li);
 
       dlnLidlz   *= inv_Li;
       d2lnLidlz2 *= inv_Li;
@@ -3156,7 +3156,7 @@ static void coreGTRGAMMASECONDARY_6(double *gammaRates, double *EIGN, double *su
 	    }
 	}
 
-      inv_Li = 1.0 / inv_Li;
+      inv_Li = 1.0 / FABS(inv_Li);
 
       dlnLidlz   *= inv_Li;
       d2lnLidlz2 *= inv_Li;
@@ -3212,7 +3212,7 @@ static void coreGTRGAMMASECONDARY_7(double *gammaRates, double *EIGN, double *su
 	    }
 	}
 
-      inv_Li = 1.0 / inv_Li;
+      inv_Li = 1.0 / FABS(inv_Li);
 
       dlnLidlz   *= inv_Li;
       d2lnLidlz2 *= inv_Li;
@@ -3275,7 +3275,7 @@ static void coreGTRGAMMAPROTINVAR(double *gammaRates, double *EIGN, double *sumt
 	    }
 	}
 
-       inv_Li *= scaler;
+       inv_Li = FABS(inv_Li) * scaler;
 
        if(iptr[i] < 20)
 	 inv_Li += freqs[iptr[i]];
@@ -3347,7 +3347,7 @@ static void coreGTRGAMMASECONDARYINVAR(double *gammaRates, double *EIGN, double 
 	    }
 	}
 
-       inv_Li *= scaler;
+       inv_Li = FABS(inv_Li) * scaler;
 
        if(iptr[i] < 16)
 	 inv_Li += freqs[iptr[i]];
@@ -3418,7 +3418,7 @@ static void coreGTRGAMMASECONDARYINVAR_6(double *gammaRates, double *EIGN, doubl
 	    }
 	}
 
-       inv_Li *= scaler;
+       inv_Li = FABS(inv_Li) * scaler;
 
        if(iptr[i] < 6)
 	 inv_Li += freqs[iptr[i]];
@@ -3489,7 +3489,7 @@ static void coreGTRGAMMASECONDARYINVAR_7(double *gammaRates, double *EIGN, doubl
 	    }
 	}
 
-       inv_Li *= scaler;
+       inv_Li = FABS(inv_Li) * scaler;
 
        if(iptr[i] < 7)
 	 inv_Li += freqs[iptr[i]];

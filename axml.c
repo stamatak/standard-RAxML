@@ -11170,6 +11170,57 @@ static void rootTree(tree *tr, analdef *adef)
   rax_free(distances);
 }
 
+static boolean partitionHasInvariantSites(tree *tr, int model)
+{
+  unsigned int   
+    i;
+
+  int
+    j;
+
+  const unsigned int 
+    *bitVector = getBitVector(tr->partitionData[model].dataType),
+    undetermined = getUndetermined(tr->partitionData[model].dataType);
+
+  for(i = tr->partitionData[model].lower; i < tr->partitionData[model].upper; i++)	      
+    {		 
+      unsigned int 
+	encoding = undetermined;            	  	
+
+      for(j = 1; j <= tr->mxtips; j++)		
+	encoding = encoding & bitVector[tr->yVector[j][i]];       
+
+      if(encoding > 0)          
+	return TRUE;	  
+    }
+
+  return FALSE;
+}
+
+static void checkAscBias(tree *tr)
+{
+  int 
+    model;
+
+  for(model = 0; model < tr->NumberOfModels; model++)
+    {     
+      if(tr->partitionData[model].ascBias)
+	{
+	  boolean
+	    hasInvariantSites = partitionHasInvariantSites(tr, model);
+      
+	  if(hasInvariantSites)
+	    {
+	      printBothOpen("\n\nFor partition %s you specified that the likelihood score shall be corrected for invariant sites\n", tr->partitionData[model].partitionName);
+	      printBothOpen("via an ascertainment bias correction. However, some sites in this partition are already invariant.\n");
+	      printBothOpen("This is not allowed, please remove all invariant sites and try again, exiting ... \n\n\n");
+	      errorExit(-1);
+	    }
+	}
+    }
+
+}
+
 int main (int argc, char *argv[])
 {
   rawdata      *rdta;
@@ -11306,6 +11357,7 @@ int main (int argc, char *argv[])
   if(!adef->readTaxaOnly)
     {
       int 
+	countAscBias = 0,
 	countNonSev = 0,
 	countLG4 =0;
 
@@ -11314,6 +11366,9 @@ int main (int argc, char *argv[])
 
       for(i = 0; i < tr->NumberOfModels; i++)
 	{
+	  if(tr->partitionData[i].ascBias)
+	    countAscBias++;
+
 	  if(!(tr->partitionData[i].dataType == AA_DATA || tr->partitionData[i].dataType == DNA_DATA))
 	    countNonSev++;
 
@@ -11388,6 +11443,9 @@ int main (int argc, char *argv[])
 
 	  fclose(info);
 	}
+
+      if(countAscBias)
+	checkAscBias(tr);
     }
 
   if(adef->mode == CLASSIFY_ML || adef->mode == CLASSIFY_MP)              
