@@ -11444,7 +11444,7 @@ int main (int argc, char *argv[])
 	  fclose(info);
 	}
 
-      if(countAscBias)
+      if(countAscBias > 0)
 	checkAscBias(tr);
     }
 
