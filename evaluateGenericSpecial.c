@@ -3748,6 +3748,42 @@ double evalCL(tree *tr, double *x2, int *_ex2, unsigned char *_tip, double *pz, 
 		  assert(0);
 		}
 	      break;
+	    case GENERIC_32:
+	      switch(tr->rateHetModel)
+		{
+		case CAT:	    
+		  {
+		    calcDiagptableFlex(z, tr->partitionData[model].numberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable, tr->partitionData[model].states);
+		    
+		    partitionLikelihood = evaluateCatFlex(ex1, ex2, rateCategory, wgt,
+							  x1_start, x2_start, tr->partitionData[model].tipVector,
+							  tip, width, diagptable, (double*)NULL, FALSE, tr->useFastScaling, tr->partitionData[model].states);
+		  }	     	      
+		  break;	      
+		case GAMMA:
+		  {
+		    calcDiagptableFlex(z, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable, tr->partitionData[model].states);
+		    
+		    partitionLikelihood = evaluateGammaFlex(ex1, ex2, wgt,
+							    x1_start, x2_start, tr->partitionData[model].tipVector,
+							    tip, width, diagptable, (double*)NULL, FALSE, tr->useFastScaling, tr->partitionData[model].states);
+		  }
+		  break;
+		case GAMMA_I:		  	    
+		  {
+		    calcDiagptableFlex(z, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable, tr->partitionData[model].states);
+		    
+		    partitionLikelihood = evaluateGammaInvarFlex(ex1, ex2, wgt, invariant,
+								 x1_start, x2_start, 
+								 tr->partitionData[model].tipVector, tr->partitionData[model].frequencies, 
+								 tr->partitionData[model].propInvariant, 
+								 tip, width, diagptable, (double*)NULL, FALSE, tr->useFastScaling, tr->partitionData[model].states);
+		  }	  
+		  break;
+		default:
+		  assert(0);
+		}
+	      break;
 	    default:
 	      assert(0);
 	    }

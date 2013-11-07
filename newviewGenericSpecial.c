@@ -8636,6 +8636,46 @@ void newviewMultiGrain(tree *tr,  double *x1, double *x2, double *x3, int *_ex1,
 		  assert(0);
 		}
 	      break;
+	    case GENERIC_32:
+	      {
+		int 
+		  states = tr->partitionData[model].states;
+		
+		switch(tr->rateHetModel)
+		  {		      		      
+		  case CAT:
+		    {
+		      makeP_Flex(pz, qz, tr->partitionData[model].perSiteRates,
+				 tr->partitionData[model].EI,
+				 tr->partitionData[model].EIGN,
+				 tr->partitionData[model].numberOfCategories, left, right, states);
+		      
+		      newviewFlexCat(tipCase,  tr->partitionData[model].EV, rateCategory,
+				     x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
+				     ex3, tipX1, tipX2, width, left, right, wgt, &scalerIncrement, tr->useFastScaling, states);
+		    }
+		    break;
+		  case GAMMA:
+		  case GAMMA_I:
+		    {
+		      makeP_Flex(pz, qz, tr->partitionData[model].gammaRates,
+				 tr->partitionData[model].EI,
+				 tr->partitionData[model].EIGN,
+				 4, left, right, states);
+		      
+		      newviewFlexGamma(tipCase,
+				       x1_start, x2_start, x3_start,
+				       tr->partitionData[model].EV,
+				       tr->partitionData[model].tipVector,
+				       ex3, tipX1, tipX2,
+				       width, left, right, wgt, &scalerIncrement, tr->useFastScaling, states);		
+		    }
+		    break;
+		  default:
+		    assert(0);
+		  }
+	      }
+	      break;	   
 	    default:
 	      assert(0);
 	    }

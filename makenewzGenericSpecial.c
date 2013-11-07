@@ -4480,6 +4480,22 @@ static void sumClassify(tree *tr, int tipCase, double *_x1, double *_x2, unsigne
 		  assert(0);
 		}
 	      break;
+	    case GENERIC_32:
+	      switch(tr->rateHetModel)
+	      	{
+		case CAT: 
+		  sumCatFlex(tipCase, sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector,
+			     tipX1, tipX2, width, tr->partitionData[model].states);		  
+		  break;
+		case GAMMA:
+		case GAMMA_I:
+		  sumGammaFlex(tipCase,  sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector,
+			       tipX1, tipX2, width, tr->partitionData[model].states);		 
+		  break;
+		default:
+		  assert(0);
+		}
+	      break;
 	    default:
 	      assert(0);
 	    }
@@ -4697,6 +4713,29 @@ static void coreClassify(tree *tr, volatile double *_dlnLdlz, volatile double *_
 					       &dlnLdlz, &d2lnLdlz2, lz, tr->partitionData[model].frequencies,
 					       tr->partitionData[model].propInvariant, invariant);
 		  break;
+		default:
+		  assert(0);
+		}
+	      break;
+	    case GENERIC_32:
+	      switch(tr->rateHetModel)
+		{
+		case CAT:
+		  coreCatFlex(tr->partitionData[model].EIGN, lz, tr->partitionData[model].numberOfCategories,  patrat,
+			      rateCategory, width,			      
+			      &dlnLdlz, &d2lnLdlz2,
+			      sumBuffer, tr->partitionData[model].states, wgt);
+		  break;
+		case GAMMA:
+		  coreGammaFlex(tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN,
+				sumBuffer, width, wgt,
+				&dlnLdlz, &d2lnLdlz2, lz, tr->partitionData[model].states);
+		  break;
+		case GAMMA_I:
+		  coreGammaInvarFlex(tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN,
+				     sumBuffer, width, wgt,
+				     &dlnLdlz, &d2lnLdlz2, lz, tr->partitionData[model].frequencies,
+				     tr->partitionData[model].propInvariant, invariant, tr->partitionData[model].states);
 		default:
 		  assert(0);
 		}
