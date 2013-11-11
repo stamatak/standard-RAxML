@@ -2606,6 +2606,8 @@ void plausibilityChecker(tree *tr, analdef *adef)
 
       rf = (double)(2 * ((tr->ntips - 3) - bips)) / maxRF;           
 
+      
+
       avgRF += rf;
 
       printBothOpen("Relative RF tree %d: %f\n\n", i, rf);
@@ -2745,18 +2747,18 @@ void plausibilityChecker(tree *tr, analdef *adef)
       */
 
       numberOfSplits = readMultifurcatingTree(treeFile, smallTree, adef);
-      printBothOpen("Small tree %d has %d tips\n", i, smallTree->ntips);    
+      printBothOpen("Small tree %d has %d tips and %d bipartitions\n", i, smallTree->ntips, numberOfSplits);    
 
       /* compute the maximum RF distance for computing the relative RF distance later-on */
 
       /* note that here we need to pay attention, since the RF distance is not normalized 
 	 by 2 * (n-3) but we need to account for the fact that the multifurcating small tree 
 	 will potentially contain less bipartitions. 
-	 Hence the normalization factor is obtained as n-3 + numberOfSplits, where n-3 is the number 
-	 of bipartitions of the pruned down large reference tree for which we know that it is 
-	 bifurcating/strictly binary */
+	 Hence the normalization factor is obtained as 2 * numberOfSplits, where numberOfSplits is the number of bipartitions
+	 in the small tree.
+      */
 
-      maxRF = (double)((smallTree->ntips - 3) + numberOfSplits);
+      maxRF = (double)(2 * numberOfSplits);
 
       /* now set up a bit mask where only the bits are set to one for those 
 	 taxa that are actually present in the small tree we just read */
@@ -2878,7 +2880,9 @@ void plausibilityChecker(tree *tr, analdef *adef)
       
       /* compute the relative RF */
 
-      rf = (double)(2 * ((smallTree->ntips - 3) - bips)) / maxRF;           
+      rf = (double)(2 * numberOfSplits - bips) / maxRF;           
+
+      assert(rf <= 1.0);
 
       avgRF += rf;
 
