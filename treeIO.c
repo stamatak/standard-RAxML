@@ -2080,11 +2080,23 @@ int readMultifurcatingTree(FILE *fp, tree *tr, analdef *adef)
 	  //printBothOpen("you provided a rooted tree, we need an unrooted one, RAxML will remove the root!\n");
 	  
 	  assert(initial_p->next->next == (node *)NULL);
+
+	  hookupDefault(q, r, tr->numBranches);	  
+	  
+	  if(tr->start == initial_p ||
+	     tr->start == initial_p->next ||
+	     tr->start->back == initial_p ||
+	     tr->start->back == initial_p->next
+	     )
+	    {
+	      tr->start = findAnyTip(q, tr->mxtips);
+	    }
+	  
 	  assert(tr->start != initial_p);
 	  assert(tr->start != initial_p->next);
 	  assert(tr->start->back != initial_p);
 	  assert(tr->start->back != initial_p->next);
-	  hookupDefault(q, r, tr->numBranches);	  
+	  
 	}
     }
       
