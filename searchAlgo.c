@@ -931,7 +931,7 @@ double treeOptimizeRapid(tree *tr, int mintrav, int maxtrav, analdef *adef, best
     {
       int n = tr->mxtips + tr->mxtips - 2;   
       perm = (int *)rax_malloc(sizeof(int) * (n + 1));
-      makePermutation(perm, n, adef);
+      makePermutation(perm, 1, n, adef);
     }
 
   for(i = 1; i <= tr->mxtips + tr->mxtips - 2; i++)
@@ -1103,7 +1103,7 @@ int determineRearrangementSetting(tree *tr,  analdef *adef, bestlist *bestT, bes
     {
       int n = tr->mxtips + tr->mxtips - 2;   
       perm = (int *)rax_malloc(sizeof(int) * (n + 1));
-      makePermutation(perm, n, adef);
+      makePermutation(perm, 1, n, adef);
     }
   
 
@@ -1613,28 +1613,9 @@ static void setupBranches(tree *tr, nodeptr p,  branchInfo *bInf)
     }
 }
  
-static void makePerm(int *perm, int n)
-{
-  int  i, j, k;
-
-   
-  srand(12345);          
-           
-  for (i = 0; i < n; i++) 
-    {    
-      k        = randomInt(n - i);
-
-      assert(i + k < n);
-
-      j        = perm[i];
-      perm[i]     = perm[i + k];
-      perm[i + k] = j; 
-    }  
 
 
-}
-
-static void smoothTreeRandom (tree *tr, int maxtimes)
+static void smoothTreeRandom (tree *tr, int maxtimes, analdef *adef)
 {
   int i, k, *perm;
 
@@ -1661,10 +1642,7 @@ static void smoothTreeRandom (tree *tr, int maxtimes)
 
       /*printf("%d %d\n", maxtimes, tr->numberOfBranches);*/
 
-      for(k = 0; k < tr->numberOfBranches; k++)
-	perm[k] = k;
-
-      makePerm(perm, tr->numberOfBranches);
+      makePermutation(perm, 0, tr->numberOfBranches - 1, adef);
 
       for(k = 0; k < tr->numberOfBranches; k++)
 	{
@@ -1697,10 +1675,10 @@ static void smoothTreeRandom (tree *tr, int maxtimes)
 } 
 
 
-void treeEvaluateRandom (tree *tr, double smoothFactor)       
+void treeEvaluateRandom (tree *tr, double smoothFactor, analdef *adef)       
 {
  
-  smoothTreeRandom(tr, (int)((double)smoothings * smoothFactor));
+  smoothTreeRandom(tr, (int)((double)smoothings * smoothFactor), adef);
   
 
   evaluateGeneric(tr, tr->start);       

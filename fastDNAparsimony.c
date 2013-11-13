@@ -1192,30 +1192,7 @@ static nodeptr findAnyTipFast(nodeptr p, int numsp)
 } 
 
 
-static void makePermutationFast(int *perm, int n, analdef *adef)
-{    
-  int  
-    i, 
-    j, 
-    k;
 
-  checkSeed(adef);      
-
-  for (i = 1; i <= n; i++)    
-    perm[i] = i;               
-
-  for (i = 1; i <= n; i++) 
-    {      
-      double d =  randum(&adef->parsimonySeed);
-
-      k =  (int)((double)(n + 1 - i) * d);
-      
-      j        = perm[i];
-
-      perm[i]     = perm[i + k];
-      perm[i + k] = j; 
-    }
-}
 
 static nodeptr  removeNodeParsimony (nodeptr p, tree *tr)
 { 
@@ -1827,7 +1804,7 @@ void makeParsimonyTreeFast(tree *tr, analdef *adef, boolean full)
     {
       assert(!tr->constrained);
 
-      makePermutationFast(perm, tr->mxtips, adef);
+      makePermutation(perm, 1, tr->mxtips, adef);
       
       tr->ntips = 0;    
       
@@ -2003,21 +1980,22 @@ nodeptr findAnyTip(nodeptr p, int numsp)
 } 
 
 
-int randomInt(int n)
+int randomInt(int n, analdef *adef)
 {
-  return rand() %n;
+  return ((int)(randum(&adef->parsimonySeed) * (double)n));
+  //  return rand() %n;
 }
 
-void makePermutation(int *perm, int n, analdef *adef)
+void makePermutation(int *perm, int lower, int n, analdef *adef)
 {    
   int  i, j, k;
 
   checkSeed(adef);          
 
-  for (i = 1; i <= n; i++)    
+  for (i = lower; i <= n; i++)    
     perm[i] = i;               
 
-  for (i = 1; i <= n; i++) 
+  for (i = lower; i <= n; i++) 
     {    
       k =  (int)((double)(n + 1 - i) * randum(&adef->parsimonySeed));
 
@@ -2067,7 +2045,7 @@ void makeRandomTree(tree *tr, analdef *adef)
   branches = (nodeptr *)rax_malloc(sizeof(nodeptr) * (2 * tr->mxtips));
   perm = (int *)rax_malloc((tr->mxtips + 1) * sizeof(int));                         
   
-  makePermutation(perm, tr->mxtips, adef);              
+  makePermutation(perm, 1, tr->mxtips, adef);              
   
   tr->ntips = 0;       	       
   tr->nextnode = tr->mxtips + 1;    
@@ -2093,7 +2071,7 @@ void makeRandomTree(tree *tr, analdef *adef)
 
       assert(branchCounter == ((2 * (tr->ntips - 1)) - 3));
       
-      randomBranch = branches[randomInt(branchCounter)];
+      randomBranch = branches[randomInt(branchCounter, adef)];
       
       insertRandom(p->back, randomBranch, tr->numBranches);
       

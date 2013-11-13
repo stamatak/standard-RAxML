@@ -50,7 +50,6 @@ extern char tree_file[1024];
 extern char *likelihood_key;
 extern char *ntaxa_key;
 extern char *smoothed_key;
-extern int partCount;
 extern double masterTime;
 
 
@@ -1449,10 +1448,10 @@ int treeReadLen (FILE *fp, tree *tr, boolean readBranches, boolean readNodeLabel
 /********************************MULTIFURCATIONS************************************************/
 
 
-static boolean  addElementLenMULT (FILE *fp, tree *tr, nodeptr p, int partitionCounter)
+static boolean  addElementLenMULT (FILE *fp, tree *tr, nodeptr p, int partitionCounter, analdef *adef, int *partCount)
 { 
   nodeptr  q, r, s;
-  int      n, ch, fres, rn;
+  int      n, ch, fres;
   double randomResolution;
   int old;
     
@@ -1460,8 +1459,8 @@ static boolean  addElementLenMULT (FILE *fp, tree *tr, nodeptr p, int partitionC
 
   if ((ch = treeGetCh(fp)) == '(') 
     {
-      partCount++;
-      old = partCount;       
+      *partCount = *partCount + 1;
+      old = *partCount;       
       
       n = (tr->nextnode)++;
       if (n > 2*(tr->mxtips) - 2) 
@@ -1478,10 +1477,10 @@ static boolean  addElementLenMULT (FILE *fp, tree *tr, nodeptr p, int partitionC
 	    }
 	}
       q = tr->nodep[n];
-      tr->constraintVector[q->number] = partCount;
-      if (! addElementLenMULT(fp, tr, q->next, old))        return FALSE;
+      tr->constraintVector[q->number] = *partCount;
+      if (! addElementLenMULT(fp, tr, q->next, old, adef, partCount))        return FALSE;
       if (! treeNeedCh(fp, ',', "in"))             return FALSE;
-      if (! addElementLenMULT(fp, tr, q->next->next, old))  return FALSE;
+      if (! addElementLenMULT(fp, tr, q->next->next, old, adef, partCount))  return FALSE;
                  
       hookupDefault(p, q, tr->numBranches);
 
@@ -1502,22 +1501,18 @@ static boolean  addElementLenMULT (FILE *fp, tree *tr, nodeptr p, int partitionC
 		}
 	    }
 	  r = tr->nodep[n];
-	  tr->constraintVector[r->number] = partCount;	  
+	  tr->constraintVector[r->number] = *partCount;	  
 
-	  rn = randomInt(10000);
-	  if(rn == 0) 
-	    randomResolution = 0;
-	  else 
-	    randomResolution = ((double)rn)/10000.0;
+	  randomResolution = randum(&adef->constraintSeed);	 
 	   	  
-	   if(randomResolution < 0.5)
+	  if(randomResolution < 0.5)
 	    {	    
 	      s = q->next->back;	      
 	      r->back = q->next;
 	      q->next->back = r;	      
 	      r->next->back = s;
 	      s->back = r->next;	      
-	      addElementLenMULT(fp, tr, r->next->next, old);	     
+	      addElementLenMULT(fp, tr, r->next->next, old, adef, partCount);	     
 	    }
 	  else
 	    {	  
@@ -1526,7 +1521,7 @@ static boolean  addElementLenMULT (FILE *fp, tree *tr, nodeptr p, int partitionC
 	      q->next->next->back = r;	      
 	      r->next->back = s;
 	      s->back = r->next;	      
-	      addElementLenMULT(fp, tr, r->next->next, old);	     
+	      addElementLenMULT(fp, tr, r->next->next, old, adef, partCount);	     
 	    }	    	  	  
 	}       
 
@@ -1565,12 +1560,12 @@ static boolean  addElementLenMULT (FILE *fp, tree *tr, nodeptr p, int partitionC
 boolean treeReadLenMULT (FILE *fp, tree *tr, analdef *adef)
 {
   nodeptr  p, r, s;
-  int      i, ch, n, rn;
-  int partitionCounter = 0;
+  int      i, ch, n;
+  int partitionCounter = 0, partCount = 0;
   double randomResolution;
-
-  srand((unsigned int) time(NULL));
   
+  assert(adef->constraintSeed > 0);
+
   for(i = 0; i < 2 * tr->mxtips; i++)
     tr->constraintVector[i] = -1;
 
@@ -1600,14 +1595,14 @@ boolean treeReadLenMULT (FILE *fp, tree *tr, analdef *adef)
   p = tr->nodep[(tr->nextnode)++]; 
   while((ch = treeGetCh(fp)) != '(');
       
-  if (! addElementLenMULT(fp, tr, p, partitionCounter))                 return FALSE;
+  if (! addElementLenMULT(fp, tr, p, partitionCounter, adef, &partCount))                 return FALSE;
   if (! treeNeedCh(fp, ',', "in"))                return FALSE;
-  if (! addElementLenMULT(fp, tr, p->next, partitionCounter))           return FALSE;
+  if (! addElementLenMULT(fp, tr, p->next, partitionCounter, adef, &partCount))           return FALSE;
   if (! tr->rooted) 
     {
       if ((ch = treeGetCh(fp)) == ',') 
 	{       
-	  if (! addElementLenMULT(fp, tr, p->next->next, partitionCounter)) return FALSE;
+	  if (! addElementLenMULT(fp, tr, p->next->next, partitionCounter, adef, &partCount)) return FALSE;
 
 	  while((ch = treeGetCh(fp)) == ',')
 	    { 
@@ -1616,13 +1611,8 @@ boolean treeReadLenMULT (FILE *fp, tree *tr, analdef *adef)
 	
 	      r = tr->nodep[n];	
 	      tr->constraintVector[r->number] = partitionCounter;	   
-	      
-	      rn = randomInt(10000);
-	      if(rn == 0) 
-		randomResolution = 0;
-	      else 
-		randomResolution = ((double)rn)/10000.0;
-
+	      	      
+	      randomResolution = randum(&(adef->constraintSeed));
 
 	      if(randomResolution < 0.5)
 		{	
@@ -1631,7 +1621,7 @@ boolean treeReadLenMULT (FILE *fp, tree *tr, analdef *adef)
 		  p->next->next->back = r;		  
 		  r->next->back = s;
 		  s->back = r->next;		  
-		  addElementLenMULT(fp, tr, r->next->next, partitionCounter);	
+		  addElementLenMULT(fp, tr, r->next->next, partitionCounter, adef, &partCount);	
 		}
 	      else
 		{
@@ -1640,7 +1630,7 @@ boolean treeReadLenMULT (FILE *fp, tree *tr, analdef *adef)
 		  p->next->back = r;		  
 		  r->next->back = s;
 		  s->back = r->next;		  
-		  addElementLenMULT(fp, tr, r->next->next, partitionCounter);
+		  addElementLenMULT(fp, tr, r->next->next, partitionCounter, adef, &partCount);
 		}
 	    }	  	  	      	  
 
@@ -1753,8 +1743,7 @@ void getStartingTree(tree *tr, analdef *adef)
       else
 	{
 	  assert(adef->mode != ANCESTRAL_STATES);
-
-	  partCount = 0;
+	 
 	  if (! treeReadLenMULT(INFILE, tr, adef))
 	    exit(-1);
 	}                                                                         

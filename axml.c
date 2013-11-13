@@ -407,20 +407,7 @@ double gettime(void)
 #endif
 }
 
-int gettimeSrand(void)
-{
-#ifdef WIN32
-  time_t tp;
-  struct tm localtm;
-  tp = time(NULL);
-  localtm = *localtime(&tp);
-  return 24*60*60*localtm.tm_yday + 60*60*localtm.tm_hour + 60*localtm.tm_min  + localtm.tm_sec;
-#else
-  struct timeval ttime;
-  gettimeofday(&ttime , NULL);
-  return ttime.tv_sec + ttime.tv_usec;
-#endif
-}
+
 
 double randum (long  *seed)
 {
@@ -3347,6 +3334,7 @@ static void initAdef(analdef *adef)
   adef->grouping               = FALSE;
   adef->randomStartingTree     = FALSE;
   adef->parsimonySeed          = 0;
+  adef->constraintSeed         = 0;
   adef->proteinMatrix          = JTT;
   adef->protEmpiricalFreqs     = 0;
   adef->outgroup               = FALSE;
@@ -5626,6 +5614,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
       
       errorExit(-1);
     }
+
   if(!adef->useBinaryModelFile)
     {
        if(processID == 0)
@@ -5636,7 +5625,6 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
       
       errorExit(-1);
     }
-
 #endif
 
   if(adef->mode ==  ANCESTRAL_SEQUENCE_TEST && !yFileSet)
@@ -5796,6 +5784,64 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	  errorExit(-1);
 	}
     }
+
+  if(adef->grouping)
+    {
+      if(processID == 0)
+	{
+	  if(adef->parsimonySeed == 0)
+	    {
+	      printf("\nERROR: you must specify a random number seed via \"-p\" when using multi-furcating constraint trees\n");
+	      errorExit(-1);
+	    }
+	}
+      
+      adef->constraintSeed = adef->parsimonySeed;
+      assert(adef->constraintSeed > 0);
+    }
+
+  if(adef->mode == SH_LIKE_SUPPORTS)
+    {
+      if(processID == 0)
+	{
+	  if(adef->parsimonySeed == 0)
+	    {
+	      printf("\nERROR: you must specify a random number seed via \"-p\" to calculate SH-like supports\n");
+	      errorExit(-1);
+	    }
+	}
+         
+      assert(adef->parsimonySeed > 0);
+    }
+
+  if(adef->mode == BOOTSTOP_ONLY ||  adef->bootStopping == TRUE)
+    {
+      if(processID == 0)
+	{
+	  if(adef->parsimonySeed == 0)
+	    {
+	      printf("\nERROR: you must specify a random number seed via \"-p\" for bootstopping\n");
+	      errorExit(-1);
+	    }
+	}
+         
+      assert(adef->parsimonySeed > 0);
+    }
+
+   if(adef->randomStartingTree)
+    {
+      if(processID == 0)
+	{
+	  if(adef->parsimonySeed == 0)
+	    {
+	      printf("\nERROR: you must specify a random number seed via \"-p\" when using random starting trees\n");
+	      errorExit(-1);
+	    }
+	}
+         
+      assert(adef->parsimonySeed > 0);
+    }
+
 
   if(adef->mode == FAST_SEARCH && (adef->grouping || adef->constraint))
     {

@@ -1340,7 +1340,7 @@ void shSupports(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
 
   assert(adef->restart);
     
-  tr->resample = permutationSH(tr, 1000, 12345);
+  tr->resample = permutationSH(tr, 1000, adef->parsimonySeed);
   
   //a tiny bit dirty here, all allocs should be cleaned up!
   

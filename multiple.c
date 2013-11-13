@@ -53,7 +53,6 @@ extern int  optimizeAlphaInvocations;
 extern int  optimizeInvarInvocations;
 extern int  checkPointCounter;
 extern int  Thorough;
-extern int  partCount;
 extern char tree_file[1024];
 extern const unsigned int mask32[32];
 extern double masterTime;
@@ -739,8 +738,7 @@ void doAllInOne(tree *tr, analdef *adef)
 	    {
 	      FILE *f = myfopen(tree_file, "rb");	
 
-	      assert(adef->restart);
-	      partCount = 0;
+	      assert(adef->restart);	      
 	      if (! treeReadLenMULT(f, tr, adef))
 		exit(-1);
 	     
@@ -862,7 +860,7 @@ void doAllInOne(tree *tr, analdef *adef)
 	    }
 	}	
 #else	
-	bootStopIt = bootStop(tr, h, i, &pearsonAverage, bitVectors, treeVectorLength, vLength);
+      bootStopIt = bootStop(tr, h, i, &pearsonAverage, bitVectors, treeVectorLength, vLength, adef);
 #endif
 
 
@@ -1389,7 +1387,7 @@ void doBootstrap(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
 	    }
 	}
 #else	      	
-      bootStopIt = bootStop(tr, h, i, &pearsonAverage, bitVectors, treeVectorLength, vLength);
+      bootStopIt = bootStop(tr, h, i, &pearsonAverage, bitVectors, treeVectorLength, vLength, adef);
 #endif
     }      
 

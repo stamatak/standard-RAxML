@@ -163,8 +163,8 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "RAxML"
-#define programVersion     "7.8.6"
-#define programDate        "Nov 11 2013"
+#define programVersion     "7.8.7"
+#define programDate        "Nov 13 2013"
 
 
 #define  TREE_EVALUATION                 0
@@ -1017,6 +1017,7 @@ typedef  struct {
   int            startingTreeOnly;
   int            multipleRuns;
   long           parsimonySeed;
+  long           constraintSeed;
   boolean        perGeneBranchLengths;
   boolean        likelihoodTest;
   boolean        outgroup;
@@ -1109,7 +1110,6 @@ extern int getStates(int dataType);
 extern char getInverseMeaning(int dataType, unsigned char state);
 extern void printModelParams(tree *tr, analdef *adef);
 extern double gettime ( void );
-extern int gettimeSrand ( void );
 extern double randum ( long *seed );
 
 extern void getxnode ( nodeptr p );
@@ -1158,8 +1158,8 @@ extern void thoroughOptimization ( tree *tr, analdef *adef, topolRELL_LIST *rl, 
 extern int treeOptimizeThorough ( tree *tr, int mintrav, int maxtrav);
 
 extern int checker ( tree *tr, nodeptr p );
-extern int randomInt ( int n );
-extern void makePermutation ( int *perm, int n, analdef *adef );
+extern int randomInt ( int n , analdef *adef);
+extern void makePermutation ( int *perm, int lower, int n, analdef *adef );
 extern boolean tipHomogeneityChecker ( tree *tr, nodeptr p, int grouping );
 extern void makeRandomTree ( tree *tr, analdef *adef );
 extern void nodeRectifier ( tree *tr );
@@ -1232,7 +1232,7 @@ extern void getStartingTree ( tree *tr, analdef *adef );
 extern double treeLength(tree *tr, int model);
 
 extern void computeBootStopOnly(tree *tr, char *bootStrapFileName, analdef *adef);
-extern boolean bootStop(tree *tr, hashtable *h, int numberOfTrees, double *pearsonAverage, unsigned int **bitVectors, int treeVectorLength, unsigned int vectorLength);
+extern boolean bootStop(tree *tr, hashtable *h, int numberOfTrees, double *pearsonAverage, unsigned int **bitVectors, int treeVectorLength, unsigned int vectorLength, analdef *adef);
 extern void computeConsensusOnly(tree *tr, char* treeSetFileName, analdef *adef, boolean computeIC);
 extern double evaluatePartialGeneric (tree *, int i, double ki, int _model);
 extern double evaluateGeneric (tree *tr, nodeptr p);
@@ -1334,7 +1334,7 @@ extern FILE *getNumberOfTrees(tree *tr, char *fileName, analdef *adef);
 
 extern void writeBinaryModel(tree *tr);
 extern void readBinaryModel(tree *tr);
-extern void treeEvaluateRandom (tree *tr, double smoothFactor);
+extern void treeEvaluateRandom (tree *tr, double smoothFactor, analdef *adef);
 extern void treeEvaluateProgressive(tree *tr);
 
 
