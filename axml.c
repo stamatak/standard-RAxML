@@ -3365,6 +3365,7 @@ static void initAdef(analdef *adef)
   adef->stepwiseAdditionOnly = FALSE;
   adef->optimizeBaseFrequencies = FALSE;
   adef->ascertainmentBias = FALSE;
+  adef->rellBootstrap = FALSE;
 }
 
 
@@ -4365,6 +4366,8 @@ static void printMinusFUsage(void)
   printf("              \"-f d\": new rapid hill-climbing \n");
   printf("                      DEFAULT: ON\n");
 
+  printf("              \"-f D\": rapid hill-climbing with RELL bootstraps\n");
+
   printf("              \"-f e\": optimize model+branch lengths for given input tree under GAMMA/GAMMAI only\n");
 
   
@@ -4485,7 +4488,7 @@ static void printREADME(void)
   printf("      [-b bootstrapRandomNumberSeed] [-B wcCriterionThreshold]\n");
   printf("      [-c numberOfCategories] [-C] [-d] [-D]\n");
   printf("      [-e likelihoodEpsilon] [-E excludeFileName]\n");
-  printf("      [-f a|A|b|B|c|C|d|e|E|F|g|G|h|H|i|I|j|J|m|n|N|o|p|q|r|R|s|S|t|T|u|v|V|w|W|x|y] [-F]\n");
+  printf("      [-f a|A|b|B|c|C|d|D|e|E|F|g|G|h|H|i|I|j|J|m|n|N|o|p|q|r|R|s|S|t|T|u|v|V|w|W|x|y] [-F]\n");
   printf("      [-g groupingFileName] [-G placementThreshold] [-h]\n");
   printf("      [-i initialRearrangementSetting] [-I autoFC|autoMR|autoMRE|autoMRE_IGN]\n");
   printf("      [-j] [-J MR|MR_DROP|MRE|STRICT|STRICT_DROP|T_<PERCENT>] [-k] [-K] \n");
@@ -5367,6 +5370,12 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	    adef->mode = BIG_RAPID_MODE;
 	    tr->doCutoff = TRUE;
 	    break;
+	  case 'D':
+	    adef->mode = BIG_RAPID_MODE;
+	    tr->doCutoff = TRUE;	
+	    tr->useFastScaling = FALSE;
+	    adef->rellBootstrap = TRUE;
+	    break;
 	  case 'e':
 	    adef->mode = TREE_EVALUATION;
 	    break; 
@@ -5687,6 +5696,14 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 
 
  
+  if(adef->rellBootstrap && adef->parsimonySeed == 0)
+    {
+      if(processID == 0)
+	{
+	  printf("Error, you must specify a random number seed via \"-p\" in conjunction with the RELL bootstrap\n");
+	  errorExit(-1);
+	}
+    }
   
   if(adef->computeELW)
     {
@@ -6189,6 +6206,7 @@ static void makeFileNames(void)
   strcpy(lengthFileNameModel,  workdir);
   strcpy(perSiteLLsFileName,  workdir);
   strcpy(binaryModelParamsOutputFileName,  workdir);
+  strcpy(rellBootstrapFileName, workdir);
 
   strcat(verboseSplitsFileName, "RAxML_verboseSplits.");
   strcat(permFileName,         "RAxML_parsimonyTree.");
@@ -6206,6 +6224,7 @@ static void makeFileNames(void)
   strcat(lengthFileNameModel,  "RAxML_treeLengthModel.");
   strcat(perSiteLLsFileName,   "RAxML_perSiteLLs.");
   strcat(binaryModelParamsOutputFileName,   "RAxML_binaryModelParameters.");
+  strcat(rellBootstrapFileName, "RAxML_rellBootstrap.");
 
   strcat(verboseSplitsFileName, run_id);
   strcat(permFileName,         run_id);
@@ -6223,6 +6242,7 @@ static void makeFileNames(void)
   strcat(lengthFileNameModel,  run_id);
   strcat(perSiteLLsFileName,   run_id);
   strcat(binaryModelParamsOutputFileName, run_id);
+  strcat(rellBootstrapFileName, run_id);
 
 #ifdef _WAYNE_MPI  
   {

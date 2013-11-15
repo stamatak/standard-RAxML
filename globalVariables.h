@@ -69,7 +69,8 @@ char run_id[128] = "",
   secondaryStructureFileName[1024] = "",
   binaryModelParamsOutputFileName[1024] = "",
   binaryModelParamsInputFileName[1024] = "",
-  quartetGroupingFileName[1024];
+  quartetGroupingFileName[1024] = "",
+  rellBootstrapFileName[1024] = "";
 
 
 

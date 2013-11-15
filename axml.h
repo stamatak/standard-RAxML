@@ -47,6 +47,7 @@
 
 #endif
 
+#define NUM_RELL_BOOTSTRAPS 100
 
 #define MAX_TIP_EV     0.999999999 /* max tip vector value, sum of EVs needs to be smaller than 1.0, otherwise the numerics break down */
 #define smoothings     32          /* maximum smoothing passes through tree */
@@ -163,8 +164,8 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "RAxML"
-#define programVersion     "7.8.7"
-#define programDate        "Nov 13 2013"
+#define programVersion     "7.8.8"
+#define programDate        "Nov 15 2013"
 
 
 #define  TREE_EVALUATION                 0
@@ -670,6 +671,61 @@ typedef struct List_{
 } List;
 
 
+/***************************************************************/
+
+typedef struct
+{
+  double z[NUM_BRANCHES];
+  nodeptr p, q;
+  int cp, cq;
+}
+  connectRELL, *connptrRELL;
+
+typedef  struct
+{
+  connectRELL     *connect; 
+  int             start;
+  double          likelihood;
+}
+  topolRELL;
+
+
+typedef  struct
+{
+  int max;
+  topolRELL **t;
+}
+  topolRELL_LIST;
+
+
+/* simple tree structure */
+
+typedef struct
+{
+  nodeptr p, q;
+  //int cp, cq;
+}
+  connectTree, *connptrTree;
+
+typedef  struct
+{
+  connectTree     *connect; 
+  int             start;
+  double          likelihood;
+}
+  topolTree;
+
+
+typedef  struct
+{
+  int max;
+  topolTree **t;
+}
+  treeList;
+
+
+
+/**************************************************************/
 
 
 typedef  struct  {
@@ -679,6 +735,7 @@ typedef  struct  {
   boolean saveMemory;
   
   int    *resample;
+  treeList *rellTrees;
 
   int numberOfBranches;
   int    numberOfTipsForInsertion;
@@ -923,34 +980,6 @@ typedef  struct  {
 } tree;
 
 
-/***************************************************************/
-
-typedef struct
-{
-  double z[NUM_BRANCHES];
-  nodeptr p, q;
-  int cp, cq;
-}
-  connectRELL, *connptrRELL;
-
-typedef  struct
-{
-  connectRELL     *connect; 
-  int             start;
-  double          likelihood;
-}
-  topolRELL;
-
-
-typedef  struct
-{
-  int max;
-  topolRELL **t;
-}
-  topolRELL_LIST;
-
-
-/**************************************************************/
 
 
 
@@ -1049,6 +1078,7 @@ typedef  struct {
   boolean       stepwiseAdditionOnly;
   boolean       optimizeBaseFrequencies;
   boolean       ascertainmentBias;
+  boolean       rellBootstrap;
 } analdef;
 
 
@@ -1207,6 +1237,13 @@ extern void freeTL ( topolRELL_LIST *rl);
 extern void restoreTL ( topolRELL_LIST *rl, tree *tr, int n );
 extern void resetTL ( topolRELL_LIST *rl );
 extern void saveTL ( topolRELL_LIST *rl, tree *tr, int index );
+
+extern void initTreeList(treeList *rl, tree *tr, int n);
+extern void freeTreeList(treeList *rl);
+extern void restoreTreeList(treeList *rl, tree *tr, int n);
+extern void resetTreeList(treeList *rl);
+extern void saveTreeList(treeList *rl, tree *tr, int index, double likelihood);
+
 
 extern int  saveBestTree (bestlist *bt, tree *tr);
 extern int  recallBestTree (bestlist *bt, int rank, tree *tr);

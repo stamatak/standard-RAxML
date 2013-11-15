@@ -1074,6 +1074,54 @@ void restoreTreeFast(tree *tr)
   testInsertRestoreBIG(tr, tr->removeNode, tr->insertNode);
 }
 
+//#define _DEBUG_RELL
+
+static void updateRellTrees(tree *tr, int numberOfSamples)
+{
+  int i, j;
+
+#ifdef _DEBUG_RELL
+  int 
+    impr = 0;
+#endif
+
+  evaluateGenericVector(tr, tr->start); 
+
+  for(i = 0; i < numberOfSamples; i++)
+    {
+      double 
+	like = 0.0;
+
+      int 
+	w = 0,
+	*weights = &(tr->resample[i * tr->originalCrunchedLength]);
+
+      for(j = 0; j < tr->originalCrunchedLength; j++)
+	{
+	  w += weights[j];
+	  like += (double)weights[j] * tr->perSiteLL[j];
+	}
+
+      if(like > tr->rellTrees->t[i]->likelihood)
+	{
+#ifdef _DEBUG_RELL
+	  impr = 1;
+	  if(tr->rellTrees->t[i]->likelihood != unlikely)
+	    printf("[%d] better tree found %f -> %f\n", i, tr->rellTrees->t[i]->likelihood, like);
+	  else
+	    printf("[%d] better tree found unlikely -> %f\n", i, like);
+#endif	  
+	  saveTreeList(tr->rellTrees, tr, i, like);	
+	}      
+
+    }
+
+#ifdef _DEBUG_RELL
+  if(impr)
+    printf("\n\n");
+#endif
+  
+}
 
 int determineRearrangementSetting(tree *tr,  analdef *adef, bestlist *bestT, bestlist *bt)
 {
@@ -1367,6 +1415,9 @@ void computeBIGRAPID (tree *tr, analdef *adef, boolean estimateModel)
 	  
 	  treeEvaluate(tr, 0.25);	    	 		      	 
 
+	  if(adef->rellBootstrap)
+	    updateRellTrees(tr, NUM_RELL_BOOTSTRAPS);
+
 	  difference = ((tr->likelihood > previousLh)? 
 			tr->likelihood - previousLh: 
 			previousLh - tr->likelihood); 	    
@@ -1469,8 +1520,11 @@ void computeBIGRAPID (tree *tr, analdef *adef, boolean estimateModel)
 	{		 
 	  recallBestTree(bt, i, tr);	 	    	    	
 	  
-	  treeEvaluate(tr, 0.25);	    	 
-	
+	  treeEvaluate(tr, 0.25);
+	    	 
+	  if(adef->rellBootstrap)
+	    updateRellTrees(tr, NUM_RELL_BOOTSTRAPS);
+	  
 #ifdef _TERRACES
 	  /* save all 20 best trees in the terrace tree list */
 	  saveBestTree(terrace, tr);

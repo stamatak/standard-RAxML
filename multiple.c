@@ -54,6 +54,7 @@ extern int  optimizeInvarInvocations;
 extern int  checkPointCounter;
 extern int  Thorough;
 extern char tree_file[1024];
+extern char rellBootstrapFileName[1024];
 extern const unsigned int mask32[32];
 extern double masterTime;
 
@@ -1507,6 +1508,27 @@ void doInference(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
   n = n / processes;
 #endif
 
+  if(adef->rellBootstrap)
+    { 
+#ifdef _WAYNE_MPI
+      //TODO need to implemented RELL file merging for hybrid version!
+      assert(0);
+#endif
+#ifdef _WAYNE_MPI          
+      tr->resample = permutationSH(tr, NUM_RELL_BOOTSTRAPS, parsimonySeed0 + 10000 * processID); 
+#else     
+      tr->resample = permutationSH(tr, NUM_RELL_BOOTSTRAPS, adef->parsimonySeed);        
+#endif
+
+       tr->rellTrees = (treeList *)rax_malloc(sizeof(treeList));
+       initTreeList(tr->rellTrees, tr, NUM_RELL_BOOTSTRAPS);
+    }
+  else
+    {
+      tr->resample = (int *)NULL;
+      tr->rellTrees =  (treeList *)NULL;
+    }
+
   for(i = 0; i < n; i++)
     { 
 #ifdef _WAYNE_MPI 
@@ -1795,6 +1817,33 @@ void doInference(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
 
       if(adef->perGeneBranchLengths)
 	printTreePerGene(tr, adef, bestTreeFileName, "w");
+    }
+
+  if(adef->rellBootstrap)
+    {
+      //WARNING the functions below need to be invoked after all other trees have been printed
+      //don't move this part of the code further up!
+
+      int
+	i;
+      
+      FILE 
+	*f = myfopen(rellBootstrapFileName, "wb");
+      
+      for(i = 0; i < NUM_RELL_BOOTSTRAPS; i++)
+	{
+	   restoreTreeList(tr->rellTrees, tr, i);
+	   Tree2String(tr->tree_string, tr, tr->start->back, FALSE, TRUE, FALSE, FALSE, TRUE, adef, SUMMARIZE_LH, FALSE, FALSE, FALSE, FALSE);
+	   fprintf(f, "%s", tr->tree_string);
+	}
+
+      freeTreeList(tr->rellTrees);
+      free(tr->rellTrees);
+      free(tr->resample);
+
+      fclose(f);
+
+      printBothOpen("\nRELL bootstraps written to file %s\n", rellBootstrapFileName);    
     }
   
   overallTime = gettime() - masterTime;

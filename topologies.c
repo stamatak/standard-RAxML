@@ -623,3 +623,119 @@ int  recallBestTree (bestlist *bt, int rank, tree *tr)
 
 
 
+/************************************************************************/
+
+/* functions for storing RELL bootstrap trees, just store the topology, no branch lengths are stored */
+
+static void saveTreeListRec(tree *tr, nodeptr p, topolTree *tpl, int *i, int numsp)
+{ 
+  if(isTip(p->number, numsp))
+    return;
+  else
+    {
+      nodeptr 
+	q = p->next;      
+      
+      while(q != p)
+	{	  
+	  tpl->connect[*i].p = q;
+	  tpl->connect[*i].q = q->back; 	  
+	  *i = *i + 1;	  
+	  saveTreeListRec(tr, q->back, tpl, i, numsp);
+	  q = q->next;
+	}
+    }
+}
+
+static void saveTreeInList(tree *tr, topolTree *tpl, double likelihood)
+{
+  nodeptr 
+    p = tr->start;
+  
+  int    
+    i = 0;
+      
+  tpl->likelihood = likelihood;
+  tpl->start      = 1;
+      
+  tpl->connect[i].p = p;
+  tpl->connect[i].q = p->back;
+   
+  i++;
+      
+  saveTreeListRec(tr, p->back, tpl, &i, tr->rdta->numsp);   
+
+  assert(i == 2 * tr->ntips - 3);
+}
+
+
+static void restoreTreeInList(tree *tr, topolTree *tpl)
+{
+  int 
+    i;
+  
+  for(i = 0; i < 2 * tr->mxtips - 3; i++) 
+    {        
+      tpl->connect[i].p->back = tpl->connect[i].q;
+      tpl->connect[i].q->back = tpl->connect[i].p;
+    }
+  
+  tr->start      = tr->nodep[tpl->start];
+}
+
+
+
+
+void initTreeList(treeList *rl, tree *tr, int n)
+{
+  int i;
+
+  rl->max = n; 
+  rl->t = (topolTree **)rax_malloc(sizeof(topolTree *) * n);
+
+  for(i = 0; i < n; i++)
+    {
+      rl->t[i] = (topolTree *)rax_malloc(sizeof(topolTree));
+      rl->t[i]->connect = (connectTree *)rax_malloc((2 * tr->mxtips - 3) * sizeof(connectTree));
+      rl->t[i]->likelihood = unlikely;     
+    }
+}
+
+
+void freeTreeList(treeList *rl)
+{
+  int i;
+  for(i = 0; i < rl->max; i++)    
+    {
+      rax_free(rl->t[i]->connect);          
+      rax_free(rl->t[i]);
+    }
+  rax_free(rl->t);
+}
+
+
+void restoreTreeList(treeList *rl, tree *tr, int n)
+{
+  assert(n >= 0 && n < rl->max);    
+
+  restoreTreeInList(tr, rl->t[n]);  
+}
+
+void resetTreeList(treeList *rl)
+{
+  int i;
+
+  for(i = 0; i < rl->max; i++)    
+    rl->t[i]->likelihood = unlikely;          
+}
+
+
+
+
+void saveTreeList(treeList *rl, tree *tr, int index, double likelihood)
+{ 
+  assert(index >= 0 && index < rl->max);    
+    
+  if(likelihood > rl->t[index]->likelihood)        
+    saveTreeInList(tr, rl->t[index], likelihood); 
+}
