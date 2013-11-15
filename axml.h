@@ -47,7 +47,7 @@
 
 #endif
 
-#define NUM_RELL_BOOTSTRAPS 100
+#define NUM_RELL_BOOTSTRAPS 1000
 
 #define MAX_TIP_EV     0.999999999 /* max tip vector value, sum of EVs needs to be smaller than 1.0, otherwise the numerics break down */
 #define smoothings     32          /* maximum smoothing passes through tree */
