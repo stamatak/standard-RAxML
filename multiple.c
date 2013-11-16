@@ -63,7 +63,7 @@ extern FILE   *INFILE, *permutationFile, *logFile, *infoFile;
 extern char seq_file[1024];
 extern char permFileName[1024], resultFileName[1024], 
   logFileName[1024], checkpointFileName[1024], infoFileName[1024], run_id[128], workdir[1024], bootStrapFile[1024], bootstrapFileName[1024], 
-  bipartitionsFileName[1024],bipartitionsFileNameBranchLabels[1024]; 
+  bipartitionsFileName[1024],bipartitionsFileNameBranchLabels[1024], rellBootstrapFileNamePID[1024]; 
 
 
 
@@ -568,20 +568,20 @@ static void copyFiles(FILE *source, FILE *destination)
     fwrite(buf, sizeof(char), c, destination);     	
 }
 
-static void concatenateBSFiles(int processes)
+static void concatenateBSFiles(int processes, char fileName[1024])
 {
   if(processID == 0)
     {
       int i;
       
       FILE 
-	*destination = myfopen(bootstrapFileName, "w"),
+	*destination = myfopen(fileName, "w"),
 	*source = (FILE*)NULL;
       
       char 
 	sourceName[1024];          
       
-      strcpy(sourceName, bootstrapFileName);
+      strcpy(sourceName, fileName);
       strcat(sourceName, ".PID.");
       
       for(i = 0; i < processes; i++)
@@ -605,7 +605,7 @@ static void concatenateBSFiles(int processes)
     }
 }
 
-static void removeBSFiles(int processes)
+static void removeBSFiles(int processes, char fileName[1024])
 {
   if(processID == 0)
     {
@@ -615,7 +615,7 @@ static void removeBSFiles(int processes)
       char 
 	sourceName[1024];            
       
-      strcpy(sourceName, bootstrapFileName);
+      strcpy(sourceName, fileName);
       strcat(sourceName, ".PID.");
       
       for(i = 0; i < processes; i++)
@@ -852,7 +852,7 @@ void doAllInOne(tree *tr, analdef *adef)
 	    {
 	      MPI_Barrier(MPI_COMM_WORLD);
 	                    
-	      concatenateBSFiles(processes);                
+	      concatenateBSFiles(processes, bootstrapFileName);                
 	      
               MPI_Barrier(MPI_COMM_WORLD);	      
 	      
@@ -873,8 +873,8 @@ void doAllInOne(tree *tr, analdef *adef)
   bootstrapsPerformed = i * processes; 
   bootStrapsPerProcess = i;   
       
-  concatenateBSFiles(processes);
-  removeBSFiles(processes);  
+  concatenateBSFiles(processes, bootstrapFileName);
+  removeBSFiles(processes, bootstrapFileName);  
   
   MPI_Barrier(MPI_COMM_WORLD); 
 #else
@@ -1379,7 +1379,7 @@ void doBootstrap(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
 	    {
 	      MPI_Barrier(MPI_COMM_WORLD);
 	                    
-	      concatenateBSFiles(processes);               
+	      concatenateBSFiles(processes, bootstrapFileName);               
 	      
               MPI_Barrier(MPI_COMM_WORLD);
 	     
@@ -1400,9 +1400,9 @@ void doBootstrap(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
   if(processID == 0)
     {      
       if(!adef->bootStopping)
-	concatenateBSFiles(processes);
+	concatenateBSFiles(processes, bootstrapFileName);
 
-      removeBSFiles(processes);      
+      removeBSFiles(processes, bootstrapFileName);      
     }
   
   MPI_Barrier(MPI_COMM_WORLD); 
@@ -1476,7 +1476,9 @@ void doInference(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
   int i, n;
 
 #ifdef _WAYNE_MPI
-  int j;
+  int 
+    j,
+    bestProcess;
 #endif
 
   double loopTime;
@@ -1510,10 +1512,6 @@ void doInference(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
 
   if(adef->rellBootstrap)
     { 
-#ifdef _WAYNE_MPI
-      //TODO need to implemented RELL file merging for hybrid version!
-      assert(0);
-#endif
 #ifdef _WAYNE_MPI          
       tr->resample = permutationSH(tr, NUM_RELL_BOOTSTRAPS, parsimonySeed0 + 10000 * processID); 
 #else     
@@ -1764,10 +1762,8 @@ void doInference(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
 #ifdef _WAYNE_MPI
       if(processes > 1)
 	{
-	  double *buffer;
-	  int bestProcess;
-	  
-	  buffer = (double *)rax_malloc(sizeof(double) * processes);
+	  double 
+	    *buffer = (double *)rax_malloc(sizeof(double) * processes);
 	  for(i = 0; i < processes; i++)
 	    buffer[i] = unlikely;
 	  buffer[processID] = bestLH;
@@ -1781,42 +1777,43 @@ void doInference(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
 		bestLH = buffer[i];
 		bestProcess = i;
 	      }
-	  rax_free(buffer);
 	  
-	  if(processID != bestProcess)
-	    {
-	      MPI_Finalize();
-	      exit(0);
-	    }
+	  rax_free(buffer);	  	  
 	}
+
+      if(processID == bestProcess)
+	{
 #endif
 
-      restoreTL(rl, tr, newBest);
-      evaluateGenericInitrav(tr, tr->start);
+	  restoreTL(rl, tr, newBest);
+	  evaluateGenericInitrav(tr, tr->start);
      
-      printBothOpen("\n\nStarting final GAMMA-based thorough Optimization on tree %d likelihood %f .... \n\n", newBest, tr->likelihoods[newBest]);
-
-      Thorough = 1;
-      tr->doCutoff = FALSE; 
-      treeOptimizeThorough(tr, 1, 10); 
-      evaluateGenericInitrav(tr, tr->start);
-  
-      printBothOpen("Final GAMMA-based Score of best tree %f\n\n", tr->likelihood); 
-    
-
-      strcpy(bestTreeFileName, workdir); 
-      strcat(bestTreeFileName, "RAxML_bestTree.");
-      strcat(bestTreeFileName,         run_id);
-      
-     
-      Tree2String(tr->tree_string, tr, tr->start->back, TRUE, TRUE, FALSE, FALSE, TRUE, adef, SUMMARIZE_LH, FALSE, FALSE, FALSE, FALSE);
-      
-      f = myfopen(bestTreeFileName, "wb");
-      fprintf(f, "%s", tr->tree_string);
-      fclose(f);
-
-      if(adef->perGeneBranchLengths)
-	printTreePerGene(tr, adef, bestTreeFileName, "w");
+	  printBothOpen("\n\nStarting final GAMMA-based thorough Optimization on tree %d likelihood %f .... \n\n", newBest, tr->likelihoods[newBest]);
+	  
+	  Thorough = 1;
+	  tr->doCutoff = FALSE; 
+	  treeOptimizeThorough(tr, 1, 10); 
+	  evaluateGenericInitrav(tr, tr->start);
+	  
+	  printBothOpen("Final GAMMA-based Score of best tree %f\n\n", tr->likelihood); 
+	  
+	  
+	  strcpy(bestTreeFileName, workdir); 
+	  strcat(bestTreeFileName, "RAxML_bestTree.");
+	  strcat(bestTreeFileName,         run_id);
+	  
+	  
+	  Tree2String(tr->tree_string, tr, tr->start->back, TRUE, TRUE, FALSE, FALSE, TRUE, adef, SUMMARIZE_LH, FALSE, FALSE, FALSE, FALSE);
+	  
+	  f = myfopen(bestTreeFileName, "wb");
+	  fprintf(f, "%s", tr->tree_string);
+	  fclose(f);
+	  
+	  if(adef->perGeneBranchLengths)
+	    printTreePerGene(tr, adef, bestTreeFileName, "w");      
+#ifdef _WAYNE_MPI
+	}
+#endif
     }
 
   if(adef->rellBootstrap)
@@ -1826,9 +1823,13 @@ void doInference(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
 
       int
 	i;
-      
+#ifdef _WAYNE_MPI
+      FILE 
+	*f = myfopen(rellBootstrapFileNamePID, "wb");      
+#else
       FILE 
 	*f = myfopen(rellBootstrapFileName, "wb");
+#endif
       
       for(i = 0; i < NUM_RELL_BOOTSTRAPS; i++)
 	{
@@ -1843,23 +1844,42 @@ void doInference(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
 
       fclose(f);
 
+#ifdef _WAYNE_MPI      
+      MPI_Barrier(MPI_COMM_WORLD);      
+      
+      concatenateBSFiles(processes, rellBootstrapFileName);
+      removeBSFiles(processes, rellBootstrapFileName);  
+      
+      MPI_Barrier(MPI_COMM_WORLD); 
+      
+      if(processID == 0)
+	printBothOpen("\nRELL bootstraps written to file %s\n", rellBootstrapFileName);
+#else
       printBothOpen("\nRELL bootstraps written to file %s\n", rellBootstrapFileName);    
+#endif
     }
   
-  overallTime = gettime() - masterTime;
-
-  printBothOpen("Program execution info written to %s\n", infoFileName);
-  
-  if(!tr->catOnly)
+#ifdef _WAYNE_MPI 
+  if(processID == bestProcess)
     {
-      printBothOpen("Best-scoring ML tree written to: %s\n\n", bestTreeFileName);
-
-      if(adef->perGeneBranchLengths && tr->NumberOfModels > 1)    
-	printBothOpen("Per-Partition branch lengths of best-scoring ML tree written to %s.PARTITION.0 to  %s.PARTITION.%d\n\n", bestTreeFileName,  bestTreeFileName, 
-		      tr->NumberOfModels - 1);  
+#endif
+      overallTime = gettime() - masterTime;
+      
+      printBothOpen("Program execution info written to %s\n", infoFileName);
+      
+      if(!tr->catOnly)
+	{
+	  printBothOpen("Best-scoring ML tree written to: %s\n\n", bestTreeFileName);
+	  
+	  if(adef->perGeneBranchLengths && tr->NumberOfModels > 1)    
+	    printBothOpen("Per-Partition branch lengths of best-scoring ML tree written to %s.PARTITION.0 to  %s.PARTITION.%d\n\n", bestTreeFileName,  bestTreeFileName, 
+			  tr->NumberOfModels - 1);  
+	}
+      
+      printBothOpen("Overall execution time: %f secs or %f hours or %f days\n\n", overallTime, overallTime/3600.0, overallTime/86400.0);    
+#ifdef _WAYNE_MPI 
     }
-   
-  printBothOpen("Overall execution time: %f secs or %f hours or %f days\n\n", overallTime, overallTime/3600.0, overallTime/86400.0);    
+#endif
 
   if(!tr->catOnly)
     {

@@ -70,7 +70,8 @@ char run_id[128] = "",
   binaryModelParamsOutputFileName[1024] = "",
   binaryModelParamsInputFileName[1024] = "",
   quartetGroupingFileName[1024] = "",
-  rellBootstrapFileName[1024] = "";
+  rellBootstrapFileName[1024] = "",
+  rellBootstrapFileNamePID[1024] = "";
 
 
 

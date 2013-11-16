@@ -6246,12 +6246,19 @@ static void makeFileNames(void)
 
 #ifdef _WAYNE_MPI  
   {
-    char buf[64];
+    char 
+      buf[64];
     
-    strcpy(bootstrapFileNamePID, bootstrapFileName);
-    strcat(bootstrapFileNamePID, ".PID.");
     sprintf(buf, "%d", processID);
+
+    strcpy(bootstrapFileNamePID, bootstrapFileName);
+    strcat(bootstrapFileNamePID, ".PID.");   
     strcat(bootstrapFileNamePID, buf);
+
+    strcpy(rellBootstrapFileNamePID, rellBootstrapFileName);
+    strcat(rellBootstrapFileNamePID, ".PID.");   
+    strcat(rellBootstrapFileNamePID, buf);
+
   }
 #endif
 
