@@ -8459,11 +8459,11 @@ void newviewMultiGrain(tree *tr,  double *x1, double *x2, double *x3, int *_ex1,
 			tr->partitionData[model].EIGN, tr->partitionData[model].numberOfCategories,
 			left, right, DNA_DATA, tr->saveMemory, tr->maxCategories);
 		  
-#ifdef __AVX
-		  newviewGTRCAT_AVX(tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
+#ifdef __AVX		  
+		  newviewGTRCAT_AVX(tipCase,  tr->partitionData[model].EV, rateCategory,
 				    x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
 				    ex3, tipX1, tipX2,
-				    width, left, right, wgt, &scalerIncrement, tr->useFastScaling); 
+				    width, left, right, wgt, &scalerIncrement, tr->useFastScaling); 		 
 #else
 		  
 		  newviewGTRCAT(tipCase,  tr->partitionData[model].EV, rateCategory,
@@ -8505,7 +8505,7 @@ void newviewMultiGrain(tree *tr,  double *x1, double *x2, double *x3, int *_ex1,
 			tr->partitionData[model].EIGN,
 			tr->partitionData[model].numberOfCategories, left, right, AA_DATA, tr->saveMemory, tr->maxCategories);
 #ifdef __AVX
-		  newviewGTRCATPROT_AVX(tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
+		  newviewGTRCATPROT_AVX(tipCase,  tr->partitionData[model].EV, rateCategory,
 					x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
 					ex3, tipX1, tipX2, width, left, right, wgt, &scalerIncrement, tr->useFastScaling);
 #else		      

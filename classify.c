@@ -1147,8 +1147,8 @@ void testInsertThoroughIterative(tree *tr, int branchNumber)
 
 	  root = r1;
 	}
-    }
-	     	  
+    }	    
+ 	  
   for(insertions = 0; insertions < tr->numberOfTipsForInsertion; insertions++)
     { 
       if(b->epa->executeThem[insertions])
@@ -1170,6 +1170,8 @@ void testInsertThoroughIterative(tree *tr, int branchNumber)
 	    modifiedBranchLength,
 	    distalLength;
 
+	  
+
 	  for(model = 0; model < tr->numBranches; model++)
 	    {
 	      z = sqrt(b->epa->branchLengths[model]);
@@ -1189,7 +1191,7 @@ void testInsertThoroughIterative(tree *tr, int branchNumber)
 	      
 	      tipX1 = tr->contiguousTips[leftNodeNumber];
 	      tipX2 = tr->contiguousTips[rightNodeNumber];
-	      
+	      	     
 	      newviewMultiGrain(tr, x1, x2, x3, ex1, ex2, ex3, tipX1, tipX2, tipCase, e1, e2, insertions);	
 	    }
 	  else
@@ -1814,13 +1816,15 @@ void classifyML(tree *tr, analdef *adef)
   if(tr->perPartitionEPA)
     analyzeReads(tr);
 
+ 
+
 #ifdef _USE_PTHREADS 
   tr->contiguousVectorLength = getContiguousVectorLength(tr);
   tr->contiguousScalingLength = getContiguousScalingLength(tr);
   allocBranchX(tr);
   masterBarrier(THREAD_INIT_EPA, tr); 
 #endif 
-  
+ 
   setupBranchInfo(tr, q);   
   
   if(tr->useEpaHeuristics)
@@ -1839,10 +1843,11 @@ void classifyML(tree *tr, analdef *adef)
       
       consolidateInfoMLHeuristics(tr, heuristicInsertions);
     }           
-           
+            
+  
 #ifdef _USE_PTHREADS
   NumberOfJobs = tr->numberOfBranches;
-  masterBarrier(THREAD_INSERT_CLASSIFY_THOROUGH, tr);	      
+  masterBarrier(THREAD_INSERT_CLASSIFY_THOROUGH, tr);	       
 #else     
   addTraverseRob(tr, r, q, TRUE);
 #endif

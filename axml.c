@@ -4322,7 +4322,7 @@ static void parseOutgroups(char *outgr, tree *tr)
 static void printVersionInfo(boolean terminal, FILE *infoFile)
 {
   char 
-    text[7][1024];
+    text[8][1024];
 
   int 
     i;
@@ -4331,11 +4331,12 @@ static void printVersionInfo(boolean terminal, FILE *infoFile)
   sprintf(text[1], "With greatly appreciated code contributions by:\n");
   sprintf(text[2], "Andre Aberer (HITS)\n");     
   sprintf(text[3], "Simon Berger (HITS)\n"); 
-  sprintf(text[4], "Nick Pattengale (Sandia)\n"); 
-  sprintf(text[5], "Wayne Pfeiffer (SDSC)\n");
-  sprintf(text[6], "Akifumi S. Tanabe (NRIFS)\n\n");
+  sprintf(text[4], "Alexey Kozlov (HITS)\n"); 
+  sprintf(text[5], "Nick Pattengale (Sandia)\n"); 
+  sprintf(text[6], "Wayne Pfeiffer (SDSC)\n");
+  sprintf(text[7], "Akifumi S. Tanabe (NRIFS)\n\n");
 
-  for(i = 0; i < 7; i++)
+  for(i = 0; i < 8; i++)
     {
       if(terminal)    
 	printf("%s", text[i]);
@@ -8319,6 +8320,50 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
      
       localTree->contiguousTips = tr->yVector;	  	
 	 
+
+      //NUMA optimizations, I adapted the original suggestion by Alexey Kozlov
+      //initially all vectors in the branch data structure are allocated in function 
+      //allocBranchX() in callssify.c 
+      //Hence I can call the NUMA first touches here because this parallel region is invoked 
+      //immediately after the call to allocBranchX(tr); in classify.c 
+      //doing an actual memset might be an overkill, normally it would be sufficient 
+      //to set/write a single byte per page size
+      {
+	size_t 
+	  vectorChunkSize = tr->contiguousVectorLength / n,
+	  scalingChunkSize = tr->contiguousScalingLength / n,
+	  vectorOffset = vectorChunkSize * tid,
+	  scalingOffset = scalingChunkSize * tid;
+	
+	int 
+	  branchNumber;
+	
+	if(tid == n-1)
+	  {
+	    vectorChunkSize = tr->contiguousVectorLength - vectorOffset;
+	    scalingChunkSize = tr->contiguousScalingLength - scalingOffset;
+	    
+	    assert(vectorChunkSize > 0 && scalingChunkSize > 0);
+	  }
+	
+	for(branchNumber = 0; branchNumber < tr->numberOfBranches; branchNumber++)
+	  {
+	    double
+	      *leftContigousVector = localTree->bInf[branchNumber].epa->left,
+	      *rightContigousVector = localTree->bInf[branchNumber].epa->right;
+	    
+	    int
+	      *leftContigousScalingVector = localTree->bInf[branchNumber].epa->leftScaling,
+	      *rightContigousScalingVector = localTree->bInf[branchNumber].epa->rightScaling;
+	    
+	    
+	    memset(&leftContigousVector[vectorOffset], 0, sizeof(double) * vectorChunkSize);
+	    memset(&leftContigousScalingVector[scalingOffset], 0, sizeof(int) * scalingChunkSize);
+	    
+	    memset(&rightContigousVector[vectorOffset], 0, sizeof(double) * vectorChunkSize);
+	    memset(&rightContigousScalingVector[scalingOffset], 0, sizeof(int) * scalingChunkSize);	  
+	  }
+      }      
       break;         
     case THREAD_GATHER_LIKELIHOOD:
       {	
