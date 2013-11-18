@@ -2982,6 +2982,10 @@ static void autoProtein(tree *tr)
 void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilon)
 { 
   int i, model, catOpt = 0; 
+
+  boolean
+    changedRoot = FALSE;
+
   double 
     inputLikelihood,
     currentLikelihood,
@@ -3019,7 +3023,11 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
   freqList = initLinkageList(unlinked, tr);
     
   if(!(adef->mode == CLASSIFY_ML))
-    tr->start = tr->nodep[1];
+    {
+      if(tr->start != tr->nodep[1])
+	changedRoot = TRUE;      
+      tr->start = tr->nodep[1];
+    }
   
   if(resetModel)
     {
@@ -3065,13 +3073,14 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
       treeEvaluate(tr, 0.25);        
 
       evaluateGenericInitrav(tr, tr->start);
-    }
+    }  
   
   inputLikelihood = tr->likelihood;
 
   evaluateGenericInitrav(tr, tr->start); 
 
-  assert(inputLikelihood == tr->likelihood);
+  if(!changedRoot)
+    assert(inputLikelihood == tr->likelihood);
   
   /* no need for individual models here, just an init on params equal for all partitions*/
   
