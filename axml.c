@@ -9069,6 +9069,7 @@ static void computeLHTest(tree *tr, analdef *adef, char *bootStrapFileName)
       if(tr->optimizeAllTrees)
 	{
 	  treeEvaluate(tr, 1);
+	  evaluateGenericInitrav(tr, tr->start);
 	  modOpt(tr, adef, FALSE, adef->likelihoodEpsilon);
 	}
       else
@@ -9153,6 +9154,7 @@ static void computePerSiteLLs(tree *tr, analdef *adef, char *bootStrapFileName)
 	  if(tr->optimizeAllTrees)
 	    {
 	      treeEvaluate(tr, 1);
+	      evaluateGenericInitrav(tr, tr->start);
 	      modOpt(tr, adef, FALSE, adef->likelihoodEpsilon);
 	    }
 	  else
@@ -9289,6 +9291,7 @@ static void computeAllLHs(tree *tr, analdef *adef, char *bootStrapFileName)
 	  if(tr->optimizeAllTrees)
 	    {
 	      treeEvaluate(tr, 1);
+	      evaluateGenericInitrav(tr, tr->start);
 	      modOpt(tr, adef, FALSE, adef->likelihoodEpsilon);
 	    }
 	  else
@@ -9428,6 +9431,7 @@ static void computeELW(tree *tr, analdef *adef, char *bootStrapFileName)
       if(tr->optimizeAllTrees)
 	{
 	  treeEvaluate(tr, 1);
+	  evaluateGenericInitrav(tr, tr->start);
 	  modOpt(tr, adef, FALSE, adef->likelihoodEpsilon);
 	}
       else

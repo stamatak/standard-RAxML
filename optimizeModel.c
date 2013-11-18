@@ -3061,10 +3061,10 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
       resetBranches(tr);
       
       evaluateGenericInitrav(tr, tr->start); 
-      
-      
-
+            
       treeEvaluate(tr, 0.25);        
+
+      evaluateGenericInitrav(tr, tr->start);
     }
   
   inputLikelihood = tr->likelihood;
