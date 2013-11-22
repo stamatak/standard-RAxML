@@ -1839,8 +1839,8 @@ void doInference(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
 	}
 
       freeTreeList(tr->rellTrees);
-      free(tr->rellTrees);
-      free(tr->resample);
+      rax_free(tr->rellTrees);
+      rax_free(tr->resample);
 
       fclose(f);
 

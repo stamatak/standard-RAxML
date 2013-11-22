@@ -1769,6 +1769,8 @@ static void getinput(analdef *adef, rawdata *rdta, cruncheddata *cdta, tree *tr)
 	  inputweights(rdta);
 	}
     }
+  else
+    tr->NumberOfModels = 0;
 
   tr->multiBranch = 0;
   tr->numBranches = 1;
@@ -4322,7 +4324,7 @@ static void parseOutgroups(char *outgr, tree *tr)
 static void printVersionInfo(boolean terminal, FILE *infoFile)
 {
   char 
-    text[8][1024];
+    text[9][1024];
 
   int 
     i;
@@ -4334,9 +4336,10 @@ static void printVersionInfo(boolean terminal, FILE *infoFile)
   sprintf(text[4], "Alexey Kozlov (HITS)\n"); 
   sprintf(text[5], "Nick Pattengale (Sandia)\n"); 
   sprintf(text[6], "Wayne Pfeiffer (SDSC)\n");
-  sprintf(text[7], "Akifumi S. Tanabe (NRIFS)\n\n");
+  sprintf(text[7], "Akifumi S. Tanabe (NRIFS)\n");
+  sprintf(text[8], "David Dao (KIT)\n\n");
 
-  for(i = 0; i < 8; i++)
+  for(i = 0; i < 9; i++)
     {
       if(terminal)    
 	printf("%s", text[i]);
