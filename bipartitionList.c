@@ -2709,6 +2709,7 @@ void plausibilityChecker(tree *tr, analdef *adef)
     rfFileName[1024];
 
   int
+    numberOfTreesAnalyzed = 0,
     i;
 
   double 
@@ -2827,200 +2828,211 @@ void plausibilityChecker(tree *tr, analdef *adef)
   for(i = 0; i < tr->numberOfTrees;  i++)
     {      
       int
-	numberOfSplits = 0, 
-	firstTaxon;
+	numberOfSplits = readMultifurcatingTree(treeFile, smallTree, adef);
       
-      /* allocate a has table for re-hashing the bipartitions of the big tree */
+      if(numberOfSplits > 0)
+	{
+	  int
+	    firstTaxon;           
 
-      double
-	rec_rf,
-	maxRF;
-      
-      /* parse the small tree */              
+	  double
+	    rec_rf,
+	    maxRF;
 
-      /* 
-	 instead of the standard tree parsing function, we parse a multi-furcating tree here.
-	 the function returns the number of inner branches/splits in the multi-furcating tree which can,
-	 of course be smaller than n-3, where n is the number of taxa in the tree.
-      */
-      
-      numberOfSplits = readMultifurcatingTree(treeFile, smallTree, adef);
-      printBothOpen("Small tree %d has %d tips\n", i, smallTree->ntips);    
-
-      /* compute the maximum RF distance for computing the relative RF distance later-on */
-
-      /* note that here we need to pay attention, since the RF distance is not normalized 
-	 by 2 * (n-3) but we need to account for the fact that the multifurcating small tree 
-	 will potentially contain less bipartitions. 
-	 Hence the normalization factor is obtained as n-3 + numberOfSplits, where n-3 is the number 
-	 of bipartitions of the pruned down large reference tree for which we know that it is 
-	 bifurcating/strictly binary */
-      
-      maxRF = (double)(2* numberOfSplits);
-      
-      /* now get the index of the first taxon of the small tree.
-	 we will use this to unambiguously store the bipartitions 
-      */
-      
-      firstTaxon = smallTree->start->number;
-
-      /***********************************************************************************/
-      /* Reconstruction Step */
-
-      double 
-	time_start = gettime();
-
-      /* Init hashtable to store Bipartitions of the induced subtree */
-      hashtable
-        *s_hash = initHashTable(smallTree->mxtips * 2 * 2);
-      
-      /* smallTreeTaxa[smallTree->ntips]; 
-      Stores all taxa numbers from smallTree into an array called smallTreeTaxa: (Index) -> (Taxonnumber)  */
-      int* 
-	smallTreeTaxa = (int *)rax_malloc((smallTree->ntips) * sizeof(int));
-
-      /* counter is set to 0 for correctly extracting taxa of the small tree */
-      newcount = 0; 
-
-      int 
-	newcount2 = 0;
-
-      /* seq2[2*smallTree->ntips - 2]; 
-      stores PreorderSequence of the reference smalltree: (Preorderindex) -> (Taxonnumber) */
-      int* 
-	seq2 = (int *)rax_malloc((2*smallTree->ntips - 2) * sizeof(int));
-      /* used to store the vectorLength of the bitvector */
-      unsigned int 
-	vectorLength;
-
-      /* extract all taxa of the smalltree and store it into an array, 
-	 also store all counts of taxa and nontaxa in taxonToReduction */
-      rec_extractTaxa(smallTreeTaxa, taxonToReduction, smallTree->start, smallTree->mxtips, &newcount, &newcount2);
-      
-      rec_extractTaxa(smallTreeTaxa, taxonToReduction, smallTree->start->back, smallTree->mxtips, &newcount, &newcount2);
-
-      /* counter is set to 0 to correctly preorder traverse the small tree */
-      newcount = 0;
-
-      /* Preordertraversal of the small tree and save its sequence into seq2 for later extracting the bipartitions, it
-      also stores information about the degree of every node */
-      
-      rec_preOrderTraversalMulti(smallTree->start->back,smallTree->mxtips, smallTree->start->number, seq2, taxonHasDeg, &newcount);
-
-      /* calculate the bitvector length */
-      if(smallTree->ntips % MASK_LENGTH == 0)
-        vectorLength = smallTree->ntips / MASK_LENGTH;
-      else
-        vectorLength = 1 + (smallTree->ntips / MASK_LENGTH); 
-
-      unsigned int 
-	**bitVectors = rec_initBitVector(smallTree, vectorLength);
-
-      /* store all non trivial bitvectors using an subtree approach for the induced subtree and 
-      store it into a hashtable, this method was changed for multifurcation */
-      rec_extractBipartitionsMulti(bitVectors, seq2, newcount,tr->mxtips, vectorLength, smallTree->ntips, 
-				   firstTaxon, s_hash, taxonToReduction, taxonHasDeg, numberOfSplits);
-
-      /* counter is set to 0 to be used for correctly storing all EulerIndices */
-      newcount = 0; 
-      
-      /* smallTreeTaxonToEulerIndex[smallTree->ntips]; 
-      Saves all first Euler indices for all Taxons appearing in small Tree: 
-      (Index) -> (Index of the Eulertour where the taxonnumber of the small tree first appears) */
-      int* 
-	smallTreeTaxonToEulerIndex = (int *)rax_malloc((smallTree->ntips) * sizeof(int));
-
-      /* seq[(smallTree->ntips*2) - 1] 
-      Stores the Preordersequence of the induced small tree */
-      int* 
-	seq = (int *)rax_malloc((2*smallTree->ntips - 1) * sizeof(int));
-
-      
-      /* iterate through all small tree taxa */
-      for(ix = 0; ix < smallTree->ntips; ix++) 
-	{        
+	  if(numberOfTreesAnalyzed % 100 == 0)
+	    printBothOpen("Small tree %d has %d tips and %d bipartitions\n", i, smallTree->ntips, numberOfSplits);    
+	  
+	  /* compute the maximum RF distance for computing the relative RF distance later-on */
+	  
+	  /* note that here we need to pay attention, since the RF distance is not normalized 
+	     by 2 * (n-3) but we need to account for the fact that the multifurcating small tree 
+	     will potentially contain less bipartitions. 
+	     Hence the normalization factor is obtained as n-3 + numberOfSplits, where n-3 is the number 
+	     of bipartitions of the pruned down large reference tree for which we know that it is 
+	     bifurcating/strictly binary */
+	  
+	  maxRF = (double)(2* numberOfSplits);
+	  
+	  /* now get the index of the first taxon of the small tree.
+	     we will use this to unambiguously store the bipartitions 
+	  */
+	  
+	  firstTaxon = smallTree->start->number;
+	  
+	  /***********************************************************************************/
+	  /* Reconstruction Step */
+	  
+	  double 
+	    time_start = gettime();
+	  
+	  /* Init hashtable to store Bipartitions of the induced subtree */
+	  hashtable
+	    *s_hash = initHashTable(smallTree->mxtips * 2 * 2);
+	  
+	  /* smallTreeTaxa[smallTree->ntips]; 
+	     Stores all taxa numbers from smallTree into an array called smallTreeTaxa: (Index) -> (Taxonnumber)  */
+	  int* 
+	    smallTreeTaxa = (int *)rax_malloc((smallTree->ntips) * sizeof(int));
+	  
+	  /* counter is set to 0 for correctly extracting taxa of the small tree */
+	  newcount = 0; 
+	  
 	  int 
-	    taxanumber = smallTreeTaxa[ix];
-        
-	  /* To create smallTreeTaxonToEulerIndex we filter taxonToEulerIndex for taxa in the small tree*/
-	  smallTreeTaxonToEulerIndex[newcount] = taxonToEulerIndex[taxanumber-1]; 
+	    newcount2 = 0;
 	  
-	  /* Saves all Preorderlabel of the smalltree taxa in seq*/
-	  seq[newcount] = taxonToLabel[taxanumber-1];
+	  /* seq2[2*smallTree->ntips - 2]; 
+	     stores PreorderSequence of the reference smalltree: (Preorderindex) -> (Taxonnumber) */
+	  int* 
+	    seq2 = (int *)rax_malloc((2*smallTree->ntips - 2) * sizeof(int));
+	  /* used to store the vectorLength of the bitvector */
+	  unsigned int 
+	    vectorLength;
 	  
-	  newcount++;
+	  /* extract all taxa of the smalltree and store it into an array, 
+	     also store all counts of taxa and nontaxa in taxonToReduction */
+	  rec_extractTaxa(smallTreeTaxa, taxonToReduction, smallTree->start, smallTree->mxtips, &newcount, &newcount2);
+	  
+	  rec_extractTaxa(smallTreeTaxa, taxonToReduction, smallTree->start->back, smallTree->mxtips, &newcount, &newcount2);
+	  
+	  /* counter is set to 0 to correctly preorder traverse the small tree */
+	  newcount = 0;
+	  
+	  /* Preordertraversal of the small tree and save its sequence into seq2 for later extracting the bipartitions, it
+	     also stores information about the degree of every node */
+	  
+	  rec_preOrderTraversalMulti(smallTree->start->back,smallTree->mxtips, smallTree->start->number, seq2, taxonHasDeg, &newcount);
+	  
+	  /* calculate the bitvector length */
+	  if(smallTree->ntips % MASK_LENGTH == 0)
+	    vectorLength = smallTree->ntips / MASK_LENGTH;
+	  else
+	    vectorLength = 1 + (smallTree->ntips / MASK_LENGTH); 
+	  
+	  unsigned int 
+	    **bitVectors = rec_initBitVector(smallTree, vectorLength);
+	  
+	  /* store all non trivial bitvectors using an subtree approach for the induced subtree and 
+	     store it into a hashtable, this method was changed for multifurcation */
+	  rec_extractBipartitionsMulti(bitVectors, seq2, newcount,tr->mxtips, vectorLength, smallTree->ntips, 
+				       firstTaxon, s_hash, taxonToReduction, taxonHasDeg, numberOfSplits);
+	  
+	  /* counter is set to 0 to be used for correctly storing all EulerIndices */
+	  newcount = 0; 
+	  
+	  /* smallTreeTaxonToEulerIndex[smallTree->ntips]; 
+	     Saves all first Euler indices for all Taxons appearing in small Tree: 
+	     (Index) -> (Index of the Eulertour where the taxonnumber of the small tree first appears) */
+	  int* 
+	    smallTreeTaxonToEulerIndex = (int *)rax_malloc((smallTree->ntips) * sizeof(int));
+	  
+	  /* seq[(smallTree->ntips*2) - 1] 
+	     Stores the Preordersequence of the induced small tree */
+	  int* 
+	    seq = (int *)rax_malloc((2*smallTree->ntips - 1) * sizeof(int));
+	  
+	  
+	  /* iterate through all small tree taxa */
+	  for(ix = 0; ix < smallTree->ntips; ix++) 
+	    {        
+	      int 
+		taxanumber = smallTreeTaxa[ix];
+	      
+	      /* To create smallTreeTaxonToEulerIndex we filter taxonToEulerIndex for taxa in the small tree*/
+	      smallTreeTaxonToEulerIndex[newcount] = taxonToEulerIndex[taxanumber-1]; 
+	      
+	      /* Saves all Preorderlabel of the smalltree taxa in seq*/
+	      seq[newcount] = taxonToLabel[taxanumber-1];
+	      
+	      newcount++;
+	    }
+	  
+	  /* sort the euler indices to correctly calculate LCA */
+	  //quicksort(smallTreeTaxonToEulerIndex,0,newcount - 1);             
+	  
+	  qsort(smallTreeTaxonToEulerIndex, newcount, sizeof(int), sortIntegers);
+	  
+	  //printf("newcount2 %i \n", newcount2);      
+	  /* Iterate through all small tree taxa */
+	  for(ix = 1; ix < newcount; ix++)
+	    {  
+	      /* query LCAs using RMQ Datastructure */
+	      seq[newcount - 1 + ix] =  eulerIndexToLabel[query(smallTreeTaxonToEulerIndex[ix - 1],smallTreeTaxonToEulerIndex[ix])]; 	 
+	      
+	      /* Used for dynamic programming. We save an index for every inner node:
+		 For example the reference tree has 3 inner nodes which we saves them as 0,1,2.
+		 Now we calculate for example 5 LCA to construct the induced subtree, which are also inner nodes. 
+		 Therefore we mark them as 3,4,5,6,7  */
+	      
+	      taxonToReduction[labelToTaxon[seq[newcount - 1 + ix]] - 1] = newcount2;
+	      
+	      newcount2 += 1;
+	    }
+	  
+	  /* sort to construct the Preordersequence of the induced subtree */
+	  //quicksort(seq,0,(2*smallTree->ntips - 2));
+	  
+	  qsort(seq, (2 * smallTree->ntips - 2) + 1, sizeof(int), sortIntegers);
+	  
+	  /* calculates all bipartitions of the reference small tree and count how many bipartition it shares with the induced small tree */
+	  int 
+	    rec_bips = rec_findBipartitions(bitVectors, seq,(2*smallTree->ntips - 1), labelToTaxon, tr->mxtips, vectorLength, smallTree->ntips, firstTaxon, s_hash, taxonToReduction);
+	  
+	  /* Reconstruction Step End */
+	  /***********************************************************************************/
+	  
+	  double 
+	    effectivetime = gettime() - time_start;
+	  
+	  /*
+	    if(numberOfTreesAnalyzed % 100 == 0)
+	    printBothOpen("Reconstruction time: %.10f secs\n\n", effectivetime);
+	  */
+	  
+	  /* compute the relative RF */
+	  
+	  rec_rf = (double)(2 * (numberOfSplits - rec_bips)) / maxRF;
+	  
+	  assert(numberOfSplits >= rec_bips);	  	 
+
+	  avgRF += rec_rf;
+	  sumEffectivetime += effectivetime;
+	  
+	  if(numberOfTreesAnalyzed % 100 == 0)
+	    printBothOpen("Relative RF tree %d: %f\n\n", i, rec_rf);
+	  
+	  fprintf(rfFile, "%d %f\n", i, rec_rf);
+	  
+	  /* free masks and hast table for this iteration */
+	  rec_freeBitVector(smallTree, bitVectors);
+	  rax_free(bitVectors);
+	  
+	  freeHashTable(s_hash);
+	  rax_free(s_hash);
+	  
+	  rax_free(smallTreeTaxa);
+	  rax_free(seq);
+	  rax_free(seq2);
+	  rax_free(smallTreeTaxonToEulerIndex);
+
+	  numberOfTreesAnalyzed++;
 	}
-     
-      /* sort the euler indices to correctly calculate LCA */
-      //quicksort(smallTreeTaxonToEulerIndex,0,newcount - 1);             
-      
-      qsort(smallTreeTaxonToEulerIndex, newcount, sizeof(int), sortIntegers);
-     
-     //printf("newcount2 %i \n", newcount2);      
-      /* Iterate through all small tree taxa */
-      for(ix = 1; ix < newcount; ix++)
-	{  
-	  /* query LCAs using RMQ Datastructure */
-	  seq[newcount - 1 + ix] =  eulerIndexToLabel[query(smallTreeTaxonToEulerIndex[ix - 1],smallTreeTaxonToEulerIndex[ix])]; 	 
-
-	  /* Used for dynamic programming. We save an index for every inner node:
-	     For example the reference tree has 3 inner nodes which we saves them as 0,1,2.
-	     Now we calculate for example 5 LCA to construct the induced subtree, which are also inner nodes. 
-	     Therefore we mark them as 3,4,5,6,7  */
-	  
-	  taxonToReduction[labelToTaxon[seq[newcount - 1 + ix]] - 1] = newcount2;
-	  
-	  newcount2 += 1;
-	}
-      
-      /* sort to construct the Preordersequence of the induced subtree */
-      //quicksort(seq,0,(2*smallTree->ntips - 2));
-      
-      qsort(seq, (2 * smallTree->ntips - 2) + 1, sizeof(int), sortIntegers);
-      
-      /* calculates all bipartitions of the reference small tree and count how many bipartition it shares with the induced small tree */
-      int 
-	rec_bips = rec_findBipartitions(bitVectors, seq,(2*smallTree->ntips - 1), labelToTaxon, tr->mxtips, vectorLength, smallTree->ntips, firstTaxon, s_hash, taxonToReduction);
-      
-      /* Reconstruction Step End */
-      /***********************************************************************************/
-
-      double 
-	effectivetime = gettime() - time_start;
-      
-      printBothOpen("Reconstruction time: %.10f secs\n\n", effectivetime);
-      
-      /* compute the relative RF */
-
-      rec_rf = (double)(2 * (numberOfSplits - rec_bips)) / maxRF;
-      avgRF += rec_rf;
-      sumEffectivetime += effectivetime;
-      printBothOpen("Relative RF tree calculated by efficient %d: %f\n\n", i, rec_rf);
-
-      fprintf(rfFile, "%d %f\n", i, rec_rf);
-      
-      /* free masks and hast table for this iteration */
-      rec_freeBitVector(smallTree, bitVectors);
-      rax_free(bitVectors);
-
-      freeHashTable(s_hash);
-      rax_free(s_hash);
-     
-      rax_free(smallTreeTaxa);
-      rax_free(seq);
-      rax_free(seq2);
-      rax_free(smallTreeTaxonToEulerIndex);
     }
-
-  printBothOpen("Average RF distance %f\n\n", avgRF / (double)tr->numberOfTrees);
-  printBothOpen("Large Tree: %i, Number of SmallTrees: %i \n", tr->mxtips, tr->numberOfTrees); 
-  printBothOpen("Sum Effective algorithm: %.5f sec \n",sumEffectivetime);
-  printBothOpen("Average time for effective: %.10f sec \n",sumEffectivetime / (double)tr->numberOfTrees);
-  printBothOpen("Preprocessingtime: %0.5f sec \n", preprocessendtime);
-  printBothOpen("Total execution time: %f secs\n\n", gettime() - masterTime);
- 
   
-  printBothOpen("\nFile containing all %d pair-wise RF distances written to file %s\n\n", tr->numberOfTrees, rfFileName);
+  printBothOpen("Number of small trees skipped: %d\n\n", tr->numberOfTrees - numberOfTreesAnalyzed);
+  
+  printBothOpen("Average RF distance %f\n\n", avgRF / (double)numberOfTreesAnalyzed);
+  
+  printBothOpen("Large Tree: %i, Number of SmallTrees analyzed: %i \n\n", tr->mxtips, numberOfTreesAnalyzed); 
+  
+  printBothOpen("Total execution time: %f secs\n\n", gettime() - masterTime);
+   
+  printBothOpen("File containing all %d pair-wise RF distances written to file %s\n\n", numberOfTreesAnalyzed, rfFileName);
+
+  printBothOpen("execution stats:\n\n");
+  printBothOpen("Accumulated time Effective algorithm: %.5f sec \n", sumEffectivetime);
+  printBothOpen("Average time for effective: %.10f sec \n",sumEffectivetime / (double)numberOfTreesAnalyzed);
+  printBothOpen("Preprocessingtime: %0.5f sec \n\n", preprocessendtime);
+ 
 
   fclose(treeFile);
   fclose(rfFile);    
@@ -3036,8 +3048,6 @@ void plausibilityChecker(tree *tr, analdef *adef)
   rax_free(eulerIndexToLabel);
   rax_free(taxonToReduction);
   rax_free(taxonHasDeg);
-
-
 }
 
 #else
@@ -3242,6 +3252,7 @@ void plausibilityChecker(tree *tr, analdef *adef)
     **bitVectors = initBitVector(tr, &vLength);
    
   int
+    numberOfTreesAnalyzed = 0,
     branchCounter = 0,
     i;
 
@@ -3292,200 +3303,203 @@ void plausibilityChecker(tree *tr, analdef *adef)
   /* loop over all small trees */
 
   for(i = 0; i < tr->numberOfTrees;  i++)
-    {
-      unsigned int
-	entryCount = 0,
-	k,
-	j,	
-	*masked    = (unsigned int *)rax_calloc(vLength, sizeof(unsigned int)),
-	*smallTreeMask = (unsigned int *)rax_calloc(vLength, sizeof(unsigned int));
-      
-      int
-	numberOfSplits = 0,
-	bCounter = 0,  
-	bips,
-	firstTaxon,
-	taxa = 0;
-      
-      /* allocate a has table for re-hashing the bipartitions of the big tree */
+    {          
+      int           
+	numberOfSplits = readMultifurcatingTree(treeFile, smallTree, adef);
 
-      hashtable
-	*rehash = initHashTable(tr->mxtips * 2 * 2);
+      if(numberOfSplits > 0)
+	{
+	  unsigned int
+	    entryCount = 0,
+	    k,
+	    j,	
+	    *masked    = (unsigned int *)rax_calloc(vLength, sizeof(unsigned int)),
+	    *smallTreeMask = (unsigned int *)rax_calloc(vLength, sizeof(unsigned int));
 
-      double
-	rf,
-	maxRF;
-      
-      /* parse the small tree */              
+	  hashtable
+	    *rehash = initHashTable(tr->mxtips * 2 * 2);
 
-      /* 
-	 instead of the standard tree parsing function, we parse a multi-furcating tree here.
-	 the function returns the number of inner branches/splits in the multi-furcating tree which can,
-	 of course be smaller than n-3, where n is the number of taxa in the tree.
-      */
+	  double
+	    rf,
+	    maxRF;
 
-      numberOfSplits = readMultifurcatingTree(treeFile, smallTree, adef);
-      printBothOpen("Small tree %d has %d tips and %d bipartitions\n", i, smallTree->ntips, numberOfSplits);    
+	  int 
+	    bCounter = 0,  
+	    bips,
+	    firstTaxon,
+	    taxa = 0;
 
-      /* compute the maximum RF distance for computing the relative RF distance later-on */
+	  if(numberOfTreesAnalyzed % 100 == 0)
+	    printBothOpen("Small tree %d has %d tips and %d bipartitions\n", i, smallTree->ntips, numberOfSplits);    
 
-      /* note that here we need to pay attention, since the RF distance is not normalized 
-	 by 2 * (n-3) but we need to account for the fact that the multifurcating small tree 
-	 will potentially contain less bipartitions. 
-	 Hence the normalization factor is obtained as 2 * numberOfSplits, where numberOfSplits is the number of bipartitions
-	 in the small tree.
-      */
-
-      maxRF = (double)(2 * numberOfSplits);
-
-      /* now set up a bit mask where only the bits are set to one for those 
-	 taxa that are actually present in the small tree we just read */
-	 
-      /* note that I had to apply some small changes to this function to make it work for 
-	 multi-furcating trees ! */
-
-      setupMask(smallTreeMask, smallTree->start,       smallTree->mxtips);
-      setupMask(smallTreeMask, smallTree->start->back, smallTree->mxtips);
-
-      /* now get the index of the first taxon of the small tree.
-	 we will use this to unambiguously store the bipartitions 
-      */
-
-      firstTaxon = smallTree->start->number;
-
-      /* make sure that this bit vector is set up correctly, i.e., that 
-	 it contains as many non-zero bits as there are taxa in this small tree 
-      */
-
-      for(j = 0; j < vLength; j++)
-	taxa += BIT_COUNT(smallTreeMask[j]);
-      assert(taxa == smallTree->ntips);
-
-      /* now re-hash the big tree by applying the above bit mask */
-
-
-      /* loop over hash table */
-
-      for(k = 0, entryCount = 0; k < h->tableSize; k++)	     
-	{    
-	  if(h->table[k] != NULL)
-	    {
-	      entry *e = h->table[k];
-
-	      /* we resolve collisions by chaining, hence the loop here */
-
-	      do
-		{
-		  unsigned int 
-		    *bitVector = e->bitVector; 
-		  
-		  hashNumberType 
-		    position;
-
-		  int 
-		    count = 0;
-	 
-		  /* double check that our tree mask contains the first taxon of the small tree */
-
-		  assert(smallTreeMask[(firstTaxon - 1) / MASK_LENGTH] & mask32[(firstTaxon - 1) % MASK_LENGTH]);
-
-		  /* if the first taxon is set then we will re-hash the bit-wise complement of the 
-		     bit vector.
-		     The count variable is used for a small optimization */
-
-		  if(bitVector[(firstTaxon - 1) / MASK_LENGTH] & mask32[(firstTaxon - 1) % MASK_LENGTH])		    
-		    {
-		      //hash complement
-		      
-		      for(j = 0; j < vLength; j++)
-			{
-			  masked[j] = (~bitVector[j]) & smallTreeMask[j];			     
-			  count += BIT_COUNT(masked[j]);
-			}
-		    }
-		  else
-		    {
-		      //hash this vector 
-		      
-		      for(j = 0; j < vLength; j++)
-			{
-			  masked[j] = bitVector[j] & smallTreeMask[j];  
-			  count += BIT_COUNT(masked[j]);      
-			}
-		    }
-
-		  /* note that padding the last bits is not required because they are set to 0 automatically by smallTreeMask */	
-		  
-		  /* make sure that we will re-hash  the canonic representation of the bipartition 
-		     where the bit for firstTaxon is set to 0!
-		   */
-
-		  assert(!(masked[(firstTaxon - 1) / MASK_LENGTH] & mask32[(firstTaxon - 1) % MASK_LENGTH]));
+	  /* compute the maximum RF distance for computing the relative RF distance later-on */
 	  
-		  /* only if the masked bipartition of the large tree is a non-trivial bipartition (two or more bits set to 1 
-		     will we re-hash it */
+	  /* note that here we need to pay attention, since the RF distance is not normalized 
+	     by 2 * (n-3) but we need to account for the fact that the multifurcating small tree 
+	     will potentially contain less bipartitions. 
+	     Hence the normalization factor is obtained as 2 * numberOfSplits, where numberOfSplits is the number of bipartitions
+	     in the small tree.
+	  */
+	  
+	  maxRF = (double)(2 * numberOfSplits);
+	  
+	  /* now set up a bit mask where only the bits are set to one for those 
+	     taxa that are actually present in the small tree we just read */
+	  
+	  /* note that I had to apply some small changes to this function to make it work for 
+	     multi-furcating trees ! */
 
-		  if(count > 1)
+	  setupMask(smallTreeMask, smallTree->start,       smallTree->mxtips);
+	  setupMask(smallTreeMask, smallTree->start->back, smallTree->mxtips);
+
+	  /* now get the index of the first taxon of the small tree.
+	     we will use this to unambiguously store the bipartitions 
+	  */
+	  
+	  firstTaxon = smallTree->start->number;
+	  
+	  /* make sure that this bit vector is set up correctly, i.e., that 
+	     it contains as many non-zero bits as there are taxa in this small tree 
+	  */
+	  
+	  for(j = 0; j < vLength; j++)
+	    taxa += BIT_COUNT(smallTreeMask[j]);
+	  assert(taxa == smallTree->ntips);
+	  
+	  /* now re-hash the big tree by applying the above bit mask */
+	  
+	  
+	  /* loop over hash table */
+	  
+	  for(k = 0, entryCount = 0; k < h->tableSize; k++)	     
+	    {    
+	      if(h->table[k] != NULL)
+		{
+		  entry *e = h->table[k];
+		  
+		  /* we resolve collisions by chaining, hence the loop here */
+		  
+		  do
 		    {
-		      /* compute hash */
-		      position = oat_hash((unsigned char *)masked, sizeof(unsigned int) * vLength);
-		      position = position % rehash->tableSize;
+		      unsigned int 
+			*bitVector = e->bitVector; 
 		      
-		      /* re-hash to the new hash table that contains the bips of the large tree, pruned down 
-			 to the taxa contained in the small tree
-		       */
-		      insertHashPlausibility(masked, rehash, vLength, position);
-		    }		
-		  
-		  entryCount++;
-		  
-		  e = e->next;
+		      hashNumberType 
+			position;
+		      
+		      int 
+			count = 0;
+		      
+		      /* double check that our tree mask contains the first taxon of the small tree */
+		      
+		      assert(smallTreeMask[(firstTaxon - 1) / MASK_LENGTH] & mask32[(firstTaxon - 1) % MASK_LENGTH]);
+		      
+		      /* if the first taxon is set then we will re-hash the bit-wise complement of the 
+			 bit vector.
+			 The count variable is used for a small optimization */
+		      
+		      if(bitVector[(firstTaxon - 1) / MASK_LENGTH] & mask32[(firstTaxon - 1) % MASK_LENGTH])		    
+			{
+			  //hash complement
+			  
+			  for(j = 0; j < vLength; j++)
+			    {
+			      masked[j] = (~bitVector[j]) & smallTreeMask[j];			     
+			      count += BIT_COUNT(masked[j]);
+			    }
+			}
+		      else
+			{
+			  //hash this vector 
+			  
+			  for(j = 0; j < vLength; j++)
+			    {
+			      masked[j] = bitVector[j] & smallTreeMask[j];  
+			      count += BIT_COUNT(masked[j]);      
+			    }
+			}
+		      
+		      /* note that padding the last bits is not required because they are set to 0 automatically by smallTreeMask */	
+		      
+		      /* make sure that we will re-hash  the canonic representation of the bipartition 
+			 where the bit for firstTaxon is set to 0!
+		      */
+		      
+		      assert(!(masked[(firstTaxon - 1) / MASK_LENGTH] & mask32[(firstTaxon - 1) % MASK_LENGTH]));
+		      
+		      /* only if the masked bipartition of the large tree is a non-trivial bipartition (two or more bits set to 1 
+			 will we re-hash it */
+		      
+		      if(count > 1)
+			{
+			  /* compute hash */
+			  position = oat_hash((unsigned char *)masked, sizeof(unsigned int) * vLength);
+			  position = position % rehash->tableSize;
+			  
+			  /* re-hash to the new hash table that contains the bips of the large tree, pruned down 
+			     to the taxa contained in the small tree
+			  */
+			  insertHashPlausibility(masked, rehash, vLength, position);
+			}		
+		      
+		      entryCount++;
+		      
+		      e = e->next;
+		    }
+		  while(e != NULL);
 		}
-	      while(e != NULL);
 	    }
+	  
+	  /* make sure that we tried to re-hash all bipartitions of the original tree */
+	  
+	  assert(entryCount == (unsigned int)(tr->mxtips - 3));
+	  
+	  /* now traverse the small tree and count how many bipartitions it shares 
+	     with the corresponding induced tree from the large tree */
+	  
+	  /* the following function also had to be modified to account for multi-furcating trees ! */
+	  
+	  bips = bitVectorTraversePlausibility(bitVectors, smallTree->start->back, smallTree->mxtips, vLength, rehash, &bCounter, firstTaxon, smallTree, TRUE);
+	  
+	  /* compute the relative RF */
+	  
+	  rf = (double)(2 * (numberOfSplits - bips)) / maxRF;           
+	  
+	  assert(numberOfSplits >= bips);
+
+	  assert(rf <= 1.0);
+	  
+	  avgRF += rf;
+	  
+	  if(numberOfTreesAnalyzed % 100 == 0)
+	    printBothOpen("Relative RF tree %d: %f\n\n", i, rf);
+
+	  fprintf(rfFile, "%d %f\n", i, rf);
+	  
+	  /* I also modified this assertion, we nee to make sure here that we checked all non-trivial splits/bipartitions 
+	     in the multi-furcating tree whech can be less than n - 3 ! */
+	  
+	  assert(bCounter == numberOfSplits);         
+	  
+	  /* free masks and hast table for this iteration */
+	  
+	  rax_free(smallTreeMask);
+	  rax_free(masked);
+	  freeHashTable(rehash);
+	  rax_free(rehash);
+	  numberOfTreesAnalyzed++;
 	}
-
-      /* make sure that we tried to re-hash all bipartitions of the original tree */
-      
-      assert(entryCount == (unsigned int)(tr->mxtips - 3));
-
-      /* now traverse the small tree and count how many bipartitions it shares 
-	 with the corresponding induced tree from the large tree */
-      
-      /* the following function also had to be modified to account for multi-furcating trees ! */
-      
-      bips = bitVectorTraversePlausibility(bitVectors, smallTree->start->back, smallTree->mxtips, vLength, rehash, &bCounter, firstTaxon, smallTree, TRUE);
-      
-      /* compute the relative RF */
-
-      rf = (double)(2 * (numberOfSplits - bips)) / maxRF;           
-
-      assert(rf <= 1.0);
-
-      avgRF += rf;
-
-      printBothOpen("Relative RF tree %d: %f\n\n", i, rf);
-
-      fprintf(rfFile, "%d %f\n", i, rf);
-
-      /* I also modified this assertion, we nee to make sure here that we checked all non-trivial splits/bipartitions 
-	 in the multi-furcating tree whech can be less than n - 3 ! */
-      
-      assert(bCounter == numberOfSplits);         
-
-      /* free masks and hast table for this iteration */
-
-      rax_free(smallTreeMask);
-      rax_free(masked);
-      freeHashTable(rehash);
-      rax_free(rehash);
     }
 
-  printBothOpen("Average RF distance %f\n\n", avgRF / (double)tr->numberOfTrees);
+  printBothOpen("Number of small trees skipped: %d\n\n", tr->numberOfTrees - numberOfTreesAnalyzed);
+  
+  printBothOpen("Average RF distance %f\n\n", avgRF / (double)numberOfTreesAnalyzed);
 
   printBothOpen("Total execution time: %f secs\n\n", gettime() - masterTime);
 
-  printBothOpen("\nFile containing all %d pair-wise RF distances written to file %s\n\n", tr->numberOfTrees, rfFileName);
+  printBothOpen("\nFile containing all %d pair-wise RF distances written to file %s\n\n", numberOfTreesAnalyzed, rfFileName);
+
+  
 
   fclose(treeFile);
   fclose(rfFile);    
