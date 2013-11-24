@@ -2851,7 +2851,7 @@ void plausibilityChecker(tree *tr, analdef *adef)
 	     of bipartitions of the pruned down large reference tree for which we know that it is 
 	     bifurcating/strictly binary */
 	  
-	  maxRF = (double)(2* numberOfSplits);
+	  maxRF = (double)(2 * numberOfSplits);
 	  
 	  /* now get the index of the first taxon of the small tree.
 	     we will use this to unambiguously store the bipartitions 
@@ -2866,8 +2866,12 @@ void plausibilityChecker(tree *tr, analdef *adef)
 	    time_start = gettime();
 	  
 	  /* Init hashtable to store Bipartitions of the induced subtree */
+	  /* 
+	     using smallTree->ntips instead of smallTree->mxtips yields faster code 
+	     e.g. 120 versus 128 seconds for 20,000 small trees on my laptop 
+	   */
 	  hashtable
-	    *s_hash = initHashTable(smallTree->mxtips * 2 * 2);
+	    *s_hash = initHashTable(smallTree->ntips * 4);
 	  
 	  /* smallTreeTaxa[smallTree->ntips]; 
 	     Stores all taxa numbers from smallTree into an array called smallTreeTaxa: (Index) -> (Taxonnumber)  */
