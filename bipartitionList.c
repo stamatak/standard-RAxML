@@ -1662,7 +1662,7 @@ void calcBipartitions_IC(tree *tr, analdef *adef, char *bestTreeFileName, char *
 
       inputTree->start = (nodeptr)NULL;
 
-      numberOfSplits = readMultifurcatingTree(treeFile, inputTree, adef);
+      numberOfSplits = readMultifurcatingTree(treeFile, inputTree, adef, FALSE);
 
       //treeReadLen(treeFile, tr, FALSE, FALSE, TRUE, adef, TRUE, FALSE);
       assert(inputTree->ntips == inputTree->mxtips);
@@ -2828,7 +2828,7 @@ void plausibilityChecker(tree *tr, analdef *adef)
   for(i = 0; i < tr->numberOfTrees;  i++)
     {      
       int
-	numberOfSplits = readMultifurcatingTree(treeFile, smallTree, adef);
+	numberOfSplits = readMultifurcatingTree(treeFile, smallTree, adef, TRUE);
       
       if(numberOfSplits > 0)
 	{
@@ -3309,7 +3309,7 @@ void plausibilityChecker(tree *tr, analdef *adef)
   for(i = 0; i < tr->numberOfTrees;  i++)
     {          
       int           
-	numberOfSplits = readMultifurcatingTree(treeFile, smallTree, adef);
+	numberOfSplits = readMultifurcatingTree(treeFile, smallTree, adef, TRUE);
 
       if(numberOfSplits > 0)
 	{
@@ -4887,7 +4887,7 @@ void computeConsensusOnly(tree *tr, char *treeSetFileName, analdef *adef, boolea
 	  numberOfSplits,
 	  bCount = 0;
 	
-	numberOfSplits = readMultifurcatingTree(treeFile, inputTree, adef);
+	numberOfSplits = readMultifurcatingTree(treeFile, inputTree, adef, FALSE);
 	//treeReadLen(treeFile, tr, FALSE, FALSE, TRUE, adef, TRUE, FALSE);               
 	
 	assert(inputTree->mxtips == inputTree->ntips);

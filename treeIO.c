@@ -1936,7 +1936,7 @@ void allocateMultifurcations(tree *tr, tree *smallTree)
       smallTree->nodep[i] = (nodeptr)rax_malloc(sizeof(node));      
       memcpy(smallTree->nodep[i], tr->nodep[i], sizeof(node));
       smallTree->nodep[i]->back = (node *) NULL;
-      smallTree->nodep[i]->next = (node *) NULL;
+      smallTree->nodep[i]->next = (node *) NULL;        
     }
 
   for(i = tips + 1; i < tips + 3 * inter; i++)
@@ -1997,7 +1997,7 @@ static void relabelInnerNodes(nodeptr p, tree *tr, int *number, int *nodeCounter
 }
 
 
-int readMultifurcatingTree(FILE *fp, tree *tr, analdef *adef)
+int readMultifurcatingTree(FILE *fp, tree *tr, analdef *adef, boolean fastParse)
 {
   nodeptr  
     p,
@@ -2014,15 +2014,20 @@ int readMultifurcatingTree(FILE *fp, tree *tr, analdef *adef)
  
   //clean up before parsing !
     
-  for (i = 1; i < tips + 3 * inter; i++)     
-    {     
-      tr->nodep[i]->back = (node *) NULL;
-      tr->nodep[i]->next = (node *) NULL;    
-      tr->nodep[i]->x = 0;
+  if(!fastParse)
+    {
+      for (i = 1; i < tips + 3 * inter; i++)     
+	{     
+	  tr->nodep[i]->back = (node *) NULL;
+	  tr->nodep[i]->next = (node *) NULL;    
+	  tr->nodep[i]->x = 0;
+	}  
+      for(i = tips + 1; i < tips + 3 * inter; i++)   
+	tr->nodep[i]->number = i;
     }
   
-  for(i = tips + 1; i < tips + 3 * inter; i++)   
-    tr->nodep[i]->number = i;
+  
+   
 
   
 
@@ -2068,7 +2073,8 @@ int readMultifurcatingTree(FILE *fp, tree *tr, analdef *adef)
 
 	  //printBothOpen("you provided a rooted tree, we need an unrooted one, RAxML will remove the root!\n");
 	  
-	  assert(initial_p->next->next == (node *)NULL);
+	  if(!fastParse)
+	    assert(initial_p->next->next == (node *)NULL);
 
 	  hookupDefault(q, r, tr->numBranches);	  
 	  
@@ -2115,13 +2121,17 @@ int readMultifurcatingTree(FILE *fp, tree *tr, analdef *adef)
     assert(0);
     
   //printf("%d tips found, %d inner nodes used start %d maxtips %d\n", tr->ntips, nextnode - tr->mxtips, tr->start->number, tr->mxtips);
+  
+  if(fastParse)
+    for(i = tips + 1; i < tips + 3 * tr->ntips; i++)   
+      tr->nodep[i]->number = i;
 
-  assert(isTip(tr->start->number, tr->mxtips));  
-
+  assert(isTip(tr->start->number, tr->mxtips)); 
+  
   innerNodeNumber = tr->mxtips + 1;
 
   relabelInnerNodes(tr->start->back, tr, &innerNodeNumber, &innerBranches);
-
+      
   //printf("Inner node number: %d\n", innerNodeNumber);
 
   //printf("Inner branches %d\n", innerBranches); 

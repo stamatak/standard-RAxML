@@ -1261,7 +1261,7 @@ extern int treeFindTipName(FILE *fp, tree *tr, boolean check);
 extern int treeReadLen (FILE *fp, tree *tr, boolean readBranches, boolean readNodeLabels, boolean topologyOnly, analdef *adef, boolean completeTree, boolean storeBranchLabels);
 extern boolean treeReadLenMULT ( FILE *fp, tree *tr, analdef *adef );
 
-extern int readMultifurcatingTree(FILE *fp, tree *tr, analdef *adef);
+extern int readMultifurcatingTree(FILE *fp, tree *tr, analdef *adef, boolean fastParse);
 extern void freeMultifurcations(tree *tr);
 extern void allocateMultifurcations(tree *tr, tree *smallTree);
 
