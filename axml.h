@@ -164,8 +164,8 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "RAxML"
-#define programVersion     "7.9.5"
-#define programDate        "Nov 25 2013"
+#define programVersion     "7.9.6"
+#define programDate        "Dec 9 2013"
 
 
 #define  TREE_EVALUATION                 0
@@ -1369,8 +1369,8 @@ extern void shSupports(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdt
 
 extern FILE *getNumberOfTrees(tree *tr, char *fileName, analdef *adef);
 
-extern void writeBinaryModel(tree *tr);
-extern void readBinaryModel(tree *tr);
+extern void writeBinaryModel(tree *tr, analdef *adef);
+extern void readBinaryModel(tree *tr, analdef *adef);
 extern void treeEvaluateRandom (tree *tr, double smoothFactor, analdef *adef);
 extern void treeEvaluateProgressive(tree *tr);
 

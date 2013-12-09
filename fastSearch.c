@@ -1237,7 +1237,7 @@ void fastSearch(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
   
  if(adef->useBinaryModelFile)
     {
-      readBinaryModel(tr);
+      readBinaryModel(tr, adef);
       evaluateGenericInitrav(tr, tr->start);
       treeEvaluate(tr, 2);
     }
@@ -1312,7 +1312,7 @@ void fastSearch(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
     
   printBothOpen("RAxML fast tree written to file: %s\n", bestTreeFileName);
   
-  writeBinaryModel(tr);
+  writeBinaryModel(tr, adef);
   
   printBothOpen("Total execution time: %f\n", gettime() - masterTime);
 
@@ -1359,7 +1359,7 @@ void shSupports(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
   
   if(adef->useBinaryModelFile)
     {
-      readBinaryModel(tr);
+      readBinaryModel(tr, adef);
       evaluateGenericInitrav(tr, tr->start);
       treeEvaluate(tr, 2);
     }

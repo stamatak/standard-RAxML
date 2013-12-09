@@ -4493,7 +4493,7 @@ static void printREADME(void)
   printf("      [-c numberOfCategories] [-C] [-d] [-D]\n");
   printf("      [-e likelihoodEpsilon] [-E excludeFileName]\n");
   printf("      [-f a|A|b|B|c|C|d|D|e|E|F|g|G|h|H|i|I|j|J|m|n|N|o|p|q|r|R|s|S|t|T|u|v|V|w|W|x|y] [-F]\n");
-  printf("      [-g groupingFileName] [-G placementThreshold] [-h]\n");
+  printf("      [-g groupingFileName] [-G placementThreshold] [-h] [-H]\n");
   printf("      [-i initialRearrangementSetting] [-I autoFC|autoMR|autoMRE|autoMRE_IGN]\n");
   printf("      [-j] [-J MR|MR_DROP|MRE|STRICT|STRICT_DROP|T_<PERCENT>] [-k] [-K] \n");
   printf("      [-L MR|MRE|T_<PERCENT>] [-M]\n");
@@ -4578,6 +4578,10 @@ static void printREADME(void)
   printf("              using slow insertions under ML).\n");
   printf("\n");
   printf("      -h      Display this help message.\n");
+  printf("\n");
+  printf("      -H      Disable pattern compression.\n");
+  printf("\n");
+  printf("              DEFAULT: ON\n");
   printf("\n");
   printf("      -i      Initial rearrangement setting for the subsequent application of topological \n");
   printf("              changes phase\n");
@@ -4875,6 +4879,7 @@ static void analyzeRunId(char id[128])
 static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 {
   boolean
+    disablePatternCompression = FALSE,
     bad_opt    =FALSE,
     resultDirSet = FALSE;
 
@@ -4944,7 +4949,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 
 
   while(!bad_opt &&
-	((c = mygetopt(argc,argv,"R:T:E:N:B:L:P:S:Y:A:G:H:I:J:K:W:l:x:z:g:r:e:a:b:c:f:i:m:t:w:s:n:o:q:#:p:vudyjhkMDFQUOVCX", &optind, &optarg))!=-1))
+	((c = mygetopt(argc,argv,"R:T:E:N:B:L:P:S:Y:A:G:I:J:K:W:l:x:z:g:r:e:a:b:c:f:i:m:t:w:s:n:o:q:#:p:vudyjhHkMDFQUOVCX", &optind, &optarg))!=-1))
     {
     switch(c)
       {
@@ -5313,6 +5318,9 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
       case 'h':
 	printREADME();
 	errorExit(0);
+      case 'H':
+	disablePatternCompression = TRUE;
+	break;
       case 'j':
 	adef->checkpoints = 1;
 	break;
@@ -5604,7 +5612,8 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
     }
   }
 
-  
+  if(disablePatternCompression)
+    adef->compressPatterns = FALSE;
 
 #ifdef _USE_PTHREADS
   if(NumberOfThreads < 2)
@@ -9145,7 +9154,7 @@ static void computePerSiteLLs(tree *tr, analdef *adef, char *bootStrapFileName)
 	{
 	  if(adef->useBinaryModelFile)
 	    {
-	      readBinaryModel(tr);
+	      readBinaryModel(tr, adef);
 	      evaluateGenericInitrav(tr, tr->start);
 	      treeEvaluate(tr, 2);
 	    }
@@ -9274,7 +9283,7 @@ static void computeAllLHs(tree *tr, analdef *adef, char *bootStrapFileName)
 
 	  if(adef->useBinaryModelFile)
 	    {
-	      readBinaryModel(tr);
+	      readBinaryModel(tr, adef);
 	      evaluateGenericInitrav(tr, tr->start);
 	      treeEvaluate(tr, 2);
 	    }
@@ -9913,13 +9922,17 @@ static void writeLG4(tree *tr, int model, int dataType, FILE *f, partitionLength
 }
 
 
-void writeBinaryModel(tree *tr)
+void writeBinaryModel(tree *tr, analdef *adef)
 {
   int   
     model; 
   
   FILE 
     *f = myfopen(binaryModelParamsOutputFileName, "w"); 
+
+  /* pattern compression */
+
+  myfwrite(&adef->compressPatterns, sizeof(boolean), 1, f);
 
   /* cdta */   
 
@@ -10009,8 +10022,11 @@ static void readLG4(tree *tr, int model, int dataType, FILE *f, partitionLengths
     }
 }
 
-void readBinaryModel(tree *tr)
+void readBinaryModel(tree *tr, analdef *adef)
 {
+  boolean 
+    compressPatterns;
+
   int  
     model;
 
@@ -10021,6 +10037,18 @@ void readBinaryModel(tree *tr)
   printBothOpen("\nRAxML is reading a binary model file and not optimizing model params\n");
 
   f = fopen(binaryModelParamsInputFileName, "r");   
+
+
+  /* pattern compression */
+
+  myfread(&compressPatterns, sizeof(boolean), 1, f);
+
+  if(compressPatterns != adef->compressPatterns)
+    {
+      printf("Error you may need to disable pattern compression via the \"-H\" command line option!\n");
+      errorExit(-1);
+    }
+    
 
   /* cdta */   
 
@@ -10558,7 +10586,7 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
     }
   else
     {
-      readBinaryModel(tr);
+      readBinaryModel(tr, adef);
 
       printBothOpen("Time for reading model parameters: %f\n\n", gettime() - masterTime); 
     }
@@ -11600,11 +11628,8 @@ int main (int argc, char *argv[])
       assert(0);
       break;
     case CLASSIFY_ML:
-      if(adef->useBinaryModelFile)
-	{	 
-	  assert(tr->rateHetModel != CAT);
-	  readBinaryModel(tr);	
-	}
+      if(adef->useBinaryModelFile)      
+	readBinaryModel(tr, adef);	       
       else
 	initModel(tr, rdta, cdta, adef);
       
@@ -11668,14 +11693,14 @@ int main (int argc, char *argv[])
 	{ 
 	  if(adef->useBinaryModelFile)	 	 
 	    {
-	      readBinaryModel(tr);
+	      readBinaryModel(tr, adef);
 	      evaluateGenericInitrav(tr, tr->start);	      
 	      treeEvaluate(tr, 2);
 	    }
 	  else
 	    {	      
 	      modOpt(tr, adef, TRUE, adef->likelihoodEpsilon);	  
-	      writeBinaryModel(tr);
+	      writeBinaryModel(tr, adef);
 	    }
 	  
 	  printLog(tr, adef, TRUE);

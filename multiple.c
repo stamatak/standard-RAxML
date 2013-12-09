@@ -1614,7 +1614,7 @@ void doInference(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
 	    modOpt(tr, adef, FALSE, adef->likelihoodEpsilon); 
 	  else
 	    {
-	      readBinaryModel(tr);
+	      readBinaryModel(tr, adef);
 	      evaluateGenericInitrav(tr, tr->start);
 	      treeEvaluate(tr, 2);
 	    }

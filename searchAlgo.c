@@ -1316,7 +1316,7 @@ void computeBIGRAPID (tree *tr, analdef *adef, boolean estimateModel)
     {
       if(adef->useBinaryModelFile)
 	{
-	  readBinaryModel(tr);
+	  readBinaryModel(tr, adef);
 	  evaluateGenericInitrav(tr, tr->start);
 	  treeEvaluate(tr, 2);
 	}
