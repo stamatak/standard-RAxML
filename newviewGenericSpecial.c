@@ -472,6 +472,155 @@ static void newviewFlexGamma(int tipCase,
 
 
 
+static void newviewAscCat(int tipCase,
+			  double *x1, double *x2, double *x3, double *extEV, double *tipVector,
+			  int *ex3, 
+			  const int n, double *left, double *right, 			    
+			  const int numStates)
+{
+  double
+    *le, *ri, *v, *vl, *vr,
+    ump_x1, ump_x2, x1px2;
+  
+  int 
+    i, l, j, scale;
+
+ 
+  unsigned char 
+    tip[32];
+
+  ascertainmentBiasSequence(tip, numStates);
+  
+  switch(tipCase)
+    {
+    case TIP_TIP:
+      {
+	for (i = 0; i < n; i++)
+	  {
+	    le = &left[0];
+	    ri = &right[0];
+
+	    vl = &(tipVector[numStates * tip[i]]);
+	    vr = &(tipVector[numStates * tip[i]]);
+	    v  = &x3[numStates * i];
+
+	    for(l = 0; l < numStates; l++)
+	      v[l] = 0.0;
+
+	    for(l = 0; l < numStates; l++)
+	      {
+		ump_x1 = 0.0;
+		ump_x2 = 0.0;
+
+		for(j = 0; j < numStates; j++)
+		  {
+		    ump_x1 += vl[j] * le[l * numStates + j];
+		    ump_x2 += vr[j] * ri[l * numStates + j];
+		  }
+
+		x1px2 = ump_x1 * ump_x2;
+
+		for(j = 0; j < numStates; j++)
+		  v[j] += x1px2 * extEV[l * numStates + j];
+	      }	    
+	  }
+      }
+      break;
+    case TIP_INNER:
+      {
+	for (i = 0; i < n; i++)
+	  {
+	    le = &left[0];
+	    ri = &right[0];
+
+	    vl = &(tipVector[numStates * tip[i]]);
+	    vr = &x2[numStates * i];
+	    v  = &x3[numStates * i];
+
+	    for(l = 0; l < numStates; l++)
+	      v[l] = 0.0;
+
+	    for(l = 0; l < numStates; l++)
+	      {
+		ump_x1 = 0.0;
+		ump_x2 = 0.0;
+
+		for(j = 0; j < numStates; j++)
+		  {
+		    ump_x1 += vl[j] * le[l * numStates + j];
+		    ump_x2 += vr[j] * ri[l * numStates + j];
+		  }
+
+		x1px2 = ump_x1 * ump_x2;
+
+		for(j = 0; j < numStates; j++)
+		  v[j] += x1px2 * extEV[l * numStates + j];
+	      }
+
+	    scale = 1;
+	    for(l = 0; scale && (l < numStates); l++)
+	      scale = ((v[l] < minlikelihood) && (v[l] > minusminlikelihood));	    
+
+	    if(scale)
+	      {
+		for(l = 0; l < numStates; l++)
+		  v[l] *= twotothe256;
+			
+		ex3[i]  += 1;	      
+	      }
+	  }
+      }
+      break;
+    case INNER_INNER:
+      for(i = 0; i < n; i++)
+	{
+	  le = &left[0];
+	  ri = &right[0];
+
+	  vl = &x1[numStates * i];
+	  vr = &x2[numStates * i];
+	  v = &x3[numStates * i];
+
+	  for(l = 0; l < numStates; l++)
+	    v[l] = 0.0;
+
+	  for(l = 0; l < numStates; l++)
+	    {
+	      ump_x1 = 0.0;
+	      ump_x2 = 0.0;
+
+	      for(j = 0; j < numStates; j++)
+		{
+		  ump_x1 += vl[j] * le[l * numStates + j];
+		  ump_x2 += vr[j] * ri[l * numStates + j];
+		}
+
+	      x1px2 =  ump_x1 * ump_x2;
+
+	      for(j = 0; j < numStates; j++)
+		v[j] += x1px2 * extEV[l * numStates + j];
+	    }
+
+	   scale = 1;
+	   for(l = 0; scale && (l < numStates); l++)
+	     scale = ((v[l] < minlikelihood) && (v[l] > minusminlikelihood));
+	  
+	   if(scale)
+	     {
+	       for(l = 0; l < numStates; l++)
+		 v[l] *= twotothe256;
+	      
+	       ex3[i]  += 1;	     
+	     }
+	}
+      break;
+    default:
+      assert(0);
+    }
+  
+ 
+
+}
 
 
 static void newviewAscGamma(int tipCase,
@@ -8205,12 +8354,27 @@ void newviewIterative (tree *tr)
 		if(tr->partitionData[model].ascBias)
 #endif	     	      
 		{
-		  newviewAscGamma(tInfo->tipCase,
-				  x1_ascColumn, x2_ascColumn, x3_ascColumn,
-				  tr->partitionData[model].EV,
-				  tr->partitionData[model].tipVector,
-				  ex3_asc,
-				  states, left, right, states);			   
+		  switch(tr->rateHetModel)
+		    {
+		    case CAT:
+		      newviewAscCat(tInfo->tipCase,
+				    x1_ascColumn, x2_ascColumn, x3_ascColumn,
+				    tr->partitionData[model].EV,
+				    tr->partitionData[model].tipVector,
+				    ex3_asc,
+				    states, left, right, states);
+		      break;
+		    case GAMMA:
+		      newviewAscGamma(tInfo->tipCase,
+				      x1_ascColumn, x2_ascColumn, x3_ascColumn,
+				      tr->partitionData[model].EV,
+				      tr->partitionData[model].tipVector,
+				      ex3_asc,
+				      states, left, right, states);			   
+		      break;
+		    default:
+		      assert(0);
+		    }
 		}
 
 	      if(tr->useFastScaling)

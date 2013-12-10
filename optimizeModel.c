@@ -3188,6 +3188,7 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
 		  catOpt++;
 		}
 	    }
+	 
 
 #ifdef _DEBUG_MOD_OPT
 	  evaluateGenericInitrav(tr, tr->start); 

@@ -1157,6 +1157,63 @@ static void coreGammaFlex(double *gammaRates, double *EIGN, double *sumtable, in
   *ext_d2lnLdlz2 = d2lnLdlz2;
 }
 
+static double coreCatAsc(double *EIGN, double *sumtable, int upper,
+			 volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double lz, const int numStates)
+{
+  double  
+    diagptable[1024], 
+    lh = 0.0,
+    dlnLdlz = 0.0,
+    d2lnLdlz2 = 0.0,
+    ki, 
+    kisqr;
+
+  int     
+    i,     
+    l;  
+
+ 
+  ki = 1.0;
+  kisqr = 1.0;
+
+  for(l = 1; l < numStates; l++)
+    {
+      diagptable[l * 4]     = EXP(EIGN[l-1] * ki * lz);
+      diagptable[l * 4 + 1] = EIGN[l-1] * ki;
+      diagptable[l * 4 + 2] = EIGN[l-1] * EIGN[l-1] * kisqr;
+    }
+
+  for (i = 0; i < upper; i++)
+    {
+      double
+	*sum = &sumtable[i * numStates],
+	tmp,
+	inv_Li   = 0.0,
+	dlnLidlz = 0.0,
+	d2lnLidlz2 = 0.0;
+
+    
+      inv_Li += sum[0];
+
+      for(l = 1; l < numStates; l++)
+	{
+	  inv_Li     += (tmp = diagptable[l * 4] * sum[l]);
+	  dlnLidlz   += tmp * diagptable[l * 4 + 1];
+	  d2lnLidlz2 += tmp * diagptable[l * 4 + 2];
+	}	            
+            
+      inv_Li = FABS(inv_Li);             
+       
+      lh        += inv_Li;	  	 
+      dlnLdlz   += dlnLidlz;
+      d2lnLdlz2 += d2lnLidlz2;       
+    } 
+
+  *ext_dlnLdlz   = (dlnLdlz / (lh - 1.0));
+  *ext_d2lnLdlz2 = (((lh - 1.0) * (d2lnLdlz2) - (dlnLdlz * dlnLdlz)) / ((lh - 1.0) * (lh - 1.0)));  
+
+  return lh;
+}
 
 
 static double coreGammaAsc(double *gammaRates, double *EIGN, double *sumtable, int upper,
@@ -2470,6 +2527,61 @@ static void sumGAMMAPROT_GAPPED_SAVE(int tipCase, double *sumtable, double *x1, 
 }
 
 #endif
+
+static void sumCatAsc(int tipCase, double *sumtable, double *x1, double *x2, double *tipVector,
+			int n, const int numStates)
+{
+  int i, k;
+  double *left, *right, *sum;
+
+  unsigned char 
+    tip[32];
+
+  ascertainmentBiasSequence(tip, numStates);
+
+  switch(tipCase)
+    {
+    case TIP_TIP:
+      for(i = 0; i < n; i++)
+	{
+	  left  = &(tipVector[numStates * tip[i]]);
+	  right = &(tipVector[numStates * tip[i]]);
+
+	  
+	  sum = &sumtable[i * numStates];
+	  
+	  for(k = 0; k < numStates; k++)
+	    sum[k] = left[k] * right[k];	  
+	}
+      break;
+    case TIP_INNER:
+      for(i = 0; i < n; i++)
+	{
+	  left = &(tipVector[numStates * tip[i]]);
+
+	  
+	  right = &(x2[i * numStates]);
+	  sum = &sumtable[i * numStates];
+
+	  for(k = 0; k < numStates; k++)
+	    sum[k] = left[k] * right[k];	 
+	}
+      break;
+    case INNER_INNER:
+      for(i = 0; i < n; i++)
+	{
+	  left  = &(x1[i * numStates]);
+	  right = &(x2[i * numStates]);
+	  sum   = &(sumtable[i * numStates]);
+
+	  for(k = 0; k < numStates; k++)
+	    sum[k] = left[k] * right[k];	 
+	}
+      break;
+    default:
+      assert(0);
+    }
+}
 
 static void sumGammaAsc(int tipCase, double *sumtable, double *x1, double *x2, double *tipVector,
 			int n, const int numStates)
@@ -3815,8 +3927,19 @@ void makenewzIterative(tree *tr)
 	    if(tr->partitionData[model].ascBias)
 #endif	 
 	    {
-	      sumGammaAsc(tipCase, tr->partitionData[model].ascSumBuffer, x1_start_asc, x2_start_asc, tr->partitionData[model].tipVector,
-			  states, states);
+	      switch(tr->rateHetModel)
+	      	{
+		case CAT:
+		  sumCatAsc(tipCase, tr->partitionData[model].ascSumBuffer, x1_start_asc, x2_start_asc, tr->partitionData[model].tipVector,
+			      states, states);
+		  break;
+		case GAMMA:
+		  sumGammaAsc(tipCase, tr->partitionData[model].ascSumBuffer, x1_start_asc, x2_start_asc, tr->partitionData[model].tipVector,
+			      states, states);
+		  break;
+		default:
+		  assert(0);
+		}
 	    }
 	}
     }
@@ -4093,8 +4216,19 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 	      for(i = tr->partitionData[model].lower; i < tr->partitionData[model].upper; i++)
 		w += tr->cdta->aliaswgt[i];	
 	      
-	      correction = coreGammaAsc(tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, tr->partitionData[model].ascSumBuffer, states,
-					&d1,  &d2, lz, states);	  
+	       switch(tr->rateHetModel)
+		 {
+		 case CAT:
+		   correction = coreCatAsc(tr->partitionData[model].EIGN, tr->partitionData[model].ascSumBuffer, states,
+					     &d1,  &d2, lz, states);	  
+		   break;
+		 case GAMMA:
+		   correction = coreGammaAsc(tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, tr->partitionData[model].ascSumBuffer, states,
+					     &d1,  &d2, lz, states);	  
+		   break;
+		 default:
+		   assert(0);
+		 }
 	     
 	      correction = 1.0 - correction;
 

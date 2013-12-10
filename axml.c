@@ -1887,7 +1887,16 @@ static void getinput(analdef *adef, rawdata *rdta, cruncheddata *cdta, tree *tr)
 	if(tr->partitionData[i].dataType == AA_DATA && tr->partitionData[i].protModels == PROT_FILE)
 	  parseProteinModel(tr->partitionData[i].externalAAMatrix, tr->partitionData[i].proteinSubstitutionFileName);
       
-      
+      if(tr->rateHetModel == CAT)
+	for(i = 0; i < tr->NumberOfModels; i++)
+	  {
+	    if(tr->partitionData[i].ascBias && !tr->noRateHet)
+	      {
+		printf("\nWARNING: you specified that you want to use an ascertainment bias correction for partition %d\n", i);
+		printf("for the CAT model of rate heterogeneity. Are you sure that you don't want to use a model without any rate \n");
+		printf("heteorgeneity modeling via the \"-V\" command line switch?\n");
+	      }
+	  }
 
       tr->executeModel   = (boolean *)rax_malloc(sizeof(boolean) * tr->NumberOfModels);
 
@@ -3375,8 +3384,11 @@ static void initAdef(analdef *adef)
 
 static int modelExists(char *model, analdef *adef)
 {
-  int i;
-  char thisModel[1024];
+  int 
+    i;
+  
+  char 
+    thisModel[1024];
 
   /********** BINARY ********************/
 
@@ -3416,6 +3428,17 @@ static int modelExists(char *model, analdef *adef)
       return 1;
     }
 
+   if(strcmp(model, "ASC_BINCAT\0") == 0)
+    {
+      adef->model = M_BINCAT;
+      adef->useInvariant = FALSE;
+      adef->ascertainmentBias = TRUE;
+      return 1;
+    }
+
+  
+
+
   if(strcmp(model, "BINGAMMAX\0") == 0)
     {
       adef->model = M_BINGAMMA;
@@ -3441,6 +3464,15 @@ static int modelExists(char *model, analdef *adef)
       return 1;
     }
 
+  if(strcmp(model, "ASC_BINCATX\0") == 0)
+    {
+      adef->model = M_BINCAT;
+      adef->useInvariant = FALSE;
+      adef->optimizeBaseFrequencies = TRUE;
+      adef->ascertainmentBias = TRUE;
+      return 1;
+    }
+
    if(strcmp(model, "BINGAMMAIX\0") == 0)
     {
       adef->model = M_BINGAMMA;
@@ -3456,6 +3488,8 @@ static int modelExists(char *model, analdef *adef)
       adef->optimizeBaseFrequencies = TRUE;
       return 1;
     }
+
+   
 
   /*********** 32 state ****************************/
 
@@ -3496,6 +3530,17 @@ static int modelExists(char *model, analdef *adef)
       return 1;
     }
 
+   if(strcmp(model, "ASC_MULTICAT\0") == 0)
+    {
+      adef->model = M_32CAT;
+      adef->useInvariant = FALSE;
+      adef->ascertainmentBias = TRUE;
+      return 1;
+    }
+
+  
+
+
   if(strcmp(model, "MULTIGAMMAX\0") == 0)
     {
       adef->model = M_32GAMMA;
@@ -3520,6 +3565,15 @@ static int modelExists(char *model, analdef *adef)
       adef->optimizeBaseFrequencies = TRUE;
       return 1;
     }
+
+  if(strcmp(model, "ASC_MULTICATX\0") == 0)
+    {
+      adef->model = M_32CAT;
+      adef->useInvariant = FALSE;
+      adef->optimizeBaseFrequencies = TRUE;
+      adef->ascertainmentBias = TRUE;
+      return 1;
+    }
   
    if(strcmp(model, "MULTIGAMMAIX\0") == 0)
     {
@@ -3530,13 +3584,14 @@ static int modelExists(char *model, analdef *adef)
     }
 
     if(strcmp(model, "MULTICATIX\0") == 0)
-    {
-      adef->model = M_32CAT;
-      adef->useInvariant = TRUE; 
-      adef->optimizeBaseFrequencies = TRUE;
-      return 1;
-    }
+      {
+	adef->model = M_32CAT;
+	adef->useInvariant = TRUE; 
+	adef->optimizeBaseFrequencies = TRUE;
+	return 1;
+      }
 
+    
 
   /*********** 64 state ****************************/
 
@@ -3576,6 +3631,17 @@ static int modelExists(char *model, analdef *adef)
       return 1;
     }
 
+  if(strcmp(model, "ASC_CODONCAT\0") == 0)
+    {
+      adef->model = M_64CAT;
+      adef->useInvariant = FALSE;
+      adef->ascertainmentBias = TRUE;
+      return 1;
+    }
+
+ 
+
+
   if(strcmp(model, "CODONGAMMAX\0") == 0)
     {
       adef->model = M_64GAMMA;
@@ -3600,6 +3666,16 @@ static int modelExists(char *model, analdef *adef)
       adef->optimizeBaseFrequencies = TRUE;
       return 1;
     }
+
+  if(strcmp(model, "ASC_CODONCATX\0") == 0)
+    {
+      adef->model = M_64CAT;
+      adef->useInvariant = FALSE; 
+      adef->optimizeBaseFrequencies = TRUE;
+      adef->ascertainmentBias = TRUE;
+      return 1;
+    }
+
   
    if(strcmp(model, "CODONGAMMAIX\0") == 0)
     {
@@ -3616,6 +3692,9 @@ static int modelExists(char *model, analdef *adef)
       adef->optimizeBaseFrequencies = TRUE;
       return 1;
     }
+
+   
+
 
   /*********** DNA **********************/
 
@@ -3647,15 +3726,23 @@ static int modelExists(char *model, analdef *adef)
       adef->useInvariant = FALSE;
       return 1;
     }
-
    
-
   if(strcmp(model, "GTRCATI\0") == 0)
     {
       adef->model = M_GTRCAT;
       adef->useInvariant = TRUE;
       return 1;
     }
+
+   if(strcmp(model, "ASC_GTRCAT\0") == 0)
+    {
+      adef->model = M_GTRCAT;
+      adef->useInvariant = FALSE;
+      adef->ascertainmentBias = TRUE;
+      return 1;
+    }
+   
+ 
 
 
   if(strcmp(model, "GTRGAMMAX\0") == 0)
@@ -3687,6 +3774,15 @@ static int modelExists(char *model, analdef *adef)
       return 1;
     }
 
+  if(strcmp(model, "ASC_GTRCATX\0") == 0)
+    {
+      adef->model = M_GTRCAT;
+      adef->useInvariant = FALSE; 
+      adef->optimizeBaseFrequencies = TRUE;
+      adef->ascertainmentBias = TRUE;
+      return 1;
+    }
+
    if(strcmp(model, "GTRGAMMAIX\0") == 0)
     {
       adef->model = M_GTRGAMMA;
@@ -3711,6 +3807,8 @@ static int modelExists(char *model, analdef *adef)
        return 1;
      }
 
+  
+
 
   /*************** AA GTR ********************/
 
@@ -3732,6 +3830,8 @@ static int modelExists(char *model, analdef *adef)
       adef->useInvariant = TRUE;
       return 1;
     }
+
+  
 
   if(strcmp(model, "PROTGAMMAGTR\0") == 0)
     {
@@ -3768,6 +3868,17 @@ static int modelExists(char *model, analdef *adef)
       adef->useInvariant = FALSE;
       adef->protEmpiricalFreqs = 0;
       adef->optimizeBaseFrequencies = TRUE;
+      return 1;
+    }
+
+   if(strcmp(model, "ASC_PROTCATGTRX\0") == 0)
+    {
+      adef->model = M_PROTCAT;
+      adef->proteinMatrix = GTR;
+      adef->useInvariant = FALSE;
+      adef->protEmpiricalFreqs = 0;
+      adef->optimizeBaseFrequencies = TRUE;
+      adef->ascertainmentBias = TRUE;
       return 1;
     }
 
@@ -3812,6 +3923,9 @@ static int modelExists(char *model, analdef *adef)
       adef->optimizeBaseFrequencies = TRUE;
       return 1;
     }
+
+  
+
   /*************** AA GTR_UNLINKED ********************/
 
   if(strcmp(model, "PROTCATGTR_UNLINKED\0") == 0)    
@@ -3847,6 +3961,34 @@ static int modelExists(char *model, analdef *adef)
       adef->protEmpiricalFreqs = 1;
       return 1;
     }
+
+  if(strcmp(model, "ASC_PROTCATGTR_UNLINKED\0") == 0)    
+    {
+      printf("Advisory: GTR_UNLINKED only has an effect if specified in the partition file\n");
+
+      adef->model = M_PROTCAT;
+      adef->proteinMatrix = GTR_UNLINKED;
+      adef->useInvariant = FALSE;
+      adef->protEmpiricalFreqs = 1;
+      adef->ascertainmentBias = TRUE;
+      return 1;
+    }
+
+  if(strcmp(model, "ASC_PROTCATGTR_UNLINKED_X\0") == 0)    
+    {
+      printf("Advisory: GTR_UNLINKED only has an effect if specified in the partition file\n");
+
+      adef->model = M_PROTCAT;
+      adef->proteinMatrix = GTR_UNLINKED;
+      adef->useInvariant = FALSE;
+      adef->protEmpiricalFreqs = 0; 
+      adef->optimizeBaseFrequencies = TRUE;
+      adef->ascertainmentBias = TRUE;
+      return 1;
+    }
+
+ 
+
 
   if(strcmp(model, "PROTGAMMAGTR_UNLINKED\0") == 0)
     {
@@ -4020,6 +4162,61 @@ static int modelExists(char *model, analdef *adef)
 	  adef->optimizeBaseFrequencies = TRUE;
 	  return 1;
 	}
+
+      /**************check CAT ASC ***********************************/
+
+
+       /* check CAT */
+
+      strcpy(thisModel, "ASC_PROTCAT");
+      strcat(thisModel, protModels[i]);
+
+      if(strcmp(model, thisModel) == 0)
+	{
+	  adef->model = M_PROTCAT;
+	  adef->proteinMatrix = i;
+	  adef->ascertainmentBias = TRUE;
+	  return 1;
+	}
+
+      /* check CATF */
+
+      strcpy(thisModel, "ASC_PROTCAT");
+      strcat(thisModel, protModels[i]);
+      strcat(thisModel, "F");
+
+      if(strcmp(model, thisModel) == 0)
+	{
+	  adef->model = M_PROTCAT;
+	  adef->proteinMatrix = i;
+	  adef->protEmpiricalFreqs = 1;
+	  adef->ascertainmentBias = TRUE;
+	  return 1;
+	}
+
+      /* check CATX */
+
+      strcpy(thisModel, "ASC_PROTCAT");
+      strcat(thisModel, protModels[i]);
+      strcat(thisModel, "X");
+
+      if(strcmp(model, thisModel) == 0)
+	{
+	  adef->model = M_PROTCAT;
+	  adef->proteinMatrix = i;
+	  adef->protEmpiricalFreqs = 0;
+	  adef->optimizeBaseFrequencies = TRUE;
+	  adef->ascertainmentBias = TRUE;
+	  return 1;
+	}     
+
+      
+
+      
+
+      
+
+
 
       /****************check GAMMA ************************/
 
@@ -4633,6 +4830,12 @@ static void printREADME(void)
   printf("                                       rate categories for greater computational efficiency. Final tree might be evaluated\n");
   printf("                                       automatically under BINGAMMAI, depending on the tree search option.\n");
   printf("                                       With the optional \"X\" appendix you can specify a ML estimate of base frequencies.\n");  
+  printf("                \"-m ASC_BINCAT[X]\"   : Optimization of site-specific\n");
+  printf("                                       evolutionary rates which are categorized into numberOfCategories distinct \n");
+  printf("                                       rate categories for greater computational efficiency. Final tree might be evaluated\n");
+  printf("                                       automatically under BINGAMMA, depending on the tree search option.\n");
+  printf("                                       With the optional \"X\" appendix you can specify a ML estimate of base frequencies.\n");  
+  printf("                                       The ASC prefix willl correct the likelihood for ascertainment bias.\n");  
   printf("                \"-m BINGAMMA[X]\"     : GAMMA model of rate heterogeneity (alpha parameter will be estimated).\n");
   printf("                                       With the optional \"X\" appendix you can specify a ML estimate of base frequencies.\n");  
   printf("                \"-m ASC_BINGAMMA[X]\" : GAMMA model of rate heterogeneity (alpha parameter will be estimated).\n");
@@ -4652,6 +4855,12 @@ static void printREADME(void)
   printf("                                       rate categories for greater computational efficiency.  Final tree might be evaluated\n");
   printf("                                       under GTRGAMMAI, depending on the tree search option.\n");
   printf("                                       With the optional \"X\" appendix you can specify a ML estimate of base frequencies.\n");  
+  printf("                \"-m ASC_GTRCAT[X]\"   : GTR + Optimization of substitution rates + Optimization of site-specific\n");
+  printf("                                       evolutionary rates which are categorized into numberOfCategories distinct \n");
+  printf("                                       rate categories for greater computational efficiency.  Final tree might be evaluated\n");
+  printf("                                       under GTRGAMMA, depending on the tree search option.\n"); 
+  printf("                                       With the optional \"X\" appendix you can specify a ML estimate of base frequencies.\n");  
+  printf("                                       The ASC prefix willl correct the likelihood for ascertainment bias.\n");  
   printf("                \"-m GTRGAMMA[X]\"     : GTR + Optimization of substitution rates + GAMMA model of rate \n");
   printf("                                       heterogeneity (alpha parameter will be estimated).\n");  
   printf("                                       With the optional \"X\" appendix you can specify a ML estimate of base frequencies.\n");  
@@ -4672,7 +4881,13 @@ static void printREADME(void)
   printf("                                         evolutionary rates which are categorized into numberOfCategories distinct \n");
   printf("                                         rate categories for greater computational efficiency. Final tree might be evaluated\n");
   printf("                                         automatically under MULTIGAMMAI, depending on the tree search option.\n");
+  printf("                                         With the optional \"X\" appendix you can specify a ML estimate of base frequencies.\n"); 
+  printf("                \"-m ASC_MULTICAT[X]\"   : Optimization of site-specific\n");
+  printf("                                         evolutionary rates which are categorized into numberOfCategories distinct \n");
+  printf("                                         rate categories for greater computational efficiency. Final tree might be evaluated\n");
+  printf("                                         automatically under MULTIGAMMA, depending on the tree search option.\n"); 
   printf("                                         With the optional \"X\" appendix you can specify a ML estimate of base frequencies.\n");  
+  printf("                                         The ASC prefix willl correct the likelihood for ascertainment bias.\n");  
   printf("                \"-m MULTIGAMMA[X]\"     : GAMMA model of rate heterogeneity (alpha parameter will be estimated).\n");
   printf("                                         With the optional \"X\" appendix you can specify a ML estimate of base frequencies.\n"); 
   printf("                \"-m ASC_MULTIGAMMA[X]\" : GAMMA model of rate heterogeneity (alpha parameter will be estimated).\n");
@@ -4697,6 +4912,12 @@ static void printREADME(void)
   printf("                                                    rate categories for greater computational efficiency.   Final tree might be evaluated\n");
   printf("                                                    automatically under PROTGAMMAImatrixName[F|X], depending on the tree search option.\n");
   printf("                                                    With the optional \"X\" appendix you can specify a ML estimate of base frequencies.\n");  
+  printf("                \"-m ASC_PROTCATmatrixName[F|X]\"   : specified AA matrix + Optimization of substitution rates + Optimization of site-specific\n");
+  printf("                                                    evolutionary rates which are categorized into numberOfCategories distinct \n");
+  printf("                                                    rate categories for greater computational efficiency.   Final tree might be evaluated\n");
+  printf("                                                    automatically under PROTGAMMAmatrixName[F|X], depending on the tree search option.\n");  
+  printf("                                                    With the optional \"X\" appendix you can specify a ML estimate of base frequencies.\n"); 
+  printf("                                                    The ASC prefix willl correct the likelihood for ascertainment bias.\n");
   printf("                \"-m PROTGAMMAmatrixName[F|X]\"     : specified AA matrix + Optimization of substitution rates + GAMMA model of rate \n");
   printf("                                                    heterogeneity (alpha parameter will be estimated).\n"); 
   printf("                                                    With the optional \"X\" appendix you can specify a ML estimate of base frequencies.\n");  
@@ -5571,16 +5792,16 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 		printf("Model %s does not exist\n\n", model);
                 printf("For BINARY data use:  BINCAT[X]             or BINGAMMA[X]             or\n");
 		printf("                      BINCATI[X]            or BINGAMMAI[X]            or\n");
-		printf("                      ASC_BINGAMMA[X]\n");
+		printf("                      ASC_BINGAMMA[X]       or ASC_BINCAT[X]\n");
 		printf("For DNA data use:     GTRCAT[X]             or GTRGAMMA[X]             or\n");
 		printf("                      GTRCATI[X]            or GTRGAMMAI[X]            or\n");
-		printf("                      ASC_GTRGAMMA[X]\n");
+		printf("                      ASC_GTRGAMMA[X]       or ASC_GTRCAT[X]\n");
 		printf("For Multi-state data: MULTICAT[X]          or MULTIGAMMA[X]           or\n");
 		printf("                      MULTICATI[X]         or MULTIGAMMAI[X]          or\n");		
-		printf("                      ASC_MULTIGAMMA[X]\n");
+		printf("                      ASC_MULTIGAMMA[X]    or ASC_MULTICAT[X]\n");
 		printf("For AA data use:      PROTCATmatrixName[F|X]  or PROTGAMMAmatrixName[F|X]  or\n");
 		printf("                      PROTCATImatrixName[F|X] or PROTGAMMAImatrixName[F|X] or\n");
-		printf("                      ASC_PROTGAMMAmatrixName[X]\n");
+		printf("                      ASC_PROTGAMMAmatrixName[X] or  ASC_PROTCATmatrixName[X]\n");
 		printf("The AA substitution matrix can be one of the following: \n");
 		
 		{
