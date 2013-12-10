@@ -4524,8 +4524,8 @@ static void printREADME(void)
   printf("\n");
   printf("              DEFAULT: 0.03 (recommended empirically determined setting)\n");
   printf("\n");
-  printf("      -c      Specify number of distinct rate catgories for RAxML when modelOfEvolution\n");
-  printf("              is set to GTRCAT or GTRMIX\n");
+  printf("      -c      Specify number of distinct rate catgories for RAxML when model of rate heterogeneity\n");
+  printf("              is set to CAT\n");
   printf("              Individual per-site rates are categorized into numberOfCategories rate \n");
   printf("              categories to accelerate computations. \n");
   printf("\n");
@@ -4548,7 +4548,7 @@ static void printREADME(void)
   printf("              DEFAULT: OFF\n");
   printf("\n");
   printf("      -e      set model optimization precision in log likelihood units for final\n");
-  printf("              optimization of tree topology under MIX/MIXI or GAMMA/GAMMAI\n");
+  printf("              optimization of tree topology\n");
   printf("\n");
   printf("              DEFAULT: 0.1   for models not using proportion of invariant sites estimate\n");
   printf("                       0.001 for models using proportion of invariant sites estimate\n");
