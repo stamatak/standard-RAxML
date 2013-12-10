@@ -4331,13 +4331,13 @@ static void printVersionInfo(boolean terminal, FILE *infoFile)
 
   sprintf(text[0], "\n\nThis is %s version %s released by Alexandros Stamatakis on %s.\n\n",  programName, programVersion, programDate);
   sprintf(text[1], "With greatly appreciated code contributions by:\n");
-  sprintf(text[2], "Andre Aberer (HITS)\n");     
-  sprintf(text[3], "Simon Berger (HITS)\n"); 
-  sprintf(text[4], "Alexey Kozlov (HITS)\n"); 
-  sprintf(text[5], "Nick Pattengale (Sandia)\n"); 
-  sprintf(text[6], "Wayne Pfeiffer (SDSC)\n");
+  sprintf(text[2], "Andre Aberer      (HITS)\n");     
+  sprintf(text[3], "Simon Berger      (HITS)\n"); 
+  sprintf(text[4], "Alexey Kozlov     (HITS)\n"); 
+  sprintf(text[5], "Nick Pattengale   (Sandia)\n"); 
+  sprintf(text[6], "Wayne Pfeiffer    (SDSC)\n");
   sprintf(text[7], "Akifumi S. Tanabe (NRIFS)\n");
-  sprintf(text[8], "David Dao (KIT)\n\n");
+  sprintf(text[8], "David Dao         (KIT)\n\n");
 
   for(i = 0; i < 9; i++)
     {
