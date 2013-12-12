@@ -1827,6 +1827,10 @@ void classifyML(tree *tr, analdef *adef)
  
   setupBranchInfo(tr, q);   
   
+#ifdef _USE_PTHREADS
+  masterBarrier(THREAD_FREE_VECTORS, tr); 
+#endif
+
   if(tr->useEpaHeuristics)
     {	 
       int 

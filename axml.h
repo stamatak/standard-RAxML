@@ -164,8 +164,8 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "RAxML"
-#define programVersion     "7.9.7"
-#define programDate        "Dec 10 2013"
+#define programVersion     "7.9.8"
+#define programDate        "Dec 12 2013"
 
 
 #define  TREE_EVALUATION                 0
@@ -1471,6 +1471,7 @@ extern void testInsertThoroughIterative(tree *tr, int branchNumber);
 #define THREAD_OPT_SCALER                   43
 #define THREAD_COPY_LG4X_RATES              44
 #define THREAD_OPT_LG4X_RATES               45
+#define THREAD_FREE_VECTORS                 46
 
 
 /*

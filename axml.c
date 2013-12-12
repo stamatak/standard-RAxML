@@ -8598,6 +8598,24 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 	  }
       }      
       break;         
+    case THREAD_FREE_VECTORS:
+      {	
+	int 
+	  i;
+      
+	for(model = 0; model < localTree->NumberOfModels; model++)
+	  {
+	    for(i = 0; i < localTree->innerNodes; i++)
+	      {	    		      
+		rax_free(localTree->partitionData[model].xVector[i]);
+		rax_free(localTree->partitionData[model].expVector[i]);				
+	      }
+	  }
+
+	rax_free(localTree->partitionData[model].xVector);
+	rax_free(localTree->partitionData[model].expVector);
+      }
+      break;
     case THREAD_GATHER_LIKELIHOOD:
       {	
 	int 
@@ -8676,8 +8694,7 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 	      }	    
 
 	    assert(localColumnCount == localTree->partitionData[model].width);
-	    assert(localCount == (localTree->partitionData[model].width * (int)blockRequirements));
-
+	    assert(localCount == (localTree->partitionData[model].width * (int)blockRequirements));	    
 	  }
       }
       break;                 
