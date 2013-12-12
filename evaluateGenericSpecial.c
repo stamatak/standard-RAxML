@@ -3445,6 +3445,8 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 		    for(i = tr->partitionData[model].lower; i < tr->partitionData[model].upper; i++)
 		      w += tr->cdta->aliaswgt[i];		  		  	      	     
 	      
+		    assert(partitionLikelihood < 0.0);
+
 		    partitionLikelihood = partitionLikelihood - (double)w * LOG(1.0 - correction);	     	      
 	      
 #ifdef _DEBUG_ASC 	      
@@ -3452,14 +3454,19 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 #endif	      		    
 		  }
 	      
-	      if(partitionLikelihood >= 0.0)
+#ifdef _USE_PTHREADS
+	      if(!(tr->partitionData[model].ascBias && tr->threadID == 0))
 		{
-		  printf("psotive log like: %f for partition %d\n", partitionLikelihood, model);
-		  assert(0);
+#endif
+		  if(partitionLikelihood >= 0.0)
+		    {
+		      printf("positive log like: %f for partition %d\n", partitionLikelihood, model);
+		      assert(0);
+		    }
+#ifdef _USE_PTHREADS	      
 		}
-	      
+#endif
 	    }
-	  
 	  result += partitionLikelihood;	  
 	  tr->perPartitionLH[model] = partitionLikelihood; 	       
 	}
@@ -3532,6 +3539,8 @@ double evaluateGeneric (tree *tr, nodeptr p)
   result = evaluateIterative(tr, FALSE);
 #endif   
  
+  assert(result <= 0.0);
+
   tr->likelihood = result;      
 
   return result;
@@ -3579,9 +3588,11 @@ double evaluateGenericInitrav (tree *tr, nodeptr p)
       }      
     }
 #else
-    result = evaluateIterative(tr, FALSE);
+  result = evaluateIterative(tr, FALSE);
 #endif
-  
+
+  assert(result <= 0.0);
+
   tr->likelihood = result;         
 
   return result;
@@ -3910,11 +3921,12 @@ double evalCL(tree *tr, double *x2, int *_ex2, unsigned char *_tip, double *pz, 
 #endif
   if(tr->perPartitionEPA)
     {
-   
+      assert(tr->perPartitionLH[tr->readPartition[insertion]] < 0.0);
       return (tr->perPartitionLH[tr->readPartition[insertion]]);
     }
   else
-    {
+    { 
+      assert(result < 0.0);
       return result;      
     }
 }
@@ -3985,6 +3997,8 @@ double evaluateGenericVector (tree *tr, nodeptr p)
     result = evaluateIterative(tr, TRUE);
 #endif   
   }
+
+  assert(result <= 0.0);
 
   tr->likelihood = result;    
   
