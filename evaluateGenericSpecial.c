@@ -3921,12 +3921,12 @@ double evalCL(tree *tr, double *x2, int *_ex2, unsigned char *_tip, double *pz, 
 #endif
   if(tr->perPartitionEPA)
     {
-      assert(tr->perPartitionLH[tr->readPartition[insertion]] < 0.0);
+      assert(tr->perPartitionLH[tr->readPartition[insertion]] <= 0.0);
       return (tr->perPartitionLH[tr->readPartition[insertion]]);
     }
   else
     { 
-      assert(result < 0.0);
+      assert(result <= 0.0);
       return result;      
     }
 }
