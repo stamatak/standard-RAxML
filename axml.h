@@ -164,8 +164,8 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "RAxML"
-#define programVersion     "7.9.9"
-#define programDate        "Dec 12 2013"
+#define programVersion     "8.0.0"
+#define programDate        "Dec 13 2013"
 
 
 #define  TREE_EVALUATION                 0
@@ -1199,7 +1199,7 @@ extern void makeParsimonyTreeFast(tree *tr, analdef *adef, boolean full);
 extern void makeParsimonyTreeIncomplete ( tree *tr, analdef *adef );
 extern void makeParsimonyInsertions(tree *tr, nodeptr startNodeQ, nodeptr startNodeR);
 
-
+extern void makeEigen(double **_a, const int n, double *d, double *e);
 
 extern FILE *myfopen(const char *path, const char *mode);
 

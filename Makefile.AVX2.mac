@@ -9,7 +9,7 @@ LIBRARIES = -lm
 
 RM = rm -f
 
-objs    = axml.o  optimizeModel.o multiple.o searchAlgo.o topologies.o parsePartitions.o treeIO.o models.o bipartitionList.o rapidBootstrap.o evaluatePartialGenericSpecial.o evaluateGenericSpecial.o newviewGenericSpecial.o makenewzGenericSpecial.o   classify.o fastDNAparsimony.o fastSearch.o leaveDropping.o rmqs.o rogueEPA.o ancestralStates.o avxLikelihood.o mem_alloc.o
+objs    = axml.o  optimizeModel.o multiple.o searchAlgo.o topologies.o parsePartitions.o treeIO.o models.o bipartitionList.o rapidBootstrap.o evaluatePartialGenericSpecial.o evaluateGenericSpecial.o newviewGenericSpecial.o makenewzGenericSpecial.o   classify.o fastDNAparsimony.o fastSearch.o leaveDropping.o rmqs.o rogueEPA.o ancestralStates.o avxLikelihood.o  mem_alloc.o eigen.o 
 
 all : raxmlHPC
 
@@ -47,7 +47,9 @@ fastSearch.o : fastSearch.c $(GLOBAL_DEPS)
 leaveDropping.o : leaveDropping.c $(GLOBAL_DEPS)
 rogueEPA.o : rogueEPA.c $(GLOBAL_DEPS)
 ancestralStates.o : ancestralStates.c $(GLOBAL_DEPS)
-mem_alloc.o : mem_alloc.c  $(GLOBAL_DEPS)
+ mem_alloc.o eigen.o  : mem_alloc.c  $(GLOBAL_DEPS)
 
+eigen.o : eigen.c $(GLOBAL_DEPS)
+	$(CC) -c -o eigen.o eigen.c 
 clean : 
 	$(RM) *.o raxmlHPC-AVX2

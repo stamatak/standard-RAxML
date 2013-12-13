@@ -4521,7 +4521,7 @@ static void parseOutgroups(char *outgr, tree *tr)
 static void printVersionInfo(boolean terminal, FILE *infoFile)
 {
   char 
-    text[9][1024];
+    text[10][1024];
 
   int 
     i;
@@ -4534,9 +4534,11 @@ static void printVersionInfo(boolean terminal, FILE *infoFile)
   sprintf(text[5], "Nick Pattengale   (Sandia)\n"); 
   sprintf(text[6], "Wayne Pfeiffer    (SDSC)\n");
   sprintf(text[7], "Akifumi S. Tanabe (NRIFS)\n");
-  sprintf(text[8], "David Dao         (KIT)\n\n");
+  sprintf(text[8], "David Dao         (KIT)\n");
+  sprintf(text[9], "Charlie Taylor    (UF)\n\n");
+  
 
-  for(i = 0; i < 9; i++)
+  for(i = 0; i < 10; i++)
     {
       if(terminal)    
 	printf("%s", text[i]);
@@ -9190,6 +9192,94 @@ static void *likelihoodThread(void *tData)
   return (void*)NULL;
 }
 
+#if (defined(_WAYNE_MPI) && defined(_USE_PTHREADS))
+
+static int setPthreadAffinity(void)
+/*
+ * Note: By setting the cpuset for the threads to include
+ * all available cpus, we allow the kernel to decide on
+ * which cpu/core each thread should execute.  Without this,
+ * in the hybrid build of the code, the threads inherited
+ * the OpenMPI-imposed affinity of the parent MPI process
+ * forcing them to time-slice on a single core.  This
+ * negated any potential performance improvement from
+ * multiple threads on multi-core systems.
+ *
+ * If you set the processor affinity of the threads by
+ * undef'ing _PORTABLE_PTHREADS, the tid is used to
+ * create the cpuset.  This won't work in batch
+ * environments with shared systems because the
+ * processors corresponding to the tid may not be
+ * available to the user's job on a given system.
+ */
+{
+  int         
+    maxCores, 
+    cpuNum, 
+    rc;
+  
+  long        
+    systemCores;
+  
+  cpu_set_t  
+    *cpuSetPtr;
+  
+  size_t      
+    setSize;
+  /*
+   * Get the number of cores available on the system. If
+   * it is more than the glibc cpuset interface can handle,
+   * set maxCores to the current max (CPU_SETSIZE).
+   */
+  
+  systemCores = sysconf(_SC_NPROCESSORS_ONLN);
+
+  if(systemCores > CPU_SETSIZE)
+    maxCores = CPU_SETSIZE;  
+  else
+    maxCores = (int)systemCores;
+ 
+  /* TODO */
+
+  //printf("Number of cores available is %d\n", maxCores);
+
+  /*
+   * Allocate and configure the cpuset with all available
+   * processors i.e. cores.
+   */
+  
+  setSize   = CPU_ALLOC_SIZE(maxCores);
+  cpuSetPtr = CPU_ALLOC(maxCores);
+  
+  if(cpuSetPtr == NULL) 
+    {
+      perror("CPU_ALLOC");
+      rc = -1;
+      return(rc);
+    }
+  CPU_ZERO_S(setSize, cpuSetPtr);
+  
+  for(cpuNum=0; cpuNum<maxCores; cpuNum++)
+    CPU_SET_S(cpuNum, setSize, cpuSetPtr);
+ 
+  /*
+   * Set the processor affinity of the calling process using the
+   * configured cpu set (i.e. bitmask).
+   */
+  
+  printf("Modifying processor affinity for RAxML Master Pthread.\n");
+  rc = sched_setaffinity(0, sizeof(cpu_set_t), cpuSetPtr);
+  
+  if(rc != 0)    
+    perror("sched_setaffinity"); 
+
+  CPU_FREE(cpuSetPtr);
+  
+  return rc;
+}
+
+#endif
+
 static void startPthreads(tree *tr)
 {
   pthread_t *threads;
@@ -9219,6 +9309,20 @@ static void startPthreads(tree *tr)
   
   barrierBuffer            = (volatile char *)rax_malloc(sizeof(volatile char) *  NumberOfThreads);
   
+#if (defined(_WAYNE_MPI) && defined(_USE_PTHREADS))
+  /*
+   * Set the processor affinity of this (the master) thread.  Subsequent
+   * threads spawned via pthread_create() will inherit the affinity of
+   * their parent thread.
+   */
+  
+  if(setPthreadAffinity() != 0) 
+    {
+      printf("Warning: Error setting thread processor affinity.\n");
+      printf("         This may adversely impact multi-core performance.\n");
+    }
+#endif
+
   for(t = 0; t < NumberOfThreads; t++)
     barrierBuffer[t] = 0;
 
