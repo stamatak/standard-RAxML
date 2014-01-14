@@ -1979,7 +1979,33 @@ static void optAlphasGeneric(tree *tr, double modelEpsilon, linkageList *ll)
 	case SECONDARY_DATA_7:
 	case GENERIC_32:
 	case GENERIC_64:
-	  ll->ld[i].valid = FALSE;	  
+	  {
+	    //check that alpha values do not get too large and warn users that 
+	    //they should maybe use a model that is not correcting for rate heterogeneity 
+	    
+	    int 
+	      k;
+
+	    double const 
+	      alphaMaybeNoRateHet = 10.0;
+	    	  	  	  
+	    for(k = 0; k < ll->ld[i].partitions; k++)
+	      {
+		int index = ll->ld[i].partitionList[k];
+
+		if(tr->partitionData[index].alpha >= alphaMaybeNoRateHet)
+		  {
+		    printBothOpen("\nWARNING the alpha parameter with a value of %f estimated by RAxML for partition number %d with the name \"%s\"\n",  
+				  tr->partitionData[index].alpha, 
+				  index, 
+				  tr->partitionData[index].partitionName);
+		    printBothOpen("is larger than %f. You should do a model test and confirm that you actually need to incorporate a model of rate heterogeneity!\n",  alphaMaybeNoRateHet);
+		    printBothOpen("You can run inferences with a plain substitution model (without rate heterogeneity) by specifyng the CAT model and the \"-V\" option!\n\n");		    
+		  }
+	      }
+
+	    ll->ld[i].valid = FALSE;
+	  }
 	  break;
 	case AA_DATA:	  
 	  if(tr->partitionData[ll->ld[i].partitionList[0]].protModels == LG4X)	      
