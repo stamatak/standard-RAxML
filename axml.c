@@ -11711,6 +11711,9 @@ static void checkAscBias(tree *tr)
 	      printBothOpen("This is not allowed, please remove all invariant sites and try again, exiting ... \n\n\n");
 	      errorExit(-1);
 	    }
+
+	  
+
 	}
     }
 

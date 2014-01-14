@@ -8357,12 +8357,22 @@ void newviewIterative (tree *tr)
 		  switch(tr->rateHetModel)
 		    {
 		    case CAT:
-		      newviewAscCat(tInfo->tipCase,
-				    x1_ascColumn, x2_ascColumn, x3_ascColumn,
-				    tr->partitionData[model].EV,
-				    tr->partitionData[model].tipVector,
-				    ex3_asc,
-				    states, left, right, states);
+		      {
+			double 
+			  rates = 1.0;
+			
+			//need to re-calculate transition probabilities assuming a rate of 1.0 
+			makeP_Flex(qz, rz, &rates,  tr->partitionData[model].EI,
+				   tr->partitionData[model].EIGN,
+				   1, left, right, states);
+			
+			newviewAscCat(tInfo->tipCase,
+				      x1_ascColumn, x2_ascColumn, x3_ascColumn,
+				      tr->partitionData[model].EV,
+				      tr->partitionData[model].tipVector,
+				      ex3_asc,
+				      states, left, right, states);
+		      }
 		      break;
 		    case GAMMA:
 		      newviewAscGamma(tInfo->tipCase,

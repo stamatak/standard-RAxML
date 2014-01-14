@@ -3429,8 +3429,17 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 		    switch(tr->rateHetModel)
 		      {
 		      case CAT:
-			correction = evaluateCatAsc(ex1_asc, ex2_asc, x1_start_asc, x2_start_asc, tr->partitionData[model].tipVector,
-						    tip, ascWidth, diagptable, ascWidth);			 		 	       
+			{
+			  double 
+			    rates = 1.0;
+			  
+			  //need to re-calculate P-matrix for the correction here assuming a rate of 1.0 
+			  calcDiagptableFlex(z, 1, &rates, tr->partitionData[model].EIGN, diagptable, states);
+			  
+			  
+			  correction = evaluateCatAsc(ex1_asc, ex2_asc, x1_start_asc, x2_start_asc, tr->partitionData[model].tipVector,
+						      tip, ascWidth, diagptable, ascWidth);			 		 	       
+			}
 			break;
 		      case GAMMA:			
 			correction = evaluateGammaAsc(ex1_asc, ex2_asc, x1_start_asc, x2_start_asc, tr->partitionData[model].tipVector,
