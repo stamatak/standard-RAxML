@@ -1887,16 +1887,7 @@ static void getinput(analdef *adef, rawdata *rdta, cruncheddata *cdta, tree *tr)
 	if(tr->partitionData[i].dataType == AA_DATA && tr->partitionData[i].protModels == PROT_FILE)
 	  parseProteinModel(tr->partitionData[i].externalAAMatrix, tr->partitionData[i].proteinSubstitutionFileName);
       
-      if(tr->rateHetModel == CAT)
-	for(i = 0; i < tr->NumberOfModels; i++)
-	  {
-	    if(tr->partitionData[i].ascBias && !tr->noRateHet)
-	      {
-		printf("\nWARNING: you specified that you want to use an ascertainment bias correction for partition %d\n", i);
-		printf("for the CAT model of rate heterogeneity. Are you sure that you don't want to use a model without any rate \n");
-		printf("heteorgeneity modeling via the \"-V\" command line switch?\n");
-	      }
-	  }
+      
 
       tr->executeModel   = (boolean *)rax_malloc(sizeof(boolean) * tr->NumberOfModels);
 
@@ -4609,6 +4600,10 @@ static void printMinusFUsage(void)
 
   printf("              \"-f J\": Compute SH-like support values on a given tree passed via \"-t\".\n"); 
 
+  printf("              \"-f k\": Predict missing sequence data in a partitioned multi-gene alignment for a given tree.\n");
+  printf("                      Only works in conjunction with \"-t\", \"-M\", and \"-q\".\n");
+  printf("                      This option is in an early experimental state, use at your own risk!\n");
+
   printf("              \"-f m\": compare bipartitions between two bunches of trees passed via \"-t\" and \"-z\" \n");
   printf("                      respectively. This will return the Pearson correlation between all bipartitions found\n");
   printf("                      in the two tree files. A file called RAxML_bipartitionFrequencies.outpuFileName\n");
@@ -4691,7 +4686,7 @@ static void printREADME(void)
   printf("      [-b bootstrapRandomNumberSeed] [-B wcCriterionThreshold]\n");
   printf("      [-c numberOfCategories] [-C] [-d] [-D]\n");
   printf("      [-e likelihoodEpsilon] [-E excludeFileName]\n");
-  printf("      [-f a|A|b|B|c|C|d|D|e|E|F|g|G|h|H|i|I|j|J|m|n|N|o|p|q|r|R|s|S|t|T|u|v|V|w|W|x|y] [-F]\n");
+  printf("      [-f a|A|b|B|c|C|d|D|e|E|F|g|G|h|H|i|I|j|J|k|m|n|N|o|p|q|r|R|s|S|t|T|u|v|V|w|W|x|y] [-F]\n");
   printf("      [-g groupingFileName] [-G placementThreshold] [-h] [-H]\n");
   printf("      [-i initialRearrangementSetting] [-I autoFC|autoMR|autoMRE|autoMRE_IGN]\n");
   printf("      [-j] [-J MR|MR_DROP|MRE|STRICT|STRICT_DROP|T_<PERCENT>] [-k] [-K] \n");
@@ -5101,7 +5096,7 @@ static void analyzeRunId(char id[128])
 
 static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 {
-  boolean
+  boolean  
     disablePatternCompression = FALSE,
     bad_opt    =FALSE,
     resultDirSet = FALSE;
@@ -5660,6 +5655,11 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	    adef->mode = SH_LIKE_SUPPORTS; 
 	    tr->useFastScaling = FALSE;
 	    break;
+	  case 'k':
+	    adef->mode = MISSING_SEQUENCE_PREDICTION;
+	    tr->useFastScaling = FALSE;	    
+	    adef->compressPatterns  = FALSE;
+	    break;
 	  case 'm': 
 	    adef->readTaxaOnly = TRUE;	    
 	    adef->mode = COMPUTE_BIPARTITION_CORRELATION;
@@ -5837,6 +5837,29 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 
   if(disablePatternCompression)
     adef->compressPatterns = FALSE;
+  
+  if(adef->mode == MISSING_SEQUENCE_PREDICTION)
+    {
+      if(!treeSet)
+	{
+	  printf("Error: for sequence prediction you need to specify a tree file via \"-t\"\n");
+	  errorExit(-1);
+	}
+      if(!adef->useMultipleModel)
+	{
+	  printf("Error: for sequence prediction you need to specify a partition file via \"-q\"\n");
+	  errorExit(-1);
+	}
+      if(!adef->perGeneBranchLengths)
+	{
+	  printf("Error: for sequence prediction you need to specify a per partition branch length estimate via \"-M\"\n");
+	  errorExit(-1);
+	}
+#ifdef _USE_PTHREADS
+       printf("Error: for sequence prediction not yet implemented for the PThreads version ... \n");
+       errorExit(-1);
+#endif      
+    }
 
 #ifdef _USE_PTHREADS
   if(NumberOfThreads < 2)
@@ -6610,6 +6633,9 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
 	  break;
 	case TREE_EVALUATION :
 	  printBoth(infoFile, "\nRAxML Model Optimization up to an accuracy of %f log likelihood units\n\n", adef->likelihoodEpsilon);
+	  break;
+	case MISSING_SEQUENCE_PREDICTION:
+	  printBoth(infoFile, "\nRAxML missing sequence prediction\n\n");
 	  break;
 	case  BIG_RAPID_MODE:
 	  if(adef->rapidBoot)
@@ -11710,30 +11736,418 @@ static void checkAscBias(tree *tr)
 	      printBothOpen("via an ascertainment bias correction. However, some sites in this partition are already invariant.\n");
 	      printBothOpen("This is not allowed, please remove all invariant sites and try again, exiting ... \n\n\n");
 	      errorExit(-1);
-	    }
-
-	  
-
+	    }	  
 	}
     }
 
+  if(tr->rateHetModel == CAT)
+    for(model = 0; model < tr->NumberOfModels; model++)
+      {
+	if(tr->partitionData[model].ascBias && !tr->noRateHet)
+	  {
+	    printBothOpen("\nWARNING: you specified that you want to use an ascertainment bias correction for partition %d\n", model);
+	    printBothOpen("for the CAT model of rate heterogeneity. Are you sure that you don't want to use a model without any rate \n");
+	    printBothOpen("heteorgeneity modeling via the \"-V\" command line switch?\n");
+	  }
+      }
 }
+
+/******* missing data prediction code -f k option **************************************************/
+
+//function that makes the actual sequence guess estimate given a node of the tree p which is a tip
+
+static void analyzeTip(nodeptr p, tree *tr, int *count, int whichPartition, double *partitionStats, boolean testIt, unsigned char *alignmentGuess)
+{
+  int 
+    countMissingPartitions = 0,
+    *missingData = (int *)rax_calloc(tr->NumberOfModels, sizeof(int)),
+    model;
+
+  //TODO PTHREADS !
+#ifdef _USE_PTHREADS
+  assert(0);
+#endif
+     
+  //initially analyze the tip sequence for each partition to determine if it 
+  //consist entirely of missing data 
+
+  for(model = 0; model < tr->NumberOfModels; model++)
+    {
+      size_t
+	i;
+
+      boolean
+	missing = TRUE;
+
+      //get value of undetermined state (may be different for DNA and protein data 
+      //and get access to the tip sequence for the present partition 
+      
+      unsigned char 	
+	undetermined = getUndetermined(tr->partitionData[model].dataType),
+	*tip = tr->partitionData[model].yVector[p->number];
+
+      //if we are not doing the systematic testing check if all states of the sequence 
+      //are undetermined
+
+      if(!testIt)
+	{
+	  for(i = 0; i < tr->partitionData[model].width && missing; i++)
+	    if(tip[i] != undetermined)
+	      missing = FALSE;
+	}
+
+      //if they all are undetermined or if we do systematic testing for the present partition 
+      //store that we want to predict the sequence for this partition 
+      
+      if((testIt && model == whichPartition) || missing == TRUE)
+	{
+	  missingData[model] = 1;
+	  countMissingPartitions++;
+	}
+      else
+	{
+	  //if the sequence does not only contain missing data copy it directly to the data structure 
+	  //for the output alignment
+	  memcpy(&alignmentGuess[tr->cdta->endsite * (p->number - 1) + tr->partitionData[model].lower], tip, sizeof(unsigned char) *  tr->partitionData[model].width);
+	}
+    }
+  
+  //if the sequence at node p has at least one partition for which it only contains 
+  //missing data predict it :-) 
+
+  if(countMissingPartitions > 0)
+    {
+      int 
+	wgtsum = 0;
+
+      double 	
+	branchLength = 0.0;
+
+      *count = *count + 1;
+     
+      //git accumulated number of sites for those parts of the sequence 
+      //for which there is data 
+
+      for(model = 0; model < tr->NumberOfModels; model++)	
+	if(missingData[model] == 0)
+	  wgtsum += tr->partitionData[model].width;
+
+      //loop over partitions for which we have data and collect their per partition branch lengths
+      //we also compute a weighted (using the partition width) average of this branch length 
+      ///which we then use to predict the missing data 
+
+      for(model = 0; model < tr->NumberOfModels; model++)
+	{
+	  if(missingData[model] == 0)
+	    {
+	      double 
+		factor = (double)tr->partitionData[model].width / (double)wgtsum,
+		z = p->z[model];	      
+
+	      if(z < zmin)
+		z = zmin;
+
+	      z = -log(z) * tr->fracchanges[model];
+	      
+	      branchLength += z * factor;
+	    }
+	}     
+      
+      //properly re-orient the likelihood vector at inner node p->back
+
+      newviewGeneric(tr, p->back);
+
+      //now loop over the partition sand predict the sequences 
+
+      for(model = 0; model < tr->NumberOfModels; model++)
+	{
+	  if(missingData[model] == 1)
+	    {	
+	      //states we need to evaluate for binary, DNA, and protein data 
+	      unsigned char
+		binStates[2] = {1, 2};
+	      unsigned char
+		dnaStates[4] = {1, 2, 4, 8};
+	      unsigned char
+		proteinStates[20] = {0, 1, 2 , 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19};	      
+		      	           	      	      
+	      int 	
+		mismatches = 0;
+		
+	      
+	      size_t
+		i,
+		width = tr->partitionData[model].width,
+		states = (size_t)tr->partitionData[model].states;
+
+	      unsigned char 
+		*partitionStates,
+		*originalSequence = (unsigned char*)rax_malloc(sizeof(unsigned char) * width),		
+		*bestState = (unsigned char *)rax_calloc(width, sizeof(unsigned char)),
+		undetermined = getUndetermined(tr->partitionData[model].dataType);
+
+	      double
+		*likes = (double*)rax_malloc(sizeof(double) * width),	       
+		oldBranch = p->z[model],
+		targetBranch = exp(-(branchLength)/ tr->fracchanges[model]);
+
+	      //save the original (missing) sequence 
+
+	      memcpy(originalSequence, tr->partitionData[model].yVector[p->number], sizeof(unsigned char) * width);	      
+	     
+	      //initialize an array for storing per site log likelihoods 
+
+	      for(i = 0; i < width; i++)
+		likes[i] = unlikely;	     
+
+	      //now set the branch length to the branch we calculated above 
+
+	      p->z[model] = targetBranch;
+	      p->back->z[model] = targetBranch;
+
+	      //set the state array pointer to the datatype of the present partition 
+
+	      switch(states)
+		{
+		case 2: 
+		  partitionStates = binStates;
+		  break;
+		case 4:
+		  partitionStates = dnaStates;
+		  break;
+		case 20:
+		  partitionStates = proteinStates;
+		  break;
+		default:
+		  assert(0);
+		}
+
+	      //loop over all states in our data type, for DNA there are four states corresponding to A, C, G, T
+	      //note that, I have omitted checking ambiguous states 
+
+	      for(i = 0; i < states; i++)
+		{
+		  size_t
+		    index,
+		    j;
+		  
+		  //set all sites of the missing sequence to a state, for instance to A
+
+		  for(j = 0; j < width; j++)
+		    tr->partitionData[model].yVector[p->number][j] = partitionStates[i];
+
+		  evaluateGenericVector(tr, p);
+
+		  //compute the per-site log likelihoods 
+
+		  //store the state yielding the best per-site likelihood 
+		  //for each site 
+
+		  for(j = tr->partitionData[model].lower, index = 0; j <  tr->partitionData[model].upper; j++, index++)
+		    {
+		      if(tr->perSiteLL[j] > likes[index])
+			{
+			  likes[index] = tr->perSiteLL[j];
+			  bestState[index] = partitionStates[i];
+			}
+		    }
+		}
+	      
+	      //copy the sequence we have estimated to the output alignment data structire 
+
+	      memcpy(&alignmentGuess[tr->cdta->endsite * (p->number - 1) + tr->partitionData[model].lower], bestState, sizeof(unsigned char) *  tr->partitionData[model].width);
+
+	      //when doing the systematic testing we can directly compute the hamming distance since we have the true sequence 
+
+	      if(testIt)
+		{
+		  for(i = 0; i < width; i++)
+		    {
+		      if(originalSequence[i] != bestState[i] && originalSequence[i] != undetermined)		    		     
+			mismatches++;		
+		    }	      
+		  
+		  partitionStats[model] += (double)mismatches / (double)width;			     
+		}
+
+	      //repair the branch length, set it to the old value 
+
+	      p->z[model]       = oldBranch;
+	      p->back->z[model] = oldBranch;
+
+	      //restore the old sequence 
+
+	      memcpy(tr->partitionData[model].yVector[p->number], originalSequence, sizeof(unsigned char) * width);
+
+	      //free the arrays we have allocated 
+
+	      rax_free(originalSequence);
+	      rax_free(bestState);
+	      rax_free(likes);	      
+	    }
+	}
+
+    }
+ 
+  rax_free(missingData);
+}
+
+// recursive function that traverses the tree to visit all taxa
+
+static void analyzeMissing(tree *tr, nodeptr p, int *count, int whichPartition, double *partitionStats, boolean testIt, unsigned char *alignmentGuess)
+{
+  if(isTip(p->number, tr->mxtips))    
+    //check if this tip contains missing data that can be predicted 
+    analyzeTip(p, tr, count, whichPartition, partitionStats, testIt, alignmentGuess);   
+  else
+    {
+      //continue recursion through tree 
+      nodeptr 
+	q = p->next;
+      
+      while(q != p)
+	{
+	  analyzeMissing(tr, q->back, count, whichPartition, partitionStats, testIt, alignmentGuess);
+
+	  q = q->next;
+	}
+
+    }
+}
+
+//function to predict missing sequences 
+
+static void predictMissingSequence(tree *tr, analdef *adef)
+{
+  char 
+    fileName[1024];
+
+  FILE
+    *f;
+  
+  int
+    i,   
+    model;
+
+  size_t
+    j;
+
+  double 
+    averageError = 0.0,
+    *partitionStats = (double *)rax_malloc(sizeof(double) * tr->NumberOfModels);
+
+  unsigned char 
+    *alignmentGuess = (unsigned char*)rax_malloc(sizeof(unsigned char) * tr->mxtips * tr->cdta->endsite);
+
+  /* when systematic test is set to TRUE it will guess all sequences in the alignment regardeless of 
+     whether they are missing or not */
+  
+  boolean 
+    systematicTest = FALSE;
+  
+  //-M must be set in the command line and we need to use a partition file
+
+  assert(tr->numBranches == tr->NumberOfModels && tr->NumberOfModels > 0);
+
+  //initially optimize the model parameters of the given tree 
+
+  modOpt(tr, adef, TRUE, adef->likelihoodEpsilon);
+  printBothOpen("After model optimization on the tree: %f with %d taxa\n", tr->likelihood, tr->mxtips);
+
+  assert(!isTip(tr->start->back->number, tr->mxtips));
+
+
+  if(systematicTest)
+    {
+      // do the systametic test where we estimate each sequence regardeless of wether it is there or not
+      // we loop over all partitions and estimate the sequences for one partition at a time 
+
+      for(model = 0; model < tr->NumberOfModels; model++)
+	{
+	  int 
+	    count = 0;
+	  
+	  partitionStats[model] = 0.0;
+	  
+	  //recursively traverse the tree to estimate the sequence, starting at nodes tr->start 
+	  //and tr->start->back 
+	  
+	  analyzeMissing(tr, tr->start, &count, model, partitionStats,       systematicTest, alignmentGuess);
+	  analyzeMissing(tr, tr->start->back, &count, model, partitionStats, systematicTest, alignmentGuess);
+	  
+
+	  //make sure that we have made a sequence guess for all sequences 
+	  assert(count == tr->mxtips);
+	 
+	  //print average error (hamming distances) that does not count N <-> A|C|G|T as a mismtach over
+	  //all sequences in this partition 
+
+	  printBothOpen("Found and predicted sequences for %d taxa at partition %d average error %f\n", count, model, partitionStats[model] / (double)count);
+	  
+	  //sum the average error 
+
+	  averageError +=  partitionStats[model] / (double)count;		  
+	}
+      
+      //print out the average prediction error over all sequences and all partitions 
+      printBothOpen("Average prediction error: %f\n\n", averageError / (double)tr->NumberOfModels);
+    }
+  else
+    {
+      int 
+	count = 0;
+
+      //standard procedure for guessing sequences for which there really is missing data
+
+      analyzeMissing(tr, tr->start,       &count, -1, (double*)NULL, systematicTest, alignmentGuess);
+      analyzeMissing(tr, tr->start->back, &count, -1, (double*)NULL, systematicTest, alignmentGuess); 
+
+      assert(count <= tr->mxtips);
+      
+      printBothOpen("Guessed missing sequeces for %d taxa\n\n", count);
+    }
+
+  // print out the guessed complete alignment 
+ 
+  strcpy(fileName, workdir);
+  strcat(fileName, "RAxML_SequenceGuesstimate.");
+  strcat(fileName, run_id);
+  
+  f = myfopen(fileName, "w");
+
+  fprintf(f, "%d %d\n", tr->mxtips, tr->cdta->endsite);
+
+  for(i = 0; i < tr->mxtips; i++)
+    {
+      fprintf(f, "%s ", tr->nameList[i + 1]);
+
+      unsigned char 
+	*currentTip = &alignmentGuess[tr->cdta->endsite * i];
+
+      for(model = 0; model < tr->NumberOfModels; model++)
+	{
+	  for(j = tr->partitionData[model].lower; j < tr->partitionData[model].upper; j++)	    
+	    fprintf(f, "%c", getInverseMeaning(tr->partitionData[model].dataType, currentTip[j]));	    
+	}
+      fprintf(f, "\n");
+    }
+	      
+  fclose(f);
+
+  printBothOpen("An alignment containing guesses for the missing data has been written to file: %s\n\n", fileName);
+  
+  rax_free(alignmentGuess);
+  rax_free(partitionStats);
+  
+  exit(0);
+}
+
+
+/*******************************************************/
+
 
 int main (int argc, char *argv[])
 {
-  rawdata      *rdta;
-  cruncheddata *cdta;
-  tree         *tr;
-  analdef      *adef;
-  int
-    i,
-    countGTR = 0,
-    countOtherModel = 0;
-
-#if (defined(_USE_PTHREADS) && !defined(_PORTABLE_PTHREADS))  
-  pinToCore(0);
-#endif 
- 
 #if (defined(_WAYNE_MPI) || defined (_QUARTET_MPI))
   MPI_Init(&argc, &argv);
   MPI_Comm_rank(MPI_COMM_WORLD, &processID);
@@ -11742,409 +12156,429 @@ int main (int argc, char *argv[])
 #else
   processID = 0;
 #endif
-
-  masterTime = gettime();
-
-  globalArgc = argc;
-  globalArgv = (char **)rax_malloc(sizeof(char *) * argc);
-  for(i = 0; i < argc; i++)
-    globalArgv[i] = argv[i];
-
-
-
-#if ! (defined(__ppc) || defined(__powerpc__) || defined(PPC))
-
-  /* 
-     David Defour's command  
-     _mm_setcsr( _mm_getcsr() | (_MM_FLUSH_ZERO_ON | MM_DAZ_ON));  
-  */
-
-   _mm_setcsr( _mm_getcsr() | _MM_FLUSH_ZERO_ON);
-
+  {
+    rawdata      *rdta;
+    cruncheddata *cdta;
+    tree         *tr;
+    analdef      *adef;
+    int
+      i,
+      countGTR = 0,
+      countOtherModel = 0,
+      countAscBias = 0;
+    
+#if (defined(_USE_PTHREADS) && !defined(_PORTABLE_PTHREADS))  
+    pinToCore(0);
 #endif 
+    
+    
 
-  adef = (analdef *)rax_malloc(sizeof(analdef));
-  rdta = (rawdata *)rax_malloc(sizeof(rawdata));
-  cdta = (cruncheddata *)rax_malloc(sizeof(cruncheddata));
-  tr   = (tree *)rax_malloc(sizeof(tree));
+    masterTime = gettime();
 
-  /* initialize lookup table for fast bit counter */
-
-  compute_bits_in_16bits();
-
-  initAdef(adef);
-  get_args(argc,argv, adef, tr); 
-  
-
-  if(adef->readTaxaOnly)  
-    {
-      if(adef->mode == PLAUSIBILITY_CHECKER || adef->mode == ROOT_TREE)
-	extractTaxaFromTopology(tr, rdta, cdta, tree_file);   
-      else
-	extractTaxaFromTopology(tr, rdta, cdta, bootStrapFile);
-    }
- 
-  getinput(adef, rdta, cdta, tr);
-
-  checkOutgroups(tr, adef);
-  makeFileNames();
-
+    globalArgc = argc;
+    globalArgv = (char **)rax_malloc(sizeof(char *) * argc);
+    for(i = 0; i < argc; i++)
+      globalArgv[i] = argv[i];
+    
+    
+    
+#if ! (defined(__ppc) || defined(__powerpc__) || defined(PPC))
+    
+    /* 
+       David Defour's command  
+       _mm_setcsr( _mm_getcsr() | (_MM_FLUSH_ZERO_ON | MM_DAZ_ON));  
+    */
+    
+    _mm_setcsr( _mm_getcsr() | _MM_FLUSH_ZERO_ON);
+    
+#endif 
+    
+    adef = (analdef *)rax_malloc(sizeof(analdef));
+    rdta = (rawdata *)rax_malloc(sizeof(rawdata));
+    cdta = (cruncheddata *)rax_malloc(sizeof(cruncheddata));
+    tr   = (tree *)rax_malloc(sizeof(tree));
+    
+    /* initialize lookup table for fast bit counter */
+    
+    compute_bits_in_16bits();
+    
+    initAdef(adef);
+    get_args(argc,argv, adef, tr); 
+    
+    
+    if(adef->readTaxaOnly)  
+      {
+	if(adef->mode == PLAUSIBILITY_CHECKER || adef->mode == ROOT_TREE)
+	  extractTaxaFromTopology(tr, rdta, cdta, tree_file);   
+	else
+	  extractTaxaFromTopology(tr, rdta, cdta, bootStrapFile);
+      }
+    
+    getinput(adef, rdta, cdta, tr);
+    
+    checkOutgroups(tr, adef);
+    makeFileNames();
+    
 #if (defined(_WAYNE_MPI) || defined (_QUARTET_MPI))
-  MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Barrier(MPI_COMM_WORLD);
 #endif
-
-  if(adef->useInvariant && adef->likelihoodEpsilon > 0.001)
-    {
-      printBothOpen("\nYou are using a proportion of Invariable sites estimate, although I don't\n");
-      printBothOpen("like it. The likelihood epsilon \"-f e\" will be automatically lowered to 0.001\n");
-      printBothOpen("to avoid unfavorable effects caused by simultaneous optimization of alpha and P-Invar\n");
-
-      adef->likelihoodEpsilon = 0.001;
-    }
-
-
-  /*
-     switch back to model without secondary structure for all this
-     checking stuff
-  */
-
-  if(adef->useSecondaryStructure)
-    {
-      tr->dataVector    = tr->initialDataVector;
-      tr->partitionData = tr->initialPartitionData;
-      tr->NumberOfModels--;
-    }
-
-  if(adef->useExcludeFile)
-    {
-      handleExcludeFile(tr, adef, rdta);
-      exit(0);
-    }
-
- 
-  if(!adef->readTaxaOnly && adef->mode != FAST_SEARCH && adef->mode != SH_LIKE_SUPPORTS)
-    checkSequences(tr, rdta, adef);
+    
+    if(adef->useInvariant && adef->likelihoodEpsilon > 0.001)
+      {
+	printBothOpen("\nYou are using a proportion of Invariable sites estimate, although I don't\n");
+	printBothOpen("like it. The likelihood epsilon \"-f e\" will be automatically lowered to 0.001\n");
+	printBothOpen("to avoid unfavorable effects caused by simultaneous optimization of alpha and P-Invar\n");
+	
+	adef->likelihoodEpsilon = 0.001;
+      }
+    
+    
+    /*
+      switch back to model without secondary structure for all this
+      checking stuff
+    */
+    
+    if(adef->useSecondaryStructure)
+      {
+	tr->dataVector    = tr->initialDataVector;
+	tr->partitionData = tr->initialPartitionData;
+	tr->NumberOfModels--;
+      }
+    
+    if(adef->useExcludeFile)
+      {
+	handleExcludeFile(tr, adef, rdta);
+	exit(0);
+      }
+    
+    
+    if(!adef->readTaxaOnly && adef->mode != FAST_SEARCH && adef->mode != SH_LIKE_SUPPORTS)
+      checkSequences(tr, rdta, adef);
+    
+    
+    if(adef->mode == SPLIT_MULTI_GENE)
+      {
+	splitMultiGene(tr, rdta);
+	exit(0);
+      }
+    
+    if(adef->mode == CHECK_ALIGNMENT)
+      {
+	printf("Alignment format can be read by RAxML \n");
+	exit(0);
+      }
+    
+    /*
+      switch back to model with secondary structure for all this
+      checking stuff
+    */
+    
+    if(adef->useSecondaryStructure && !adef->readTaxaOnly)
+      {
+	tr->dataVector    = tr->extendedDataVector;
+	tr->partitionData = tr->extendedPartitionData;
+	tr->NumberOfModels++;
+	/* might as well rax_free the initial structures here */
+	
+      }
   
+    if(!adef->readTaxaOnly)
+      {
+	int        
+	  countNonSev = 0,
+	  countLG4 =0;
+	
+	makeweights(adef, rdta, cdta, tr);
+	makevalues(rdta, cdta, tr, adef);      
+	
+	for(i = 0; i < tr->NumberOfModels; i++)
+	  {
+	    if(tr->partitionData[i].ascBias)
+	      countAscBias++;
+	    
+	    if(!(tr->partitionData[i].dataType == AA_DATA || tr->partitionData[i].dataType == DNA_DATA))
+	      countNonSev++;
+	    
+	    if(tr->partitionData[i].protModels == LG4 || tr->partitionData[i].protModels == LG4X)
+	      countLG4++;
+	    
+	    if(tr->partitionData[i].dataType == AA_DATA)
+	      {
+		if(tr->partitionData[i].protModels == GTR || tr->partitionData[i].protModels == GTR_UNLINKED)
+		  countGTR++;
+		else
+		  countOtherModel++;
+	      }
+	  }
+	
+	if(countLG4 > 0)
+	  {
+	    if(tr->saveMemory)
+	      {
+		printf("Error: the LG4 substitution model does not work in combination with the \"-U\" memory saving flag!\n\n");	  
+		errorExit(-1);
+	      }
+	    
+	    if(adef->useInvariant)
+	      {
+		printf("Error: the LG4 substitution model does not work for proportion of invariavble sites estimates!\n\n");	  
+		errorExit(-1);
+	      }
+	    
+	    if(isCat(adef))
+	      {
+		printf("Error: the LG4 substitution model does not work with the CAT model of rate heterogeneity!\n\n");	  
+		errorExit(-1);	    
+	      }
+	  }
+	
+	if(tr->saveMemory && countNonSev > 0)
+	  {
+	    printf("\nError, you want to use the SEV-based memory saving technique for large gappy datasets with missing data.\n");
+	    printf("However, this is only implelemented for DNA and protein data partitions, one of your partitions is neither DNA\n");
+	    printf("nor protein data ... exiting to prevent bad things from happening ;-) \n\n");
+	    
+	    errorExit(-1);
+	  }
+	
+	
+	if(countGTR > 0 && countOtherModel > 0)
+	  {
+	    printf("Error, it is only allowed to conduct partitioned AA analyses\n");
+	    printf("with a GTR model of AA substitution, if not all AA partitions are assigned\n");
+	    printf("the GTR or GTR_UNLINKED model.\n\n");
+	    
+	    printf("The following partitions do not use GTR:\n");
+	    
+	    for(i = 0; i < tr->NumberOfModels; i++)
+	      {
+		if(tr->partitionData[i].dataType == AA_DATA && (tr->partitionData[i].protModels != GTR || tr->partitionData[i].protModels != GTR_UNLINKED))
+		  printf("Partition %s\n", tr->partitionData[i].partitionName);
+	      }
+	    printf("exiting ...\n");
+	    errorExit(-1);
+	  }
+	
+	if(countGTR > 0 && tr->NumberOfModels > 1)
+	  {
+	    FILE *info = myfopen(infoFileName, "ab");
+	    
+	    printBoth(info, "You are using the GTR model of AA substitution!\n");
+	    printBoth(info, "GTR parameters for AA substiution will automatically be estimated\n");
+	    printBoth(info, "either jointly (GTR params will be linked) or independently (when using GTR_UNLINKED) across all partitions.\n");
+	    printBoth(info, "WARNING: you may be over-parametrizing the model!\n\n\n");
+	    
+	    fclose(info);
+	  }	
+      }
 
-  if(adef->mode == SPLIT_MULTI_GENE)
-    {
-      splitMultiGene(tr, rdta);
-      exit(0);
-    }
-
-  if(adef->mode == CHECK_ALIGNMENT)
-    {
-      printf("Alignment format can be read by RAxML \n");
-      exit(0);
-    }
-
-  /*
-     switch back to model with secondary structure for all this
-     checking stuff
-  */
-
-  if(adef->useSecondaryStructure && !adef->readTaxaOnly)
-    {
-      tr->dataVector    = tr->extendedDataVector;
-      tr->partitionData = tr->extendedPartitionData;
-      tr->NumberOfModels++;
-      /* might as well rax_free the initial structures here */
-
-    }
+    if(adef->mode == CLASSIFY_ML || adef->mode == CLASSIFY_MP)              
+      tr->innerNodes = (size_t)(countTaxaInTopology() - 1);   
+    else
+      tr->innerNodes = tr->mxtips;
   
-  if(!adef->readTaxaOnly)
-    {
-      int 
-	countAscBias = 0,
-	countNonSev = 0,
-	countLG4 =0;
+    setRateHetAndDataIncrement(tr, adef);
 
-      makeweights(adef, rdta, cdta, tr);
-      makevalues(rdta, cdta, tr, adef);      
-
-      for(i = 0; i < tr->NumberOfModels; i++)
-	{
-	  if(tr->partitionData[i].ascBias)
-	    countAscBias++;
-
-	  if(!(tr->partitionData[i].dataType == AA_DATA || tr->partitionData[i].dataType == DNA_DATA))
-	    countNonSev++;
-
-	  if(tr->partitionData[i].protModels == LG4 || tr->partitionData[i].protModels == LG4X)
-	    countLG4++;
-
-	  if(tr->partitionData[i].dataType == AA_DATA)
-	    {
-	      if(tr->partitionData[i].protModels == GTR || tr->partitionData[i].protModels == GTR_UNLINKED)
-		countGTR++;
-	      else
-		countOtherModel++;
-	    }
-	}
-
-      if(countLG4 > 0)
-	{
-	  if(tr->saveMemory)
-	    {
-	      printf("Error: the LG4 substitution model does not work in combination with the \"-U\" memory saving flag!\n\n");	  
-	      errorExit(-1);
-	    }
-
-	  if(adef->useInvariant)
-	    {
-	      printf("Error: the LG4 substitution model does not work for proportion of invariavble sites estimates!\n\n");	  
-	      errorExit(-1);
-	    }
-
-	  if(isCat(adef))
-	    {
-	      printf("Error: the LG4 substitution model does not work with the CAT model of rate heterogeneity!\n\n");	  
-	      errorExit(-1);	    
-	    }
-	}
-
-      if(tr->saveMemory && countNonSev > 0)
-	{
-	  printf("\nError, you want to use the SEV-based memory saving technique for large gappy datasets with missing data.\n");
-	  printf("However, this is only implelemented for DNA and protein data partitions, one of your partitions is neither DNA\n");
-	  printf("nor protein data ... exiting to prevent bad things from happening ;-) \n\n");
-
-	  errorExit(-1);
-	}
-
-
-      if(countGTR > 0 && countOtherModel > 0)
-	{
-	  printf("Error, it is only allowed to conduct partitioned AA analyses\n");
-	  printf("with a GTR model of AA substitution, if not all AA partitions are assigned\n");
-	  printf("the GTR or GTR_UNLINKED model.\n\n");
-	  
-	  printf("The following partitions do not use GTR:\n");
-	  
-	  for(i = 0; i < tr->NumberOfModels; i++)
-	    {
-	      if(tr->partitionData[i].dataType == AA_DATA && (tr->partitionData[i].protModels != GTR || tr->partitionData[i].protModels != GTR_UNLINKED))
-		printf("Partition %s\n", tr->partitionData[i].partitionName);
-	    }
-	  printf("exiting ...\n");
-	  errorExit(-1);
-	}
-
-      if(countGTR > 0 && tr->NumberOfModels > 1)
-	{
-	  FILE *info = myfopen(infoFileName, "ab");
-
-	  printBoth(info, "You are using the GTR model of AA substitution!\n");
-	  printBoth(info, "GTR parameters for AA substiution will automatically be estimated\n");
-	  printBoth(info, "either jointly (GTR params will be linked) or independently (when using GTR_UNLINKED) across all partitions.\n");
-	  printBoth(info, "WARNING: you may be over-parametrizing the model!\n\n\n");
-
-	  fclose(info);
-	}
-
-      if(countAscBias > 0)
-	checkAscBias(tr);
-    }
-
-  if(adef->mode == CLASSIFY_ML || adef->mode == CLASSIFY_MP)              
-    tr->innerNodes = (size_t)(countTaxaInTopology() - 1);   
-  else
-    tr->innerNodes = tr->mxtips;
-
-  
-  setRateHetAndDataIncrement(tr, adef);
+    if(countAscBias > 0 && !adef->readTaxaOnly)
+      checkAscBias(tr);
 
 #ifdef _USE_PTHREADS
-  startPthreads(tr);
-  masterBarrier(THREAD_INIT_PARTITION, tr);
-  if(!adef->readTaxaOnly)  
-    masterBarrier(THREAD_ALLOC_LIKELIHOOD, tr);
+    startPthreads(tr);
+    masterBarrier(THREAD_INIT_PARTITION, tr);
+    if(!adef->readTaxaOnly)  
+      masterBarrier(THREAD_ALLOC_LIKELIHOOD, tr);
 #else
-  if(!adef->readTaxaOnly)  
-    allocNodex(tr); 
+    if(!adef->readTaxaOnly)  
+      allocNodex(tr);
 #endif
-
-  printModelAndProgramInfo(tr, adef, argc, argv);
-
-  switch(adef->mode)
-    {  
-    case CLASSIFY_MP:
-      getStartingTree(tr, adef);
-      assert(0);
-      break;
-    case CLASSIFY_ML:
-      if(adef->useBinaryModelFile)      
-	readBinaryModel(tr, adef);	       
-      else
-	initModel(tr, rdta, cdta, adef);
       
-      getStartingTree(tr, adef);
-      exit(0);
-      break;
-    case GENERATE_BS:
-      generateBS(tr, adef);
-      exit(0);
-      break;
-    case COMPUTE_ELW:
-      computeELW(tr, adef, bootStrapFile);
-      exit(0);
-      break;
-    case COMPUTE_LHS:
-      initModel(tr, rdta, cdta, adef);
-      computeAllLHs(tr, adef, bootStrapFile);
-      exit(0);
-      break;
-    case COMPUTE_BIPARTITION_CORRELATION:
-      compareBips(tr, bootStrapFile, adef);
-      exit(0);
-      break;
-    case COMPUTE_RF_DISTANCE:
-      computeRF(tr, bootStrapFile, adef);
-      exit(0);
-      break;
-    case BOOTSTOP_ONLY:
-      computeBootStopOnly(tr, bootStrapFile, adef);
-      exit(0);
-      break;
-    case CONSENSUS_ONLY:      
-      if(adef->leaveDropMode)
-	computeRogueTaxa(tr, bootStrapFile, adef);
-      else
-	computeConsensusOnly(tr, bootStrapFile, adef, adef->calculateIC);
-      exit(0);
-      break;
-    case DISTANCE_MODE:
-      initModel(tr, rdta, cdta, adef);
-      getStartingTree(tr, adef);
-      computeDistances(tr, adef);
-      break;
-    case  PARSIMONY_ADDITION:
-      initModel(tr, rdta, cdta, adef);
-      getStartingTree(tr, adef);
-      printStartingTree(tr, adef, TRUE);
-      break;
-    case PER_SITE_LL:
-      initModel(tr, rdta, cdta, adef);
-      computePerSiteLLs(tr, adef, bootStrapFile);
-      break;
-    case TREE_EVALUATION:
-      initModel(tr, rdta, cdta, adef);
+      printModelAndProgramInfo(tr, adef, argc, argv);
       
-      getStartingTree(tr, adef);      
-      
-      if(adef->likelihoodTest)
-	computeLHTest(tr, adef, bootStrapFile);
-      else
-	{ 
-	  if(adef->useBinaryModelFile)	 	 
-	    {
-	      readBinaryModel(tr, adef);
-	      evaluateGenericInitrav(tr, tr->start);	      
-	      treeEvaluate(tr, 2);
-	    }
+      switch(adef->mode)
+	{  
+	case CLASSIFY_MP:
+	  getStartingTree(tr, adef);
+	  assert(0);
+	  break;
+	case CLASSIFY_ML:
+	  if(adef->useBinaryModelFile)      
+	    readBinaryModel(tr, adef);	       
 	  else
-	    {	      
-	      modOpt(tr, adef, TRUE, adef->likelihoodEpsilon);	  
-	      writeBinaryModel(tr, adef);
+	    initModel(tr, rdta, cdta, adef);
+	  
+	  getStartingTree(tr, adef);
+	  exit(0);
+	  break;
+	case GENERATE_BS:
+	  generateBS(tr, adef);
+	  exit(0);
+	  break;
+	case COMPUTE_ELW:
+	  computeELW(tr, adef, bootStrapFile);
+	  exit(0);
+	  break;
+	case COMPUTE_LHS:
+	  initModel(tr, rdta, cdta, adef);
+	  computeAllLHs(tr, adef, bootStrapFile);
+	  exit(0);
+	  break;
+	case COMPUTE_BIPARTITION_CORRELATION:
+	  compareBips(tr, bootStrapFile, adef);
+	  exit(0);
+	  break;
+	case COMPUTE_RF_DISTANCE:
+	  computeRF(tr, bootStrapFile, adef);
+	  exit(0);
+	  break;
+	case BOOTSTOP_ONLY:
+	  computeBootStopOnly(tr, bootStrapFile, adef);
+	  exit(0);
+	  break;
+	case CONSENSUS_ONLY:      
+	  if(adef->leaveDropMode)
+	    computeRogueTaxa(tr, bootStrapFile, adef);
+	  else
+	    computeConsensusOnly(tr, bootStrapFile, adef, adef->calculateIC);
+	  exit(0);
+	  break;
+	case DISTANCE_MODE:
+	  initModel(tr, rdta, cdta, adef);
+	  getStartingTree(tr, adef);
+	  computeDistances(tr, adef);
+	  break;
+	case  PARSIMONY_ADDITION:
+	  initModel(tr, rdta, cdta, adef);
+	  getStartingTree(tr, adef);
+	  printStartingTree(tr, adef, TRUE);
+	  break;
+	case PER_SITE_LL:
+	  initModel(tr, rdta, cdta, adef);
+	  computePerSiteLLs(tr, adef, bootStrapFile);
+	  break;
+	case MISSING_SEQUENCE_PREDICTION:
+	  initModel(tr, rdta, cdta, adef);      
+	  getStartingTree(tr, adef); 
+	  predictMissingSequence(tr, adef);      
+	  break;
+	case TREE_EVALUATION:
+	  initModel(tr, rdta, cdta, adef);
+	  
+	  getStartingTree(tr, adef);      
+	  
+	  if(adef->likelihoodTest)
+	    computeLHTest(tr, adef, bootStrapFile);
+	  else
+	    { 
+	      if(adef->useBinaryModelFile)	 	 
+		{
+		  readBinaryModel(tr, adef);
+		  evaluateGenericInitrav(tr, tr->start);	      
+		  treeEvaluate(tr, 2);
+		}
+	      else
+		{	      
+		  modOpt(tr, adef, TRUE, adef->likelihoodEpsilon);	  
+		  writeBinaryModel(tr, adef);
+		}
+	      
+	      printLog(tr, adef, TRUE);
+	      printResult(tr, adef, TRUE);
 	    }
 	  
-	  printLog(tr, adef, TRUE);
-	  printResult(tr, adef, TRUE);
-	}
-  
-      break;
-    case ANCESTRAL_STATES:
-      initModel(tr, rdta, cdta, adef);
-      
-      getStartingTree(tr, adef);
-      
-      modOpt(tr, adef, TRUE, adef->likelihoodEpsilon);
-       
-      evaluateGenericInitrav(tr, tr->start);                                       	                  
-      
-      computeAncestralStates(tr, tr->likelihood);
-      break;
-    case  QUARTET_CALCULATION:                                             	                        
-      computeQuartets(tr, adef, rdta, cdta);
-      break;
-    case THOROUGH_OPTIMIZATION:
-      thoroughTreeOptimization(tr, adef, rdta, cdta);
-      break;
-    case CALC_BIPARTITIONS:      
-      calcBipartitions(tr, adef, tree_file, bootStrapFile);
-      break;
-    case CALC_BIPARTITIONS_IC:
-      calcBipartitions_IC(tr, adef, tree_file, bootStrapFile);
-      break;
-    case BIG_RAPID_MODE:
-      if(adef->boot)
-	doBootstrap(tr, adef, rdta, cdta);
-      else
-	{
-	  if(adef->rapidBoot)
+	  break;
+	case ANCESTRAL_STATES:
+	  initModel(tr, rdta, cdta, adef);
+	  
+	  getStartingTree(tr, adef);
+	  
+	  modOpt(tr, adef, TRUE, adef->likelihoodEpsilon);
+	  
+	  evaluateGenericInitrav(tr, tr->start);                                       	                  
+	  
+	  computeAncestralStates(tr, tr->likelihood);
+	  break;
+	case  QUARTET_CALCULATION:                                             	                        
+	  computeQuartets(tr, adef, rdta, cdta);
+	  break;
+	case THOROUGH_OPTIMIZATION:
+	  thoroughTreeOptimization(tr, adef, rdta, cdta);
+	  break;
+	case CALC_BIPARTITIONS:      
+	  calcBipartitions(tr, adef, tree_file, bootStrapFile);
+	  break;
+	case CALC_BIPARTITIONS_IC:
+	  calcBipartitions_IC(tr, adef, tree_file, bootStrapFile);
+	  break;
+	case BIG_RAPID_MODE:
+	  if(adef->boot)
+	    doBootstrap(tr, adef, rdta, cdta);
+	  else
 	    {
-	      initModel(tr, rdta, cdta, adef);
-	      doAllInOne(tr, adef);
+	      if(adef->rapidBoot)
+		{
+		  initModel(tr, rdta, cdta, adef);
+		  doAllInOne(tr, adef);
+		}
+	      else	    	    
+		doInference(tr, adef, rdta, cdta);	     	
 	    }
-	  else	    	    
-	    doInference(tr, adef, rdta, cdta);	     	
+	  break;
+	case MORPH_CALIBRATOR:
+	  initModel(tr, rdta, cdta, adef);
+	  getStartingTree(tr, adef);
+	  evaluateGenericInitrav(tr, tr->start);
+	  modOpt(tr, adef, TRUE, adef->likelihoodEpsilon);
+	  morphologicalCalibration(tr, adef);
+	  break;       
+	case FAST_SEARCH:
+	  fastSearch(tr, adef, rdta, cdta);
+	  exit(0);
+	case SH_LIKE_SUPPORTS:
+	  shSupports(tr, adef, rdta, cdta);
+	  break;    
+	case EPA_SITE_SPECIFIC_BIAS:
+	  initModel(tr, rdta, cdta, adef);
+	  getStartingTree(tr, adef);      
+	  modOpt(tr, adef, TRUE, adef->likelihoodEpsilon);
+	  computePlacementBias(tr, adef);
+	  break;
+	case OPTIMIZE_BR_LEN_SCALER:
+	  initModel(tr, rdta, cdta, adef);
+	  
+	  getStartingTree(tr, adef);      
+	  evaluateGenericInitrav(tr, tr->start);
+	  modOpt(tr, adef, FALSE, adef->likelihoodEpsilon);	  
+	  
+	  printBothOpen("Likelihood: %f\n", tr->likelihood);
+	  
+	  break;
+	case ANCESTRAL_SEQUENCE_TEST:
+	  initModel(tr, rdta, cdta, adef);
+	  
+	  getStartingTree(tr, adef);  
+	  
+	  evaluateGenericInitrav(tr, tr->start);
+	  modOpt(tr, adef, FALSE, adef->likelihoodEpsilon);	
+	  
+	  ancestralSequenceTest(tr);
+	  break;
+	case PLAUSIBILITY_CHECKER:
+	  plausibilityChecker(tr, adef);
+	  exit(0);
+	  break;
+	case ROOT_TREE:
+	  rootTree(tr, adef);    
+	  break;
+	default:
+	  assert(0);
 	}
-      break;
-    case MORPH_CALIBRATOR:
-      initModel(tr, rdta, cdta, adef);
-      getStartingTree(tr, adef);
-      evaluateGenericInitrav(tr, tr->start);
-      modOpt(tr, adef, TRUE, adef->likelihoodEpsilon);
-      morphologicalCalibration(tr, adef);
-      break;       
-    case FAST_SEARCH:
-      fastSearch(tr, adef, rdta, cdta);
-      exit(0);
-    case SH_LIKE_SUPPORTS:
-      shSupports(tr, adef, rdta, cdta);
-      break;    
-    case EPA_SITE_SPECIFIC_BIAS:
-      initModel(tr, rdta, cdta, adef);
-      getStartingTree(tr, adef);      
-      modOpt(tr, adef, TRUE, adef->likelihoodEpsilon);
-      computePlacementBias(tr, adef);
-      break;
-    case OPTIMIZE_BR_LEN_SCALER:
-      initModel(tr, rdta, cdta, adef);
       
-      getStartingTree(tr, adef);      
-      evaluateGenericInitrav(tr, tr->start);
-      modOpt(tr, adef, FALSE, adef->likelihoodEpsilon);	  
-      
-      printBothOpen("Likelihood: %f\n", tr->likelihood);
-
-      break;
-    case ANCESTRAL_SEQUENCE_TEST:
-      initModel(tr, rdta, cdta, adef);
-      
-      getStartingTree(tr, adef);  
-      
-      evaluateGenericInitrav(tr, tr->start);
-      modOpt(tr, adef, FALSE, adef->likelihoodEpsilon);	
-      
-      ancestralSequenceTest(tr);
-      break;
-    case PLAUSIBILITY_CHECKER:
-      plausibilityChecker(tr, adef);
-      exit(0);
-      break;
-    case ROOT_TREE:
-      rootTree(tr, adef);    
-      break;
-    default:
-      assert(0);
-    }
-
-  finalizeInfoFile(tr, adef);
+      finalizeInfoFile(tr, adef);
 
 #if (defined(_WAYNE_MPI) || defined (_QUARTET_MPI))
-  MPI_Finalize();
+      MPI_Finalize();
 #endif
+  }
 
   return 0;
 }

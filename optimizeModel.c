@@ -3246,6 +3246,9 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
   freeLinkageList(rateList);
   freeLinkageList(invarList);  
   freeLinkageList(scalerList);
+  freeLinkageList(freqList);
+
+
 }
 
 

@@ -164,8 +164,8 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "RAxML"
-#define programVersion     "8.0.2"
-#define programDate        "Jan 14 2014"
+#define programVersion     "8.0.3"
+#define programDate        "Jan 23 2014"
 
 
 #define  TREE_EVALUATION                 0
@@ -197,6 +197,7 @@
 #define  PLAUSIBILITY_CHECKER            26
 #define  CALC_BIPARTITIONS_IC            27
 #define  ROOT_TREE                       28
+#define  MISSING_SEQUENCE_PREDICTION     29
 
 #define M_GTRCAT         1
 #define M_GTRGAMMA       2
