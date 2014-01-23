@@ -18,7 +18,7 @@ all : raxmlHPC-PTHREADS
 GLOBAL_DEPS = axml.h globalVariables.h rmq.h rmqs.h #mem_alloc.h compiler.h  gcc.h  ll_asm.h  ll_list.h
 
 raxmlHPC-PTHREADS : $(objs)
-	$(CC) -o raxmlHPC-PTHREADS $(objs) $(LIBRARIES) 
+	$(CC) -o  raxmlHPC-PTHREADS $(objs) $(LIBRARIES) 
 
 rmqs.o : rmqs.c $(GLOBAL_DEPS)
 classify.o : classify.c $(GLOBAL_DEPS)
@@ -42,7 +42,7 @@ fastSearch.o : fastSearch.c $(GLOBAL_DEPS)
 leaveDropping.o : leaveDropping.c $(GLOBAL_DEPS)
 rogueEPA.o : rogueEPA.c $(GLOBAL_DEPS)
 ancestralStates.o : ancestralStates.c $(GLOBAL_DEPS)
- mem_alloc.o eigen.o  : mem_alloc.c  $(GLOBAL_DEPS)
+mem_alloc.o eigen.o  : mem_alloc.c  $(GLOBAL_DEPS)
 
 eigen.o : eigen.c $(GLOBAL_DEPS)
 	$(CC) -c -o eigen.o eigen.c 

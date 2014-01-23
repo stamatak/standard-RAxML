@@ -16,7 +16,7 @@ all : raxmlHPC
 GLOBAL_DEPS = axml.h globalVariables.h rmq.h rmqs.h #mem_alloc.h
 
 raxmlHPC : $(objs)
-	$(CC) -o raxmlHPC-AVX2 $(objs) $(LIBRARIES) 
+	$(CC) -o -Qunused-arguments raxmlHPC-AVX2 $(objs) $(LIBRARIES) 
 
 avxLikelihood.o : avxLikelihood.c $(GLOBAL_DEPS)
 		$(CC) $(CFLAGS) -mavx2 -D_FMA -march=native -c -o avxLikelihood.o avxLikelihood.c
