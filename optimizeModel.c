@@ -2132,11 +2132,15 @@ void optRateCatPthreads(tree *tr, double lower_spacing, double upper_spacing, do
 	      const double epsilon = 0.00001;
 	      int k;	      
 	      
+	     
+
 	      tr->cdta->patrat[i] = tr->cdta->patratStored[i];     
 	      initialRate = tr->cdta->patrat[i];
 	      
-	      initialLikelihood = evaluatePartialGeneric(tr, localIndex, initialRate, model); /* i is real i ??? */
 	      
+
+	      initialLikelihood = evaluatePartialGeneric(tr, localIndex, initialRate, model); /* i is real i ??? */
+	     
 	      
 	      leftLH = rightLH = initialLikelihood;
 	      leftRate = rightRate = initialRate;
@@ -2188,6 +2192,8 @@ void optRateCatPthreads(tree *tr, double lower_spacing, double upper_spacing, do
 	      else
 		lhs[i] = initialLikelihood;
 	      
+	     
+
 	      tr->cdta->patratStored[i] = tr->cdta->patrat[i];
 	      localIndex++;
 	    }

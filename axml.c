@@ -7911,7 +7911,7 @@ static void initPartition(tree *tr, tree *localTree, int tid)
          
       localTree->nameList                = tr->nameList;
       localTree->numBranches             = tr->numBranches;
-      localTree->lhs                     = (double*)rax_malloc(sizeof(double)   * localTree->originalCrunchedLength);
+      localTree->lhs                     = tr->lhs;
       localTree->executeModel            = (boolean*)rax_malloc(sizeof(boolean) * localTree->NumberOfModels);
       localTree->perPartitionLH          = (double*)rax_malloc(sizeof(double)   * localTree->NumberOfModels);
       localTree->storedPerPartitionLH    = (double*)rax_malloc(sizeof(double)   * localTree->NumberOfModels);
@@ -7923,13 +7923,13 @@ static void initPartition(tree *tr, tree *localTree, int tid)
 
       localTree->partitionData = (pInfo*)rax_malloc(sizeof(pInfo) * localTree->NumberOfModels);
 
-      /* extend for multi-branch */
-      localTree->td[0].count = 0;
-      localTree->td[0].ti    = (traversalInfo *)rax_malloc(sizeof(traversalInfo) * localTree->mxtips);
+      /* not required any more */
+      //localTree->td[0].count = 0;
+      //localTree->td[0].ti    = (traversalInfo *)rax_malloc(sizeof(traversalInfo) * localTree->mxtips);
 
       localTree->cdta               = (cruncheddata*)rax_malloc(sizeof(cruncheddata));
-      localTree->cdta->patrat       = (double*)rax_malloc(sizeof(double) * localTree->originalCrunchedLength);
-      localTree->cdta->patratStored = (double*)rax_malloc(sizeof(double) * localTree->originalCrunchedLength);      
+      localTree->cdta->patrat       = tr->cdta->patrat;
+      localTree->cdta->patratStored = tr->cdta->patratStored;
 
       localTree->discreteRateCategories = tr->discreteRateCategories;     
 
@@ -8057,23 +8057,7 @@ inline static void sendTraversalInfo(tree *localTree, tree *tr)
 }
 
 
-static void collectDouble(double *dst, double *src, tree *tr, int n, int tid)
-{
-  int 
-    model;
-  
-  size_t
-    i;
 
-  for(model = 0; model < tr->NumberOfModels; model++)
-    {
-      for(i = tr->partitionData[model].lower; i < tr->partitionData[model].upper; i++)
-	{
-	  if(i % (size_t)n == (size_t)tid)
-	    dst[i] = src[i];
-	}
-    }
-}
 
 
 static void broadcastPerSiteRates(tree *tr, tree *localTree)
@@ -8409,10 +8393,7 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 	      localTree->partitionData[model].upper      = tr->partitionData[model].upper;
 	      
 	      localTree->partitionData[model].numberOfCategories      = tr->partitionData[model].numberOfCategories;
-	    }
-
-	  memcpy(localTree->cdta->patrat,        tr->cdta->patrat,      localTree->originalCrunchedLength * sizeof(double));
-	  memcpy(localTree->cdta->patratStored, tr->cdta->patratStored, localTree->originalCrunchedLength * sizeof(double));	  
+	    }	   
 	}     
 
        for(model = 0; model < localTree->NumberOfModels; model++)
@@ -8431,29 +8412,22 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 	 }
       break;    
     case THREAD_RATE_CATS:
-      sendTraversalInfo(localTree, tr);
+      sendTraversalInfo(localTree, tr);    
+      
       if(tid > 0)
 	{
+	  localTree->lhs = tr->lhs;
 	  localTree->lower_spacing = tr->lower_spacing;
 	  localTree->upper_spacing = tr->upper_spacing;
 	}
-
+     
       optRateCatPthreads(localTree, localTree->lower_spacing, localTree->upper_spacing, localTree->lhs, n, tid);
 
-      if(tid > 0)
-	{
-	  collectDouble(tr->cdta->patrat,       localTree->cdta->patrat,         localTree, n, tid);
-	  collectDouble(tr->cdta->patratStored, localTree->cdta->patratStored,   localTree, n, tid);
-	  collectDouble(tr->lhs,                localTree->lhs,                  localTree, n, tid);
-	}
+      
       break;
     case THREAD_COPY_RATE_CATS:
-      if(tid > 0)
-	{	
-	  memcpy(localTree->cdta->patrat,       tr->cdta->patrat,         localTree->originalCrunchedLength * sizeof(double));
-	  memcpy(localTree->cdta->patratStored, tr->cdta->patratStored,   localTree->originalCrunchedLength * sizeof(double));
-	  broadcastPerSiteRates(tr, localTree);
-	}
+      if(tid > 0)		
+	broadcastPerSiteRates(tr, localTree);       
 
       for(model = 0; model < localTree->NumberOfModels; model++)
 	{
@@ -8628,7 +8602,7 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
       break;         
     case THREAD_FREE_VECTORS:
       {	
-	int 
+	size_t 
 	  i;
       
 	for(model = 0; model < localTree->NumberOfModels; model++)
