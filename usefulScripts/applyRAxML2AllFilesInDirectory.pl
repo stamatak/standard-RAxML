@@ -22,9 +22,11 @@ while (my $file = readdir(DIR))
     push(@fileList, $file); 
 }
 
+chdir DIR;
+
 closedir(DIR);
 
-system("cd ".$directory);
+
 
 foreach (@fileList)
 {
@@ -34,6 +36,7 @@ foreach (@fileList)
     {
 	$cmd = $commandLine." -n Analysis.".$string." -s ".$string."\n";
 	print "$cmd";
+	system($cmd);
     }
 
    
