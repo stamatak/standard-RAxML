@@ -3011,6 +3011,8 @@ static void autoProtein(tree *tr)
 
 //#define _DEBUG_MOD_OPT
 
+static void optimizeGTR(tree *tr);
+
 void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilon)
 { 
   int i, model, catOpt = 0; 
@@ -3041,6 +3043,7 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
  
   modelEpsilon = 0.0001;
   
+  //optimizeGTR(tr);
   
   for(i = 0; i < tr->NumberOfModels; i++)
     {
@@ -3317,7 +3320,551 @@ double treeLength(tree *tr, int model)
   return treeLengthRec(tr->start->back, tr, model);
 }
 
+/********************** bfgs optimization ********************************/
+/* most of the code below taken from IQ-Tree http://www.cibiv.at/software/iqtree/
+   
+   Bui Quang Minh, Minh Anh Thi Nguyen, and Arndt von Haeseler (2013) 
+   Ultrafast approximation for phylogenetic bootstrap. 
+   Mol. Biol. Evol., 30:1188-1195. (free reprint, DOI: 10.1093/molbev/mst024)
+   
+*/
+
+static double targetFunk(double *x, int n, tree *tr)
+{
+  int 
+    i;
+
+  for(i = 1; i <= n; i++)
+    setRateModel(tr, 0, x[i], i - 1);  
+  initReversibleGTR(tr, 0);
+  
+  //TODO when optimizing some quantities we actually need to 
+  //only evaluate at the root without re-traversing the entire tree 
+  
+  evaluateGenericInitrav(tr, tr->start);
+  
+  //minh confirm that we are actually really trying to minimize, hence 
+  //reverting the sign of the lnl is correct below?
+
+  return (-1.0 * tr->likelihood);
+}
+
+#define ALF 1.0e-4
+#define TOLX 1.0e-7
+static double maxarg1,maxarg2;
+#define FMAX(a,b) (maxarg1=(a),maxarg2=(b),(maxarg1) > (maxarg2) ?\
+        (maxarg1) : (maxarg2))
+
+static void fixBound(double *x, double *lower, double *upper, int n, tree *tr) 
+{
+  int 
+    i;
+  
+  for (i = 1; i <= n; i++) 
+    {
+      if(x[i] < lower[i])
+	x[i] = lower[i];
+      else 
+	if(x[i] > upper[i])
+	  x[i] = upper[i];
+    }
+}
+
+//minh please confirm that *f just is a single value and not potentially an array?
+
+static void lnsrch(int n, double *xold, double fold, double *g, double *p, double *x,
+                   double *f, double stpmax, int *check, double *lower, double *upper, tree *tr) 
+{
+  int i;
+  
+  double 
+    a,alam,alam2=0,alamin,b,disc,f2=0,fold2=0,rhs1,rhs2,slope,sum,temp,
+    test,tmplam;
+
+  boolean 
+    first_time = TRUE;
+  
+  *check=0;
+  
+  for (sum=0.0,i=1;i<=n;i++) 
+    sum += p[i]*p[i];
+  
+  sum=sqrt(sum);
+
+  if(sum > stpmax)
+    for(i=1;i<=n;i++) 
+      p[i] *= stpmax/sum;
+  
+  for(slope=0.0,i=1;i<=n;i++)
+    slope += g[i]*p[i];
+  
+  test=0.0;
+  
+  for (i=1;i<=n;i++) 
+    {
+      temp=fabs(p[i])/FMAX(fabs(xold[i]),1.0);
+      if(temp > test) 
+	test=temp;
+    }
+  
+  alamin=TOLX/test;
+  alam=1.0;
+  
+  /*
+    int rep = 0;
+    do {
+    for (i=1;i<=n;i++) x[i]=xold[i]+alam*p[i];
+    if (!checkRange(x))
+    alam *= 0.5;
+    else
+    break;
+    rep++;
+    } while (rep < 10);
+  */
+ 
+  
+  for (;;) 
+    {
+      for(i = 1;i <= n; i++) 
+	x[i] = xold[i] + alam * p[i];
+      
+      fixBound(x, lower, upper, n, tr);
+
+      //minh is the commented code below needed?
+
+      //checkRange(x);
+            
+      *f=targetFunk(x, n, tr);
+      
+      if(alam < alamin) 
+	{
+	  for (i=1;i<=n;i++) x[i]=xold[i];
+	  *check=1;
+	  return;
+	} 
+      else 
+	if (*f <= fold+ALF*alam*slope) 
+	  return;
+	else 
+	  {
+	    if (first_time)
+	      tmplam = -slope/(2.0*(*f-fold-slope));
+	    else 
+	      {
+		rhs1 = *f-fold-alam*slope;
+		rhs2=f2-fold2-alam2*slope;
+		a=(rhs1/(alam*alam)-rhs2/(alam2*alam2))/(alam-alam2);
+		b=(-alam2*rhs1/(alam*alam)+alam*rhs2/(alam2*alam2))/(alam-alam2);
+		if (a == 0.0) 
+		  tmplam = -slope/(2.0*b);
+		else 
+		  {
+		    disc=b*b-3.0*a*slope;
+		    if (disc<0.0) //nrerror("Roundoff problem in lnsrch.");
+		      tmplam = 0.5 * alam;
+		    else 
+		      if (b <= 0.0) 
+			tmplam=(-b+sqrt(disc))/(3.0*a);
+		      else 
+			tmplam = -slope/(b+sqrt(disc));
+		  }
+		if (tmplam>0.5*alam)
+		  tmplam=0.5*alam;
+	      }
+	  }
+      
+      alam2=alam;
+      
+      f2 = *f;
+      
+      fold2=fold;
+      
+      alam = FMAX(tmplam,0.1*alam);
+      
+      first_time = FALSE;
+    }
+}
+#undef ALF
+#undef TOLX
+
+
+const int MAX_ITER = 3;
+
+static void dfpmin(double *p, int n, double *lower, double *upper, double gtol, int *iter, double *fret, tree *tr);
+static double derivativeFunk(double *x, double *dfx, int n, tree *tr);
+
+//minh is guess over-written by this function?
+//minh what is the exact meaining of gtol, does it refer to x or f(x)?
+
+static double minimizeMultiDimen(double *guess, int ndim, double *lower, double *upper, boolean *bound_check, double gtol, tree *tr) 
+{
+  int 
+    i, 
+    iter,
+    count = 0;
+    
+  double 
+    fret, 
+    minf = 10000000.0, //minh is this some maximum value for (-log likelihood) of the tree does the number need to be large?
+    *minx = (double*)rax_malloc(sizeof(double) * (ndim + 1));
+  
+  boolean 
+    restart;
+
+  static long 
+    seed = 12345;
+  
+  do 
+    {
+      dfpmin(guess, ndim, lower, upper, gtol, &iter, &fret, tr);
+      
+      if (fret < minf) 
+	{
+	  minf = fret;
+	  for(i = 1; i <= ndim; i++)
+	    minx[i] = guess[i];
+	}
+      
+      count++;
+      // restart the search if at the boundary
+      // it's likely to end at a local optimum at the boundary
+      restart = FALSE;
+				
+      for (i = 1; i <= ndim; i++)
+	if (bound_check[i])
+	  if (fabs(guess[i]-lower[i]) < 1e-4 || fabs(guess[i]-upper[i]) < 1e-4) 
+	    {
+	      restart = TRUE;
+	      break;
+	    }
+		
+      if (!restart)
+	break;
+      
+      if (count == MAX_ITER)
+	break;
+      
+      do 
+	{
+	  for (i = 1; i <= ndim; i++) 
+	    {
+	      //minh our randum() function yields values between [0,1), confirm that this is correct?
+	      guess[i] = randum(&seed) * (upper[i] - lower[i])/3 + lower[i];
+	    }
+	} 
+      while (FALSE);
+      
+      printf("Restart estimation at the boundary... \n");
+      
+    } 
+  while (count < MAX_ITER);
+  
+  if(count > 1) 
+    {
+      for (i = 1; i <= ndim; i++)
+	guess[i] = minx[i];
+      fret = minf;
+    }
+				
+  rax_free(minx);
+	
+  return fret;
+}
+
+
+#define ITMAX_BFGS 500
+static double sqrarg;
+#define SQR(a) ((sqrarg=(a)) == 0.0 ? 0.0 : sqrarg*sqrarg)
+#define EPS 3.0e-8
+#define TOLX (4*EPS)
+#define STPMX 100.0
 
 
 
+static void freeAll(double *xi, double *pnew, double **hessin, double *hdg, double *g, double *dg, int n)
+{
+  int 
+    i;
 
+  rax_free(xi);
+  rax_free(pnew);
+  rax_free(hdg);
+  rax_free(g);
+  rax_free(dg);
+
+  for(i = 0; i <= n; i++)
+    rax_free(hessin[i]);
+
+  rax_free(hessin);
+}
+
+
+
+static void dfpmin(double *p, int n, double *lower, double *upper, double gtol, int *iter, double *fret, tree *tr) 
+{
+  int 
+    check,
+    i,
+    its,
+    j;
+  
+  double 
+    den,
+    fac,
+    fad,
+    fae,
+    fp,
+    stpmax,
+    sum=0.0,
+    sumdg,
+    sumxi,
+    temp,
+    test,
+    *dg = (double*)rax_malloc(sizeof(double) * (n + 1)),
+    *g  = (double*)rax_malloc(sizeof(double) * (n + 1)),
+    *hdg = (double*)rax_malloc(sizeof(double) * (n + 1)),
+    **hessin = (double**)rax_malloc(sizeof(double *) * (n + 1)),
+    *pnew = (double*)rax_malloc(sizeof(double) * (n + 1)),
+    *xi = (double*)rax_malloc(sizeof(double) * (n + 1));
+
+  for(i = 0; i <= n; i++)
+    hessin[i] = (double*)rax_malloc(sizeof(double) * (n + 1));
+
+  fp = derivativeFunk(p, g, n, tr);
+  
+  for (i=1;i<=n;i++) 
+    {
+      for (j=1;j<=n;j++) 
+	hessin[i][j]=0.0;
+      hessin[i][i]=1.0;
+      xi[i] = -g[i];
+      sum += p[i]*p[i];
+    }
+  
+  //minh do we need the code below or shall it remain commented out?
+
+  //checkBound(p, xi, lower, upper, n);
+  //checkDirection(p, xi);
+
+  stpmax = STPMX * FMAX(sqrt(sum),(double)n);
+  
+  for(its = 1; its <= ITMAX_BFGS; its++) 
+    {
+      *iter = its;
+      
+      lnsrch(n, p, fp, g, xi, pnew, fret, stpmax, &check, lower, upper, tr);
+      
+      fp = *fret;
+      
+      for (i=1;i<=n;i++) 
+	{
+	  xi[i]=pnew[i]-p[i];
+	  p[i]=pnew[i];
+	}
+      
+      test=0.0;
+      
+      for (i=1;i<=n;i++) 
+	{
+	  temp=fabs(xi[i])/FMAX(fabs(p[i]),1.0);
+	  if (temp > test) 
+	    test=temp;
+	}
+      if (test < TOLX) 
+	{
+	  freeAll(xi, pnew, hessin, hdg, g, dg, n);
+	  return;
+	}
+		
+      for (i=1;i<=n;i++) 
+	dg[i]=g[i];
+      
+      derivativeFunk(p, g, n, tr);
+      test=0.0;
+      den=FMAX(*fret,1.0);
+      
+      for (i=1;i<=n;i++) 
+	{
+	  temp=fabs(g[i])*FMAX(fabs(p[i]),1.0)/den;
+	  if (temp > test) 
+	    test=temp;
+	}
+      
+      if (test < gtol) 
+	{
+	  freeAll(xi, pnew, hessin, hdg, g, dg, n);
+	  return;
+	}
+      
+      for (i=1;i<=n;i++) 
+	dg[i]=g[i]-dg[i];
+      
+      for (i=1;i<=n;i++) 
+	{
+	  hdg[i]=0.0;
+	  for (j=1;j<=n;j++) 
+	    hdg[i] += hessin[i][j]*dg[j];
+	}
+      
+      fac=fae=sumdg=sumxi=0.0;
+      
+      for (i=1;i<=n;i++) 
+	{
+	  fac += dg[i]*xi[i];
+	  fae += dg[i]*hdg[i];
+	  sumdg += SQR(dg[i]);
+	  sumxi += SQR(xi[i]);
+	}
+      
+      if(fac*fac > EPS*sumdg*sumxi)
+	{
+	  fac=1.0/fac;
+	  fad=1.0/fae;
+	  for (i=1;i<=n;i++) 
+	    dg[i] = fac * xi[i] - fad * hdg[i];
+	  
+	  for (i=1;i<=n;i++) 
+	    {
+	      for (j=1;j<=n;j++) 
+		{
+		  hessin[i][j] += fac*xi[i]*xi[j]
+		    -fad*hdg[i]*hdg[j]+fae*dg[i]*dg[j];
+		}
+	    }
+	}
+      
+      for (i=1;i<=n;i++) 
+	{
+	  xi[i]=0.0;
+	  for (j=1;j<=n;j++) xi[i] -= hessin[i][j]*g[j];
+	}
+      
+      //minh do we need the code below or shall it remain commented out?
+
+      //checkBound(p, xi, lower, upper, n);
+      //checkDirection(p, xi);
+      //if (*iter > 200) cout << "iteration=" << *iter << endl;
+    }
+  printf("too many iterations in dfpmin\n");
+  assert(0);
+  
+  freeAll(xi, pnew, hessin, hdg, g, dg, n);
+}
+
+#undef ITMAX_BFGS
+#undef SQR
+#undef EPS
+#undef TOLX
+#undef STPMX
+#undef FREEALL
+#undef FMAX
+
+
+/**
+	the approximated derivative function
+	@param x the input vector x
+	@param dfx the derivative at x
+	@return the function value at x
+*/
+static double derivativeFunk(double *x, double *dfx, int n, tree *tr) 
+{
+  //minh do we need the check range function? what does it do?
+  //I had commented this out, I assume that it checks if the params 
+  //are within the min<->max range, correct?
+  
+  /*
+    if (!checkRange(x))
+    return INFINITIVE;
+  */
+  
+  double  
+    h, 
+    temp,
+    fx = targetFunk(x, n, tr);
+
+  const double 
+    ERROR_X = 1.0e-4;
+
+  int 
+    dim;
+   
+  for(dim = 1; dim <= n; dim++)
+    {
+      temp = x[dim];
+      h = ERROR_X * fabs(temp);
+      if (h == 0.0) 
+	h = ERROR_X;
+      x[dim] = temp + h;
+      h = x[dim] - temp;
+      dfx[dim] = (targetFunk(x, n, tr) - fx) / h;
+      x[dim] = temp;
+    }
+  
+  return fx;
+}
+
+
+//test function to optimize DNA GTR params for an unpartitioned dataset 
+
+static void optimizeGTR(tree *tr)
+{
+  int 
+    i,
+    n = 5;
+
+  double 
+    likelihoodEpsilon = 0.1,
+    currentLikelihood = unlikely,
+    *guess = (double*)rax_malloc(sizeof(double) * (n + 1)),
+    *lower = (double*)rax_malloc(sizeof(double) * (n + 1)),
+    *upper = (double*)rax_malloc(sizeof(double) * (n + 1));
+
+  boolean
+    *bound_check = (boolean*)rax_malloc(sizeof(boolean) * sizeof(boolean));
+
+  for(i = 1; i <= n; i++)
+    {
+      guess[i] = tr->partitionData[0].substRates[i - 1];
+      bound_check[i] = TRUE;
+      lower[i] = RATE_MIN;
+      upper[i] = RATE_MAX;
+    }
+  
+  do
+    {           
+      currentLikelihood = tr->likelihood; 
+
+      //minh unclear if guess is over-written by minimzeMultiDimen
+      for(i = 1; i <= n; i++)    
+	guess[i] = tr->partitionData[0].substRates[i - 1];
+
+      minimizeMultiDimen(guess, n, lower, upper, bound_check, 0.0001, tr);
+      evaluateGenericInitrav(tr, tr->start);
+      printf("after rates: %f\n", tr->likelihood);
+      //TODO maybe add a check to re-wind param changes if optimization has been unsuccesful
+      
+
+      treeEvaluate(tr, 0.0625); 
+      printf("after branches: %f\n", tr->likelihood);
+      
+       if(tr->likelihood < currentLikelihood)
+	{	 
+	  if(fabs(tr->likelihood - currentLikelihood) > MIN(0.0000001, likelihoodEpsilon))
+	    {
+	      printf("%1.40f %1.40f\n", tr->likelihood, currentLikelihood);
+	      assert(0);
+	    }
+	}
+    }
+  while(fabs(currentLikelihood - tr->likelihood) > likelihoodEpsilon); 
+
+  evaluateGenericInitrav(tr, tr->start);
+  printf("Exit: %f\n", tr->likelihood);
+
+  rax_free(guess);
+  rax_free(lower);
+  rax_free(upper);
+  rax_free(bound_check);
+  
+  exit(0);
+}
