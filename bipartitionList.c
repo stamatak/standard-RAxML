@@ -1869,6 +1869,7 @@ void compareBips(tree *tr, char *bootStrapFileName, analdef *adef)
 void computeRF(tree *tr, char *bootStrapFileName, analdef *adef)
 {
   int     
+    numberOfUniqueTrees = 0,
     treeVectorLength, 
     numberOfTrees = 0, 
     i,
@@ -1887,7 +1888,9 @@ void computeRF(tree *tr, char *bootStrapFileName, analdef *adef)
   
   char rfFileName[1024];
 
-  boolean computeWRF = FALSE;
+  boolean 
+    computeWRF = FALSE,
+    *unique;
 
   double 
     maxRF, 
@@ -1904,6 +1907,11 @@ void computeRF(tree *tr, char *bootStrapFileName, analdef *adef)
   numberOfTrees = tr->numberOfTrees;
 
   checkTreeNumber(numberOfTrees, bootStrapFileName);
+
+  unique = (boolean *)rax_malloc(sizeof(boolean) * numberOfTrees);
+
+  for(i = 0; i < numberOfTrees; i++)
+    unique[i] = TRUE;
 
   h = initHashTable(tr->mxtips * 2 * numberOfTrees); 
 
@@ -2066,6 +2074,10 @@ void computeRF(tree *tr, char *bootStrapFileName, analdef *adef)
       {
 	int    rf = rfMat[i * numberOfTrees + j];
 	double rrf = (double)rf / maxRF;
+
+	if(rf == 0 && unique[i])
+	  unique[j] = FALSE;
+	
 	if(computeWRF)
 	  {
 	    double wrf = wrfMat[i * numberOfTrees + j] / 100.0;
@@ -2085,8 +2097,13 @@ void computeRF(tree *tr, char *bootStrapFileName, analdef *adef)
   
   fclose(outf);
 
+  for(i = 0; i < numberOfTrees; i++)
+    if(unique[i])
+      numberOfUniqueTrees++;
   
   printBothOpen("\n\nAverage relative RF in this set: %f\n", avgRF / ((double)((numberOfTrees * numberOfTrees - numberOfTrees) / 2)));
+  printBothOpen("\n\nNumber of unique trees in this tree set: %d\n", numberOfUniqueTrees);
+  
   if(computeWRF)
     {
       printBothOpen("\n\nAverage relative WRF in this set: %f\n", avgWRF / ((double)((numberOfTrees * numberOfTrees - numberOfTrees) / 2)));
@@ -2096,6 +2113,7 @@ void computeRF(tree *tr, char *bootStrapFileName, analdef *adef)
   else
     printBothOpen("\nFile containing all %d pair-wise RF distances written to file %s\n\n", (numberOfTrees * numberOfTrees - numberOfTrees) / 2, rfFileName);
 
+  rax_free(unique);
   rax_free(rfMat);
   rax_free(wrfMat);
   rax_free(wrf2Mat);
