@@ -65,7 +65,15 @@ void *rax_malloc_aligned(size_t size)
 #else 
 // if llalloc should not be used, forward the rax_* functions to the corresponding standard function
 
+static void outOfMemory(void)
+{
+  printf("RAxML was not able to allocate enough memory.\n");
+  printf("Please check the approximate memory consumption of your dataset using\n");
+  printf("the memory calculator at http://www.exelixis-lab.org/web/software/raxml/index.html.\n");
+  printf("RAxML will exit now\n");
 
+  errorExit(-1);
+}
 
 void *rax_malloc( size_t size ) 
 {
@@ -76,8 +84,11 @@ void *rax_malloc( size_t size )
   int 
     res = posix_memalign(&ptr, BYTE_ALIGNMENT, size);
 
-  if(res != 0) 
-    assert(0);
+  if(res != 0)
+    {
+      outOfMemory();
+      assert(0);
+    }
   
   return ptr;
 #else
@@ -92,7 +103,9 @@ void *rax_realloc(void *p, size_t size, boolean needsMemoryAlignment)
   //the pointer passed as argument
   //hence I added this boolean flag that should increase programmer 
   //awareness about this issue
-  
+  void 
+    *ptr = (void *)NULL;
+
   if(needsMemoryAlignment)
     {
       assert(0);
@@ -100,12 +113,20 @@ void *rax_realloc(void *p, size_t size, boolean needsMemoryAlignment)
     }
   else
     {
-#ifndef WIN32
-      return realloc(p, size);
+#ifndef WIN32      
+      ptr = realloc(p, size);
 #else
-      return _aligned_realloc(p, size, BYTE_ALIGNMENT);
+      ptr = _aligned_realloc(p, size, BYTE_ALIGNMENT);
 #endif
     }
+
+  if(ptr == (void*)NULL) 
+    {
+      outOfMemory();
+      assert(0);
+    }
+
+  return ptr;
 }
 
 void rax_free(void *p) 
@@ -119,11 +140,8 @@ void rax_free(void *p)
 
 void *rax_calloc(size_t n, size_t size) 
 {
-   void 
-     *ptr = rax_malloc(size * n);
-
-   if (ptr == (void*)NULL) 
-     return (void*)NULL;
+  void 
+    *ptr = rax_malloc(size * n);  
 
    memset(ptr, 0, size * n);
 
