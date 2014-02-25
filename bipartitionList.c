@@ -1163,12 +1163,11 @@ static unsigned int countIncompatibleBipartitions(unsigned int *toInsert, hashta
 		  candidates++;
 		  
 		  //printf("%d\n", support);
-
+#ifdef BIP_FILTER
 		  for(j = 0; j < k; j++)
 		    {
-#ifdef BIP_FILTER
+
 		      if(!disregard[j])
-#endif
 			{
 			  entry 
 			    *checkEntry = entryVector[j];
@@ -1180,6 +1179,7 @@ static unsigned int countIncompatibleBipartitions(unsigned int *toInsert, hashta
 			    }
 			}
 		    }
+#endif
 		}
 	      else
 		uncompat = FALSE;
