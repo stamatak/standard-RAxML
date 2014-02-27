@@ -142,7 +142,7 @@ int lookupWord(char *s, stringHashtable *h)
 {
   hashNumberType position = hashString(s, h->tableSize);
   stringEntry *p = h->table[position];
-  
+
   for(; p!= NULL; p = p->next)
     {
       if(strcmp(s, p->word) == 0)		 
@@ -843,24 +843,68 @@ int treeFindTipName(FILE *fp, tree *tr, boolean check)
 
 
 
-static void  treeEchoContext (FILE *fp1, FILE *fp2, int n)
+static void treeEchoContext (FILE *fp1, FILE *fp2, int n)
 { /* treeEchoContext */
-  int      ch;
-  boolean  waswhite;
   
-  waswhite = TRUE;
+  int      
+    ch;
+
+  long 
+    current = ftell(fp1);  
+
+  boolean  
+    waswhite = TRUE;  
   
-  while (n > 0 && ((ch = getc(fp1)) != EOF)) {
-    if (whitechar(ch)) {
-      ch = waswhite ? '\0' : ' ';
-      waswhite = TRUE;
-    }
-    else {
-      waswhite = FALSE;
-    }
+  fpos_t 
+    pos;
+
+  fgetpos(fp1, &pos);
+
+  fseek(fp1, MAX(current - n / 2, 0), SEEK_SET);
+       
+  
+  while (n > 0 && ((ch = getc(fp1)) != EOF)) 
+    {
+      if (whitechar(ch)) 
+	{
+	  ch = waswhite ? '\0' : ' ';
+	  waswhite = TRUE;
+	}
+    else 
+      {
+	waswhite = FALSE;
+      }
     
-    if (ch > '\0') {putc(ch, fp2); n--;}
-  }
+      if(ch > '\0') 
+	{
+	  putc(ch, fp2); 
+	  n--;
+	}
+    }
+
+  fsetpos(fp1, &pos);
+
+  /*boolean  
+    waswhite = TRUE;
+  
+  while (n > 0 && ((ch = getc(fp1)) != EOF)) 
+    {
+      if (whitechar(ch)) 
+	{
+	  ch = waswhite ? '\0' : ' ';
+	  waswhite = TRUE;
+	}
+    else 
+      {
+	waswhite = FALSE;
+      }
+    
+      if(ch > '\0') 
+	{
+	  putc(ch, fp2); 
+	  n--;
+	}
+	}*/
 } /* treeEchoContext */
 
 static boolean treeNeedCh (FILE *fp, int c1, char *where);
@@ -1288,8 +1332,22 @@ int treeReadLen (FILE *fp, tree *tr, boolean readBranches, boolean readNodeLabel
 
   p = tr->nodep[(tr->nextnode)++]; 
   
-  while((ch = treeGetCh(fp)) != '(');
-      
+  while((ch = treeGetCh(fp)) != '(')
+    {
+      if(ch == EOF)
+	{
+	  printf("RAxML could not find a single \"(\" in what is supposed to be your tree file\n");
+	  printf("RAxML will exit now, please check your tree file!\n");
+	  printf("The last couple of characters RAxML read in your supposed tree file look like this:\n\n");
+	  treeEchoContext(fp, stdout, 100);
+	  printf("\n\n");
+	  errorExit(-1);
+	}            
+    };
+
+  
+
+ 
   if(!topologyOnly)
     {
       if(adef->mode != CLASSIFY_ML)
@@ -1524,12 +1582,17 @@ static boolean  addElementLenMULT (FILE *fp, tree *tr, nodeptr p, int partitionC
 	      addElementLenMULT(fp, tr, r->next->next, old, adef, partCount);	     
 	    }	    	  	  
 	}       
-
+      
+      //ungetc(ch, fp);
+	  
       if(ch != ')')
 	{
-	  printf("Missing /) in treeReadLenMULT\n");
-	  exit(-1);	        
+	  printf("Missing \")\" or \",\" in treeReadLenMULT, RAxML will print the context of the error and exit\n\n");	  
+	  treeEchoContext(fp, stdout, 40);
+	  printf("\n\n");
+	  errorExit(-1);
 	}
+     
 	
 
 
@@ -1593,7 +1656,18 @@ boolean treeReadLenMULT (FILE *fp, tree *tr, analdef *adef)
   tr->rooted      = FALSE;
  
   p = tr->nodep[(tr->nextnode)++]; 
-  while((ch = treeGetCh(fp)) != '(');
+  while((ch = treeGetCh(fp)) != '(')
+    {
+       if(ch == EOF)
+	 {
+	   printf("RAxML could not find a single \"(\" in what is supposed to be your tree file\n");
+	   printf("RAxML will exit now, please check your tree file!\n");
+	   printf("The last couple of characters RAxML read in your supposed tree file look like this:\n\n");
+	   treeEchoContext(fp, stdout, 100);
+	   printf("\n\n");
+	   errorExit(-1);
+	 }
+    };
       
   if (! addElementLenMULT(fp, tr, p, partitionCounter, adef, &partCount))                 return FALSE;
   if (! treeNeedCh(fp, ',', "in"))                return FALSE;
@@ -1633,11 +1707,14 @@ boolean treeReadLenMULT (FILE *fp, tree *tr, analdef *adef)
 		  addElementLenMULT(fp, tr, r->next->next, partitionCounter, adef, &partCount);
 		}
 	    }	  	  	      	  
+	 
 
 	  if(ch != ')')
 	    {
-	      printf("Missing /) in treeReadLenMULT\n");
-	      exit(-1);	        	      	      
+	      printf("Missing \")\" or \",\" in treeReadLenMULT, RAxML will print the context of the error and exit\n\n");
+	      treeEchoContext(fp, stdout, 40);
+	      printf("\n\n");
+	      errorExit(-1);	      
 	    }
 	  else
 	    ungetc(ch, fp);
@@ -2034,7 +2111,18 @@ int readMultifurcatingTree(FILE *fp, tree *tr, analdef *adef, boolean fastParse)
   tr->ntips = 0;
   nextnode  = tr->mxtips + 1;         
 
-  while((ch = treeGetCh(fp)) != '(');            
+  while((ch = treeGetCh(fp)) != '(')
+    {
+      if(ch == EOF)
+	{
+	  printf("RAxML could not find a single \"(\" in what is supposed to be your tree file\n");
+	  printf("RAxML will exit now, please check your tree file!\n");
+	  printf("The last couple of characters RAxML read in your supposed tree file look like this:\n\n");
+	  treeEchoContext(fp, stdout, 100);
+	  printf("\n\n");
+	  errorExit(-1);
+	}
+    };            
 
   i = 0;
 
