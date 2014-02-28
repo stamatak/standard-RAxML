@@ -3405,12 +3405,11 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 	  if(width > 0)
 	    {	      
 	      //printf("%d %f\n", model, partitionLikelihood);
-
-	      assert(partitionLikelihood < 0.0);
-	  
+	      	  
 	      if(tr->useFastScaling)		    	      		      
 		partitionLikelihood += (tr->partitionData[model].globalScaler[pNumber] + tr->partitionData[model].globalScaler[qNumber]) * LOG(minlikelihood);		    
-
+	      
+	      assert(partitionLikelihood < 0.0);
 #ifdef _USE_PTHREADS
 	      if(tr->partitionData[model].ascBias && tr->threadID == 0)
 #else
@@ -3452,11 +3451,9 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 		    
 		    
 		    for(i = tr->partitionData[model].lower; i < tr->partitionData[model].upper; i++)
-		      w += tr->cdta->aliaswgt[i];		  		  	      	     
-	      
-		    assert(partitionLikelihood < 0.0);
+		      w += tr->cdta->aliaswgt[i];		  		  	      	     	     		   
 
-		    partitionLikelihood = partitionLikelihood - (double)w * LOG(1.0 - correction);	     	      
+		    partitionLikelihood = partitionLikelihood - (double)w * LOG(1.0 - correction);		    
 	      
 #ifdef _DEBUG_ASC 	      
 		    printf("E w: %f %f ARG %f ragu %f\n", partitionLikelihood, (double)w, 1.0 - correction, (double)w * LOG(1.0 - correction));
