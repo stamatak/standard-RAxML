@@ -3151,9 +3151,12 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
 
       optBaseFreqs(tr, modelEpsilon, freqList);
       
-      evaluateGenericInitrav(tr, tr->start);
+      evaluateGenericInitrav(tr, tr->start);           
       
-      treeEvaluate(tr, 0.0625);
+      if(adef->mode != OPTIMIZE_BR_LEN_SCALER)
+	treeEvaluate(tr, 0.0625);                     	            
+      else 	
+	optScaler(tr, modelEpsilon, scalerList); 
 
 #ifdef _DEBUG_MOD_OPT
       evaluateGenericInitrav(tr, tr->start); 
