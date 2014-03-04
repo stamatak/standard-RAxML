@@ -3013,6 +3013,24 @@ static void autoProtein(tree *tr)
 
 static void optimizeGTR(tree *tr);
 
+
+
+static void checkTolerance(double l1, double l2)
+{
+  if(l1 < l2)
+    {   
+      double 
+	tolerance = MAX(l1, l2) * 0.000000000001;
+
+      if(fabs(l1 - l2) > MIN(0.1, tolerance))
+	{
+	  printf("Likelihood problem in model optimization l1: %1.40f l2: %1.40f tolerance: %1.40f\n", l1, l2, tolerance);
+	  assert(0);	
+	}
+    }
+}
+
+
 void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilon)
 { 
   int i, model, catOpt = 0; 
@@ -3237,17 +3255,9 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
 	default:
 	  assert(0);
 	}       
-
-      if(tr->likelihood < currentLikelihood)
-	{
-	 
-	  if(fabs(tr->likelihood - currentLikelihood) > MIN(0.0000001, likelihoodEpsilon))
-	    {
-	      printf("%1.40f %1.40f\n", tr->likelihood, currentLikelihood);
-	      assert(0);
-	    }
-	}
       
+      checkTolerance(tr->likelihood, currentLikelihood);
+                  
       printAAmatrix(tr, fabs(currentLikelihood - tr->likelihood));    
     }
   while(fabs(currentLikelihood - tr->likelihood) > likelihoodEpsilon);  
