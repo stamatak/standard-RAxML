@@ -69,28 +69,32 @@ extern char *protModels[NUM_PROT_MODELS];
 
 static void smoothFreqs(const int n, double *pfreqs, double *dst, pInfo *partitionData)
 {
+  //double
+  //  acc = 0.0;
+
   int 
     countScale = 0, 
     l,
     loopCounter = 0;  
   
 
-  /*
-    for(l = 0; l < n; l++)
+  
+  for(l = 0; l < n; l++)
     if(pfreqs[l] < FREQ_MIN)
       countScale++;
-  */
+  
 
-  for(l = 0; l < n; l++)
+  /*for(l = 0; l < n; l++)
     if(pfreqs[l] == 0.0)
-      countScale++;
+    countScale++;*/
 
   if(countScale > 0)
     {	     
       while(countScale > 0)
 	{
-	  double correction = 0.0;
-	  double factor = 1.0;
+	  double 
+	    correction = 0.0,
+	    factor = 1.0;
 	  
 	  for(l = 0; l < n; l++)
 	    {
@@ -102,8 +106,8 @@ static void smoothFreqs(const int n, double *pfreqs, double *dst, pInfo *partiti
 		    correction += (FREQ_MIN - pfreqs[l]);
 		    factor -= (FREQ_MIN - pfreqs[l]);
 		  }
-	    }		      	    	    
-	  
+	    }		      	    	    	  	  
+
 	  countScale = 0;
 	  
 	  for(l = 0; l < n; l++)
@@ -122,9 +126,13 @@ static void smoothFreqs(const int n, double *pfreqs, double *dst, pInfo *partiti
     }
 
   for(l = 0; l < n; l++)
-    dst[l] = pfreqs[l];
+    {
+      //acc += pfreqs[l];
+      dst[l] = pfreqs[l];
+    }
 
-  
+  //printf("sum %f\n", acc);
+
   if(partitionData->nonGTR)
     {
       int k;
@@ -228,7 +236,10 @@ static void genericBaseFrequencies(tree *tr, const int numFreqs, rawdata *rdta, 
 	}
       
       if(smoothFrequencies)         
-	smoothFreqs(numFreqs, pfreqs,  tr->partitionData[model].frequencies, &(tr->partitionData[model]));	   
+	{
+	  //printf("smoothing!\n");
+	  smoothFreqs(numFreqs, pfreqs,  tr->partitionData[model].frequencies, &(tr->partitionData[model]));	   
+	}
       else    
 	{
 	  boolean 
@@ -321,9 +332,12 @@ static void baseFrequenciesGTR(rawdata *rdta, cruncheddata *cdta, tree *tr)
 	case AA_DATA:
 	case DNA_DATA:
 	case BINARY_DATA:
-	  genericBaseFrequencies(tr, states, rdta, cdta, lower, upper, model, 
-				 getSmoothFreqs(tr->partitionData[model].dataType),
-				 getBitVector(tr->partitionData[model].dataType));	  	 
+	  {
+	    //printf("Smooth freqs: %d\n", getSmoothFreqs(tr->partitionData[model].dataType));
+	    genericBaseFrequencies(tr, states, rdta, cdta, lower, upper, model, 
+				   getSmoothFreqs(tr->partitionData[model].dataType),
+				   getBitVector(tr->partitionData[model].dataType));	  	 
+	  }
 	  break;	
 	default:
 	  assert(0);     

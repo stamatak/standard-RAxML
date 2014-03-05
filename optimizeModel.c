@@ -79,10 +79,10 @@ extern volatile double          *reductionBuffer;
 
 
 static void brentGeneric(double *ax, double *bx, double *cx, double *fb, double tol, double *xmin, double *result, int numberOfModels, 
-			 int whichFunction, int rateNumber, tree *tr, linkageList *ll, double lim_inf, double lim_sup);
+			 int whichFunction, int rateNumber, tree *tr, linkageList *ll, double *lim_inf, double *lim_sup);
 
 static int brakGeneric(double *param, double *ax, double *bx, double *cx, double *fa, double *fb, 
-		       double *fc, double lim_inf, double lim_sup, 
+		       double *fc, double *lim_inf, double *lim_sup, 
 		       int numberOfModels, int rateNumber, int whichFunction, tree *tr, linkageList *ll, double modelEpsilon);
 
 static void optParamGeneric(tree *tr, double modelEpsilon, linkageList *ll, int numberOfModels, int rateNumber, double lim_inf, double lim_sup, int whichParameterType);
@@ -606,7 +606,7 @@ static void evaluateChange(tree *tr, int rateNumber, double *value, double *resu
 
 
 static void brentGeneric(double *ax, double *bx, double *cx, double *fb, double tol, double *xmin, double *result, int numberOfModels, 
-			 int whichFunction, int rateNumber, tree *tr, linkageList *ll, double lim_inf, double lim_sup)
+			 int whichFunction, int rateNumber, tree *tr, linkageList *ll, double *lim_inf, double *lim_sup)
 {
   int iter, i;
   double 
@@ -651,11 +651,11 @@ static void brentGeneric(double *ax, double *bx, double *cx, double *fb, double 
 
   for(i = 0; i < numberOfModels; i++)
     {      
-      assert(a[i] >= lim_inf && a[i] <= lim_sup);
-      assert(b[i] >= lim_inf && b[i] <= lim_sup);
-      assert(x[i] >= lim_inf && x[i] <= lim_sup);
-      assert(v[i] >= lim_inf && v[i] <= lim_sup);
-      assert(w[i] >= lim_inf && w[i] <= lim_sup);
+      assert(a[i] >= lim_inf[i] && a[i] <= lim_sup[i]);
+      assert(b[i] >= lim_inf[i] && b[i] <= lim_sup[i]);
+      assert(x[i] >= lim_inf[i] && x[i] <= lim_sup[i]);
+      assert(v[i] >= lim_inf[i] && v[i] <= lim_sup[i]);
+      assert(w[i] >= lim_inf[i] && w[i] <= lim_sup[i]);
     }
   
   
@@ -696,11 +696,11 @@ static void brentGeneric(double *ax, double *bx, double *cx, double *fb, double 
 	{
 	  if(!converged[i])
 	    {	     	      
-	      assert(a[i] >= lim_inf && a[i] <= lim_sup);
-	      assert(b[i] >= lim_inf && b[i] <= lim_sup);
-	      assert(x[i] >= lim_inf && x[i] <= lim_sup);
-	      assert(v[i] >= lim_inf && v[i] <= lim_sup);
-	      assert(w[i] >= lim_inf && w[i] <= lim_sup);
+	      assert(a[i] >= lim_inf[i] && a[i] <= lim_sup[i]);
+	      assert(b[i] >= lim_inf[i] && b[i] <= lim_sup[i]);
+	      assert(x[i] >= lim_inf[i] && x[i] <= lim_sup[i]);
+	      assert(v[i] >= lim_inf[i] && v[i] <= lim_sup[i]);
+	      assert(w[i] >= lim_inf[i] && w[i] <= lim_sup[i]);
   
 	      xm[i] = 0.5 * (a[i] + b[i]);
 	      tol2[i] = 2.0 * (tol1[i] = tol * fabs(x[i]) + BRENT_ZEPS);
@@ -742,7 +742,7 @@ static void brentGeneric(double *ax, double *bx, double *cx, double *fb, double 
 		}
 
 	      if(!converged[i])
-		assert(u[i] >= lim_inf && u[i] <= lim_sup);
+		assert(u[i] >= lim_inf[i] && u[i] <= lim_sup[i]);
 	    }
 	}
                  
@@ -786,12 +786,12 @@ static void brentGeneric(double *ax, double *bx, double *cx, double *fb, double 
 		    }	    
 		}
 	      
-	      assert(a[i] >= lim_inf && a[i] <= lim_sup);
-	      assert(b[i] >= lim_inf && b[i] <= lim_sup);
-	      assert(x[i] >= lim_inf && x[i] <= lim_sup);
-	      assert(v[i] >= lim_inf && v[i] <= lim_sup);
-	      assert(w[i] >= lim_inf && w[i] <= lim_sup);
-	      assert(u[i] >= lim_inf && u[i] <= lim_sup);
+	      assert(a[i] >= lim_inf[i] && a[i] <= lim_sup[i]);
+	      assert(b[i] >= lim_inf[i] && b[i] <= lim_sup[i]);
+	      assert(x[i] >= lim_inf[i] && x[i] <= lim_sup[i]);
+	      assert(v[i] >= lim_inf[i] && v[i] <= lim_sup[i]);
+	      assert(w[i] >= lim_inf[i] && w[i] <= lim_sup[i]);
+	      assert(u[i] >= lim_inf[i] && u[i] <= lim_sup[i]);
 	    }
 	}
     }
@@ -824,7 +824,7 @@ static void brentGeneric(double *ax, double *bx, double *cx, double *fb, double 
 
 
 static int brakGeneric(double *param, double *ax, double *bx, double *cx, double *fa, double *fb, 
-		       double *fc, double lim_inf, double lim_sup, 
+		       double *fc, double *lim_inf, double *lim_sup, 
 		       int numberOfModels, int rateNumber, int whichFunction, tree *tr, linkageList *ll, double modelEpsilon)
 {
   double 
@@ -856,13 +856,13 @@ static int brakGeneric(double *param, double *ax, double *bx, double *cx, double
 
       param[i] = ax[i];
 
-      if(param[i] > lim_sup) 	
-	param[i] = ax[i] = lim_sup;
+      if(param[i] > lim_sup[i]) 	
+	param[i] = ax[i] = lim_sup[i];
       
-      if(param[i] < lim_inf) 
-	param[i] = ax[i] = lim_inf;
+      if(param[i] < lim_inf[i]) 
+	param[i] = ax[i] = lim_inf[i];
 
-      assert(param[i] >= lim_inf && param[i] <= lim_sup);
+      assert(param[i] >= lim_inf[i] && param[i] <= lim_sup[i]);
     }
    
   
@@ -872,12 +872,12 @@ static int brakGeneric(double *param, double *ax, double *bx, double *cx, double
   for(i = 0; i < numberOfModels; i++)
     {
       param[i] = bx[i];
-      if(param[i] > lim_sup) 
-	param[i] = bx[i] = lim_sup;
-      if(param[i] < lim_inf) 
-	param[i] = bx[i] = lim_inf;
+      if(param[i] > lim_sup[i]) 
+	param[i] = bx[i] = lim_sup[i];
+      if(param[i] < lim_inf[i]) 
+	param[i] = bx[i] = lim_inf[i];
 
-      assert(param[i] >= lim_inf && param[i] <= lim_sup);
+      assert(param[i] >= lim_inf[i] && param[i] <= lim_sup[i]);
     }
   
   evaluateChange(tr, rateNumber, param, fb, converged, whichFunction, numberOfModels, ll, modelEpsilon);
@@ -894,12 +894,12 @@ static int brakGeneric(double *param, double *ax, double *bx, double *cx, double
       
       param[i] = cx[i];
       
-      if(param[i] > lim_sup) 
-	param[i] = cx[i] = lim_sup;
-      if(param[i] < lim_inf) 
-	param[i] = cx[i] = lim_inf;
+      if(param[i] > lim_sup[i]) 
+	param[i] = cx[i] = lim_sup[i];
+      if(param[i] < lim_inf[i]) 
+	param[i] = cx[i] = lim_inf[i];
 
-      assert(param[i] >= lim_inf && param[i] <= lim_sup);
+      assert(param[i] >= lim_inf[i] && param[i] <= lim_sup[i]);
     }
   
  
@@ -916,20 +916,20 @@ static int brakGeneric(double *param, double *ax, double *bx, double *cx, double
 	 {
 	   for(i = 0; i < numberOfModels; i++)
 	     {	       
-	       if(ax[i] > lim_sup) 
-		 ax[i] = lim_sup;
-	       if(ax[i] < lim_inf) 
-		 ax[i] = lim_inf;
+	       if(ax[i] > lim_sup[i]) 
+		 ax[i] = lim_sup[i];
+	       if(ax[i] < lim_inf[i]) 
+		 ax[i] = lim_inf[i];
 
-	       if(bx[i] > lim_sup) 
-		 bx[i] = lim_sup;
-	       if(bx[i] < lim_inf) 
-		 bx[i] = lim_inf;
+	       if(bx[i] > lim_sup[i]) 
+		 bx[i] = lim_sup[i];
+	       if(bx[i] < lim_inf[i]) 
+		 bx[i] = lim_inf[i];
 	       
-	       if(cx[i] > lim_sup) 
-		 cx[i] = lim_sup;
-	       if(cx[i] < lim_inf) 
-		 cx[i] = lim_inf;
+	       if(cx[i] > lim_sup[i]) 
+		 cx[i] = lim_sup[i];
+	       if(cx[i] < lim_inf[i]) 
+		 cx[i] = lim_inf[i];
 	     }
 
 	   rax_free(converged);
@@ -959,18 +959,18 @@ static int brakGeneric(double *param, double *ax, double *bx, double *cx, double
 		   else
 		     {
 		   
-		       if(ax[i] > lim_sup) 
-			 ax[i] = lim_sup;
-		       if(ax[i] < lim_inf) 
-			 ax[i] = lim_inf;
-		       if(bx[i] > lim_sup) 
-			 bx[i] = lim_sup;
-		       if(bx[i] < lim_inf) 
-			 bx[i] = lim_inf;
-		       if(cx[i] > lim_sup) 
-			 cx[i] = lim_sup;
-		       if(cx[i] < lim_inf) 
-			 cx[i] = lim_inf;
+		       if(ax[i] > lim_sup[i]) 
+			 ax[i] = lim_sup[i];
+		       if(ax[i] < lim_inf[i]) 
+			 ax[i] = lim_inf[i];
+		       if(bx[i] > lim_sup[i]) 
+			 bx[i] = lim_sup[i];
+		       if(bx[i] < lim_inf[i]) 
+			 bx[i] = lim_inf[i];
+		       if(cx[i] > lim_sup[i]) 
+			 cx[i] = lim_sup[i];
+		       if(cx[i] < lim_inf[i]) 
+			 cx[i] = lim_inf[i];
 		       
 		       r[i]=(bx[i]-ax[i])*(fb[i]-fc[i]);
 		       q[i]=(bx[i]-cx[i])*(fb[i]-fa[i]);
@@ -979,22 +979,22 @@ static int brakGeneric(double *param, double *ax, double *bx, double *cx, double
 		       
 		       ulim[i]=(bx[i])+MNBRAK_GLIMIT*(cx[i]-bx[i]);
 		       
-		       if(u[i] > lim_sup) 
-			 u[i] = lim_sup;
-		       if(u[i] < lim_inf) 
-			 u[i] = lim_inf;
-		       if(ulim[i] > lim_sup) 
-			 ulim[i] = lim_sup;
-		       if(ulim[i] < lim_inf) 
-			 ulim[i] = lim_inf;
+		       if(u[i] > lim_sup[i]) 
+			 u[i] = lim_sup[i];
+		       if(u[i] < lim_inf[i]) 
+			 u[i] = lim_inf[i];
+		       if(ulim[i] > lim_sup[i]) 
+			 ulim[i] = lim_sup[i];
+		       if(ulim[i] < lim_inf[i]) 
+			 ulim[i] = lim_inf[i];
 		       
 		       if ((bx[i]-u[i])*(u[i]-cx[i]) > 0.0)
 			 {
 			   param[i] = u[i];
-			   if(param[i] > lim_sup) 			     
-			     param[i] = u[i] = lim_sup;
-			   if(param[i] < lim_inf)
-			     param[i] = u[i] = lim_inf;
+			   if(param[i] > lim_sup[i]) 			     
+			     param[i] = u[i] = lim_sup[i];
+			   if(param[i] < lim_inf[i])
+			     param[i] = u[i] = lim_inf[i];
 			   endState[i] = 1;
 			 }
 		       else 
@@ -1002,10 +1002,10 @@ static int brakGeneric(double *param, double *ax, double *bx, double *cx, double
 			   if ((cx[i]-u[i])*(u[i]-ulim[i]) > 0.0) 
 			     {
 			       param[i] = u[i];
-			       if(param[i] > lim_sup) 
-				 param[i] = u[i] = lim_sup;
-			       if(param[i] < lim_inf) 
-				 param[i] = u[i] = lim_inf;
+			       if(param[i] > lim_sup[i]) 
+				 param[i] = u[i] = lim_sup[i];
+			       if(param[i] < lim_inf[i]) 
+				 param[i] = u[i] = lim_inf[i];
 			       endState[i] = 2;
 			     }		  	       
 			   else
@@ -1014,10 +1014,10 @@ static int brakGeneric(double *param, double *ax, double *bx, double *cx, double
 				 {
 				   u[i] = ulim[i];
 				   param[i] = u[i];	
-				   if(param[i] > lim_sup) 
-				     param[i] = u[i] = ulim[i] = lim_sup;
-				   if(param[i] < lim_inf) 
-				     param[i] = u[i] = ulim[i] = lim_inf;
+				   if(param[i] > lim_sup[i]) 
+				     param[i] = u[i] = ulim[i] = lim_sup[i];
+				   if(param[i] < lim_inf[i]) 
+				     param[i] = u[i] = ulim[i] = lim_inf[i];
 				   endState[i] = 0;
 				 }		  		
 			       else 
@@ -1025,10 +1025,10 @@ static int brakGeneric(double *param, double *ax, double *bx, double *cx, double
 				   u[i]=(cx[i])+MNBRAK_GOLD*(cx[i]-bx[i]);
 				   param[i] = u[i];
 				   endState[i] = 0;
-				   if(param[i] > lim_sup) 
-				     param[i] = u[i] = lim_sup;
-				   if(param[i] < lim_inf) 
-				     param[i] = u[i] = lim_inf;
+				   if(param[i] > lim_sup[i]) 
+				     param[i] = u[i] = lim_sup[i];
+				   if(param[i] < lim_inf[i]) 
+				     param[i] = u[i] = lim_inf[i];
 				 }
 			     }	  
 			 }
@@ -1043,7 +1043,7 @@ static int brakGeneric(double *param, double *ax, double *bx, double *cx, double
 		 default:
 		   assert(0);
 		 }
-	       assert(param[i] >= lim_inf && param[i] <= lim_sup);
+	       assert(param[i] >= lim_inf[i] && param[i] <= lim_sup[i]);
 	     }
 	 }
              
@@ -1075,7 +1075,7 @@ static int brakGeneric(double *param, double *ax, double *bx, double *cx, double
 		     {
 		       if (fu[i] > fb[i]) 
 			 {
-			   assert(u[i] >= lim_inf && u[i] <= lim_sup);
+			   assert(u[i] >= lim_inf[i] && u[i] <= lim_sup[i]);
 			   cx[i]=u[i];
 			   fc[i]=fu[i];
 			   converged[i] = TRUE;			  
@@ -1084,8 +1084,8 @@ static int brakGeneric(double *param, double *ax, double *bx, double *cx, double
 			 {		   
 			   u[i]=(cx[i])+MNBRAK_GOLD*(cx[i]-bx[i]);
 			   param[i] = u[i];
-			   if(param[i] > lim_sup) {param[i] = u[i] = lim_sup;}
-			   if(param[i] < lim_inf) {param[i] = u[i] = lim_inf;}	  
+			   if(param[i] > lim_sup[i]) {param[i] = u[i] = lim_sup[i];}
+			   if(param[i] < lim_inf[i]) {param[i] = u[i] = lim_inf[i];}	  
 			   state[i] = 1;		 
 			 }		  
 		     }
@@ -1158,12 +1158,68 @@ static void optInvar(tree *tr, double modelEpsilon, linkageList *ll)
 /*******************************************************************************************************************/
 /*******************generic optimization ******************************************************************************************/
 
+static double minFreq(int index, int whichFreq, tree *tr, double absoluteMin)
+{
+  double 
+    min = 0.0,
+    *w = tr->partitionData[index].freqExponents,
+    c = 0.0;
+
+  int
+    states = tr->partitionData[index].states,
+    i;
+
+  for(i = 0; i < states; i++)
+    if(i != whichFreq)
+      c += exp(w[i]);
+
+  min = log(FREQ_MIN) + log(c) - log (1.0 - FREQ_MIN);
+
+  if(0)
+    {
+      double
+	check = exp(min) / (exp(min) + c);
+      
+      printf("check %f\n", check);    
+
+      printf("min: %f \n", min);
+    }
+  
+  return MAX(min, absoluteMin);
+}
+
+static double maxFreq(int index, int whichFreq, tree *tr, double absoluteMax)
+{
+  double 
+    max = 0.0,
+    *w = tr->partitionData[index].freqExponents,
+    c = 0.0;
+
+  int
+    states = tr->partitionData[index].states,
+    i;
+
+  for(i = 0; i < states; i++)
+    if(i != whichFreq)
+      c += exp(w[i]);
+
+  max = log(1.0 - ((double)(states - 1) * FREQ_MIN)) + log(c) - log ((double)(states - 1) * FREQ_MIN);
+
+  if(0)
+    {
+      double
+	check = exp(max) / (exp(max) + c);
+      
+      printf("check max %f\n", check);    
+      
+      printf("max: %f \n", max);
+    }
+  
+  return MIN(max, absoluteMax);
+}
 
 
-
-
-
-static void optParamGeneric(tree *tr, double modelEpsilon, linkageList *ll, int numberOfModels, int rateNumber, double lim_inf, double lim_sup, int whichParameterType)
+static void optParamGeneric(tree *tr, double modelEpsilon, linkageList *ll, int numberOfModels, int rateNumber, double _lim_inf, double _lim_sup, int whichParameterType)
 {
   int
     l,
@@ -1185,7 +1241,9 @@ static void optParamGeneric(tree *tr, double modelEpsilon, linkageList *ll, int 
     *_fb        = (double *)rax_malloc(sizeof(double) * numberOfModels),
     *_fc        = (double *)rax_malloc(sizeof(double) * numberOfModels),
     *_param     = (double *)rax_malloc(sizeof(double) * numberOfModels),    
-    *_x         = (double *)rax_malloc(sizeof(double) * numberOfModels); 
+    *_x         = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *lim_inf    = (double *)rax_malloc(sizeof(double) * numberOfModels),
+    *lim_sup    = (double *)rax_malloc(sizeof(double) * numberOfModels);
 
   
   if(whichParameterType == LXWEIGHT_F)
@@ -1220,25 +1278,37 @@ static void optParamGeneric(tree *tr, double modelEpsilon, linkageList *ll, int 
 	      switch(whichParameterType)
 		{
 		case ALPHA_F:
+		  lim_inf[pos] = _lim_inf;
+		  lim_sup[pos] = _lim_sup;
 		  startValues[pos] = tr->partitionData[index].alpha;
 		  break;
 		case RATE_F:
+		  lim_inf[pos] = _lim_inf;
+		  lim_sup[pos] = _lim_sup;
 		  startValues[pos] = tr->partitionData[index].substRates[rateNumber];      
 		  break;
 		case INVAR_F:
+		  lim_inf[pos] = _lim_inf;
+		  lim_sup[pos] = _lim_sup;
 		  startValues[pos] = tr->partitionData[index].propInvariant;
 		  break;
 		case SCALER_F:
+		  lim_inf[pos] = _lim_inf;
+		  lim_sup[pos] = _lim_sup;
 		  startValues[pos] = tr->partitionData[index].brLenScaler;
 		  break;
 		case LXRATE_F:
+		  lim_inf[pos] = _lim_inf;
+		  lim_sup[pos] = _lim_sup;
 		  assert(rateNumber >= 0 && rateNumber < 4);
 		  startValues[pos] = tr->partitionData[index].gammaRates[rateNumber];
 		  memcpy(&startRates[pos * 4],   tr->partitionData[index].gammaRates, 4 * sizeof(double)); 
 		  memcpy(&startExponents[pos * 4], tr->partitionData[index].weightExponents, 4 * sizeof(double));
 		  memcpy(&startWeights[pos * 4], tr->partitionData[index].weights,    4 * sizeof(double));
 		  break;
-		case LXWEIGHT_F:
+		case LXWEIGHT_F: 
+		  lim_inf[pos] = _lim_inf;
+		  lim_sup[pos] = _lim_sup;
 		  assert(rateNumber >= 0 && rateNumber < 4);
 		  startValues[pos] = tr->partitionData[index].weightExponents[rateNumber];
 		  memcpy(&startRates[pos * 4],   tr->partitionData[index].gammaRates, 4 * sizeof(double)); 
@@ -1246,6 +1316,10 @@ static void optParamGeneric(tree *tr, double modelEpsilon, linkageList *ll, int 
 		  memcpy(&startWeights[pos * 4], tr->partitionData[index].weights,    4 * sizeof(double));
 		  break;
 		case FREQ_F:
+		  lim_inf[pos] = minFreq(index, rateNumber, tr, _lim_inf);
+		  lim_sup[pos] = maxFreq(index, rateNumber, tr, _lim_sup);
+		  //lim_inf[pos] = _lim_inf;
+		  //lim_sup[pos] = _lim_sup;
 		  startValues[pos] = tr->partitionData[index].freqExponents[rateNumber];
 		  break;
 		default:
@@ -1266,17 +1340,17 @@ static void optParamGeneric(tree *tr, double modelEpsilon, linkageList *ll, int 
 	  _a[pos] = startValues[pos] + 0.1;
 	  _b[pos] = startValues[pos] - 0.1;
 	      
-	  if(_a[pos] < lim_inf) 
-	    _a[pos] = lim_inf;
+	  if(_a[pos] < lim_inf[pos]) 
+	    _a[pos] = lim_inf[pos];
 	  
-	  if(_a[pos] > lim_sup) 
-	    _a[pos] = lim_sup;
+	  if(_a[pos] > lim_sup[pos]) 
+	    _a[pos] = lim_sup[pos];
 	      
-	  if(_b[pos] < lim_inf) 
-	    _b[pos] = lim_inf;
+	  if(_b[pos] < lim_inf[pos]) 
+	    _b[pos] = lim_inf[pos];
 	  
-	  if(_b[pos] > lim_sup) 
-	    _b[pos] = lim_sup;    
+	  if(_b[pos] > lim_sup[pos]) 
+	    _b[pos] = lim_sup[pos];    
 
 	  pos++;
 	}
@@ -1288,9 +1362,9 @@ static void optParamGeneric(tree *tr, double modelEpsilon, linkageList *ll, int 
       
   for(k = 0; k < numberOfModels; k++)
     {
-      assert(_a[k] >= lim_inf && _a[k] <= lim_sup);
-      assert(_b[k] >= lim_inf && _b[k] <= lim_sup);	  
-      assert(_c[k] >= lim_inf && _c[k] <= lim_sup);	    
+      assert(_a[k] >= lim_inf[k] && _a[k] <= lim_sup[k]);
+      assert(_b[k] >= lim_inf[k] && _b[k] <= lim_sup[k]);	  
+      assert(_c[k] >= lim_inf[k] && _c[k] <= lim_sup[k]);	    
     }      
 
   brentGeneric(_a, _b, _c, _fb, modelEpsilon, _x, endLH, numberOfModels, whichParameterType, rateNumber, tr,  ll, lim_inf, lim_sup);
@@ -1401,6 +1475,8 @@ static void optParamGeneric(tree *tr, double modelEpsilon, linkageList *ll, int 
   rax_free(startRates);
   rax_free(startWeights);
   rax_free(startExponents);
+  rax_free(lim_inf);
+  rax_free(lim_sup);
 
 #ifdef _DEBUG_MODEL_OPTIMIZATION
   evaluateGenericInitrav(tr, tr->start);
@@ -1413,6 +1489,7 @@ static void optParamGeneric(tree *tr, double modelEpsilon, linkageList *ll, int 
 }
 
 
+
 static void optFreqs(tree *tr, double modelEpsilon, linkageList *ll, int numberOfModels, int states)
 { 
   int 
@@ -1421,10 +1498,12 @@ static void optFreqs(tree *tr, double modelEpsilon, linkageList *ll, int numberO
   double
     freqMin = -1000000.0,
     freqMax = 200.0;
-  
-  for(rateNumber = 0; rateNumber < states; rateNumber++)   
-    optParamGeneric(tr, modelEpsilon, ll, numberOfModels, rateNumber, freqMin, freqMax, FREQ_F);   
+    
+  for(rateNumber = 0; rateNumber < states; rateNumber++)          
+    optParamGeneric(tr, modelEpsilon, ll, numberOfModels, rateNumber, freqMin, freqMax, FREQ_F);     
 }
+
+
 
 static void optBaseFreqs(tree *tr, double modelEpsilon, linkageList *ll)
 {
@@ -1442,15 +1521,15 @@ static void optBaseFreqs(tree *tr, double modelEpsilon, linkageList *ll)
     {
       switch(tr->partitionData[ll->ld[i].partitionList[0]].dataType)
 	{
-	case DNA_DATA:	
-	  states = tr->partitionData[ll->ld[i].partitionList[0]].states;	 
+	case DNA_DATA:		  
+	  states = tr->partitionData[ll->ld[i].partitionList[0]].states;	 	  
 	  if(tr->partitionData[ll->ld[i].partitionList[0]].optimizeBaseFrequencies)
 	    {
 	      ll->ld[i].valid = TRUE;
 	      dnaPartitions++;  	    
 	    }
 	  else
-	     ll->ld[i].valid = FALSE;
+	     ll->ld[i].valid = FALSE;	
 	  break;       
 	case BINARY_DATA:
 	case AA_DATA:
