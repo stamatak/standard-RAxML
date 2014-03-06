@@ -749,7 +749,19 @@ void parsePartitions(analdef *adef, rawdata *rdta, tree *tr)
 	  printf("Did you mean to write something similar to this: \"DNA, p1=1-100\\3\" ?\n");
 	  printf("It's actually a backslash, not a slash, the program will exit now with an error!\n\n");
 	}    
-      
+      else
+	{ 	 
+	  printf("\nRAxML detected the character \"%c\" in your partition file,\n", *ch);
+	  printf("while it does not belong there!\n");
+	  printf("\nAre you sure that your partition file complies with the RAxML partition file format?\n");
+	  printf("\nActually reading the manual, does indeed do help a lot\n\n");
+	  printf("The program will exit now with an error!\n\n");
+	}
+
+      printf("The problematic line in your partition file is this one here:\n\n");
+	
+      printf("%s\n\n", p_names[i]);
+
       assert(0);
        
     parsed:
