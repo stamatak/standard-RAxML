@@ -1297,7 +1297,7 @@ static void optParamGeneric(tree *tr, double modelEpsilon, linkageList *ll, int 
 		  lim_sup[pos] = _lim_sup;
 		  startValues[pos] = tr->partitionData[index].brLenScaler;
 		  break;
-		case LXRATE_F:
+		case LXRATE_F:		 
 		  lim_inf[pos] = _lim_inf;
 		  lim_sup[pos] = _lim_sup;
 		  assert(rateNumber >= 0 && rateNumber < 4);
@@ -1306,7 +1306,7 @@ static void optParamGeneric(tree *tr, double modelEpsilon, linkageList *ll, int 
 		  memcpy(&startExponents[pos * 4], tr->partitionData[index].weightExponents, 4 * sizeof(double));
 		  memcpy(&startWeights[pos * 4], tr->partitionData[index].weights,    4 * sizeof(double));
 		  break;
-		case LXWEIGHT_F: 
+		case LXWEIGHT_F: 		  
 		  lim_inf[pos] = _lim_inf;
 		  lim_sup[pos] = _lim_sup;
 		  assert(rateNumber >= 0 && rateNumber < 4);
@@ -1390,13 +1390,15 @@ static void optParamGeneric(tree *tr, double modelEpsilon, linkageList *ll, int 
 		      memcpy(tr->partitionData[index].gammaRates,      &startRates[pos * 4], sizeof(double) * 4);
 		      memcpy(tr->partitionData[index].weightExponents, &startExponents[pos * 4], 4 * sizeof(double));
 		    }
+		  
+		 
 
 		  changeModelParameters(index, rateNumber, startValues[pos], whichParameterType, tr);		 
 		}
 	    }
 	  else
 	    {
-	      //	      printf("accept\n");
+	      //printf("accept\n");
 
 	      //otherwise we set the value to the optimized value 
 	      //this used to be a bug in standard RAxML, before I fixed it 
@@ -1482,7 +1484,7 @@ static void optParamGeneric(tree *tr, double modelEpsilon, linkageList *ll, int 
   evaluateGenericInitrav(tr, tr->start);
 
   if(tr->likelihood < initialLH)
-    printf("%f %f\n", tr->likelihood, initialLH);
+    printf("%1.40f %1.40f\n", tr->likelihood, initialLH);
   assert(tr->likelihood >= initialLH);
 #endif
 
