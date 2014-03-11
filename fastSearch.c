@@ -1269,21 +1269,27 @@ void fastSearch(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
   */
  
   do
-    {      
+    {           
       startLikelihood = tr->likelihood;
    
       /* conduct a cycle of linear SPRs */
-
     
-
-      likelihood = linearSPRs(tr, 20, adef->veryFast);          
+      linearSPRs(tr, 20, adef->veryFast);          
            
-      evaluateGeneric(tr, tr->start); 
+      evaluateGeneric(tr, tr->start);          
+
+      likelihood = tr->likelihood;
       
       /* the NNIs also optimize br-lens of resulting topology a bit */
       encapsulateNNIs(tr, lhVectors, FALSE);                    
  
+      evaluateGeneric(tr, tr->start); 
+
+      assert(tr->likelihood >= likelihood);
+
       printBothOpen("LH after SPRs %f, after NNI %f\n", likelihood, tr->likelihood);
+
+      
     }
   while(ABS(tr->likelihood - startLikelihood) > 0.5);
 
