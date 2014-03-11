@@ -1249,7 +1249,17 @@ static void optParamGeneric(tree *tr, double modelEpsilon, linkageList *ll, int 
   if(whichParameterType == LXWEIGHT_F)
     evaluateGeneric(tr, tr->start);
   else
-    evaluateGenericInitrav(tr, tr->start);
+    {
+      evaluateGenericInitrav(tr, tr->start);
+
+      if(whichParameterType == LXRATE_F)
+	{
+	  int j;
+
+	  for(j = 0; j < tr->NumberOfModels; j++)
+	    tr->partitionData[j].weightLikelihood = tr->perPartitionLH[j];
+	}
+    }
   
 #ifdef  _DEBUG_MODEL_OPTIMIZATION
   double
@@ -1310,10 +1320,7 @@ static void optParamGeneric(tree *tr, double modelEpsilon, linkageList *ll, int 
 		  lim_inf[pos] = _lim_inf;
 		  lim_sup[pos] = _lim_sup;
 		  assert(rateNumber >= 0 && rateNumber < 4);
-		  startValues[pos] = tr->partitionData[index].weightExponents[rateNumber];
-		  memcpy(&startRates[pos * 4],   tr->partitionData[index].gammaRates, 4 * sizeof(double)); 
-		  memcpy(&startExponents[pos * 4], tr->partitionData[index].weightExponents, 4 * sizeof(double));
-		  memcpy(&startWeights[pos * 4], tr->partitionData[index].weights,    4 * sizeof(double));
+		  startValues[pos] = tr->partitionData[index].weightExponents[rateNumber];		  
 		  break;
 		case FREQ_F:
 		  lim_inf[pos] = minFreq(index, rateNumber, tr, _lim_inf);
@@ -1383,16 +1390,15 @@ static void optParamGeneric(tree *tr, double modelEpsilon, linkageList *ll, int 
 		{
 		  int 
 		    index = ll->ld[k].partitionList[j];
-		  
-		  if(whichParameterType == LXWEIGHT_F || whichParameterType == LXRATE_F)
+		  		 
+
+		  if(whichParameterType == LXRATE_F)
 		    {
 		      memcpy(tr->partitionData[index].weights,         &startWeights[pos * 4], sizeof(double) * 4);
 		      memcpy(tr->partitionData[index].gammaRates,      &startRates[pos * 4], sizeof(double) * 4);
 		      memcpy(tr->partitionData[index].weightExponents, &startExponents[pos * 4], 4 * sizeof(double));
 		    }
-		  
-		 
-
+		  		 
 		  changeModelParameters(index, rateNumber, startValues[pos], whichParameterType, tr);		 
 		}
 	    }
@@ -1409,7 +1415,23 @@ static void optParamGeneric(tree *tr, double modelEpsilon, linkageList *ll, int 
 		  int 
 		    index = ll->ld[k].partitionList[j];
 
-		  changeModelParameters(index, rateNumber, _x[pos], whichParameterType, tr);		  		  
+		  changeModelParameters(index, rateNumber, _x[pos], whichParameterType, tr);
+
+		  if(whichParameterType == LXWEIGHT_F)
+		    {
+		      if(endLH[pos] > tr->partitionData[index].weightLikelihood)
+			{
+			  memcpy(tr->partitionData[index].weightsBuffer,         tr->partitionData[index].weights, sizeof(double) * 4);
+			  memcpy(tr->partitionData[index].weightExponentsBuffer, tr->partitionData[index].weightExponents, sizeof(double) * 4);
+			  tr->partitionData[index].weightLikelihood = endLH[pos];
+			}
+		    }
+
+		   if(whichParameterType == LXRATE_F)
+		    {
+		      memcpy(tr->partitionData[index].weights,         tr->partitionData[index].weightsBuffer, sizeof(double) * 4);		 
+		      memcpy(tr->partitionData[index].weightExponents, tr->partitionData[index].weightExponentsBuffer, sizeof(double) * 4);
+		    }		  		  
 		}
 	    }
 	  pos++;

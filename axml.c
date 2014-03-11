@@ -596,8 +596,9 @@ static ssize_t rax_getline(char **lineptr, size_t *n, FILE *h)
       {
 	if(ins_ptr == 0) 	  
 	  return -1;	  
-	else 	  
-	  break;	  
+	else 
+	  c = '\n';
+	  //break;	  
       }
 
     if(c == '\r') 
@@ -699,9 +700,10 @@ static void getnums (rawdata *rdta, analdef *adef)
 		  if(!(line[i] == ' ' || line[i] == '\t'))
 		    {		    
 		      sites++;
-		    }
+		    }		 
 		  i++;
 		}
+	      //printf("sites %d %s\n", sites, line);
 	    }	  
 	}
 

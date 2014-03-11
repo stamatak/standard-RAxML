@@ -164,8 +164,8 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "RAxML"
-#define programVersion     "8.0.12"
-#define programDate        "March 6 2014"
+#define programVersion     "8.0.13"
+#define programDate        "March 11 2014"
 
 
 #define  TREE_EVALUATION                 0
@@ -604,6 +604,11 @@ typedef struct {
 
   double weights[4];
   double weightExponents[4];
+
+  double weightsBuffer[4];
+  double weightExponentsBuffer[4];
+
+  double weightLikelihood;
 
   /* LG4 */
 
