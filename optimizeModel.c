@@ -1158,6 +1158,44 @@ static void optInvar(tree *tr, double modelEpsilon, linkageList *ll)
 /*******************************************************************************************************************/
 /*******************generic optimization ******************************************************************************************/
 
+/* the two functions below have been added to guarantee that the minimum ML-estimated base frequency and 
+   the maximum estimated base frequency remain within the predifined limits of FREQ_MIN [minimum]
+   and 1.0 - FREQ_MIN * (states - 1) [maximum].
+
+   This is required because the frequencies are optimized using the xponential function, that is:
+
+   f[i] = e^w[i] / (e^w[0] + ... + e^w[n-1])
+
+   such that the sum of the f[i] is 1.0.
+
+   Thus, the quantity that is actually being optimized are the w[i] and not the frequencies.
+
+   Since the ML estimate of frequencies is done one after the other and independently for each partition,
+   the maximum and minimum allowed values for w[i] need to be recalculated at each iteration of the numerical optimization routine 
+   depending on the (fixed) values of the w[j] where j = 0...n-1 and j != i
+
+   The equations for the minimum are obtained by transforming the follwing inequality:
+
+   find a value of w[i] such that:
+
+   FREQ_MIN < e^w[i] / e^w[i] + c, where c := sum over all w[j] for j != i which are constant
+
+   after some transformations this becomes:
+
+   (FREQ_MIN * c) / (1 - FREQ_MIN) < e^w[i]
+
+   taking the logarithm this is:
+
+   log(FREQ_MIN) + log(c) - log(1 - FREQ_MIN) < w[i]
+
+   For the maximum allowed frequency which is: 
+
+   max := 1.0 - FREQ_MIN * (states - 1)
+
+   the derivation is analoguous.
+
+*/
+
 static double minFreq(int index, int whichFreq, tree *tr, double absoluteMin)
 {
   double 
