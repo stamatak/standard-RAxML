@@ -15,7 +15,7 @@ all : raxmlHPC-MPI-SSE3
 GLOBAL_DEPS = axml.h globalVariables.h rmq.h rmqs.h #mem_alloc.h
 
 raxmlHPC-MPI-SSE3 : $(objs)
-	$(CC) -o raxmlHPC-MPI-SSE3 $(objs) $(LIBRARIES) 
+	$(CC) -o raxmlHPC-MPI-SSE3 $(objs) $(LIBRARIES) $(LDFLAGS) 
 
 rmqs.o : rmqs.c $(GLOBAL_DEPS)
 classify.o : classify.c $(GLOBAL_DEPS)

@@ -15,7 +15,7 @@ all : raxmlHPC-MPI-AVX2
 GLOBAL_DEPS = axml.h globalVariables.h rmq.h rmqs.h #mem_alloc.h
 
 raxmlHPC-MPI-AVX2 : $(objs)
-	$(CC) -o raxmlHPC-MPI-AVX2 $(objs) $(LIBRARIES) 
+	$(CC) -o raxmlHPC-MPI-AVX2 $(objs) $(LIBRARIES) $(LDFLAGS) 
 
 avxLikelihood.o : avxLikelihood.c $(GLOBAL_DEPS)
 		$(CC) $(CFLAGS) -mavx2 -D_FMA -march=native -c -o avxLikelihood.o avxLikelihood.c

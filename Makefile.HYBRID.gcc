@@ -17,7 +17,7 @@ all : raxmlHPC-HYBRID
 GLOBAL_DEPS = axml.h globalVariables.h rmq.h rmqs.h #mem_alloc.h compiler.h  gcc.h  ll_asm.h  ll_list.h
 
 raxmlHPC-HYBRID : $(objs)
-	$(CC) -o raxmlHPC-HYBRID $(objs) $(LIBRARIES) 
+	$(CC) -o raxmlHPC-HYBRID $(objs) $(LIBRARIES) $(LDFLAGS) 
 
 rmqs.o : rmqs.c $(GLOBAL_DEPS)
 classify.o : classify.c $(GLOBAL_DEPS)

@@ -16,7 +16,7 @@ all : raxmlHPC
 GLOBAL_DEPS = axml.h globalVariables.h rmq.h rmqs.h
 
 raxmlHPC : $(objs)
-	$(CC) -o raxmlHPC-SSE3 $(objs) $(LIBRARIES) 
+	$(CC) -o raxmlHPC-SSE3 $(objs) $(LIBRARIES) $(LDFLAGS) 
 
 rmqs.o : rmqs.c $(GLOBAL_DEPS)
 classify.o : classify.c $(GLOBAL_DEPS)

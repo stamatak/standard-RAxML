@@ -18,7 +18,7 @@ all : raxmlHPC-PTHREADS
 GLOBAL_DEPS = axml.h globalVariables.h rmq.h rmqs.h #mem_alloc.h compiler.h  gcc.h  ll_asm.h  ll_list.h
 
 raxmlHPC-PTHREADS : $(objs)
-	$(CC) -Qunused-arguments -o raxmlHPC-PTHREADS $(objs) $(LIBRARIES) 
+	$(CC) -Qunused-arguments -o raxmlHPC-PTHREADS $(objs) $(LIBRARIES) $(LDFLAGS) 
 
 rmqs.o : rmqs.c $(GLOBAL_DEPS)
 classify.o : classify.c $(GLOBAL_DEPS)

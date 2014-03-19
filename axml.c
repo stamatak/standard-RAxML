@@ -4549,7 +4549,7 @@ static void printMinusFUsage(void)
   printf("              \"-f A\": compute marginal ancestral states on a ROOTED reference tree provided with \"t\"\n");
 
   printf("              \"-f b\": draw bipartition information on a tree provided with \"-t\" based on multiple trees\n");
-  printf("                      (e.g., from a bootstrap) in a file specifed by \"-z\"\n");
+  printf("                      (e.g., from a bootstrap) in a file specified by \"-z\"\n");
 
   printf("              \"-f B\": optimize br-len scaler and other model parameters (GTR, alpha, etc.) on a tree provided with \"-t\".\n");
   printf("                      The tree needs to contain branch lengths. The branch lengths will not be optimized, just scaled by a single common value.\n");
@@ -4589,7 +4589,7 @@ static void printMinusFUsage(void)
   printf("                      The model parameters will be re-estimated for each tree\n");
 
   printf("              \"-f i\": calculate IC and TC scores (Salichos and Rokas 2013) on a tree provided with \"-t\" based on multiple trees\n");
-  printf("                      (e.g., from a bootstrap) in a file specifed by \"-z\"\n");
+  printf("                      (e.g., from a bootstrap) in a file specified by \"-z\"\n");
 
   printf("              \"-f I\": a simple tree rooting algorithm for unrooted trees.\n");
   printf("                      It roots the tree by rooting it at the branch that best balances the subtree lengths\n");
@@ -4751,7 +4751,7 @@ static void printREADME(void)
   printf("\n");
   printf("      -E      specify an exclude file name, that contains a specification of alignment positions you wish to exclude.\n");
   printf("              Format is similar to Nexus, the file shall contain entries like \"100-200 300-400\", to exclude a\n");
-  printf("              single column write, e.g., \"100-100\", if you use a mixed model, an appropriatly adapted model file\n");
+  printf("              single column write, e.g., \"100-100\", if you use a mixed model, an appropriately adapted model file\n");
   printf("              will be written.\n");
   printf("\n");
   printf("      -f      select algorithm:\n");
@@ -4795,7 +4795,7 @@ static void printREADME(void)
   printf("              DEFAULT: OFF\n");
   printf("\n");
   printf("      -J      Compute majority rule consensus tree with \"-J MR\" or extended majority rule consensus tree with \"-J MRE\"\n");
-  printf("              or strict consensus tree with \"-J STRICT\". For a custom consensus treshold >= 50%%, specify T_<NUM>, where 100 >= NUM >= 50.\n");
+  printf("              or strict consensus tree with \"-J STRICT\". For a custom consensus threshold >= 50%%, specify T_<NUM>, where 100 >= NUM >= 50.\n");
   printf("              Options \"-J STRICT_DROP\" and \"-J MR_DROP\" will execute an algorithm that identifies dropsets which contain\n");
   printf("              rogue taxa as proposed by Pattengale et al. in the paper \"Uncovering hidden phylogenetic consensus\".\n");
   printf("              You will also need to provide a tree file containing several UNROOTED trees via \"-z\"\n");
@@ -4813,7 +4813,7 @@ static void printREADME(void)
   printf("\n");
   printf("      -L     Compute consensus trees labelled by IC supports and the overall TC value as proposed in Salichos and Rokas 2013.\n");
   printf("             Compute a majority rule consensus tree with \"-L MR\" or an extended majority rule consensus tree with \"-L MRE\".\n");
-  printf("             For a custom consensus treshold >= 50%%, specify \"-L T_<NUM>\", where 100 >= NUM >= 50.\n");  
+  printf("             For a custom consensus threshold >= 50%%, specify \"-L T_<NUM>\", where 100 >= NUM >= 50.\n");  
   printf("             You will of course also need to provide a tree file containing several UNROOTED trees via \"-z\"!\n");
   printf("\n");
   printf("      -m      Model of Binary (Morphological), Nucleotide, Multi-State, or Amino Acid Substitution: \n");
@@ -6704,7 +6704,7 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
 	  printBoth(infoFile, "\nRAxML computation of SH-like support values on a given tree\n\n");
 	  break;
 	case EPA_SITE_SPECIFIC_BIAS:
-	  printBoth(infoFile, "\nRAxML exprimental site-specfific phylogenetic placement bias analysis algorithm\n\n");
+	  printBoth(infoFile, "\nRAxML experimental site-specfific phylogenetic placement bias analysis algorithm\n\n");
 	  break;
 	case ANCESTRAL_STATES:
 	  printBoth(infoFile, "\nRAxML marginal ancestral state computation\n\n");
@@ -6758,7 +6758,7 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
 		  char treeType[1024];
 
 		  if(adef->restart)
-		    strcpy(treeType, "user-specifed");
+		    strcpy(treeType, "user-specified");
 		  else
 		    {
 		      if(adef->randomStartingTree)

@@ -1597,7 +1597,7 @@ void parseSecondaryStructure(tree *tr, analdef *adef, int sites)
 		{
 		  printf("You are trying to use %d partitioned models for an individual per-gene branch length estimate.\n", tr->NumberOfModels);
 		  printf("Currently only %d are allowed to improve efficiency.\n", NUM_BRANCHES);
-		  printf("Note that the number of partitions has automatically been incremented by one to accomodate secondary structure models\n");
+		  printf("Note that the number of partitions has automatically been incremented by one to accommodate secondary structure models\n");
 		  printf("\n");
 		  printf("In order to change this please replace the line \"#define NUM_BRANCHES   %d\" in file \"axml.h\" \n", NUM_BRANCHES);
 		  printf("by \"#define NUM_BRANCHES   %d\" and then re-compile RAxML.\n", tr->NumberOfModels);
