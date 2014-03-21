@@ -58,7 +58,7 @@ extern char seq_file[1024];
 
 
 
-void computeBOOTRAPID (tree *tr, analdef *adef, long *radiusSeed) 
+void computeBOOTRAPID (tree *tr, analdef *adef, int64_t *radiusSeed) 
 { 
   int i, bestTrav, impr;                
   double lh, previousLh, difference, epsilon;              

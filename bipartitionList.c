@@ -1742,8 +1742,8 @@ void compareBips(tree *tr, char *bootStrapFileName, analdef *adef)
   
   unsigned int **bitVectors = initBitVector(tr, &vLength);
   hashtable *h = initHashTable(tr->mxtips * 100);    
-  unsigned long int c1 = 0;
-  unsigned long int c2 = 0;   
+  uint64_t c1 = 0;
+  uint64_t c2 = 0;   
 
 
   /*********************************************************************************************************/
@@ -3585,7 +3585,7 @@ double convergenceCriterion(hashtable *h, int mxtips)
 
 /*************************************************************************************************************/
 
-static void permute(unsigned int *perm, unsigned int n, long *seed)
+static void permute(unsigned int *perm, unsigned int n, int64_t *seed)
 {
   unsigned int  i, j, k;
  
@@ -3664,7 +3664,7 @@ static double frequencyCriterion(int numberOfTrees, hashtable *h, int *countBett
     k, 
     l;
     
-  long 
+  int64_t 
     seed = adef->parsimonySeed;
 
   double     
@@ -3771,7 +3771,7 @@ static double wcCriterion(int numberOfTrees, hashtable *h, int *countBetter, dou
     *perm =  (unsigned int *)rax_malloc(sizeof(unsigned int) * numberOfTrees),
     j;
 
-  long 
+  int64_t 
     seed = adef->parsimonySeed;  
   
   double 

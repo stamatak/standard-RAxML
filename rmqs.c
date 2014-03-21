@@ -206,7 +206,7 @@ void RMQ_succinct(DT* _a, DTidx _n) {
 	// Type-calculation for the microblocks and pre-computation of in-microblock-queries:
 	type = (DTsucc2 *) rax_malloc (sizeof (DTsucc2) * nmb);
 #ifdef MEM_COUNT
-	unsigned long mem = sizeof(DTsucc2)*nmb;
+	uint64_t mem = sizeof(DTsucc2)*nmb;
 #endif
 	Prec = (DTsucc ** ) rax_malloc (sizeof (DTsucc *) * Catalan[s][s]);
 	for (i = 0; i < Catalan[s][s]; i++) {

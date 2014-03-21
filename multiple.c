@@ -261,7 +261,7 @@ void reductionCleanup(tree *tr, int *originalRateCategories, int *originalInvari
 
 /* old problematic code by Andre
 
-void computeNextReplicate(tree *tr, long *randomSeed, int *originalRateCategories, int *originalInvariant, boolean isRapid, boolean fixRates)
+void computeNextReplicate(tree *tr, int64_t *randomSeed, int *originalRateCategories, int *originalInvariant, boolean isRapid, boolean fixRates)
 { 
   int 
     j, 
@@ -381,7 +381,7 @@ void computeNextReplicate(tree *tr, long *randomSeed, int *originalRateCategorie
 
   
 
-void computeNextReplicate(tree *tr, long *randomSeed, int *originalRateCategories, int *originalInvariant, boolean isRapid, boolean fixRates)
+void computeNextReplicate(tree *tr, int64_t *randomSeed, int *originalRateCategories, int *originalInvariant, boolean isRapid, boolean fixRates)
 { 
   int    
     j, 
@@ -658,7 +658,7 @@ void doAllInOne(tree *tr, analdef *adef)
   int treeVectorLength = -1;
   topolRELL_LIST *rl;  
   double bestLH, mlTime, overallTime;  
-  long radiusSeed = adef->rapidBoot;
+  int64_t radiusSeed = adef->rapidBoot;
   FILE *f;
   char bestTreeFileName[1024];  
   hashtable *h = (hashtable*)NULL;
@@ -702,8 +702,8 @@ void doAllInOne(tree *tr, analdef *adef)
  
 
 #ifdef _WAYNE_MPI
-  long parsimonySeed0 = adef->parsimonySeed;
-  long replicateSeed0 = adef->rapidBoot;
+  int64_t parsimonySeed0 = adef->parsimonySeed;
+  int64_t replicateSeed0 = adef->rapidBoot;
   n = n / processes;
 #endif
  
@@ -739,9 +739,19 @@ void doAllInOne(tree *tr, analdef *adef)
 	    {
 	      FILE *f = myfopen(tree_file, "rb");	
 
-	      assert(adef->restart);	      
-	      if (! treeReadLenMULT(f, tr, adef))
-		exit(-1);
+	      assert(adef->restart);
+	      if(adef->grouping)
+		{
+		  if (! treeReadLenMULT(f, tr, adef))
+		    exit(-1);
+		}
+	      else
+		{
+		  if(tr->saveMemory)				 
+		    treeReadLen(f, tr, FALSE, FALSE, TRUE, adef, FALSE, FALSE);	          	       
+		  else		   
+		    treeReadLen(f, tr, FALSE, FALSE, FALSE, adef, FALSE, FALSE);
+		}
 	     
 	      fclose(f);
 	    }
@@ -1339,9 +1349,9 @@ void doBootstrap(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
     }           
 
 #ifdef _WAYNE_MPI
-  long parsimonySeed0 = adef->parsimonySeed;
-  long replicateSeed0 = adef->rapidBoot;
-  long bootstrapSeed0  = adef->boot;
+  int64_t parsimonySeed0 = adef->parsimonySeed;
+  int64_t replicateSeed0 = adef->rapidBoot;
+  int64_t bootstrapSeed0  = adef->boot;
   n = n / processes;
 #endif
 
@@ -1506,7 +1516,7 @@ void doInference(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
     }
 
 #ifdef _WAYNE_MPI
-  long parsimonySeed0 = adef->parsimonySeed;
+  int64_t parsimonySeed0 = adef->parsimonySeed;
   n = n / processes;
 #endif
 

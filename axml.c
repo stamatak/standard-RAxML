@@ -47,6 +47,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <limits.h>
+#include <inttypes.h>
 
 #if (defined(_WAYNE_MPI) || defined (_QUARTET_MPI))
 #include <mpi.h>
@@ -409,9 +410,9 @@ double gettime(void)
 
 
 
-double randum (long  *seed)
+double randum (int64_t  *seed)
 {
-  long  sum, mult0, mult1, seed0, seed1, seed2, newseed0, newseed1, newseed2;
+  int64_t  sum, mult0, mult1, seed0, seed1, seed2, newseed0, newseed1, newseed2;
   double res;
 
   mult0 = 1549;
@@ -1039,10 +1040,10 @@ static void checkTaxonName(char *buffer, int len)
 
 static void printParsingErrorContext(FILE *f)
 {
-  const long
+  const int64_t
     contextWidth = 20;
 
-  long
+  int64_t
     i,
     currentPos = ftell(f),
     contextPos = MAX(currentPos - contextWidth, 0);
@@ -1091,7 +1092,7 @@ static boolean getdata(analdef *adef, rawdata *rdta, tree *tr)
 			  '8', '9', 'A', 'B', 'C', 'D', 'E', 'F',
 			  'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N',
 			  'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V'};  
-  unsigned long 
+  uint64_t
     total = 0,
     gaps  = 0;
 
@@ -1394,7 +1395,7 @@ static void parseFasta(analdef *adef, rawdata *rdta, tree *tr)
 			  '8', '9', 'A', 'B', 'C', 'D', 'E', 'F',
 			  'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N',
 			  'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V'};  
-  unsigned long 
+  uint64_t
     total = 0,
     gaps  = 0;
 
@@ -7501,6 +7502,8 @@ static void finalizeInfoFile(tree *tr, analdef *adef)
 		    
 		    if(!tr->partitionData[model].usePredefinedProtFreqs || tr->partitionData[model].optimizeBaseFrequencies)
 		      params += 19;
+		    if(tr->partitionData[model].protModels == LG4X)
+		      params += 6;
 		    break;
 		  case GENERIC_32:
 		    {
@@ -9220,7 +9223,7 @@ static int setPthreadAffinity(void)
     cpuNum, 
     rc;
   
-  long        
+  int64_t        
     systemCores;
   
   cpu_set_t  
@@ -9711,7 +9714,7 @@ static void computeELW(tree *tr, analdef *adef, char *bootStrapFileName)
     *originalRateCategories = (int*)rax_malloc(tr->cdta->endsite * sizeof(int)),
     *originalInvariant      = (int*)rax_malloc(tr->cdta->endsite * sizeof(int));
 
-  long 
+  int64_t 
     startSeed;
 
   double
@@ -10874,10 +10877,10 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
     fraction = 0.0,
     t;
 
-  unsigned long int
-    randomQuartets = (unsigned long int)(adef->multipleRuns),
+  uint64_t
+    randomQuartets = (uint64_t)(adef->multipleRuns),
     quartetCounter = 0,
-    numberOfQuartets = ((unsigned long int)tr->mxtips * ((unsigned long int)tr->mxtips - 1) * ((unsigned long int)tr->mxtips - 2) * ((unsigned long int)tr->mxtips - 3)) / 24;
+    numberOfQuartets = ((uint64_t)tr->mxtips * ((uint64_t)tr->mxtips - 1) * ((uint64_t)tr->mxtips - 2) * ((uint64_t)tr->mxtips - 3)) / 24;
 
   /* use two inner nodes for building quartet trees */
 
@@ -11018,7 +11021,7 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
 		  for(t4 = t3 + 1; t4 <= tr->mxtips; t4++)
 		    {
 #ifdef _QUARTET_MPI
-		      if((quartetCounter % (unsigned long int)(processes - 1)) == (unsigned long int)(processID - 1))
+		      if((quartetCounter % (uint64_t)(processes - 1)) == (uint64_t)(processID - 1))
 #endif
 			computeAllThreeQuartets(tr, q1, q2, t1, t2, t3, t4, f);
 		      quartetCounter++;
@@ -11042,7 +11045,7 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
 		      if(r < fraction)
 			{
 #ifdef _QUARTET_MPI
-			  if((quartetCounter % (unsigned long int)(processes - 1)) == (unsigned long int)(processID - 1))
+			  if((quartetCounter % (uint64_t)(processes - 1)) == (uint64_t)(processID - 1))
 #endif
 			    computeAllThreeQuartets(tr, q1, q2, t1, t2, t3, t4, f);
 			  quartetCounter++;
@@ -11072,7 +11075,7 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
 			i4 = groups[3][t4];
 		      
 #ifdef _QUARTET_MPI
-		      if((quartetCounter % (unsigned long int)(processes - 1)) == (unsigned long int)(processID - 1))
+		      if((quartetCounter % (uint64_t)(processes - 1)) == (uint64_t)(processID - 1))
 #endif
 			computeAllThreeQuartets(tr, q1, q2, i1, i2, i3, i4, f);
 		      quartetCounter++;

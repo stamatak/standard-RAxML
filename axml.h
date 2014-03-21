@@ -33,6 +33,7 @@
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <inttypes.h>
 
 #ifdef __AVX
 #define BYTE_ALIGNMENT 32
@@ -164,8 +165,8 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "RAxML"
-#define programVersion     "8.0.15"
-#define programDate        "March 19 2014"
+#define programVersion     "8.0.16"
+#define programDate        "March 21 2014"
 
 
 #define  TREE_EVALUATION                 0
@@ -839,8 +840,8 @@ typedef  struct  {
 
   double            lhCutoff;
   double            lhAVG;
-  unsigned long     lhDEC;
-  unsigned long     itCount;
+  uint64_t          lhDEC;
+  uint64_t          itCount;
   int               numberOfInvariableColumns;
   int               weightOfInvariableColumns;
   int               rateHetModel;
@@ -1036,8 +1037,8 @@ typedef  struct {
   int              initial;
   boolean          initialSet;
   int              mode;
-  long             boot;
-  long             rapidBoot;
+  int64_t             boot;
+  int64_t             rapidBoot;
   boolean          bootstrapBranchLengths;
   boolean          restart;
   boolean          useWeightFile;
@@ -1051,8 +1052,8 @@ typedef  struct {
   int            checkpoints;
   int            startingTreeOnly;
   int            multipleRuns;
-  long           parsimonySeed;
-  long           constraintSeed;
+  int64_t           parsimonySeed;
+  int64_t           constraintSeed;
   boolean        perGeneBranchLengths;
   boolean        likelihoodTest;
   boolean        outgroup;
@@ -1146,7 +1147,7 @@ extern int getStates(int dataType);
 extern char getInverseMeaning(int dataType, unsigned char state);
 extern void printModelParams(tree *tr, analdef *adef);
 extern double gettime ( void );
-extern double randum ( long *seed );
+extern double randum ( int64_t *seed );
 
 extern void getxnode ( nodeptr p );
 extern void hookup ( nodeptr p, nodeptr q, double *z, int numBranches);
@@ -1188,7 +1189,7 @@ extern void modOpt ( tree *tr, analdef *adef , boolean resetModel, double likeli
 extern void plausibilityChecker(tree *tr, analdef *adef);
 
 extern void parsePartitions ( analdef *adef, rawdata *rdta, tree *tr);
-extern void computeBOOTRAPID (tree *tr, analdef *adef, long *radiusSeed);
+extern void computeBOOTRAPID (tree *tr, analdef *adef, int64_t *radiusSeed);
 extern void optimizeRAPID ( tree *tr, analdef *adef );
 extern void thoroughOptimization ( tree *tr, analdef *adef, topolRELL_LIST *rl, int index );
 extern int treeOptimizeThorough ( tree *tr, int mintrav, int maxtrav);
@@ -1339,7 +1340,7 @@ extern void parseProteinModel(double *externalAAMatrix, char *fileName);
 extern int filexists(char *filename);
 extern void computeFullTraversalInfo(nodeptr p, traversalInfo *ti, int *counter, int maxTips, int numBranches);
 
-extern void computeNextReplicate(tree *tr, long *seed, int *originalRateCategories, int *originalInvariant, boolean isRapid, boolean fixRates);
+extern void computeNextReplicate(tree *tr, int64_t *seed, int *originalRateCategories, int *originalInvariant, boolean isRapid, boolean fixRates);
 /*extern void computeNextReplicate(tree *tr, analdef *adef, int *originalRateCategories, int *originalInvariant);*/
 
 extern void reductionCleanup(tree *tr, int *originalRateCategories, int *originalInvariant);
@@ -1387,7 +1388,7 @@ extern boolean compatible(entry* e1, entry* e2, unsigned int bvlen);
 
 extern void nniSmooth(tree *tr, nodeptr p, int maxtimes);
 
-extern int *permutationSH(tree *tr, int nBootstrap, long _randomSeed);
+extern int *permutationSH(tree *tr, int nBootstrap, int64_t _randomSeed);
 
 extern void updatePerSiteRates(tree *tr, boolean scaleRates);
 

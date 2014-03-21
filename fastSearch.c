@@ -1112,7 +1112,7 @@ static int encapsulateNNIs(tree *tr, double *lhVectors[3], boolean shSupport)
   return interchanges;
 }
 
-int *permutationSH(tree *tr, int nBootstrap, long _randomSeed) 
+int *permutationSH(tree *tr, int nBootstrap, int64_t _randomSeed) 
 {
   int 
     replicate,
@@ -1122,7 +1122,7 @@ int *permutationSH(tree *tr, int nBootstrap, long _randomSeed)
     *col = (int*)rax_calloc(((size_t)tr->cdta->endsite) * ((size_t)nBootstrap), sizeof(int)),
     *nonzero = (int*)rax_calloc(tr->NumberOfModels, sizeof(int));
   
-  long 
+  int64_t 
     randomSeed = _randomSeed;
   
   size_t 

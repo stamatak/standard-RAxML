@@ -849,7 +849,7 @@ static void treeEchoContext (FILE *fp1, FILE *fp2, int n)
   int      
     ch;
 
-  long 
+  int64_t 
     current = ftell(fp1);  
 
   boolean  
