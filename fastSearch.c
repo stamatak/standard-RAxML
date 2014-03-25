@@ -770,12 +770,11 @@ static int SHSupport(int nPos, int nBootstrap, int *col, double loglk[3], double
 
   boolean
     shittySplit = FALSE;
-
   
   if(loglk[1] >= loglk[0])
     {
       diff = ABS(loglk[1] - loglk[0]);
-      /*printf("%1.80f %1.80f\n", loglk[0], loglk[1]);*/
+      //printf("%1.80f %1.80f\n", loglk[0], loglk[1]);
       shittySplit = TRUE;
       if(!perPartition)
 	assert(diff < 0.1);
@@ -784,7 +783,7 @@ static int SHSupport(int nPos, int nBootstrap, int *col, double loglk[3], double
   if(loglk[2] >= loglk[0])
     {
       diff = ABS(loglk[2] - loglk[0]);
-      /*printf("%1.80f %1.80f\n", loglk[0], loglk[2]);*/
+      //printf("%1.80f %1.80f\n", loglk[0], loglk[2]);
       shittySplit = TRUE; 
       if(!perPartition)
 	assert(diff < 0.1);
@@ -799,7 +798,7 @@ static int SHSupport(int nPos, int nBootstrap, int *col, double loglk[3], double
       if(diff < 0.1)
 	shittySplit = TRUE;
     }
-      
+  
   if(shittySplit)
     return 0;
     
@@ -1337,9 +1336,10 @@ void shSupports(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
     shSupportFileName[1024];
   
   FILE 
-    *f;
+    *f;  
 
   int
+    nniRounds = 0,
     i,
     interchanges = 0,
     counter = 0;
@@ -1373,8 +1373,8 @@ void shSupports(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
     {
       evaluateGenericInitrav(tr, tr->start);
       modOpt(tr, adef, FALSE, 1.0);
-    }
-  
+    }    
+
   printBothOpen("Time after model optimization: %f\n", gettime() - masterTime);
   
   printBothOpen("Initial Likelihood %f\n\n", tr->likelihood);   
@@ -1393,11 +1393,18 @@ void shSupports(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
 
       lh2 = tr->likelihood;
 
-      diff = ABS(lh1 - lh2);
+      diff = ABS(lh1 - lh2);     
 
       printBothOpen("NNI interchanges %d Likelihood %f\n", interchanges, tr->likelihood);
+      
+      nniRounds++;
     }
-  while(diff > 0.01);
+  /* 
+     limit number of nniRounds to 10 if the difference between likelihoods before and after the NNI 
+     is smaller or equal to 0.01. The NNI optimization also converges when no applicable interchanges have been 
+     found 
+  */
+  while((diff > 0.01 || nniRounds < 10) && interchanges != 0);
 
   printBothOpen("\nFinal Likelihood of NNI-optimized tree: %f\n\n", tr->likelihood);
 

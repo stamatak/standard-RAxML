@@ -8618,9 +8618,6 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 		rax_free(localTree->partitionData[model].expVector[i]);				
 	      }
 	  }
-
-	rax_free(localTree->partitionData[model].xVector);
-	rax_free(localTree->partitionData[model].expVector);
       }
       break;
     case THREAD_GATHER_LIKELIHOOD:
