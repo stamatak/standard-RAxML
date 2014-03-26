@@ -6401,7 +6401,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	  dir[1024] = "";
 	
 	printf("Warning, you specified a working directory via \"-w\"\n");
-	printf("Keep in mind that RAxML only accepts absolute path names, not realtive ones!\n");
+	printf("Keep in mind that RAxML only accepts absolute path names, not relative ones!\n");
 
 #ifndef WIN32
 	if(resultDir[0] != separator[0])	  
