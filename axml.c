@@ -5716,24 +5716,17 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	    break;	  
 	  case 'v':	    
 	    adef->mode = CLASSIFY_ML;	   
-
 	    tr->perPartitionEPA = FALSE;
-#ifdef _PAVLOS
-	    adef->compressPatterns  = FALSE; 
-#endif
+
 #ifdef _USE_PTHREADS
 	    tr->useFastScaling = FALSE;
 #endif
 	    break;
 
 	  case 'V':
-	    adef->mode = CLASSIFY_ML;	   
-	   	   
-	    
+	    adef->mode = CLASSIFY_ML;	   	   	   	    
 	    tr->perPartitionEPA = TRUE;
-#ifdef _PAVLOS
-	    adef->compressPatterns  = FALSE; 
-#endif
+
 #ifdef _USE_PTHREADS
 	    tr->useFastScaling = FALSE;
 #endif	    

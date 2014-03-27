@@ -1590,72 +1590,6 @@ static void consolidateInfo(tree *tr)
 
 
 
-#ifdef _PAVLOS
-
-static void printPerBranchReadAlignments(tree *tr)
-{
-  int 
-    i, 
-    j;
-  
-  for(j = 0; j < tr->numberOfBranches; j++) 
-    {
-      int 
-	readCounter = 0;
-      
-      for(i = 0; i < tr->numberOfTipsForInsertion; i++)        	
-	if(tr->bInf[j].epa->countThem[i] > 0)	    
-	  readCounter++;
-
-       if(readCounter > 0)
-	{
-	  int l, w;
-
-	  char 
-	    alignmentFileName[2048] = "",
-	    buf[64] = "";
-
-	  FILE 
-	    *af;
-
-	  strcpy(alignmentFileName, workdir);
-	  strcat(alignmentFileName, "RAxML_BranchAlignment.I");
-
-	  sprintf(buf, "%d", j);
-
-	  strcat(alignmentFileName, buf);
-	  
-	  af = myfopen(alignmentFileName, "wb");
-	  
-
-	  fprintf(af, "%d %d\n", readCounter, tr->rdta->sites);
-	  
-	  for(i = 0; i < tr->numberOfTipsForInsertion; i++)        	
-	    {
-	      if(tr->bInf[j].epa->countThem[i] > 0)	    	      	
-		{		 		 
-		  unsigned char *tip   =  tr->yVector[tr->inserts[i]];
-		   
-		  fprintf(af, "%s ", tr->nameList[tr->inserts[i]]);
-
-		  for(l = 0; l < tr->cdta->endsite; l++)
-		    {
-		      for(w = 0; w < tr->cdta->aliaswgt[l]; w++)
-			fprintf(af, "%c", getInverseMeaning(tr->dataVector[l], tip[l]));	      
-		    }
-
-		  fprintf(af, "\n");
-		}	    		  
-	    }
-	  fclose(af);
-
-	  printBothOpen("Branch read alignment for branch %d written to file %s\n", j, alignmentFileName);
-	}
-    }	  
-}
-
-
-#endif
 
 static void analyzeReads(tree *tr)
 { 
@@ -1860,10 +1794,7 @@ void classifyML(tree *tr, analdef *adef)
   printBothOpen("Overall Classification time: %f\n\n", gettime() - masterTime);			               	
 
 
-#ifdef _PAVLOS
-  assert(adef->compressPatterns  == FALSE);
-  printPerBranchReadAlignments(tr);
-#endif
+
   
   strcpy(entropyFileName,              workdir);
   strcpy(jointFormatTreeFileName,      workdir);
