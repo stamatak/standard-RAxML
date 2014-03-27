@@ -67,7 +67,7 @@ extern volatile double          *reductionBuffer;
 #endif
 
 /* TODO remove at some point */
-#define _DEBUG_MODEL_OPTIMIZATION 
+//#define _DEBUG_MODEL_OPTIMIZATION 
 
 #define ALPHA_F    0
 #define INVAR_F    1
