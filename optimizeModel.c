@@ -67,7 +67,7 @@ extern volatile double          *reductionBuffer;
 #endif
 
 /* TODO remove at some point */
-//#define _DEBUG_MODEL_OPTIMIZATION 
+#define _DEBUG_MODEL_OPTIMIZATION 
 
 #define ALPHA_F    0
 #define INVAR_F    1
@@ -3150,7 +3150,7 @@ static void autoProtein(tree *tr)
 }
 
 
-#define _DEBUG_MOD_OPT
+//#define _DEBUG_MOD_OPT
 
 static void optimizeGTR(tree *tr);
 
