@@ -7796,6 +7796,7 @@ void newviewIterative (tree *tr)
 		      tr->partitionData[model].expSpaceVector[(tInfo->pNumber - tr->mxtips - 1)] = requiredExpLength;
 		    }
 		}
+	     
 
 	      switch(tInfo->tipCase)
 		{

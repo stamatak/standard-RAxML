@@ -3303,7 +3303,10 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
 
 #ifdef _DEBUG_MOD_OPT
       evaluateGenericInitrav(tr, tr->start); 
-      printf("after br-len 1 %1.40f\n", tr->likelihood);
+      if(adef->mode != OPTIMIZE_BR_LEN_SCALER)
+	printf("after br-len 1 %f\n", tr->likelihood);
+      else
+	printf("after opt-scaler 1 %f\n", tr->likelihood);     
 #endif
 
       evaluateGenericInitrav(tr, tr->start);
@@ -3311,7 +3314,12 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
       optBaseFreqs(tr, modelEpsilon, freqList);
       
       evaluateGenericInitrav(tr, tr->start);           
-      
+
+#ifdef _DEBUG_MOD_OPT
+      evaluateGenericInitrav(tr, tr->start); 
+      printf("after optBaseFreqs 1 %f\n", tr->likelihood);
+#endif     
+
       if(adef->mode != OPTIMIZE_BR_LEN_SCALER)
 	treeEvaluate(tr, 0.0625);                     	            
       else 	
@@ -3319,8 +3327,11 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
 
 #ifdef _DEBUG_MOD_OPT
       evaluateGenericInitrav(tr, tr->start); 
-      printf("after optBaseFreqs 1 %f\n", tr->likelihood);
-#endif 
+      if(adef->mode != OPTIMIZE_BR_LEN_SCALER)
+	printf("after br-len 2 %f\n", tr->likelihood);
+      else
+	printf("after opt-scaler 2%f\n", tr->likelihood);
+#endif  
 
       switch(tr->rateHetModel)
 	{	  
@@ -3369,8 +3380,11 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
 	    optScaler(tr, modelEpsilon, scalerList);
 
 #ifdef _DEBUG_MOD_OPT
-	  evaluateGenericInitrav(tr, tr->start); 
-	  printf("after br-len 3 %1.40f\n", tr->likelihood);
+	  evaluateGenericInitrav(tr, tr->start);   
+	  if(adef->mode != OPTIMIZE_BR_LEN_SCALER)
+	    printf("after br-len 3 %f\n", tr->likelihood);
+	  else
+	    printf("after opt-scaler 3%f\n", tr->likelihood);	  
 #endif
 
 	 

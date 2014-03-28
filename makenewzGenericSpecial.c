@@ -4231,9 +4231,10 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 		 }
 	     
 	      correction = 1.0 - correction;
-
-	      _dlnLdlz[branchIndex]   =  dlnLdlz - (double)w * d1;
-	      _d2lnLdlz2[branchIndex] = d2lnLdlz2-  (double)w * d2;
+	  
+	      _dlnLdlz[branchIndex]   =  _dlnLdlz[branchIndex] + dlnLdlz - (double)w * d1;
+	      _d2lnLdlz2[branchIndex] =  _d2lnLdlz2[branchIndex] + d2lnLdlz2-  (double)w * d2;
+		
 	    }  
 	    else
 	      {
