@@ -1830,7 +1830,7 @@ void compareBips(tree *tr, char *bootStrapFileName, analdef *adef)
 	}     
     }
   
-  printBothOpen("%ld %ld\n", c1, c2);
+  printBothOpen("%" PRIu64 "%" PRIu64 "\n", c1, c2);
 
   assert(entryCount == h->entryCount);
 

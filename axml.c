@@ -5481,7 +5481,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	adef->useMultipleModel = TRUE;
         break;
       case 'p':
-	sscanf(optarg,"%ld", &(adef->parsimonySeed));	
+	sscanf(optarg,"%" PRId64, &(adef->parsimonySeed));	
 	if(adef->parsimonySeed <= 0)
 	  {
 	    printf("Parsimony seed specified via -p must be greater than zero\n");
@@ -5550,7 +5550,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	adef->useWeightFile = TRUE;
         break;
       case 'b':
-	sscanf(optarg,"%ld", &adef->boot);
+	sscanf(optarg,"%" PRId64, &adef->boot);
 	if(adef->boot <= 0)
 	  {
 	    printf("Bootstrap seed specified via -b must be greater than zero\n");
@@ -5559,7 +5559,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	bSeedSet = TRUE;
 	break;
       case 'x':
-	sscanf(optarg,"%ld", &adef->rapidBoot);
+	sscanf(optarg,"%" PRId64, &adef->rapidBoot);
 	if(adef->rapidBoot <= 0)
 	  {
 	    printf("Bootstrap seed specified via -x must be greater than zero\n");
@@ -10191,11 +10191,13 @@ static void extractTaxaFromTopology(tree *tr, rawdata *rdta, cruncheddata *cdta,
     qsort(taxList, taxaCount, sizeof(char**), sortLex); 
     
     for(i = 1; i < taxaCount; ++i)
-      if(strcmp(taxList[i], taxList[i-1]) == 0)
-	{
-	  printf("A taxon labelled by %s appears twice in the first tree of tree collection %s, exiting ...\n", buffer, bootStrapFile);
-	  exit(-1);
-	}
+      {	
+	if(strcmp(taxList[i], taxList[i-1]) == 0)
+	  {
+	    printf("\n\nA taxon labelled by %s appears twice in the first tree of tree collection %s, exiting ...\n\n", taxList[i], bootStrapFile);
+	    exit(-1);
+	  }
+      }
 
     rax_free(taxList);
   }
@@ -10955,10 +10957,11 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
   switch(flavor)
     {
     case ALL_QUARTETS:
-      printBothOpen("There are %u quartet sets for which RAxML will evaluate all %u quartet trees\n", numberOfQuartets, numberOfQuartets * 3);
+      printBothOpen("There are %" PRIu64 " quartet sets for which RAxML will evaluate all %" PRIu64 " quartet trees\n", numberOfQuartets, numberOfQuartets * 3);
       break;
     case RANDOM_QUARTETS:
-      printBothOpen("There are %u quartet sets for which RAxML will randomly sub-sambple %u sets (%f per cent), i.e., compute %u quartet trees\n", numberOfQuartets, randomQuartets, 100 * fraction, randomQuartets * 3);
+      printBothOpen("There are %" PRIu64 " quartet sets for which RAxML will randomly sub-sambple %" PRIu64 " sets (%f per cent), i.e., compute %" PRIu64 " quartet trees\n", 
+		    numberOfQuartets, randomQuartets, 100 * fraction, randomQuartets * 3);
       break;
     case GROUPED_QUARTETS:           
       printBothOpen("There are 4 quartet groups from which RAxML will evaluate all %u quartet trees\n", (unsigned int)groupSize[0] * (unsigned int)groupSize[1] * (unsigned int)groupSize[2] * (unsigned int)groupSize[3] * 3);
@@ -11071,7 +11074,7 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
 		      quartetCounter++;
 		    }
 	    
-	    printBothOpen("\nComputed all %u possible grouped quartets\n", quartetCounter);
+	    printBothOpen("\nComputed all %" PRIu64 " possible grouped quartets\n", quartetCounter);
 	  }
 	  break;
 	default:

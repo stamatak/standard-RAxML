@@ -353,7 +353,7 @@ void RMQ_succinct(DT* _a, DTidx _n) {
 		dist *= 2;
 	}
 #ifdef MEM_COUNT
-	printf ("allocated %ld bytes\n", mem);
+	printf ("allocated %" PRIu64  " bytes\n", mem);
 #endif
 }
 
