@@ -407,7 +407,8 @@ static char *rootedTreeREC(char *treestr, tree *tr, nodeptr p, boolean printBran
       else
 	sprintf(treestr, "%d", p->number);
       
-      while (*treestr) treestr++;
+      while (*treestr) 
+	treestr++;
     }
   else 
     {
@@ -511,14 +512,19 @@ static char *rootedTree(char *treestr, tree *tr, nodeptr p, boolean printBranchL
 
   *treestr = '(';
   treestr++;
+
   treestr = rootedTreeREC(treestr, tr, p,  printBranchLengths, printNames, printLikelihood, rellTree, finalPrint, 
 			  adef, perGene, branchLabelSupport, printSHSupport);
+
   *treestr = ',';
   treestr++;
+  
   treestr = rootedTreeREC(treestr, tr, p->back,  printBranchLengths, printNames, printLikelihood, rellTree, finalPrint, 
-			  adef, perGene, branchLabelSupport, printSHSupport);
+			  adef, perGene, branchLabelSupport, printSHSupport);  
   sprintf(treestr, ");\n");
-  while (*treestr) treestr++;
+  
+  while(*treestr) 
+    treestr++;
 
 
   for(i = 0; i < tr->numBranches; i++)
@@ -529,10 +535,13 @@ static char *rootedTree(char *treestr, tree *tr, nodeptr p, boolean printBranchL
 
 
 
-char *Tree2String(char *treestr, tree *tr, nodeptr p, boolean printBranchLengths, boolean printNames, boolean printLikelihood, 
-		  boolean rellTree, 
-		  boolean finalPrint, analdef *adef, int perGene, boolean branchLabelSupport, boolean printSHSupport, boolean printIC, boolean printSHSupports)
+void Tree2String(char *treestr, tree *tr, nodeptr p, boolean printBranchLengths, boolean printNames, boolean printLikelihood, 
+		 boolean rellTree, 
+		 boolean finalPrint, analdef *adef, int perGene, boolean branchLabelSupport, boolean printSHSupport, boolean printIC, boolean printSHSupports)
 { 
+  //make sure the tree string is clean in the beginning 
+  memset(treestr, 0, sizeof(char) * tr->treeStringLength);
+  //printf("Tree string: %s\n", tr->tree_string);
 
   if(rellTree)
     assert(!branchLabelSupport && !printSHSupport);
@@ -655,9 +664,7 @@ char *Tree2String(char *treestr, tree *tr, nodeptr p, boolean printBranchLengths
 		   finalPrint, perGene, branchLabelSupport, printSHSupport, printIC, printSHSupports);  
     
   
-  while (*treestr) treestr++;
-  
-  return treestr;
+  return;
 }
 
 

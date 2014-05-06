@@ -165,8 +165,8 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "RAxML"
-#define programVersion     "8.0.20"
-#define programDate        "April 13 2014"
+#define programVersion     "8.0.21"
+#define programDate        "May 6 2014"
 
 
 #define  TREE_EVALUATION                 0
@@ -886,7 +886,7 @@ typedef  struct  {
 
   char **nameList;
   char *tree_string;
-  int treeStringLength;
+  size_t treeStringLength;
   unsigned int bestParsimony;
   double bestOfNode;
   nodeptr removeNode;
@@ -1259,8 +1259,9 @@ extern void resetBestTree ( bestlist *bt );
 extern boolean freeBestTree ( bestlist *bt );
 
 
-extern char *Tree2String ( char *treestr, tree *tr, nodeptr p, boolean printBranchLengths, boolean printNames, boolean printLikelihood, 
-			   boolean rellTree, boolean finalPrint, analdef *adef, int perGene, boolean branchLabelSupport, boolean printSHSupport, boolean printIC, boolean printSHSupports);
+extern void Tree2String ( char *treestr, tree *tr, nodeptr p, boolean printBranchLengths, boolean printNames, boolean printLikelihood, 
+			  boolean rellTree, boolean finalPrint, analdef *adef, int perGene, boolean branchLabelSupport, boolean printSHSupport, boolean printIC, boolean printSHSupports);
+
 extern void printTreePerGene(tree *tr, analdef *adef, char *fileName, char *permission);
 
 

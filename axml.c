@@ -891,13 +891,18 @@ static boolean setupTree (tree *tr, analdef *adef)
 
   tr->numberOfTrees = -1;
 
- 
+  tr->treeStringLength = 
+    2 * (size_t)tr->mxtips + //parentheses
+    2 * (size_t)tr->mxtips * 64 + //branche lengths with : and . and branch labels and
+    (size_t)tr->mxtips + //commas
+    1 + //closing semicolon 
+    (size_t)tr->mxtips * nmlngth; //taxon names
 
-  tr->treeStringLength = tr->mxtips * (nmlngth+128) + 256 + tr->mxtips * 2;
+  //tr->treeStringLength = tr->mxtips * (nmlngth+128) + 256 + tr->mxtips * 2;
+
+  //printf("tips %d Tree String Length %d old length %d\n", tr->mxtips, tr->treeStringLength,tr->mxtips * (nmlngth+128) + 256 + tr->mxtips * 2 );
 
   tr->tree_string  = (char*)rax_calloc(tr->treeStringLength, sizeof(char)); 
-
-  /*TODO, must that be so long ?*/
 
   if(!adef->readTaxaOnly)
     {
@@ -6983,7 +6988,7 @@ void printBootstrapResult(tree *tr, analdef *adef, boolean finalPrint)
     {
       if(adef->bootstrapBranchLengths)
 	{
-	  Tree2String(tr->tree_string, tr, tr->start->back, TRUE, TRUE, FALSE, FALSE, finalPrint, adef, SUMMARIZE_LH, FALSE, FALSE, FALSE, FALSE);
+	  Tree2String(tr->tree_string, tr, tr->start->back, TRUE, TRUE, FALSE, FALSE, finalPrint, adef, SUMMARIZE_LH, FALSE, FALSE, FALSE, FALSE);	  
 
 	  logFile = myfopen(fileName, "ab");
 	  fprintf(logFile, "%s", tr->tree_string);
@@ -12188,6 +12193,8 @@ int main (int argc, char *argv[])
     
     getinput(adef, rdta, cdta, tr);
     
+    
+
     checkOutgroups(tr, adef);
     makeFileNames();
     
