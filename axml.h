@@ -165,7 +165,7 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "RAxML"
-#define programVersion     "8.0.21"
+#define programVersion     "8.0.22"
 #define programDate        "May 6 2014"
 
 
@@ -1341,7 +1341,7 @@ extern void parseProteinModel(double *externalAAMatrix, char *fileName);
 extern int filexists(char *filename);
 extern void computeFullTraversalInfo(nodeptr p, traversalInfo *ti, int *counter, int maxTips, int numBranches);
 
-extern void computeNextReplicate(tree *tr, int64_t *seed, int *originalRateCategories, int *originalInvariant, boolean isRapid, boolean fixRates);
+extern void computeNextReplicate(tree *tr, int64_t *seed, int *originalRateCategories, int *originalInvariant, boolean isRapid, boolean fixRates, analdef *adef);
 /*extern void computeNextReplicate(tree *tr, analdef *adef, int *originalRateCategories, int *originalInvariant);*/
 
 extern void reductionCleanup(tree *tr, int *originalRateCategories, int *originalInvariant);

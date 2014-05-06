@@ -2973,7 +2973,7 @@ static void generateBS(tree *tr, analdef *adef)
       int 
 	count = 0;
 
-      computeNextReplicate(tr, &adef->boot, (int*)NULL, (int*)NULL, FALSE, FALSE);
+      computeNextReplicate(tr, &adef->boot, (int*)NULL, (int*)NULL, FALSE, FALSE, adef);
 
       count = 0;
       for(j = 0; j < tr->cdta->endsite; j++)
@@ -9810,7 +9810,7 @@ static void computeELW(tree *tr, analdef *adef, char *bootStrapFileName)
 	{
 	  /* compute the next BS replicate, i.e., re-sample alignment columns */
 
-	  computeNextReplicate(tr, &adef->rapidBoot, originalRateCategories, originalInvariant, TRUE, TRUE);
+	  computeNextReplicate(tr, &adef->rapidBoot, originalRateCategories, originalInvariant, TRUE, TRUE, adef);
 
 	  evaluateGenericInitrav(tr, tr->start);
 

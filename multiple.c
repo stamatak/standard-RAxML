@@ -102,7 +102,7 @@ static void singleBootstrap(tree *tr, int i, analdef *adef, rawdata *rdta, crunc
   tr->treeID = i;
   tr->checkPointCounter = 0;
      
-  computeNextReplicate(tr, &adef->boot, (int*)NULL, (int*)NULL, FALSE, FALSE);
+  computeNextReplicate(tr, &adef->boot, (int*)NULL, (int*)NULL, FALSE, FALSE, adef);
   
   initModel(tr, rdta, cdta, adef);                                   
          
@@ -381,7 +381,7 @@ void computeNextReplicate(tree *tr, int64_t *randomSeed, int *originalRateCatego
 
   
 
-void computeNextReplicate(tree *tr, int64_t *randomSeed, int *originalRateCategories, int *originalInvariant, boolean isRapid, boolean fixRates)
+void computeNextReplicate(tree *tr, int64_t *randomSeed, int *originalRateCategories, int *originalInvariant, boolean isRapid, boolean fixRates, analdef *adef)
 { 
   int    
     j, 
@@ -471,16 +471,33 @@ void computeNextReplicate(tree *tr, int64_t *randomSeed, int *originalRateCatego
   tr->cdta->endsite = endsite;
   fixModelIndices(tr, endsite, fixRates);
 
-  {
-    int
-      count = 0;
-    
-    for(j = 0; j < tr->cdta->endsite; j++)
-      count += tr->cdta->aliaswgt[j];  
+  if(adef->useWeightFile)
+    { 
+      int
+	count1 = 0,
+	count2 = 0;
+      
+      for(j = 0; j < tr->cdta->endsite; j++)	
+	count1 += tr->cdta->aliaswgt[j];  	  
 
-    if(count != tr->rdta->sites)
-      printf("count=%d\ttr->rdta->sites=%d\n",count, tr->rdta->sites );
-    assert(count == tr->rdta->sites);
+      for(j = 0; j < tr->originalCrunchedLength; j++)	
+	count2 += tr->originalWeights[j];
+
+      if(count1 != count2)
+	printf("count1=%d\tcount2=%d\n",count2, count1);
+      assert(count1 == count2);
+    }
+  else
+    {
+      int
+	count = 0;
+      
+      for(j = 0; j < tr->cdta->endsite; j++)
+	count += tr->cdta->aliaswgt[j];  
+      
+      if(count != tr->rdta->sites)
+	printf("count=%d\ttr->rdta->sites=%d\n",count, tr->rdta->sites );
+      assert(count == tr->rdta->sites);
   }
 }
 
@@ -798,7 +815,7 @@ void doAllInOne(tree *tr, analdef *adef)
 	    }	  	  
 	}
 
-      computeNextReplicate(tr, &adef->rapidBoot, originalRateCategories, originalInvariant, TRUE, TRUE); 
+      computeNextReplicate(tr, &adef->rapidBoot, originalRateCategories, originalInvariant, TRUE, TRUE, adef); 
       resetBranches(tr);
 
      
