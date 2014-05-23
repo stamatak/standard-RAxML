@@ -3580,10 +3580,9 @@ void initReversibleGTR(tree *tr, int model)
    *frequencies      = tr->partitionData[model].frequencies,
    *ext_initialRates = tr->partitionData[model].substRates,
    *tipVector        = tr->partitionData[model].tipVector;
-
-
   
- int states = tr->partitionData[model].states;
+ int 
+   states = tr->partitionData[model].states;
 
  switch(tr->partitionData[model].dataType)
    { 

@@ -996,23 +996,31 @@ static int treeFlushLen (FILE  *fp, tree *tr)
 
 static boolean treeNeedCh (FILE *fp, int c1, char *where)
 {
-  int  c2;
+  int  
+    c2;
   
-  if ((c2 = treeGetCh(fp)) == c1)  return TRUE;
+  if((c2 = treeGetCh(fp)) == c1)  
+    return TRUE;
   
-  printf("ERROR: Expecting '%c' %s tree; found:", c1, where);
+  printf("ERROR: Expecting '%c' %s tree; found: character '%c'\n\n", c1, where, c2);
+  
   if (c2 == EOF) 
     {
-      printf("End-of-File");
+      printf("End-of-File\n");
     }
   else 
     {      	
       ungetc(c2, fp);
       treeEchoContext(fp, stdout, 40);
+      printf("\n");
+      printf("                    ^\n\n");
     }
-  putchar('\n');
+  //putchar('\n');
     
-  printf("RAxML may be expecting to read a tree that contains branch lengths\n");
+  if(c1 == ')' || c1 == '(')
+    printf("RAxML may be expecting to read a strictly bifurcating tree!\n\n");
+  else
+    printf("RAxML may be expecting to read a tree that contains branch lengths\n\n");
 
   return FALSE;
 } 

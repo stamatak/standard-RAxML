@@ -12279,7 +12279,43 @@ int main (int argc, char *argv[])
 	      countNonSev++;
 	    
 	    if(tr->partitionData[i].protModels == LG4 || tr->partitionData[i].protModels == LG4X)
-	      countLG4++;
+	      {
+		countLG4++;
+
+		if(tr->partitionData[i].optimizeBaseFrequencies)
+		  {
+		    FILE 
+		      *info = myfopen(infoFileName, "ab");
+	    
+		    printBoth(info, "\n\nYou are using the %s model of AA substitution for partition %d.\n", (tr->partitionData[i].protModels == LG4)?"LG4M":"LG4X", i);
+		    printBoth(info, "and specified that you want to use a joint ML estimate of the base frequencies shared across all 4\n");
+		    printBoth(info, "substitution matrices of the LG4 model.\n");
+		    printBoth(info, "WARNING: This does not correspond to the idea behind the LG4 model!\n");
+		    printBoth(info, "         which has different sets of base ferquencies for each substitution matrix.\n");
+		    printBoth(info, "         The ML estimate of base freqs with %s was simply implemented for convenience in RAxML.\n", (tr->partitionData[i].protModels == LG4)?"LG4M":"LG4X");
+		    printBoth(info, "Olivier Gascuel asked me to tell you that he doesn't like it to be used like this!\n");
+		    printBoth(info, "Since he is a nice guy you should use the original model %s instead.\n\n\n", (tr->partitionData[i].protModels == LG4)?"LG4M":"LG4X");
+	    
+		    fclose(info);		    
+		  }
+		else
+		  if(!tr->partitionData[i].usePredefinedProtFreqs)
+		    {
+		      FILE 
+			*info = myfopen(infoFileName, "ab");
+	    
+		      printBoth(info, "\n\nYou are using the %s model of AA substitution for partition %d.\n", (tr->partitionData[i].protModels == LG4)?"LG4M":"LG4X", i);
+		      printBoth(info, "and specified that you want to use joint empirical base frequencies (drawn from the alignment) shared across all 4\n");
+		      printBoth(info, "substitution matrices of the LG4 model.\n");
+		      printBoth(info, "WARNING: This does not correspond to the idea behind the LG4 model!\n");
+		      printBoth(info, "         which has different sets of base ferquencies for each substitution matrix.\n");
+		      printBoth(info, "         The option to use empirical base freqs with %s was simply implemented for convenience in RAxML.\n", (tr->partitionData[i].protModels == LG4)?"LG4M":"LG4X");
+		      printBoth(info, "Olivier Gascuel asked me to tell you that he doesn't like it to be used like this!\n");
+		      printBoth(info, "Since he is a nice guy you'd want to use the original model %s instead.\n\n\n", (tr->partitionData[i].protModels == LG4)?"LG4M":"LG4X");
+	    
+		      fclose(info);
+		    }
+	      }
 	    
 	    if(tr->partitionData[i].dataType == AA_DATA)
 	      {
