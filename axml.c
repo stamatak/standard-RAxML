@@ -11992,6 +11992,149 @@ static void analyzeMissing(tree *tr, nodeptr p, int *count, int whichPartition, 
     }
 }
 
+
+/* uncomment define below to activate new method for better prediction of sequences located in per-partition subtrees 
+   where data for the entire subtree is missing 
+*/
+
+//#define _SUBTREE_PREDICTION
+
+#ifdef _SUBTREE_PREDICTION
+
+/* function to determine if tip with tip index number for model/partition model 
+   only consists of missing data */
+
+static boolean tipHasData(tree *tr, int model, int number)
+{
+  unsigned char 	
+    undetermined = getUndetermined(tr->partitionData[model].dataType),
+    *tip = tr->partitionData[model].yVector[number];
+
+  size_t
+    i;
+
+  boolean
+    data = FALSE;
+  
+  for(i = 0; i < tr->partitionData[model].width && (!data); i++)
+    if(tip[i] != undetermined)
+      data = TRUE; 
+
+  return data;
+}
+
+/* recursive function to determine if the subtree rooted at p has taxa with sequence data for partition model 
+   in at least one of the tips */
+
+static boolean hasData(tree *tr, nodeptr p, int model)
+{
+  if(isTip(p->number, tr->mxtips))         
+    return tipHasData(tr, model, p->number);   
+  else   
+    return (hasData(tr, p->next->back, model) || hasData(tr, p->next->next->back, model));   
+}
+  
+
+/* recursive function to adapt branch lengths of subtrees of partitions with missing data using 
+   branch length infor from those partitions that have data ! */
+
+static void adaptBranchLengths(tree *tr, nodeptr p, int *count)
+{  
+  int 
+    *missingData = (int *)rax_calloc(tr->NumberOfModels, sizeof(int)),
+    wgtsum = 0,
+    model,
+    partitionsWithData = 0,
+    partitionsWithoutData = 0;
+
+  double
+    branchLength = 0.0;
+    
+  /* first we check if the branch defined by p and p->back 
+     has data on both sides (at least one tip with data
+     for all partitions.
+
+     When this is not the case we need to "steal" an approximate branch length from 
+     one of the other partitions.
+  */
+
+  //increment the number of branches we have visited
+  *count = *count + 1;
+
+  //compute the number of sites per partition for which we have data on both sides of the branch
+
+  for(model = 0; model < tr->NumberOfModels; model++)
+    {
+      if(hasData(tr, p, model) && hasData(tr, p->back, model))
+	{
+	  wgtsum += tr->partitionData[model].width;
+	  partitionsWithData++;
+	  missingData[model] = 0;
+	}  
+      else
+	{
+	  missingData[model] = 1;
+	  partitionsWithoutData++;
+	}
+    }
+
+  //make sure that there is at least one partition from which we can steal the branch length 
+  assert(partitionsWithData > 0);
+  
+
+  //now compute the branch length average over all partitions 
+  //that have data on both sides of this branch 
+  for(model = 0; model < tr->NumberOfModels; model++)
+    {
+      if(missingData[model] == 0 &&  partitionsWithoutData > 0)
+	{
+	  double 
+	    factor = (double)tr->partitionData[model].width / (double)wgtsum,
+	    z = p->z[model];	      
+	  
+	  //printf("factor %f\n", factor);
+
+	  if(z < zmin)
+	    z = zmin;
+	  
+	  z = -log(z) * tr->fracchanges[model];
+	  
+	  branchLength += z * factor;
+
+	  //printf("br-len: %f %f\n", p->z[model], branchLength);
+	}
+    }     
+  
+  //and assign this average branch length to the partitions that don't have data present across this branch
+
+  for(model = 0; model < tr->NumberOfModels; model++)
+    {
+      if(missingData[model] == 1)
+	{
+	  double
+	    targetBranch = exp(-(branchLength)/ tr->fracchanges[model]);
+
+	  //printf("adapted one branch in part %d %1.40f -> %1.40f\n", model, p->z[model], targetBranch);
+
+	  p->z[model] = targetBranch;
+	  p->back->z[model] = targetBranch;	  
+	}  
+    }
+
+  rax_free(missingData);
+        
+  //now handle the remaining branches recursively
+  
+  if(!isTip(p->number, tr->mxtips))
+    {
+      adaptBranchLengths(tr, p->next->back, count);
+      adaptBranchLengths(tr, p->next->next->back, count);      
+    }
+
+}
+
+#endif
+
 //function to predict missing sequences 
 
 static void predictMissingSequence(tree *tr, analdef *adef)
@@ -12074,6 +12217,288 @@ static void predictMissingSequence(tree *tr, analdef *adef)
       int 
 	count = 0;
 
+
+#ifdef _SUBTREE_PREDICTION
+      //new code for dealing with entire subtrees containing missing data
+
+      int 
+	toBePredicted = 0,
+	**proposalMatrix = (int**)rax_malloc(((size_t)tr->mxtips + 1) * sizeof(int *)),
+	*perm,
+	numberOfPermutations,
+	*taxonList = (int*)rax_malloc(sizeof(int) * (size_t)tr->mxtips),
+	taxonListLength = 0;
+
+      double
+	bestLikelihood;
+
+      long 
+	seed = 12345;
+	
+      //matrix to store which sequences in which partitions are missing
+
+      proposalMatrix[0] = (int *)NULL;
+      
+      for(i = 1; i <= tr->mxtips; i++)
+	proposalMatrix[i] = (int *)rax_calloc((size_t)tr->NumberOfModels, sizeof(int));
+
+      //get the initial likelihood
+
+      evaluateGenericInitrav(tr, tr->start);
+      printf("Likelihood before br-len adaptation %f\n\n", tr->likelihood);
+
+
+      //now adapt branch lengths
+      adaptBranchLengths(tr, tr->start->back, &count);
+
+      //make sure that we visited all branches
+      assert(count == 2 * tr->mxtips - 3);
+
+
+      //re-calculate likelihood, note that the branch length adaptation doesn't alter 
+      //the likelihood (or shouldn't if this is correctly implemented) since we only changed
+      //branch lengths for those parts of the tree that have missing data
+      evaluateGenericInitrav(tr, tr->start);
+      printf("Likelihood after br-len adaptation %f\n\n", tr->likelihood);
+
+      
+      //fill the entries of the matrix that tells us which sequences for which partitions
+      //to predict
+      for(i = 1; i <= tr->mxtips; i++)
+	for(model = 0; model < tr->NumberOfModels; model++)
+	  {
+	    if(tipHasData(tr, model, i))
+	      proposalMatrix[i][model] = 0;
+	    else
+	      {
+		proposalMatrix[i][model] = 1;
+		toBePredicted++;
+	      }
+	  }
+      
+
+      //make sure that there is at least one sequence in one partition to predict
+      assert(toBePredicted > 0);      
+
+      //randomly initialize the sequences we intend to predict
+
+      for(i = 1; i <= tr->mxtips; i++)
+	for(model = 0; model < tr->NumberOfModels; model++)
+	  {
+	    if(proposalMatrix[i][model] == 1)
+	      {
+		unsigned char
+		  binStates[2] = {1, 2};
+		unsigned char
+		  dnaStates[4] = {1, 2, 4, 8};
+		unsigned char
+		  proteinStates[20] = {0, 1, 2 , 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19};	   	   
+
+		unsigned char 
+		  *tip = tr->partitionData[model].yVector[i];
+		
+		size_t
+		  k,
+		  states = (size_t)tr->partitionData[model].states;
+
+		for(k = 0; k < tr->partitionData[model].width; k++)
+		  {
+		    int 
+		      state = (int)((double)states * randum(&seed));
+
+		    switch(tr->partitionData[model].states)
+		      {
+		      case 2:
+			tip[k] = binStates[state];
+			break;
+		      case 4:
+			tip[k] = dnaStates[state];
+			break;
+		      case 20:
+			tip[k] = proteinStates[state];
+			break;
+		      default:
+			assert(0);
+		      }		    		   
+		  }
+	      }	   
+	  }
+       
+      //calculate likelihood of the tree where the missing sequences have been randomly initialized 
+      evaluateGenericInitrav(tr, tr->start);
+      printf("Likelihood after random initialization of missing sequences %f\n", tr->likelihood);     
+      
+      //initialize the currently best likelihood with the above score
+      bestLikelihood = tr->likelihood;
+
+      //generate a list of taxa with missing data that we want to predict
+      for(i = 1; i <= tr->mxtips; i++)
+	for(model = 0; model < tr->NumberOfModels; model++)
+	  if(proposalMatrix[i][model] == 1)
+	    {
+	      taxonList[taxonListLength] = i;
+	      taxonListLength++;
+	      break;
+	    }
+      
+      printf("Taxa to be predicted %d\n", taxonListLength);
+            
+      //allocate an array for permuting the order of taxa with missing data
+      perm = (int*)rax_malloc(sizeof(int) * taxonListLength + 1);	
+      
+      //initialize random number seed required to generate the permutations
+      adef->parsimonySeed = 12345;
+      
+      //do 100 random permutations visting and re-predicting the missing sequences in different orders
+      //this is required because the sequence predictions for different taxa depend on each other
+      for(numberOfPermutations = 0; numberOfPermutations < 100; numberOfPermutations++)
+	{
+	  int 
+	    j;
+	  
+	  //permute the order by which we visit the taxa
+	  makePermutation(perm, 0, taxonListLength - 1, adef);
+	  
+	  //iterate over all taxa with missing data 
+	  for(j = 0; j < taxonListLength; j++)
+	    {
+	      int 
+		taxonNumber = taxonList[perm[j]],	   
+		numberOfImputes = 0;
+	      
+	      //make sure that the taxon index is within the allowed range 
+	      assert(taxonNumber >= 1 && taxonNumber <= tr->mxtips);
+	      
+
+	      //re-calculate the likelihood on the entire tree, just to be shure that everything is consistent
+	      //printf("Predicting taxon %d\n", taxonNumber);
+	      evaluateGenericInitrav(tr, tr->start);
+	      //printf("Start like %1.40f\n", tr->likelihood);
+	      
+
+	      //loop over all partitions for this taxon and do a ML imputation of the 
+	      //states of the missing sequence
+	      for(model = 0; model < tr->NumberOfModels; model++)
+		{		  		  
+		  if(proposalMatrix[taxonNumber][model] == 1)
+		    {
+		      unsigned char
+			binStates[2] = {1, 2};
+		      unsigned char
+			dnaStates[4] = {1, 2, 4, 8};
+		      unsigned char
+			proteinStates[20] = {0, 1, 2 , 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19};
+		      
+		      size_t
+			i,
+			width = tr->partitionData[model].width,
+			states = (size_t)tr->partitionData[model].states;
+		      
+		      unsigned char 
+			*partitionStates,		       		
+			*bestState = (unsigned char *)rax_calloc(width, sizeof(unsigned char));
+		      
+		      double
+			*likes = (double*)rax_malloc(sizeof(double) * width);		    	      
+		      
+		      numberOfImputes++;
+		      
+		      //initialize an array for storing per site log likelihoods 
+		      
+		      for(i = 0; i < width; i++)
+			likes[i] = unlikely;	     	     
+		      
+		      //set the state array pointer to the datatype of the present partition 
+		      
+		      switch(states)
+			{
+			case 2: 
+			  partitionStates = binStates;
+			  break;
+			case 4:
+			  partitionStates = dnaStates;
+			  break;
+			case 20:
+			  partitionStates = proteinStates;
+			  break;
+			default:
+			  assert(0);
+			}
+		      
+		      //loop over all states in our data type, for DNA there are four states corresponding to A, C, G, T
+		      //note that, I have omitted checking ambiguous states 
+		      
+		      for(i = 0; i < states; i++)
+			{
+			  size_t
+			    index,
+			    j;
+			  
+			  //set all sites of the missing sequence to a state, for instance to A
+			  
+			  for(j = 0; j < width; j++)
+			    tr->partitionData[model].yVector[taxonNumber][j] = partitionStates[i];
+			  
+			  evaluateGenericVector(tr, tr->nodep[taxonNumber]);
+			  
+			  //compute the per-site log likelihoods 
+			  
+			  //store the state yielding the best per-site likelihood 
+			  //for each site 
+			  
+			  for(j = tr->partitionData[model].lower, index = 0; j <  tr->partitionData[model].upper; j++, index++)
+			    {
+			      if(tr->perSiteLL[j] > likes[index])
+				{
+				  likes[index] = tr->perSiteLL[j];
+				  bestState[index] = partitionStates[i];
+				}
+			    }
+			}
+		      
+		      //copy the imputed sequence to the tree data structure
+		      memcpy(tr->partitionData[model].yVector[taxonNumber], bestState, sizeof(unsigned char) *  tr->partitionData[model].width);						  			
+		      
+		      rax_free(bestState);
+		      rax_free(likes);	      					     
+		    }
+		}
+		
+	      //make sure that at least one sequence in one partition was predicted
+	      assert(numberOfImputes > 0);
+	      
+	      //re-compute the likelihood
+	      evaluateGeneric(tr, tr->nodep[taxonNumber]);
+	      
+	      //let the user know that the likelihood has improved by (re-)predicting the missing sequence of the current taxon
+	      if(tr->likelihood > bestLikelihood)
+		{
+		  printf("Better likelihood %f -> %f found by imputing new sequence for taxon %s\n", bestLikelihood, tr->likelihood, tr->nameList[taxonNumber]);
+		  bestLikelihood = tr->likelihood;
+		}
+	      
+	    }
+	}
+	
+      //free data structures
+      rax_free(taxonList);
+      rax_free(perm);
+         
+      //copy the sequence we have estimated to the output alignment data structire 
+      for(i = 1; i <= tr->mxtips; i++)
+	for(model = 0; model < tr->NumberOfModels; model++)
+	  memcpy(&alignmentGuess[tr->cdta->endsite * (i - 1) + tr->partitionData[model].lower], tr->partitionData[model].yVector[i], sizeof(unsigned char) *  tr->partitionData[model].width);
+
+
+      //free the remaining data structures we have allocated 
+      for(i = 1; i <= tr->mxtips; i++)
+	rax_free(proposalMatrix[i]);
+
+      rax_free(proposalMatrix);
+
+      printBothOpen("Guessed missing sequeces for %d taxa\n\n", taxonListLength);
+
+#else
       //standard procedure for guessing sequences for which there really is missing data
 
       analyzeMissing(tr, tr->start,       &count, -1, (double*)NULL, systematicTest, alignmentGuess);
@@ -12082,6 +12507,7 @@ static void predictMissingSequence(tree *tr, analdef *adef)
       assert(count <= tr->mxtips);
       
       printBothOpen("Guessed missing sequeces for %d taxa\n\n", count);
+#endif
     }
 
   // print out the guessed complete alignment 
