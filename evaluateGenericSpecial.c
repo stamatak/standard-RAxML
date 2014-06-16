@@ -3162,6 +3162,26 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 								  tip, width, diagptable, tr->useFastScaling);			  		       
 		      break;	  	   
 		    case GAMMA:
+#ifdef _HET		      
+		      assert(!tr->saveMemory);
+
+		      if(isTip(pNumber, tr->mxtips) || isTip(qNumber, tr->mxtips))
+			{			  
+			  calcDiagptable(z, DNA_DATA, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN_TIP, diagptable);
+			  
+			  partitionLikelihood = evaluateGTRGAMMA(ex1, ex2, tr->partitionData[model].wgt,
+								 x1_start, x2_start, tr->partitionData[model].tipVector_TIP,
+								 tip, width, diagptable, tr->useFastScaling);			
+			}
+		      else
+			{			  
+			  calcDiagptable(z, DNA_DATA, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable);
+			  
+			  partitionLikelihood = evaluateGTRGAMMA(ex1, ex2, tr->partitionData[model].wgt,
+								 x1_start, x2_start, (double*)NULL,
+								 tip, width, diagptable, tr->useFastScaling);			
+			}
+#else
 		     			     	     		      
 		      calcDiagptable(z, DNA_DATA, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable);		    		    
 #ifdef __SIM_SSE3
@@ -3176,6 +3196,7 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 			partitionLikelihood = evaluateGTRGAMMA(ex1, ex2, tr->partitionData[model].wgt,
 							       x1_start, x2_start, tr->partitionData[model].tipVector,
 							       tip, width, diagptable, tr->useFastScaling); 					
+#endif
 		      break; 
 		    case GAMMA_I:
 		      {

@@ -125,6 +125,58 @@ void makeP_Flex(double z1, double z2, double *rptr, double *EI,  double *EIGN, i
     }  
 }
 
+#ifdef _HET
+
+static void makeP_FlexHet(double z1, double z2, double *rptr, double *EI_1,  double *EIGN_1, 
+			  double *EI_2,  double *EIGN_2, int numberOfCategories, double *left, double *right, const int numStates)
+{
+  int 
+    i,
+    j,
+    k;
+  
+  const int
+    rates = numStates - 1,
+    statesSquare = numStates * numStates;
+
+  double 
+    lz1[64],
+    lz2[64], 
+    d1[64],  
+    d2[64];
+
+  assert(numStates <= 64);
+     
+  for(i = 0; i < rates; i++)
+    {
+      lz1[i] = EIGN_1[i] * z1;
+      lz2[i] = EIGN_2[i] * z2;
+    }
+
+  for(i = 0; i < numberOfCategories; i++)
+    {
+      for(j = 0; j < rates; j++)
+	{
+	  d1[j] = EXP (rptr[i] * lz1[j]);
+	  d2[j] = EXP (rptr[i] * lz2[j]);
+	}
+
+      for(j = 0; j < numStates; j++)
+	{
+	  left[statesSquare * i  + numStates * j] = 1.0;
+	  right[statesSquare * i + numStates * j] = 1.0;
+
+	  for(k = 1; k < numStates; k++)
+	    {
+	      left[statesSquare * i + numStates * j + k]  = d1[k-1] * EI_1[rates * j + (k-1)];
+	      right[statesSquare * i + numStates * j + k] = d2[k-1] * EI_2[rates * j + (k-1)];
+	    }
+	}
+    }  
+}
+
+#endif
+
 static void makeP_FlexLG4(double z1, double z2, double *rptr, double *EI[4],  double *EIGN[4], int numberOfCategories, double *left, double *right, const int numStates)
 {
   int 
@@ -7558,6 +7610,16 @@ void computeTraversalInfo(nodeptr p, traversalInfo *ti, int *counter, int maxTip
     nodeptr q = p->next->back;
     nodeptr r = p->next->next->back;
 
+#ifdef _HET
+    boolean 
+      parentIsTip;
+
+    if(isTip(p->back->number, maxTips))
+      parentIsTip = TRUE;   
+    else
+      parentIsTip = FALSE;
+#endif
+
     if(isTip(r->number, maxTips) && isTip(q->number, maxTips))
       {
 	while (! p->x)
@@ -7571,6 +7633,10 @@ void computeTraversalInfo(nodeptr p, traversalInfo *ti, int *counter, int maxTip
 	ti[*counter].qNumber = q->number;
 	ti[*counter].rNumber = r->number;
 
+#ifdef _HET
+	ti[*counter].parentIsTip = parentIsTip;
+#endif
+
 	for(i = 0; i < numBranches; i++)
 	  {
 	    double z;
@@ -7578,7 +7644,6 @@ void computeTraversalInfo(nodeptr p, traversalInfo *ti, int *counter, int maxTip
 	  
 	    z = (z > zmin) ? log(z) : log(zmin);
 	    ti[*counter].qz[i] = z;
-
 	    z = r->z[i];
 	    z = (z > zmin) ? log(z) : log(zmin);
 	    ti[*counter].rz[i] = z;
@@ -7610,6 +7675,10 @@ void computeTraversalInfo(nodeptr p, traversalInfo *ti, int *counter, int maxTip
 	    ti[*counter].pNumber = p->number;
 	    ti[*counter].qNumber = q->number;
 	    ti[*counter].rNumber = r->number;
+
+#ifdef _HET
+	    ti[*counter].parentIsTip = parentIsTip;
+#endif
 
 	    for(i = 0; i < numBranches; i++)
 	      {
@@ -7643,7 +7712,9 @@ void computeTraversalInfo(nodeptr p, traversalInfo *ti, int *counter, int maxTip
 	    ti[*counter].pNumber = p->number;
 	    ti[*counter].qNumber = q->number;
 	    ti[*counter].rNumber = r->number;
-
+#ifdef _HET
+	    ti[*counter].parentIsTip = parentIsTip;
+#endif
 	    for(i = 0; i < numBranches; i++)
 	      {
 		double z;
@@ -8037,51 +8108,104 @@ void newviewIterative (tree *tr)
 		      break;
 		    case GAMMA:
 		    case GAMMA_I:
+#ifdef _HET				      
+		      {
+			double 
+			  *parentEV;
+			
+			if(tInfo->parentIsTip)			  			  
+			  parentEV =  tr->partitionData[model].EV_TIP;			  
+			else		 
+			  parentEV =  tr->partitionData[model].EV;			  
+			
+			
+			switch(tInfo->tipCase)
+			  {								
+			  case TIP_TIP:			
+			    makeP_FlexHet(qz, rz, tr->partitionData[model].gammaRates, 
+					  tr->partitionData[model].EI_TIP,  tr->partitionData[model].EIGN_TIP, tr->partitionData[model].EI_TIP,  tr->partitionData[model].EIGN_TIP, 
+					  4, left, right, 4);	
+
+			    newviewGTRGAMMA(tInfo->tipCase,
+					    x1_start, x2_start, x3_start, parentEV, tr->partitionData[model].tipVector_TIP,
+					    ex3, tipX1, tipX2,
+					    width, left, right, wgt, &scalerIncrement, tr->useFastScaling);
+			    break;
+			  case TIP_INNER:
+			    assert(tInfo->qNumber <= tr->mxtips && tInfo->rNumber > tr->mxtips);
+					       
+			    makeP_FlexHet(qz, rz, tr->partitionData[model].gammaRates, 
+					  tr->partitionData[model].EI_TIP,  tr->partitionData[model].EIGN_TIP, tr->partitionData[model].EI,  tr->partitionData[model].EIGN, 
+					  4, left, right, 4);												
+
+			    newviewGTRGAMMA(tInfo->tipCase,
+					    x1_start, x2_start, x3_start, parentEV, tr->partitionData[model].tipVector_TIP,
+					    ex3, tipX1, tipX2,
+					    width, left, right, wgt, &scalerIncrement, tr->useFastScaling);
+			    
+			    break;
+			  case INNER_INNER:			       
+			    makeP_FlexHet(qz, rz, tr->partitionData[model].gammaRates, 
+					  tr->partitionData[model].EI, tr->partitionData[model].EIGN, tr->partitionData[model].EI,  tr->partitionData[model].EIGN, 
+					  4, left, right, 4);														
+
+			    newviewGTRGAMMA(tInfo->tipCase,
+					    x1_start, x2_start, x3_start, parentEV, (double *)NULL,
+					    ex3, tipX1, tipX2,
+					    width, left, right, wgt, &scalerIncrement, tr->useFastScaling);
+			    break;
+			  default:
+			    assert(0);			      
+			  }
+					       		
+		      }
 		      
-			{			 
-			  makeP(qz, rz, tr->partitionData[model].gammaRates,
-				tr->partitionData[model].EI, tr->partitionData[model].EIGN,
-				4, left, right, DNA_DATA, tr->saveMemory, tr->maxCategories);
-		  
-
+#else		      
+		      {			 
+			makeP(qz, rz, tr->partitionData[model].gammaRates,
+			      tr->partitionData[model].EI, tr->partitionData[model].EIGN,
+			      4, left, right, DNA_DATA, tr->saveMemory, tr->maxCategories);
+			
+			
 #if (defined(__SIM_SSE3) || defined(__AVX))
-			  if(tr->saveMemory)
-			    {
+			if(tr->saveMemory)
+			  {
 #ifdef __AVX					     
-			      newviewGTRGAMMA_AVX_GAPPED_SAVE(tInfo->tipCase,
-							      x1_start, x2_start, x3_start, tr->partitionData[model].EV, tr->partitionData[model].tipVector,
-							      ex3, tipX1, tipX2,
-							      width, left, right, wgt, &scalerIncrement, tr->useFastScaling,
-							      x1_gap, x2_gap, x3_gap, 
-							      x1_gapColumn, x2_gapColumn, x3_gapColumn); 
-			      
+			    newviewGTRGAMMA_AVX_GAPPED_SAVE(tInfo->tipCase,
+							    x1_start, x2_start, x3_start, tr->partitionData[model].EV, tr->partitionData[model].tipVector,
+							    ex3, tipX1, tipX2,
+							    width, left, right, wgt, &scalerIncrement, tr->useFastScaling,
+							    x1_gap, x2_gap, x3_gap, 
+							    x1_gapColumn, x2_gapColumn, x3_gapColumn); 
+			    
 #else
-			      newviewGTRGAMMA_GAPPED_SAVE(tInfo->tipCase,
-							  x1_start, x2_start, x3_start, tr->partitionData[model].EV, tr->partitionData[model].tipVector,
-							  ex3, tipX1, tipX2,
-							  width, left, right, wgt, &scalerIncrement, tr->useFastScaling,
-							  x1_gap, x2_gap, x3_gap, 
-							  x1_gapColumn, x2_gapColumn, x3_gapColumn);
-
+			    newviewGTRGAMMA_GAPPED_SAVE(tInfo->tipCase,
+							x1_start, x2_start, x3_start, tr->partitionData[model].EV, tr->partitionData[model].tipVector,
+							ex3, tipX1, tipX2,
+							width, left, right, wgt, &scalerIncrement, tr->useFastScaling,
+							x1_gap, x2_gap, x3_gap, 
+							x1_gapColumn, x2_gapColumn, x3_gapColumn);
+			    
 #endif
-			   
-			    }
-			  else
+			    
+			  }
+			else
 #endif
-			    {			     
+			  {			     
 #ifdef __AVX
-				newviewGTRGAMMA_AVX(tInfo->tipCase,
-						    x1_start, x2_start, x3_start, tr->partitionData[model].EV, tr->partitionData[model].tipVector,
-						    ex3, tipX1, tipX2,
-						    width, left, right, wgt, &scalerIncrement, tr->useFastScaling);
-#else
-				newviewGTRGAMMA(tInfo->tipCase,
+			    newviewGTRGAMMA_AVX(tInfo->tipCase,
 						x1_start, x2_start, x3_start, tr->partitionData[model].EV, tr->partitionData[model].tipVector,
 						ex3, tipX1, tipX2,
 						width, left, right, wgt, &scalerIncrement, tr->useFastScaling);
+#else
+			    newviewGTRGAMMA(tInfo->tipCase,
+					    x1_start, x2_start, x3_start, tr->partitionData[model].EV, tr->partitionData[model].tipVector,
+					    ex3, tipX1, tipX2,
+					    width, left, right, wgt, &scalerIncrement, tr->useFastScaling);
 #endif
-			    }
-			}
+			  }
+		      }
+#endif
 		      break;
 		    default:
 		      assert(0);

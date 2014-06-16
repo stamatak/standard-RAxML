@@ -3812,8 +3812,12 @@ void makenewzIterative(tree *tr)
 			  sumGAMMA_GAPPED_SAVE(tipCase, tr->partitionData[model].sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector, tipX1, tipX2,
 					       width, x1_gapColumn, x2_gapColumn, x1_gap, x2_gap);
 			else			  
+#ifdef _HET
+			  sumGAMMA(tipCase, tr->partitionData[model].sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector_TIP, tipX1, tipX2, width);
+#else
 			  sumGAMMA(tipCase, tr->partitionData[model].sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector, tipX1, tipX2,
 				   width);			  
+#endif			  
 		      }
 		  break;
 		default:
@@ -3948,8 +3952,11 @@ void makenewzIterative(tree *tr)
 
 
 
-
+#ifdef _HET
+void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2, boolean isTipBranch)
+#else
 void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
+#endif
 {
   int 
     model, 
@@ -4040,10 +4047,22 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 				 &dlnLdlz, &d2lnLdlz2,
 				 tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN,  tr->partitionData[model].rateCategory, lz, tr->partitionData[model].wgt);
 		      break;
-		    case GAMMA:		     
+		    case GAMMA:	
+#ifdef _HET
+		      if(isTipBranch)
+			coreGTRGAMMA(width, sumBuffer,
+				     &dlnLdlz, &d2lnLdlz2, tr->partitionData[model].EIGN_TIP, tr->partitionData[model].gammaRates, lz,
+				     tr->partitionData[model].wgt);
+		      else
+			coreGTRGAMMA(width, sumBuffer,
+				     &dlnLdlz, &d2lnLdlz2, tr->partitionData[model].EIGN, tr->partitionData[model].gammaRates, lz,
+				     tr->partitionData[model].wgt);
+
+#else	  	     
 		      coreGTRGAMMA(width, sumBuffer,
 				   &dlnLdlz, &d2lnLdlz2, tr->partitionData[model].EIGN, tr->partitionData[model].gammaRates, lz,
 				   tr->partitionData[model].wgt);
+#endif
 		      break;
 		    case GAMMA_I:
 		      coreGTRGAMMAINVAR(tr->partitionData[model].propInvariant, tr->partitionData[model].frequencies,
@@ -4257,8 +4276,11 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 
 
 
-
+#ifdef _HET
+static void topLevelMakenewz(tree *tr, double *z0, int _maxiter, double *result, boolean isTipBranch)
+#else
 static void topLevelMakenewz(tree *tr, double *z0, int _maxiter, double *result)
+#endif
 {
   double   z[NUM_BRANCHES], zprev[NUM_BRANCHES], zstep[NUM_BRANCHES];
   volatile double  dlnLdlz[NUM_BRANCHES], d2lnLdlz2[NUM_BRANCHES];
@@ -4388,7 +4410,11 @@ static void topLevelMakenewz(tree *tr, double *z0, int _maxiter, double *result)
 	  makenewzIterative(tr);
 	  firstIteration = FALSE;
 	}
+#ifdef _HET
+      execCore(tr, dlnLdlz, d2lnLdlz2, isTipBranch);
+#else
       execCore(tr, dlnLdlz, d2lnLdlz2);
+#endif
 #endif
 
       for(i = 0; i < numBranches; i++)
@@ -5070,6 +5096,16 @@ void makenewzGeneric(tree *tr, nodeptr p, nodeptr q, double *z0, int maxiter, do
   int 
     i; 
 
+#ifdef _HET
+  boolean 
+    isTipBranch;
+
+  if(isTip(p->number, tr->mxtips) || isTip(q->number, tr->mxtips))
+    isTipBranch = TRUE;
+  else
+    isTipBranch = FALSE;
+#endif
+
   tr->td[0].ti[0].pNumber = p->number;
   tr->td[0].ti[0].qNumber = q->number;
 
@@ -5093,8 +5129,12 @@ void makenewzGeneric(tree *tr, nodeptr p, nodeptr q, double *z0, int maxiter, do
 
   if(!q->x)
     computeTraversalInfo(q, &(tr->td[0].ti[0]), &(tr->td[0].count), tr->mxtips, tr->numBranches);
-      
+   
+#ifdef _HET
+  topLevelMakenewz(tr, z0, maxiter, result, isTipBranch);
+#else
   topLevelMakenewz(tr, z0, maxiter, result);
+#endif
   
   for(i = 0; i < tr->numBranches; i++)
       tr->executeModel[i] = TRUE;
@@ -5104,6 +5144,9 @@ void makenewzGeneric(tree *tr, nodeptr p, nodeptr q, double *z0, int maxiter, do
 
 void makenewzGenericDistance(tree *tr, int maxiter, double *z0, double *result, int taxon1, int taxon2)
 {
+#ifdef _HET
+  assert(0);//not implemented
+#else 
   int 
     i;
 
@@ -5119,8 +5162,9 @@ void makenewzGenericDistance(tree *tr, int maxiter, double *z0, double *result, 
     tr->td[0].ti[0].qz[i] =  defaultz;      /* TODO why defaultz ? */
 
   tr->td[0].count = 1;
-
+ 
   topLevelMakenewz(tr, z0, maxiter, result);
+#endif
 }
 
 

@@ -76,6 +76,9 @@ extern volatile double          *reductionBuffer;
 #define LXRATE_F   4
 #define LXWEIGHT_F 5
 #define FREQ_F     6
+#ifdef _HET
+#define RATE_F_HET 7
+#endif
 
 
 static void brentGeneric(double *ax, double *bx, double *cx, double *fb, double tol, double *xmin, double *result, int numberOfModels, 
@@ -94,7 +97,12 @@ static void updateWeights(tree *tr, int model, int rate, double value);
 
 
 
+
+#ifdef _HET
+static void setRateModel(tree *tr, int model, double rate, int position, boolean isHet)
+#else
 static void setRateModel(tree *tr, int model, double rate, int position)
+#endif
 {
   int
     states   = tr->partitionData[model].states,
@@ -143,7 +151,16 @@ static void setRateModel(tree *tr, int model, double rate, int position)
 	}
     }
   else
-    tr->partitionData[model].substRates[position] = rate;
+    {
+#ifdef _HET
+      if(isHet)		  
+	tr->partitionData[model].substRates_TIP[position] = rate;	
+      else       
+	tr->partitionData[model].substRates[position] = rate;	
+#else
+      tr->partitionData[model].substRates[position] = rate;
+#endif
+    }
 }
 
 
@@ -276,10 +293,21 @@ static void changeModelParameters(int index, int rateNumber, double value, int w
 {
   switch(whichParameterType)
     {
+#ifdef _HET
+    case RATE_F:
+      setRateModel(tr, index, value, rateNumber, FALSE);  
+      initReversibleGTR(tr, index);		 
+      break;
+    case RATE_F_HET:
+      setRateModel(tr, index, value, rateNumber, TRUE);  
+      initReversibleGTR(tr, index);		 
+      break; 
+#else
     case RATE_F:
       setRateModel(tr, index, value, rateNumber);  
       initReversibleGTR(tr, index);		 
       break;
+#endif
     case ALPHA_F:
       tr->partitionData[index].alpha = value;
       makeGammaCats(tr->partitionData[index].alpha, tr->partitionData[index].gammaRates, 4, tr->useGammaMedian);
@@ -449,7 +477,10 @@ static void evaluateChange(tree *tr, int rateNumber, double *value, double *resu
       assert(ll->entries == tr->numBranches);
       scaleBranches(tr, FALSE);
       break;
-    case RATE_F: 
+    case RATE_F:
+#ifdef _HET
+    case  RATE_F_HET:
+#endif
       assert(rateNumber != -1);  
       if(tr->useBrLenScaler)
 	determineFullTraversal(tr->start, tr);
@@ -475,6 +506,13 @@ static void evaluateChange(tree *tr, int rateNumber, double *value, double *resu
 #ifdef _USE_PTHREADS
   switch(whichFunction)
     {
+#ifdef _HET
+    case RATE_F_HET:
+      assert(0); 
+      // not implemented for Pthreads!
+      //needs an own barrier
+      break;
+#endif
     case RATE_F:
       masterBarrier(THREAD_OPT_RATE, tr);
       break;
@@ -522,6 +560,9 @@ static void evaluateChange(tree *tr, int rateNumber, double *value, double *resu
   switch(whichFunction)
     {
     case RATE_F:
+#ifdef _HET
+    case RATE_F_HET:
+#endif
     case ALPHA_F:
     case SCALER_F:
     case LXRATE_F: 
@@ -1335,6 +1376,13 @@ static void optParamGeneric(tree *tr, double modelEpsilon, linkageList *ll, int 
 		  lim_sup[pos] = _lim_sup;
 		  startValues[pos] = tr->partitionData[index].substRates[rateNumber];      
 		  break;
+#ifdef _HET
+		case RATE_F_HET:
+		  lim_inf[pos] = _lim_inf;
+		  lim_sup[pos] = _lim_sup;
+		  startValues[pos] = tr->partitionData[index].substRates_TIP[rateNumber];
+		  break;
+#endif
 		case INVAR_F:
 		  lim_inf[pos] = _lim_inf;
 		  lim_sup[pos] = _lim_sup;
@@ -1479,6 +1527,12 @@ static void optParamGeneric(tree *tr, double modelEpsilon, linkageList *ll, int 
 #ifdef _USE_PTHREADS
   switch(whichParameterType)
     {
+#ifdef _HET
+    case RATE_F_HET:
+      assert(0);
+      break;
+#endif
+
     case FREQ_F:
     case RATE_F:      
       masterBarrier(THREAD_COPY_RATES, tr);
@@ -1505,6 +1559,9 @@ static void optParamGeneric(tree *tr, double modelEpsilon, linkageList *ll, int 
 
   switch(whichParameterType)
     {
+#ifdef _HET
+    case RATE_F_HET:
+#endif
     case RATE_F:              
     case ALPHA_F:       
     case INVAR_F:     
@@ -1718,7 +1775,32 @@ static void optBaseFreqs(tree *tr, double modelEpsilon, linkageList *ll)
 }
 
 
+#ifdef _HET
+static void optRates(tree *tr, double modelEpsilon, linkageList *ll, int numberOfModels, int states)
+{
+  int
+    rateNumber,
+    numberOfRates = ((states * states - states) / 2) - 1;
 
+  evaluateGenericInitrav(tr, tr->start);
+  //printf("\nL1 %f\n", tr->likelihood);
+
+  for(rateNumber = 0; rateNumber < numberOfRates; rateNumber++)
+    optParamGeneric(tr, modelEpsilon, ll, numberOfModels, rateNumber, RATE_MIN, RATE_MAX, RATE_F);
+  
+  //treeEvaluate(tr, 0.0625);
+
+  evaluateGenericInitrav(tr, tr->start);
+  //printf("L2 %f\n\n", tr->likelihood);
+  
+ 
+  for(rateNumber = 0; rateNumber < numberOfRates; rateNumber++)
+    optParamGeneric(tr, modelEpsilon, ll, numberOfModels, rateNumber, RATE_MIN, RATE_MAX, RATE_F_HET);
+
+  evaluateGenericInitrav(tr, tr->start);
+  //printf("L3 %f\n\n", tr->likelihood);
+}
+#else
 static void optRates(tree *tr, double modelEpsilon, linkageList *ll, int numberOfModels, int states)
 {
   int
@@ -1728,6 +1810,7 @@ static void optRates(tree *tr, double modelEpsilon, linkageList *ll, int numberO
   for(rateNumber = 0; rateNumber < numberOfRates; rateNumber++)
     optParamGeneric(tr, modelEpsilon, ll, numberOfModels, rateNumber, RATE_MIN, RATE_MAX, RATE_F);
 }
+#endif
 
 
 
@@ -3503,7 +3586,12 @@ static double targetFunk(double *x, int n, tree *tr)
     i;
 
   for(i = 1; i <= n; i++)
-    setRateModel(tr, 0, x[i], i - 1);  
+#ifdef _HET
+    assert(0);//not supported !
+#else
+  setRateModel(tr, 0, x[i], i - 1);
+#endif
+
   initReversibleGTR(tr, 0);
   
   //TODO when optimizing some quantities we actually need to 

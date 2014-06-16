@@ -1167,6 +1167,16 @@ void computeFullTraversalInfo(nodeptr p, traversalInfo *ti, int *counter, int ma
     nodeptr q = p->next->back;
     nodeptr r = p->next->next->back;
 
+#ifdef _HET
+    boolean
+      parentIsTip;
+    
+    if(isTip(p->back->number, maxTips))      
+      parentIsTip = TRUE;            
+    else      
+      parentIsTip = FALSE;
+#endif
+
     /* set xnode info at this point */
 
     p->x = 1;
@@ -1179,7 +1189,9 @@ void computeFullTraversalInfo(nodeptr p, traversalInfo *ti, int *counter, int ma
 	ti[*counter].pNumber = p->number;
 	ti[*counter].qNumber = q->number;
 	ti[*counter].rNumber = r->number;
-
+#ifdef _HET
+	ti[*counter].parentIsTip = parentIsTip;
+#endif
 	for(i = 0; i < numBranches; i++)
 	  {
 	    double z;
@@ -1212,7 +1224,9 @@ void computeFullTraversalInfo(nodeptr p, traversalInfo *ti, int *counter, int ma
 	    ti[*counter].pNumber = p->number;
 	    ti[*counter].qNumber = q->number;
 	    ti[*counter].rNumber = r->number;
-
+#ifdef _HET
+	    ti[*counter].parentIsTip = parentIsTip;
+#endif
 	    for(i = 0; i < numBranches; i++)
 	      {
 		double z;
@@ -1236,6 +1250,10 @@ void computeFullTraversalInfo(nodeptr p, traversalInfo *ti, int *counter, int ma
 	    ti[*counter].pNumber = p->number;
 	    ti[*counter].qNumber = q->number;
 	    ti[*counter].rNumber = r->number;
+#ifdef _HET
+	    ti[*counter].parentIsTip = parentIsTip;
+#endif
+
 	    for(i = 0; i < numBranches; i++)
 	      {
 		double z;

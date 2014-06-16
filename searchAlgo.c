@@ -467,6 +467,7 @@ boolean insertBIG (tree *tr, nodeptr p, nodeptr q, int numBranches)
   for(i = 0; i < numBranches; i++)
     tr->lzi[i] = q->z[i];
   
+#ifndef _HET
   if(Thorough)
     { 
       double  zqr[NUM_BRANCHES], zqs[NUM_BRANCHES], zrs[NUM_BRANCHES], lzqr, lzqs, lzrs, lzsum, lzq, lzr, lzs, lzmax;      
@@ -509,6 +510,7 @@ boolean insertBIG (tree *tr, nodeptr p, nodeptr q, int numBranches)
       hookup(p,             s, e3, numBranches);      		  
     }
   else
+#endif
     {       
       double  z[NUM_BRANCHES]; 
       

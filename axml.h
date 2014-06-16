@@ -165,8 +165,8 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "RAxML"
-#define programVersion     "8.0.24"
-#define programDate        "June 6 2014"
+#define programVersion     "8.0.25"
+#define programDate        "June 16 2014"
 
 
 #define  TREE_EVALUATION                 0
@@ -414,6 +414,9 @@ typedef struct ratec
 typedef struct
 {
   int tipCase;
+#ifdef _HET
+  boolean parentIsTip;
+#endif
   int pNumber;
   int qNumber;
   int rNumber;
@@ -588,6 +591,18 @@ typedef struct {
 
   double *left;
   double *right;
+
+#ifdef _HET
+  /* heterotachy */
+ 
+  double *EIGN_TIP;
+  double *EV_TIP;
+  double *EI_TIP;  
+  double *tipVector_TIP;
+ 
+  double *substRates_TIP;
+#endif
+
 
   /* LG4 */
 
@@ -820,6 +835,11 @@ typedef  struct  {
  
   double           *rawFracchanges;
 
+#ifdef _HET
+  double *fracchanges_TIP;
+  double *rawFracchanges_TIP;
+#endif
+
   /* model stuff end */
 
   unsigned char             **yVector;
@@ -837,6 +857,11 @@ typedef  struct  {
 
   double            fracchange;
   double            rawFracchange;
+
+#ifdef _HET
+  double            fracchange_TIP;
+  double            rawFracchange_TIP;
+#endif
 
   double            lhCutoff;
   double            lhAVG;
@@ -1306,7 +1331,12 @@ extern double FABS(double x);
 
 
 extern void makenewzIterative(tree *);
-extern void execCore(tree *, volatile double *dlnLdlz, volatile double *d2lnLdlz2);
+
+#ifdef _HET
+extern void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2, boolean isTipBranch);
+#else
+extern void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2);
+#endif
 
 
 

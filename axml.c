@@ -886,6 +886,12 @@ static boolean setupTree (tree *tr, analdef *adef)
 
       tr->rawFracchanges = (double *)rax_malloc(tr->NumberOfModels * sizeof(double));  
 
+#ifdef _HET
+      tr->fracchanges_TIP  = (double *)rax_malloc(tr->NumberOfModels * sizeof(double));    
+
+      tr->rawFracchanges_TIP = (double *)rax_malloc(tr->NumberOfModels * sizeof(double)); 
+#endif
+
       tr->likelihoods  = (double *)rax_malloc(adef->multipleRuns * sizeof(double));
     }
 
@@ -914,10 +920,20 @@ static boolean setupTree (tree *tr, analdef *adef)
 	{
 	  tr->fracchanges[i] = -1.0;             
 	  tr->rawFracchanges[i] = -1.0; 
+#ifdef _HET
+	  tr->fracchanges_TIP[i] = -1.0;             
+	  tr->rawFracchanges_TIP[i] = -1.0;
+#endif
+
 	}
 
       tr->fracchange = -1.0;
       tr->rawFracchange = -1.0;
+
+#ifdef _HET
+      tr->fracchange_TIP = -1.0;
+      tr->rawFracchange_TIP = -1.0;
+#endif
 
       tr->constraintVector = (int *)rax_malloc((2 * tr->mxtips) * sizeof(int));
 
@@ -3149,6 +3165,16 @@ static void allocPartitions(tree *tr)
       tr->partitionData[i].frequencies       = (double*)rax_malloc(pl->frequenciesLength * sizeof(double));
       tr->partitionData[i].freqExponents     = (double*)rax_malloc(pl->frequenciesLength * sizeof(double));
       tr->partitionData[i].tipVector         = (double *)rax_malloc(pl->tipVectorLength * sizeof(double));
+
+#ifdef _HET
+      
+      tr->partitionData[i].EIGN_TIP          = (double*)rax_malloc(pl->eignLength * sizeof(double));
+      tr->partitionData[i].EV_TIP            = (double*)rax_malloc(pl->evLength * sizeof(double));
+      tr->partitionData[i].EI_TIP            = (double*)rax_malloc(pl->eiLength * sizeof(double));
+      tr->partitionData[i].substRates_TIP    = (double *)rax_malloc(pl->substRatesLength * sizeof(double));      
+      tr->partitionData[i].tipVector_TIP     = (double *)rax_malloc(pl->tipVectorLength * sizeof(double));
+
+#endif
       
 
 

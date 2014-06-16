@@ -173,22 +173,43 @@ int countTips(nodeptr p, int numsp)
 }
 
 
+
 static double getBranchLength(tree *tr, int perGene, nodeptr p)
 {
   double 
     z = 0.0,
-    x = 0.0;
+    x = 0.0,
+    f,
+    *fs;
 
   assert(perGene != NO_BRANCHES);
-	      
+	   
+#ifdef _HET     
+  if(isTip(p->number, tr->mxtips) || isTip(p->back->number, tr->mxtips))
+    {
+      //printf("tip model \n");
+      f = tr->fracchange_TIP;
+      fs = tr->fracchanges_TIP;
+    }
+  else
+    {
+      //printf("inner model\n");
+      f = tr->fracchange;
+      fs = tr->fracchanges;
+    }
+#else
+  f = tr->fracchange;
+  fs = tr->fracchanges;
+#endif
+   
   if(!tr->multiBranch)
     {
-      assert(tr->fracchange != -1.0);
+      assert(f != -1.0);
       z = p->z[0];
       if (z < zmin) 
 	z = zmin;      	 
       
-      x = -log(z) * tr->fracchange;           
+      x = -log(z) * f;           
     }
   else
     {
@@ -203,11 +224,11 @@ static double getBranchLength(tree *tr, int perGene, nodeptr p)
 	  for(i = 0; i < tr->numBranches; i++)
 	    {
 	      assert(tr->partitionContributions[i] != -1.0);
-	      assert(tr->fracchanges[i] != -1.0);
+	      assert(fs[i] != -1.0);
 	      z = p->z[i];
 	      if(z < zmin) 
 		z = zmin;      	 
-	      x = -log(z) * tr->fracchanges[i];
+	      x = -log(z) * fs[i];
 	      avgX += x * tr->partitionContributions[i];
 	    }
 
@@ -215,7 +236,7 @@ static double getBranchLength(tree *tr, int perGene, nodeptr p)
 	}
       else
 	{	
-	  assert(tr->fracchanges[perGene] != -1.0);
+	  assert(fs[perGene] != -1.0);
 	  assert(perGene >= 0 && perGene < tr->numBranches);
 	  
 	  z = p->z[perGene];
@@ -223,13 +244,12 @@ static double getBranchLength(tree *tr, int perGene, nodeptr p)
 	  if(z < zmin) 
 	    z = zmin;      	 
 	  
-	  x = -log(z) * tr->fracchanges[perGene];	  
+	  x = -log(z) * fs[perGene];	  
 	}
     }
 
   return x;
 }
-
 
   
 

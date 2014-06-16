@@ -3320,8 +3320,54 @@ static void initProtMat(double f[20], int proteinMatrix, double *ext_initialRate
     }             
 }
 
+#ifdef _HET
+static void updateFracChange(tree *tr, double *s, double *r, double *fracchanges, double *raw)
+{   
+  if(tr->NumberOfModels == 1)    
+    {   
+      assert(fracchanges[0] != -1.0);
+      *s = fracchanges[0];            
+      fracchanges[0] = -1.0;
+      
+      if(tr->useBrLenScaler)
+	scaleBranches(tr, FALSE);
+    }      
+  else
+    {
+      int 
+	model, 
+	i;
+      
+      double 
+	*modelWeights = (double *)rax_calloc(tr->NumberOfModels, sizeof(double)),
+	wgtsum = 0.0;  
+     
+      assert(tr->NumberOfModels > 1);
 
+      *s = 0.0;	         
+      
+      for(i = 0; i < tr->cdta->endsite; i++)
+	{
+	  modelWeights[tr->model[i]]  += (double)tr->cdta->aliaswgt[i];
+	  wgtsum                      += (double)tr->cdta->aliaswgt[i];
+	}  
+ 	        
+      for(model = 0; model < tr->NumberOfModels; model++)      
+	{	      	  	 
+	  tr->partitionContributions[model] = modelWeights[model] / wgtsum;             
+	  *s +=  tr->partitionContributions[model] * fracchanges[model];
+	}	      
+    
+      if(tr->useBrLenScaler)
+	scaleBranches(tr, FALSE);	  	
 
+      rax_free(modelWeights);
+    }
+
+  *r = *s;
+  memcpy(raw, fracchanges, sizeof(double) * tr->NumberOfModels);
+}
+#else
 static void updateFracChange(tree *tr)
 {   
   if(tr->NumberOfModels == 1)    
@@ -3368,7 +3414,7 @@ static void updateFracChange(tree *tr)
   tr->rawFracchange = tr->fracchange;
   memcpy(tr->rawFracchanges, tr->fracchanges, sizeof(double) * tr->NumberOfModels);
 }
-
+#endif
 
 static void initGeneric(const int n, const unsigned int *valueVector, int valueVectorLength,
 			double *fracchanges,
@@ -3604,6 +3650,21 @@ void initReversibleGTR(tree *tr, int model)
 		 ext_initialRates,
 		 tipVector, 
 		 model);
+#ifdef _HET
+     assert(tr->partitionData[model].dataType == DNA_DATA);
+
+      initGeneric(states, 
+		  getBitVector(tr->partitionData[model].dataType), 
+		  getUndetermined(tr->partitionData[model].dataType) + 1, 
+		  tr->fracchanges_TIP,
+		  tr->partitionData[model].EIGN_TIP, 
+		  tr->partitionData[model].EV_TIP, 
+		  tr->partitionData[model].EI_TIP, 
+		  frequencies, 
+		  tr->partitionData[model].substRates_TIP,
+		  tr->partitionData[model].tipVector_TIP, 
+		  model);
+#endif
      break;   
    case AA_DATA: 
 
@@ -3730,7 +3791,13 @@ void initReversibleGTR(tree *tr, int model)
    } 
  
  
- updateFracChange(tr);    
+   
+#ifdef _HET
+ updateFracChange(tr, &(tr->fracchange), &(tr->rawFracchange), tr->fracchanges, tr->rawFracchanges); 
+ updateFracChange(tr, &(tr->fracchange_TIP), &(tr->rawFracchange_TIP), tr->fracchanges_TIP, tr->rawFracchanges_TIP);    
+#else
+ updateFracChange(tr);  
+#endif
 }
 
 
@@ -4077,6 +4144,10 @@ void initRateMatrix(tree *tr)
 	case SECONDARY_DATA_6:
 	case SECONDARY_DATA_7:
 	  setRates(tr->partitionData[model].substRates, rates);
+#ifdef _HET
+	  assert(tr->partitionData[model].dataType = DNA_DATA);
+	  setRates(tr->partitionData[model].substRates_TIP, rates);
+#endif
 	  break;	  
 	case GENERIC_32:
 	case GENERIC_64:	  
@@ -4435,6 +4506,17 @@ void initModel(tree *tr, rawdata *rdta, cruncheddata *cdta, analdef *adef)
       
       tr->fracchange /= ((double)tr->NumberOfModels);
     }
+
+#ifdef _HET
+  if(tr->NumberOfModels > 1)
+    {
+      tr->fracchange_TIP = 0;
+      for(model = 0; model < tr->NumberOfModels; model++)	
+	tr->fracchange_TIP += tr->fracchanges_TIP[model];
+      
+      tr->fracchange_TIP /= ((double)tr->NumberOfModels);
+    }
+#endif
 
 #ifdef _USE_PTHREADS
   masterBarrier(THREAD_COPY_INIT_MODEL, tr);   
