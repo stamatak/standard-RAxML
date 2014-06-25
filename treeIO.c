@@ -777,8 +777,9 @@ static boolean treeLabelEnd (int ch)
   return FALSE;
 } 
 
+static void treeEchoContext (FILE *fp1, FILE *fp2, int n);
 
-static boolean  treeGetLabel (FILE *fp, char *lblPtr, int maxlen)
+static boolean  treeGetLabel (FILE *fp, char *lblPtr, int maxlen, boolean taxonLabel)
 {
   int      ch;
   boolean  done, quoted, lblfound;
@@ -791,6 +792,17 @@ static boolean  treeGetLabel (FILE *fp, char *lblPtr, int maxlen)
 
   ch = getc(fp);
   done = treeLabelEnd(ch);
+
+  if(done && taxonLabel)
+    {
+      printf("RAxML expects to read a taxon label in the tree file\n");
+      printf("but the taxon label is an empty string.\n\n");
+      printf("RAxML will print the context of the error and then exit:\n\n");
+      
+      treeEchoContext(fp, stdout, 40);
+      printf("\n                  ^^\n\n");
+      errorExit(-1);     
+    }
 
   lblfound = ! done;
   quoted = (ch == '\'');
@@ -829,7 +841,7 @@ static boolean  treeGetLabel (FILE *fp, char *lblPtr, int maxlen)
 
 static boolean  treeFlushLabel (FILE *fp)
 { 
-  return  treeGetLabel(fp, (char *) NULL, (int) 0);
+  return  treeGetLabel(fp, (char *) NULL, (int) 0, FALSE);
 } 
 
 
@@ -859,7 +871,7 @@ int treeFindTipName(FILE *fp, tree *tr, boolean check)
   char    str[nmlngth+2];
   int      n;
 
-  if(treeGetLabel(fp, str, nmlngth+2))
+  if(treeGetLabel(fp, str, nmlngth+2, TRUE))
     n = treeFindTipByLabelString(str, tr, check);
   else
     n = 0;
@@ -1089,7 +1101,7 @@ static boolean addElementLen (FILE *fp, tree *tr, nodeptr p, boolean readBranchL
 	  char label[64];
 	  int support;
 
-	  if(treeGetLabel (fp, label, 10))
+	  if(treeGetLabel (fp, label, 10, FALSE))
 	    {	
 	      int val = sscanf(label, "%d", &support);
       
