@@ -2196,6 +2196,7 @@ static void adaptRdataToSecondary(tree *tr, rawdata *rdta)
       tr->dataVector[i+1] = tr->dataVector[alias[i]+1];
       rdta->wgt[i+1] =  rdta->wgt[alias[i]+1];      
 
+
       for(j = 1; j <= rdta->numsp; j++)
 	rdta->y[j][i+1] = rdta->y[j][alias[i]+1];
     }
@@ -2406,6 +2407,7 @@ static void sitecombcrunch (rawdata *rdta, cruncheddata *cdta, tree *tr, analdef
 	  tr->model[i]      = aliasModel[i];
 	  tr->dataVector[i] = aliasSuperModel[i];
 	}      
+
     }
 
   if(adef->useMultipleModel)
@@ -2635,8 +2637,12 @@ static void checkSequences(tree *tr, rawdata *rdta, analdef *adef)
 	  undeterminedList[i] = 1;
 
 	  if(processID == 0)
-	    printBothOpen("IMPORTANT WARNING: Alignment column %d contains only undetermined values which will be treated as missing data\n", i);
-
+	  {
+	    if(!adef->quietAlignmentValidation)
+	    {
+          printBothOpen("IMPORTANT WARNING: Alignment column %d contains only undetermined values which will be treated as missing data\n", i);
+    	}
+      }
 	  countUndeterminedColumns++;
 	}
       else
@@ -2663,14 +2669,18 @@ static void checkSequences(tree *tr, rawdata *rdta, analdef *adef)
 		  tipJ = &(rdta->y[j][1]);
 		  if(sequenceSimilarity(tipI, tipJ, rdta->sites))
 		    {
-		      if(processID == 0)
-			printBothOpen("\n\nIMPORTANT WARNING: Sequences %s and %s are exactly identical\n", tr->nameList[i], tr->nameList[j]);
-
-		      omissionList[j] = 1;
-		      count++;
-		    }
+            if(processID == 0)
+              {
+              if(!adef->quietAlignmentValidation)
+                {
+                  printBothOpen("\n\nIMPORTANT WARNING: Sequences %s and %s are exactly identical\n", tr->nameList[i], tr->nameList[j]);
+                }
+            omissionList[j] = 1;
+            count++;
+            }
+          }
 		}
-	    }
+      }
 	}
     }
 
@@ -2681,23 +2691,29 @@ static void checkSequences(tree *tr, rawdata *rdta, analdef *adef)
       char noDupSecondary[2048];
 
       if(count > 0 &&processID == 0)
-	{
-	  printBothOpen("\nIMPORTANT WARNING\n");
+    	{
+        if(!adef->quietAlignmentValidation)
+          {
+            printBothOpen("\nIMPORTANT WARNING\n");
 
-	  printBothOpen("Found %d %s that %s exactly identical to other sequences in the alignment.\n", count, (count == 1)?"sequence":"sequences", (count == 1)?"is":"are");
+            printBothOpen("Found %d %s that %s exactly identical to other sequences in the alignment.\n", count, (count == 1)?"sequence":"sequences", (count == 1)?"is":"are");
 
-	  printBothOpen("Normally they should be excluded from the analysis.\n\n");
-	}
+            printBothOpen("Normally they should be excluded from the analysis.\n\n");
+          }
+        }
 
       if(countUndeterminedColumns > 0 && processID == 0)
-	{
-	  printBothOpen("\nIMPORTANT WARNING\n");
+	  {
+        if(!adef->quietAlignmentValidation)
+        {
+          printBothOpen("\nIMPORTANT WARNING\n");
 
-	  printBothOpen("Found %d %s that %s only undetermined values which will be treated as missing data.\n",
-			countUndeterminedColumns, (countUndeterminedColumns == 1)?"column":"columns", (countUndeterminedColumns == 1)?"contains":"contain");
+          printBothOpen("Found %d %s that %s only undetermined values which will be treated as missing data.\n",
+                countUndeterminedColumns, (countUndeterminedColumns == 1)?"column":"columns", (countUndeterminedColumns == 1)?"contains":"contain");
 
-	  printBothOpen("Normally these columns should be excluded from the analysis.\n\n");
-	}
+          printBothOpen("Normally these columns should be excluded from the analysis.\n\n");
+        }
+      }
 
       strcpy(noDupFile, seq_file);
       strcat(noDupFile, ".reduced");
@@ -2748,7 +2764,7 @@ static void checkSequences(tree *tr, rawdata *rdta, analdef *adef)
 	  if(adef->useMultipleModel && !filexists(noDupModels) && countUndeterminedColumns)
 	    {
 	      FILE *newFile = myfopen(noDupModels, "wb");
-
+	      
 	      printBothOpen("\nJust in case you might need it, a mixed model file with \n");
 	      printBothOpen("model assignments for undetermined columns removed is printed to file %s\n",noDupModels);
 
@@ -2914,6 +2930,11 @@ static void checkSequences(tree *tr, rawdata *rdta, analdef *adef)
 	  if(!filexists(noDupFile))
 	    {
 	      FILE *newFile;
+
+	      if(adef->quietAlignmentValidation && (count || countUndeterminedColumns))
+	      {
+	        printBothOpen("\nIMPORTANT WARNING: Alignment validation warnings have been suppressed. Found %d duplicate %s and %d undetermined %s\n\n", count, count > 1 ? "sequences" : "sequence", countUndeterminedColumns, countUndeterminedColumns > 1 ? "columns" : "column");
+	      }
 
 	      printBothOpen("Just in case you might need it, an alignment file with \n");
 	      if(count && !countUndeterminedColumns)
@@ -3402,6 +3423,7 @@ static void initAdef(analdef *adef)
   adef->optimizeBaseFrequencies = FALSE;
   adef->ascertainmentBias = FALSE;
   adef->rellBootstrap = FALSE;
+  adef->quietAlignmentValidation = FALSE;
 }
 
 
@@ -5201,10 +5223,13 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 
 
   while(!bad_opt &&
-	((c = mygetopt(argc,argv,"R:T:E:N:B:L:P:S:Y:A:G:I:J:K:W:l:x:z:g:r:e:a:b:c:f:i:m:t:w:s:n:o:q:#:p:vudyjhHkMDFQUOVCX", &optind, &optarg))!=-1))
+	((c = mygetopt(argc,argv,"R:T:E:N:B:L:P:S:Y:A:G:I:J:K:W:l:x:z:g:r:e:a:b:c:f:i:m:t:w:s:n:o:q:#:p:vudyjhHkMDFQUOVCX$", &optind, &optarg))!=-1))
     {
     switch(c)
       {
+      case '$':
+    adef->quietAlignmentValidation = TRUE;
+    break;
       case 'Y':
 	adef->useQuartetGrouping = TRUE;
 	yFileSet = TRUE;
@@ -7884,6 +7909,7 @@ static void threadFixModelIndices(tree *tr, tree *localTree, int tid, int n)
 	  if(i % (size_t)n == (size_t)tid)
 	    {
 	      localTree->partitionData[model].wgt[localCounter]          = tr->cdta->aliaswgt[globalCounter]; 
+
 	      localTree->partitionData[model].invariant[localCounter]    = tr->invariant[globalCounter];
 	      localTree->partitionData[model].rateCategory[localCounter] = tr->cdta->rateCategory[globalCounter];	      
 
