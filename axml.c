@@ -6487,6 +6487,10 @@ static void makeFileNames(void)
   strcpy(bipartitionsFileName, workdir);
   strcpy(bipartitionsFileNameBranchLabels, workdir);
   strcpy(icFileNameBranchLabels, workdir);
+
+  strcpy(icFileNameBranchLabelsUniform, workdir);
+  strcpy(icFileNameBranchLabelsStochastic, workdir);
+
   strcpy(ratesFileName,        workdir);
   strcpy(lengthFileName,       workdir);
   strcpy(lengthFileNameModel,  workdir);
@@ -6505,6 +6509,10 @@ static void makeFileNames(void)
   strcat(bipartitionsFileName, "RAxML_bipartitions.");
   strcat(bipartitionsFileNameBranchLabels, "RAxML_bipartitionsBranchLabels.");
   strcat(icFileNameBranchLabels, "RAxML_IC_Score_BranchLabels.");
+
+  strcat(icFileNameBranchLabelsStochastic, "RAxML_Corrected_Stochastic_IC_Score_BranchLabels.");
+  strcat(icFileNameBranchLabelsUniform, "RAxML_Corrected_Uniform_IC_Score_BranchLabels.");
+
   strcat(ratesFileName,        "RAxML_perSiteRates.");
   strcat(lengthFileName,       "RAxML_treeLength.");
   strcat(lengthFileNameModel,  "RAxML_treeLengthModel.");
@@ -6523,6 +6531,10 @@ static void makeFileNames(void)
   strcat(bipartitionsFileName, run_id);
   strcat(bipartitionsFileNameBranchLabels, run_id);  
   strcat(icFileNameBranchLabels, run_id); 
+
+  strcat(icFileNameBranchLabelsUniform, run_id);
+  strcat(icFileNameBranchLabelsStochastic, run_id);
+
   strcat(ratesFileName,        run_id);
   strcat(lengthFileName,       run_id);
   strcat(lengthFileNameModel,  run_id);
@@ -7041,7 +7053,7 @@ void printBootstrapResult(tree *tr, analdef *adef, boolean finalPrint)
 
 
 
-void printBipartitionResult(tree *tr, analdef *adef, boolean finalPrint, boolean printIC)
+void printBipartitionResult(tree *tr, analdef *adef, boolean finalPrint, boolean printIC, char *fileName)
 {
   if(processID == 0 || adef->allInOne)
     {
@@ -7060,10 +7072,8 @@ void printBipartitionResult(tree *tr, analdef *adef, boolean finalPrint, boolean
 
       Tree2String(tr->tree_string, tr, tr->start->back, FALSE, TRUE, FALSE, FALSE, finalPrint, adef, NO_BRANCHES, TRUE, FALSE, printIC, FALSE);
       
-      if(printIC)
-	logFile = myfopen(icFileNameBranchLabels, "ab");
-      else
-	logFile = myfopen(bipartitionsFileNameBranchLabels, "ab");
+      
+      logFile = myfopen(fileName, "ab");     
       
       fprintf(logFile, "%s", tr->tree_string);
       fclose(logFile);
@@ -7760,8 +7770,17 @@ static void finalizeInfoFile(tree *tr, analdef *adef)
 	  printBothOpen("Execution information file written to :  %s\n",infoFileName);
 	  break;
 	case CALC_BIPARTITIONS_IC:
-	  printBothOpen("\n\nTime for Computation of TC and IC scores %f\n", t);	 
-	  printBothOpen("Tree with IC scores as branch labels written to file:  %s\n", icFileNameBranchLabels);	  
+	  printBothOpen("\n\nTime for Computation of TC and IC scores %f\n", t);
+	  
+	  if(tr->corrected_IC_Score)
+	    {
+	      printBothOpen("Tree with corrected (for partial gene trees) stochastic IC scores as branch labels written to file:  %s\n\n", icFileNameBranchLabelsStochastic);
+	      printBothOpen("Tree with corrected (for partial gene trees) uniform IC scores as branch labels written to file:  %s\n\n", icFileNameBranchLabelsUniform);
+	      
+	    }
+	  else
+	    printBothOpen("Tree with IC scores as branch labels written to file:  %s\n", icFileNameBranchLabels);	  
+	  
 	  printBothOpen("Execution information file written to :  %s\n",infoFileName);
 	  break; 
 	case PER_SITE_LL:
@@ -12637,7 +12656,7 @@ int main (int argc, char *argv[])
     
     if(adef->readTaxaOnly)  
       {
-	if(adef->mode == PLAUSIBILITY_CHECKER || adef->mode == ROOT_TREE)
+	if(adef->mode == PLAUSIBILITY_CHECKER || adef->mode == ROOT_TREE || adef->mode == CALC_BIPARTITIONS_IC)
 	  extractTaxaFromTopology(tr, rdta, cdta, tree_file);   
 	else
 	  extractTaxaFromTopology(tr, rdta, cdta, bootStrapFile);
@@ -12974,7 +12993,7 @@ int main (int argc, char *argv[])
 	  calcBipartitions(tr, adef, tree_file, bootStrapFile);
 	  break;
 	case CALC_BIPARTITIONS_IC:
-	  calcBipartitions_IC(tr, adef, tree_file, bootStrapFile);
+	  calcBipartitions_IC_Global(tr, adef, tree_file, bootStrapFile);
 	  break;
 	case BIG_RAPID_MODE:
 	  if(adef->boot)

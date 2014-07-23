@@ -72,6 +72,10 @@ extern char tree_file[1024];
 extern char infoFileName[1024];
 extern char resultFileName[1024];
 extern char verboseSplitsFileName[1024];
+extern char bipartitionsFileNameBranchLabels[1024];
+extern char icFileNameBranchLabelsStochastic[1024];
+extern char icFileNameBranchLabelsUniform[1024];
+extern char icFileNameBranchLabels[1024];
 
 extern double masterTime;
 
@@ -106,6 +110,11 @@ entry *initEntry(void)
   e->supportFromTreeset[0] = 0;
   e->supportFromTreeset[1] = 0;
   e->next       = (entry*)NULL;
+
+  //Kassian modification
+  e->taxonMask     = (unsigned int*)NULL;
+  e->wasFound=FALSE;  
+  //Kassian end
 
   return e;
 } 
@@ -183,6 +192,13 @@ void freeHashTable(hashtable *h)
 	      if(previous->bitVector)
 		rax_free(previous->bitVector);
 
+	      //Kassian modif 
+
+	      if(previous->taxonMask)
+		rax_free(previous->taxonMask);
+	      
+	      //Kassian modif end 
+
 	      if(previous->treeVector)
 		rax_free(previous->treeVector);
 
@@ -253,10 +269,20 @@ void cleanupHashTable(hashtable *h, int state)
 
 		  if(remove->bitVector)
 		    rax_free(remove->bitVector);
+		  
 		  if(remove->treeVector)
 		    rax_free(remove->treeVector);
+		  
 		  if(remove->supportVector)
 		    rax_free(remove->supportVector);
+
+		  //Kassian
+
+		  if(remove->taxonMask)
+		    rax_free(remove->taxonMask);
+
+		  //Kassian end
+
 		  rax_free(remove);		 
 		}
 	      
@@ -595,7 +621,7 @@ static void insertHashBootstop(unsigned int *bitVector, hashtable *h, unsigned i
 }
 
 static void insertHashRF(unsigned int *bitVector, hashtable *h, unsigned int vectorLength, int treeNumber, int treeVectorLength, hashNumberType position, int support, 
-			 boolean computeWRF)
+			 boolean computeWRF, unsigned int bLink)
 {     
   if(h->table[position] != NULL)
     {
@@ -646,6 +672,8 @@ static void insertHashRF(unsigned int *bitVector, hashtable *h, unsigned int vec
 
       memcpy(e->bitVector, bitVector, sizeof(unsigned int) * vectorLength);
      
+      e->bLink=bLink;
+      
       e->next = h->table[position];
       h->table[position] = e;          
     }
@@ -673,6 +701,9 @@ static void insertHashRF(unsigned int *bitVector, hashtable *h, unsigned int vec
 
       memcpy(e->bitVector, bitVector, sizeof(unsigned int) * vectorLength);     
 
+      
+      e->bLink=bLink;//bLink: Branch link, needed for Partial TC/IC correction to be able to link Bipartitions to bInfos.
+      
       h->table[position] = e;
     }
 
@@ -748,9 +779,22 @@ void bitVectorInitravSpecial(unsigned int **bitVectors, nodeptr p, int numsp, un
 	    case BIPARTITIONS_RF:
 	      if(computeWRF)
 		assert(p->support == p->back->support);
-	      insertHashRF(toInsert, h, vectorLength, treeNumber, treeVectorLength, position, p->support, computeWRF);
+	      insertHashRF(toInsert, h, vectorLength, treeNumber, treeVectorLength, position, p->support, computeWRF, 0);
 	      *countBranches =  *countBranches + 1;
-	      break;	    
+	      break;  	
+	    case BIPARTITIONS_PARTIAL_TC:
+	       if(computeWRF)
+		assert(p->support == p->back->support);
+	      insertHashRF(toInsert, h, vectorLength, treeNumber, treeVectorLength, position, p->support, computeWRF, *countBranches );
+
+	      p->bInf            = &bInf[*countBranches];
+	      p->back->bInf      = &bInf[*countBranches];        
+	      p->bInf->support   = 0;	  	 
+	      p->bInf->oP = p;
+	      p->bInf->oQ = p->back;
+
+	      *countBranches =  *countBranches + 1;
+	      break;  
 	    default:
 	      assert(0);
 	    }	  	  
@@ -895,7 +939,7 @@ void calcBipartitions(tree *tr, analdef *adef, char *bestTreeFileName, char *boo
 
   assert(counter == branchCounter);
 
-  printBipartitionResult(tr, adef, TRUE, FALSE);    
+  printBipartitionResult(tr, adef, TRUE, FALSE, bipartitionsFileNameBranchLabels);    
 
   freeBitVectors(bitVectors, 2 * tr->mxtips);
   rax_free(bitVectors);
@@ -940,7 +984,7 @@ static void insertHash_IC(unsigned int *bitVector, hashtable *h, unsigned int ve
       memset(e->bitVector, 0, vectorLength * sizeof(unsigned int));
       memcpy(e->bitVector, bitVector, sizeof(unsigned int) * vectorLength);
    
-      e->bipNumber  = 1;       	
+      e->bipNumber  = 1;      
 	
       e->next = h->table[position];
       h->table[position] = e;              
@@ -955,8 +999,8 @@ static void insertHash_IC(unsigned int *bitVector, hashtable *h, unsigned int ve
       memcpy(e->bitVector, bitVector, sizeof(unsigned int) * vectorLength);
 
      
-      e->bipNumber  = 1;	  	    
-
+      e->bipNumber  = 1;	
+      
       h->table[position] = e;
     }
 
@@ -1596,9 +1640,77 @@ static void bitVectorInitravIC(tree *tr, unsigned int **bitVectors, nodeptr p, i
 }
 
 
+static boolean allTreesEqualSize(tree *tr, int numberOfTrees, FILE *treeFile)
+{
+  int 
+    i; 
+
+  char    
+    buffer[nmlngth + 2]; 
+
+  boolean
+    allSameSize = TRUE;
+
+  for(i = 0; i < numberOfTrees; i++)
+    {
+      int 
+	c,
+	taxaCount = 0;
+
+      while((c = fgetc(treeFile)) != ';')
+	{
+	  if(c == '(' || c == ',')
+	    {
+	      c = fgetc(treeFile);
+	      if(c ==  '(' || c == ',')
+		ungetc(c, treeFile);
+	      else
+		{
+		  int 
+		    lookup = -1,
+		    j = 0;	      	     
+		  
+		  do
+		    {
+		      buffer[j++] = c;
+		      c = fgetc(treeFile);
+		    }
+		  while(c != ':' && c != ')' && c != ',');
+		  buffer[j] = '\0';	    			      		  
+		  
+		  lookup = lookupWord(buffer, tr->nameHash);
+
+		  if(lookup <= 0)
+		    {
+		      printf("ERROR: Cannot find tree species: %s\n", buffer);
+		      assert(0);
+		    }
+
+		  taxaCount++;
+		  
+		  ungetc(c, treeFile);
+		}
+	    }   
+	}
+
+      printf("Tree %d: found %d taxa, reference tree has %d taxa\n", i, taxaCount, tr->mxtips);
+
+     
+      assert(taxaCount <= tr->mxtips);
+
+      allSameSize = allSameSize && (tr->mxtips == taxaCount);
+    }
+
+  rewind(treeFile);
+
+  //TODO 
+  return allSameSize;
+}
 
 
-void calcBipartitions_IC(tree *tr, analdef *adef, char *bestTreeFileName, char *bootStrapFileName)
+
+
+static void calcBipartitions_IC(tree *tr, analdef *adef, char *bestTreeFileName, FILE *treeFile, int numberOfTrees)
 {  
   branchInfo 
     *bInf;
@@ -1609,15 +1721,15 @@ void calcBipartitions_IC(tree *tr, analdef *adef, char *bestTreeFileName, char *
   
   int 
     bCount = 0,
-    numberOfTaxa = 0,
-    numberOfTrees = 0,
+    //numberOfTaxa = 0,
+    //numberOfTrees = 0,
     i;
      
   hashtable *h = 
     initHashTable(tr->mxtips * 10);
 
-  FILE 
-    *treeFile; 
+  //FILE 
+  //  *treeFile; 
   
   double
     rtc = 0.0,
@@ -1629,25 +1741,25 @@ void calcBipartitions_IC(tree *tr, analdef *adef, char *bestTreeFileName, char *
   tree
     *inputTree = (tree *)rax_malloc(sizeof(tree));
 
-  numberOfTaxa = readSingleTree(tr, bestTreeFileName, adef, FALSE, FALSE, TRUE);    
+  //numberOfTaxa = readSingleTree(tr, bestTreeFileName, adef, FALSE, FALSE, TRUE);    
   
   bInf = (branchInfo*)rax_malloc(sizeof(branchInfo) * (tr->mxtips - 3));
 
   if(adef->verboseIC)
     printVerboseTaxonNames(tr);
 
-  if(numberOfTaxa != tr->mxtips)
+  /*if(numberOfTaxa != tr->mxtips)
     {
       printBothOpen("The number of taxa in the reference tree file \"%s\" is %d and\n",  bestTreeFileName, numberOfTaxa);
       printBothOpen("is not equal to the number of taxa in the bootstrap tree file \"%s\" which is %d.\n", bootStrapFileName, tr->mxtips);
       printBothOpen("RAxML will exit now with an error ....\n\n");
     }  
+  */
   
-  treeFile = getNumberOfTrees(tr, bootStrapFileName, adef);
+  //treeFile = getNumberOfTrees(tr, bootStrapFileName, adef);
 
-  numberOfTrees = tr->numberOfTrees;
-
-  checkTreeNumber(numberOfTrees, bootStrapFileName);
+  //numberOfTrees = tr->numberOfTrees;
+ 
   //multifurcations  
   allocateMultifurcations(tr, inputTree);
 
@@ -1698,7 +1810,7 @@ void calcBipartitions_IC(tree *tr, analdef *adef, char *bestTreeFileName, char *
   if(adef->verboseIC)
     printBothOpen("Verbose PHYLIP-style formatted bipartition information written to file: %s\n\n",  verboseSplitsFileName);
 
-  printBipartitionResult(tr, adef, TRUE, TRUE);    
+  printBipartitionResult(tr, adef, TRUE, TRUE, icFileNameBranchLabels);    
 
   //multifurcations
   freeMultifurcations(inputTree);
@@ -1712,7 +1824,44 @@ void calcBipartitions_IC(tree *tr, analdef *adef, char *bestTreeFileName, char *
   rax_free(bInf);
 }
 
+static void calcBipartitions_IC_PartialGeneTrees(tree *tr, analdef *adef, char *bootStrapFileName, FILE *treeFile, int numberOfTrees, int numberOfTaxa);
 
+void calcBipartitions_IC_Global(tree *tr, analdef *adef, char *bestTreeFileName, char *bootStrapFileName)
+{
+  int    
+    numberOfTrees,
+    numberOfTaxa = readSingleTree(tr, bestTreeFileName, adef, FALSE, FALSE, TRUE);
+
+  FILE 
+    *treeFile; 
+  
+
+  //must be identical because tr->mxtips was extracted from the reference tree
+
+  assert(tr->mxtips == numberOfTaxa);
+
+  treeFile = getNumberOfTrees(tr, bootStrapFileName, adef);
+
+  numberOfTrees = tr->numberOfTrees;
+  checkTreeNumber(numberOfTrees, bootStrapFileName);
+
+  if(allTreesEqualSize(tr, numberOfTrees, treeFile))
+    {
+      tr->corrected_IC_Score = FALSE;
+      printBothOpen("All trees in tree set have the same size, executing standard IC/TC algorithm ... \n");
+      calcBipartitions_IC(tr, adef, bestTreeFileName, treeFile, numberOfTrees);
+    }
+  else
+    {
+      tr->corrected_IC_Score = TRUE;
+      printBothOpen("The trees in tree set don't have the same size, executing IC/TC algorithm with correction ... \n");
+      printBothOpen("This RAxML option has not been activated yet .... exiting now ...\n");
+
+      exit(-1);
+      
+      calcBipartitions_IC_PartialGeneTrees(tr, adef, bootStrapFileName, treeFile, numberOfTrees, numberOfTaxa);
+    }
+}
 
 
 /*******************/
@@ -5426,3 +5575,2350 @@ void computeConsensusOnly(tree *tr, char *treeSetFileName, analdef *adef)
 }
 
 #endif
+
+
+//start of modifications by Kassian for corrected TC/IC calculation on partial gene trees 
+
+typedef struct
+{
+  unsigned int id;
+  unsigned int freq;
+  
+}
+  uiuiTuple;
+  
+static int sortuiuiTuple(const void *a, const void *b)
+{       
+
+  uiuiTuple 
+    *ca =((uiuiTuple *) a),
+    *cb =((uiuiTuple *) b);
+  
+  if(ca->freq == cb->freq) 
+    return 0;
+  
+  return((ca->freq < cb->freq)?1:-1);
+}
+  
+static boolean issubsetPart(unsigned int* bipA, unsigned int* bipB, unsigned int* maskB, unsigned int vectorLen)
+{
+  unsigned int 
+    i, 
+    *bipCopy = (unsigned int *)rax_malloc(sizeof(unsigned int) * vectorLen),
+    *maskCopy = (unsigned int *)rax_malloc(sizeof(unsigned int) * vectorLen), 
+    *allOne = (unsigned int *)rax_malloc(sizeof(unsigned int) * vectorLen); 
+    
+  boolean 
+    found = FALSE;
+           
+  memcpy(maskCopy, maskB, sizeof(unsigned int) * (size_t)vectorLen);
+  memcpy(allOne, maskB, sizeof(unsigned int) * (size_t)vectorLen);
+
+  for(i = 0; i < vectorLen; i++)
+    {  
+      maskCopy[i] = ~maskCopy[i];
+      allOne[i] = allOne[i] ^ allOne[i];
+      allOne[i] = ~allOne[i];
+    }
+  
+  
+  //Case 1: X1=X2, Y1=Y2
+  memcpy(bipCopy, bipA, sizeof(unsigned int) * (size_t)vectorLen);    
+
+  for(i = 0, found = TRUE; i < vectorLen; i++)
+    {
+      bipCopy[i] = bipCopy[i] ^ bipB[i];
+	    
+      bipCopy[i] = ~bipCopy[i];
+	   
+      bipCopy[i] = bipCopy[i] | maskCopy[i];
+	    
+      if(bipCopy[i]!= allOne[i])
+	{
+	  found = FALSE;
+	  break;
+	}
+    }
+         
+  //Case 2: X1=Y2, Y1=X2
+
+  if(!found)
+    {
+      memcpy(bipCopy, bipA, sizeof(unsigned int) * (size_t)vectorLen); 
+     
+      for(i = 0, found = TRUE; i < vectorLen; i++)
+	{
+	  bipCopy[i] = bipCopy[i] ^ bipB[i];
+	  
+	  bipCopy[i] = bipCopy[i] | maskCopy[i];
+	    
+	  if(bipCopy[i]!= allOne[i])
+	    {
+	      found = FALSE;
+	      break;
+	    }
+	}
+    }
+
+    
+  rax_free(bipCopy);
+  rax_free(maskCopy);
+  rax_free(allOne);
+		
+  if(!found)
+    return FALSE;
+		
+  return TRUE; 
+}
+
+static boolean isBsubsetA(unsigned int* bipA, unsigned int* bipB, unsigned int* maskA, unsigned int* maskB, unsigned int vectorLen)
+{
+  
+  //printf("in BsubA\n");
+  unsigned int 
+    i;
+  
+  for(i = 0; i < vectorLen; i++)
+    {
+      if(maskA[i] != (maskA[i] | maskB[i]))	
+	return FALSE;	
+    }
+    
+  boolean 
+    found = FALSE;
+ 
+  unsigned int 
+    *allOne = (unsigned int *)rax_malloc(sizeof(unsigned int) * (size_t)vectorLen),
+    *maskCopy = (unsigned int *)rax_malloc(sizeof(unsigned int) * (size_t)vectorLen),
+    *bipCopy = (unsigned int *)rax_malloc(sizeof(unsigned int) * (size_t)vectorLen); 
+        
+  memcpy(maskCopy, maskB, sizeof(unsigned int) * (size_t)vectorLen);
+  memcpy(allOne, maskB, sizeof(unsigned int) * (size_t)vectorLen);
+	
+  for(i = 0; i < vectorLen; i++)
+    {  
+      maskCopy[i] = ~maskCopy[i];
+      allOne[i] = allOne[i]^allOne[i];
+      allOne[i] = ~allOne[i];
+    }
+  
+  //Case 1: X1=X2, Y1=Y2
+  memcpy(bipCopy, bipA, sizeof(unsigned int) * (size_t)vectorLen); 
+  
+  found = TRUE;
+  
+  for(i = 0; i < vectorLen; i++)
+    {
+      bipCopy[i] = bipCopy[i] ^ bipB[i];
+      
+      bipCopy[i] = ~bipCopy[i];
+      
+      bipCopy[i] = bipCopy[i] | maskCopy[i];
+	    
+      if(bipCopy[i]!= allOne[i])
+	{
+	  found = FALSE;
+	  break;
+	}
+    }
+       
+  //Case 2: X1=Y2, Y1=X2
+  if(!found)
+    {
+      memcpy(bipCopy, bipA, sizeof(unsigned int) * (size_t)vectorLen); 
+      
+      found = TRUE;
+      
+      for(i = 0; i < vectorLen; i++)
+	{
+	  bipCopy[i] = bipCopy[i] ^ bipB[i];
+	   
+	  bipCopy[i] = bipCopy[i] | maskCopy[i];
+	    
+	  if(bipCopy[i]!= allOne[i])
+	    {
+	      found = FALSE;
+	      break;
+	    }
+	}
+    }
+    
+  rax_free(bipCopy);
+  rax_free(maskCopy);
+  rax_free(allOne);
+ 
+  if(!found)
+    return FALSE;
+		
+  return TRUE; 
+}
+
+static boolean areCongruentPart(unsigned int *bipA, unsigned int *bipB, unsigned int *maskA, unsigned int *maskB, unsigned int vectorLen)
+//checks whether two (partial) bipartitions are non conflicting
+{
+  unsigned int 
+    i,
+    *mask = (unsigned int *)rax_malloc(sizeof(unsigned int) * (size_t)vectorLen); 
+  
+  for(i = 0; i < vectorLen; i++)    
+    mask[i] = maskA[i] & maskB[i];     
+   
+  if(issubsetPart(bipA, bipB, mask, vectorLen))
+    {
+      rax_free(mask);
+      return TRUE; 
+    }
+  
+  rax_free(mask);
+  
+  return FALSE;  
+}
+
+
+/*
+boolean areCompatibleBip(unsigned int* A,unsigned int* C, int length)//checks whether two bipartitions are compatible. ie X1 cup Y1 != {}, or X1 cup Y2 != {}, or X2 cup Y1 != {}, or X2 cup Y2 != {}
+{
+  unsigned int i;
+
+  
+  int vL=ceil(((double)length)/ ((double)MASK_LENGTH));
+  
+  for(i = 0; i < vL; i++)        
+    if(A[i] & C[i])
+      break;
+          
+  if(i == vL)
+    return TRUE;
+  
+  for(i = 0; i < vL; i++)
+    if(A[i] & ~C[i])
+      break;
+   
+  if(i == vL)  
+    return TRUE;  
+  
+  for(i = 0; i < vL; i++)
+    if(~A[i] & C[i])
+      break;
+  
+  if(i == vL)
+    return TRUE;  
+  else
+    return FALSE;
+  
+  //~A & ~C not needed, since first bit is always 0, thus ~A[0]=1=~C[0]
+}
+*/
+
+//checks whether two bipartitions are compatible. ie X1 cup Y1 != {}, or X1 cup Y2 != {}, or X2 cup Y1 != {}, or X2 cup Y2 != {}
+
+static boolean areCompatibleBipMask(unsigned int* A,unsigned int* C, unsigned int * mask, int length)
+{
+  unsigned int 
+    i,
+    vL = ceil(((double)length)/ ((double)MASK_LENGTH));
+  
+  for(i = 0; i < vL; i++)
+    {        
+      if((A[i] & C[i]) & mask[i])
+	break;
+    }
+  
+  if(i == vL)
+    return TRUE;
+  
+  for(i = 0; i < vL; i++)
+    {
+      if((A[i] & ~C[i]) & mask[i])
+	break;
+    }
+  
+  if(i == vL)  
+    return TRUE;  
+  
+  for(i = 0; i < vL; i++)
+    {
+      if((~A[i] & ~C[i]) & mask[i])
+	break;
+    }
+  
+  if(i == vL)  
+    return TRUE;  
+  
+  for(i = 0; i < vL; i++)
+    {
+      if((~A[i] & C[i]) & mask[i])
+	break;
+    }
+  
+  if(i == vL)
+    return TRUE;  
+  else
+    return FALSE;
+  
+  //~A & ~C not needed, since first bit is always 0, thus ~A[0]=1=~C[0]
+}
+
+//checks whether two bipartitions are compatible. ie X1 cup Y1 != {}, or X1 cup Y2 != {}, or X2 cup Y1 != {}, or X2 cup Y2 != {}
+static boolean areCompatibleBipMaskMask(unsigned int* A,unsigned int* C, unsigned int * mask1, unsigned int * mask2, int length)
+{
+  unsigned int 
+    i,
+    vL = ceil(((double)length)/ ((double)MASK_LENGTH));
+  
+  for(i = 0; i < vL; i++)
+    {        
+      if((A[i] & C[i]) & (mask1[i] & mask2[i]))
+	break;
+    }
+  
+  if(i == vL)
+    return TRUE;
+  
+  for(i = 0; i < vL; i++)
+    {
+      if((A[i] & ~C[i]) & (mask1[i] & mask2[i]))
+	break;
+    }
+  
+  if(i == vL)  
+    return TRUE;  
+  
+  for(i = 0; i < vL; i++)
+    {
+      if((~A[i] & ~C[i]) & (mask1[i] & mask2[i]))
+	break;
+    }
+  
+  if(i == vL)  
+    return TRUE;  
+  
+  for(i = 0; i < vL; i++)
+    {
+      if((~A[i] & C[i]) & (mask1[i] & mask2[i]))
+	break;
+    }
+  
+  if(i == vL)
+    return TRUE;  
+  else
+    return FALSE;
+  
+  //~A & ~C not needed, since first bit is always 0, thus ~A[0]=1=~C[0]
+}
+
+
+static double computeIC_ValueD(double supportedBips, double *maxima, unsigned int numberOfTrees, unsigned int maxCounter, boolean computeIC_All, boolean warnNegativeIC)
+{  
+  if(maxCounter == 0)    
+    return 1.0;
+  
+  {
+    unsigned int 	
+      loopLength,
+      i;
+
+    double 
+      totalBipsAll = supportedBips,
+      ic,
+      n = 1 + (double)maxCounter,
+      supportFreq;
+  
+    boolean
+      negativeIC = FALSE;    
+  
+    if(computeIC_All)
+      {
+	loopLength = maxCounter;
+	n = 1 + (double)maxCounter;
+      }
+    else
+      {
+	loopLength = 1;
+	n = 2.0;
+      }
+
+    // should never enter this function when the bip is supported by 100%
+
+    assert(supportedBips < numberOfTrees);
+
+    // must be larger than 0 in this case
+    
+    //assert(maxCounter > 0);
+    
+    // figure out if the competing bipartition is higher support 
+    // can happen for MRE and when drawing IC values on best ML tree 
+    
+    if(maxima[0] > supportedBips)
+      {
+	negativeIC = TRUE;
+	
+	if(warnNegativeIC)
+	  {
+	    printBothOpen("\nMax conflicting bipartition frequency: %f is larger than frequency of the included bipartition: %f\n", maxima[0], supportedBips);
+	    printBothOpen("This is interesting, but not unexpected when computing extended Majority Rule consensus trees.\n");
+	    printBothOpen("Please send an email with the input files and command line\n");
+	    printBothOpen("to Alexandros.Stamatakis@gmail.com.\n");
+	    printBothOpen("Thank you :-)\n\n");   
+	  }      
+      }
+
+    for(i = 0; i < loopLength; i++)
+      totalBipsAll += maxima[i];  
+  
+    //neither support for the actual bipartition, nor for the conflicting ones
+    //I am not sure that this will happen, but anyway
+    if(totalBipsAll == 0)
+      return 0.0;
+    
+    supportFreq = supportedBips / totalBipsAll;
+    
+    if(supportedBips == 0)
+      ic = log(n);
+    else    
+      ic = log(n) + supportFreq * log(supportFreq);
+    
+    for(i = 0; i < loopLength; i++)
+      {
+	if(!(maxima[i]>0))
+	  {
+	    printf("\n maxima[%d]=%f, maxCounter=%u \n",i,maxima[i],maxCounter);
+	    if(computeIC_All)
+	      {
+		printf("IC_All\n");
+	      }
+	  }
+
+	assert(maxima[i] > 0);
+
+	supportFreq =  maxima[i] / totalBipsAll;
+      
+	if(maxima[i] != 0)
+	  ic += supportFreq * log(supportFreq);
+      }
+  
+    ic /= log(n);
+  
+    if(negativeIC)
+      return (-ic);
+    else
+      return ic;
+  }
+}
+
+
+
+//function to obtain a bit mask of the present partial tree 
+//the bit mask has at least as many bits (may also have padding bits!) 
+//as the reference tree has taxa, taxa that are present are set to 1
+//taxa that are absent are set to 0
+
+static void setupMask(unsigned int *smallTreeMask, nodeptr p, int numsp)//PERS:NOTE cycle through all nodes to find present tip states. numsp=number of taxa
+{
+  //if this is a tip set the bit to 1
+  //note that the taxon numbering startes at 1 in RAxML, but we use 
+  //the bit-mask as 0-based array 
+  
+  if(isTip(p->number, numsp))
+    smallTreeMask[(p->number - 1) / MASK_LENGTH] |= mask32[(p->number - 1) % MASK_LENGTH];
+  else
+    {    
+      nodeptr 
+	q = p->next;
+
+      /* I had to change this function to account for mult-furcating trees.
+	 In this case an inner node can have more than 3 cyclically linked 
+	 elements, because there might be more than 3 outgoing branches 
+	 from an inner node */
+
+      while(q != p)
+	{
+	  setupMask(smallTreeMask, q->back, numsp);
+	  q = q->next;
+	}      
+    }
+}
+
+//dynamic array data structure to store the tree masks from the various trees 
+
+typedef struct 
+{
+  //number of slots used
+  size_t entries;
+  
+  //number of slots available
+  size_t length;
+  
+  //array with pointers to bit masks 
+  unsigned int **bitMasks;
+} taxonMaskArray;
+
+//function to initialize the dynamic array for storing bit masks
+
+static taxonMaskArray* initTaxonMaskArray(unsigned int vLength)
+{
+  //initialize the structure itself 
+  taxonMaskArray 
+    *b = rax_malloc(sizeof(taxonMaskArray));
+    
+  //make sure that the number of 32-bit integers that we need 
+  //for storing the bits has been set
+  assert(vLength != 0);
+
+  //set number of available slots to 100
+  b->length = 100;
+
+  //set number of used slots to 0
+  b->entries = 0;
+
+  //allocate the array to hold the bit masks 
+  b->bitMasks = (unsigned int **)rax_malloc(sizeof(unsigned int *) * (size_t)b->length);
+
+  return b;
+}
+
+//function to add a taxon bit mask to the dynamic array 
+
+static void addTaxonMask(unsigned int vLength, unsigned int *mask, taxonMaskArray *b)
+{
+  //is the bit mask already stored?
+  boolean 
+    found = FALSE;
+  
+  unsigned int 
+    i, 
+    j;
+
+  //loop over entries/used slots to see if the bit mask is already stored.
+
+  for(i = 0; i < b->entries; i++)
+    {
+      //check mask to add and stored mask i for identity 
+      for(j = 0; j < vLength; j++)
+	if(mask[j] != b->bitMasks[i][j])	 
+	  break;
+
+      //if all 32-bit integers are identical, the bit mask is already stored in our data structure
+      if(j == vLength)
+	{
+	  found = TRUE;
+	  break;
+	}
+    }
+  
+  //if we have found the bit mask 
+  //we can just exit
+  if(found)
+    return;
+  else
+    {
+      //need to add the bit mask 
+
+      //if there are still free slots available we can just add the new bit mask 
+      if(b->entries < b->length)
+	{
+	  //allocate space for the bit mask 
+	  b->bitMasks[b->entries] = (unsigned int *)rax_malloc(sizeof(unsigned int) * (size_t)vLength);
+
+	  //copy the bit mask 
+	  memcpy(b->bitMasks[b->entries], mask, sizeof(unsigned int) * (size_t)vLength);
+
+	  //increment the number of used slots 
+	  b->entries = b->entries + 1;
+	}
+      else
+	{
+	  //not enough space, increment the number of slots 
+	  b->length = b->length * 2;
+
+	  //reallocate the space for pointers to the bit masks 
+	  b->bitMasks = (unsigned int **)rax_realloc(b->bitMasks, sizeof(unsigned int *) * (size_t)b->length, FALSE);
+
+	  //now assign space for the new bit mask 
+	  b->bitMasks[b->entries] = (unsigned int *)rax_malloc(sizeof(unsigned int) * (size_t)vLength);
+
+	  //copy the bit mask
+	  memcpy(b->bitMasks[b->entries], mask, sizeof(unsigned int) * (size_t)vLength);
+
+	  //increment the number of used slots 
+	  b->entries = b->entries + 1;
+	}
+    }
+}
+
+//function to free bit mask array 
+
+static void freeTaxonMask(taxonMaskArray *b)
+{
+  unsigned int 
+    i;
+  
+  //free all bit masks stored at used slots 
+  for(i = 0; i <  b->entries; i++)
+    rax_free(b->bitMasks[i]);
+  
+  
+  //free bit mask array 
+  rax_free(b->bitMasks);
+    
+  return;
+}
+
+
+
+typedef struct 
+{
+  //number of slots used
+  size_t entries;
+  
+  //number of slots available
+  size_t length;
+  
+  //array with pointers to taxon masks 
+  unsigned int **taxonMasks;
+  
+  //array with pointers to bit masks 
+  unsigned int **bitMasks;
+  
+  //array with pointers to frequencies 
+  double *frequencies;
+  double *frequenciesStochastic;
+  
+  unsigned int *potentialFrequencies;
+  
+} referenceMaskArray;
+
+//function to initialize the dynamic array for storing bit masks
+
+static referenceMaskArray* initReferenceMaskArray(unsigned int vLength)
+{
+  //initialize the structure itself 
+  referenceMaskArray 
+    *b = rax_malloc(sizeof(referenceMaskArray));
+    
+  //make sure that the number of 32-bit integers that we need 
+  //for storing the bits has been set
+  assert(vLength != 0);
+  
+  //set number of available slots to 100
+  b->length = 100;
+  
+  //set number of used slots to 0
+  b->entries = 0;
+  
+  //allocate the array to hold the taxon and bit masks and frequencies 
+  b->taxonMasks = (unsigned int **)rax_malloc(sizeof(unsigned int *) * b->length);
+  
+  b->bitMasks = (unsigned int **)rax_malloc(sizeof(unsigned int *) * b->length);
+  
+  b->frequencies = (double *)rax_malloc(sizeof(double ) * b->length);
+  
+  b->frequenciesStochastic = (double *)rax_malloc(sizeof(double ) * b->length);
+  
+  b->potentialFrequencies = (unsigned int *)rax_malloc(sizeof(unsigned int ) * b->length);
+  
+  return b;
+}
+
+//function to add a taxon bit mask to the dynamic array 
+
+static void addReferenceMask(unsigned int vLength, unsigned int *BipartitionMask, unsigned int *taxonMask, referenceMaskArray *b)
+{
+  //is the bit mask already stored?
+  boolean 
+    found = FALSE;
+  
+  unsigned int 
+    i, 
+    j;
+  
+  //loop over entries/used slots to see if the bit mask is already stored.
+  
+  for(i = 0; i < b->entries; i++)//NOTE: this should never be possible.
+    {
+      //check mask to add and stored mask i for identity 
+      for(j = 0; j < vLength; j++)
+	if(BipartitionMask[j] != b->bitMasks[i][j] || taxonMask[j] != b->taxonMasks[i][j])	 
+	  break;
+		
+	//if all 32-bit integers are identical, the bit mask is already stored in our data structure
+      if(j == vLength)
+	{
+	  found = TRUE;
+	  break;
+	}
+    }
+    
+  assert(!found);//NOTE: this is here for curiosity. if it happens, remove this line of code.
+    
+  //if we have found the bit mask 
+  //we can just exit
+  if(found)    
+    return;    
+  else
+    {
+      //need to add the bit mask 
+      
+      //if there are still free slots available we can just add the new bit mask 
+      if(b->entries >= b->length)
+	{
+	  //not enough space, increment the number of slots 
+	  b->length = b->length * 2;
+	  
+	  //reallocate the space for pointers to the bit masks 
+	  b->bitMasks = (unsigned int **)rax_realloc(b->bitMasks, sizeof(unsigned int *) * b->length, FALSE);      
+	  b->taxonMasks = (unsigned int **)rax_realloc(b->taxonMasks, sizeof(unsigned int *) * b->length, FALSE);
+	  b->frequencies = (double *)rax_realloc(b->frequencies, sizeof(double ) * b->length, FALSE);
+	  b->frequenciesStochastic = (double *)rax_realloc(b->frequenciesStochastic, sizeof(double ) * b->length, FALSE);
+	  b->potentialFrequencies = (unsigned int *)rax_realloc(b->potentialFrequencies, sizeof(unsigned int ) * b->length, FALSE);
+	}
+      
+      //allocate space for the taxon and bip mask 
+      b->taxonMasks[b->entries] = (unsigned int *)rax_malloc(sizeof(unsigned int) * (size_t)vLength);
+      
+      //copy the taxon mask 
+      memcpy(b->taxonMasks[b->entries], taxonMask, sizeof(unsigned int) * (size_t)vLength);
+      
+      b->bitMasks[b->entries] = (unsigned int *)rax_malloc(sizeof(unsigned int) * (size_t)vLength);
+      
+      //copy the bip mask 
+      memcpy(b->bitMasks[b->entries], BipartitionMask, sizeof(unsigned int) * (size_t)vLength);
+      
+      b->frequencies[b->entries] = 0;
+      b->frequenciesStochastic[b->entries] = 0;
+      b->potentialFrequencies[b->entries] = 0;
+      //increment the number of used slots 
+      b->entries = b->entries + 1;
+    }
+}
+
+//function to free bit mask array 
+
+static void freeReferenceMask(referenceMaskArray *b)
+{
+  unsigned int 
+    i;
+  
+  for(i = 0; i <  b->entries; i++)
+    {
+      rax_free(b->taxonMasks[i]);
+      rax_free(b->bitMasks[i]);    
+    }
+
+  rax_free(b->bitMasks);
+  rax_free(b->taxonMasks);
+  rax_free(b->frequencies);
+  rax_free(b->frequenciesStochastic);
+  rax_free(b->potentialFrequencies);  
+}
+
+
+static void calcCongruenceMatrix(unsigned int dim, int matrix[dim][dim], referenceMaskArray *b, unsigned int vectorLen)
+{  
+  unsigned int 
+    i,
+    j;
+  
+  for(i = 0; i < dim; i++)
+    {
+      matrix[i][i]=0;
+      
+      for(j = i+1; j < dim; j++)
+	{
+	  if(areCongruentPart(b->bitMasks[i], b->bitMasks[j], b->taxonMasks[i], b->taxonMasks[j], vectorLen))
+	    {
+	      matrix[i][j] = 1;
+	      matrix[j][i] = 1;
+	    }
+	  else
+	    {
+	      matrix[i][j] = 0;
+	      matrix[j][i] = 0;
+	    }
+	} 
+    }
+}
+
+
+//insert bipartition into hash table
+
+static void insertHashPartial(unsigned int *bitVector, hashtable *h, unsigned int vectorLength, hashNumberType position, unsigned int *mask)
+{     
+  //there is already an entry in the has table at this position,
+  //so check
+
+  if(h->table[position] != NULL)
+    {
+      entry 
+	*e = h->table[position];     
+
+      do
+	{	 
+	  unsigned int 
+	    i;
+
+	  boolean 
+	    maskIdentical = FALSE,
+	    bitVectorIdentical = FALSE;
+	  
+	  //check for identity of bipartitions 
+
+	  for(i = 0; i < vectorLength; i++)
+	    if(bitVector[i] != e->bitVector[i])
+	      break;
+	  
+	  if(i == vectorLength)	 	    	     
+	    bitVectorIdentical = TRUE;	   	    
+
+	  //check for identity of taxon masks
+
+	  for(i = 0; i < vectorLength; i++)
+	    if(mask[i] != e->taxonMask[i])
+	      break;
+	  
+	  if(i == vectorLength)	 	    	     
+	    maskIdentical = TRUE;
+
+	  //if the bipartition vector and the taxon mask are identical
+	  //increment the frequency of this (taxonMask,bipartition) pair and exit 
+
+	  if(maskIdentical && bitVectorIdentical)
+	    {
+	      e->supportFromTreeset[0] = e->supportFromTreeset[0] + 1;
+	      return;
+	    }
+	  
+	  //otherwise keep searching 
+
+	  e = e->next;
+	}
+      while(e != (entry*)NULL); 
+
+      //nothing found, so we need to create a new entry by chaining 
+
+      e = initEntry(); 
+            
+      //allocate space and copy the taxon mask and the bipartition vector
+
+      e->bitVector = (unsigned int*)rax_malloc((size_t)vectorLength * sizeof(unsigned int)); 
+      e->taxonMask = (unsigned int*)rax_malloc((size_t)vectorLength * sizeof(unsigned int));
+
+      memcpy(e->bitVector, bitVector, sizeof(unsigned int) * (size_t)vectorLength);
+      memcpy(e->taxonMask, mask,      sizeof(unsigned int) * (size_t)vectorLength);
+      
+      //set frequency of this  (taxonMask,bipartition) pair to 1
+
+      e->supportFromTreeset[0] = 1;
+
+      //update the linked list
+
+      e->next = h->table[position];
+      h->table[position] = e;          
+    }
+  else
+    {
+      //no entry at the current has index, so create one 
+
+      entry 
+	*e = initEntry(); 
+             
+      //allocate space and copy the taxon mask and the bipartition bit vector 
+
+      e->bitVector = (unsigned int*)rax_malloc((size_t)vectorLength * sizeof(unsigned int));      
+      e->taxonMask = (unsigned int*)rax_malloc((size_t)vectorLength * sizeof(unsigned int)); 
+
+      memcpy(e->bitVector, bitVector, sizeof(unsigned int) * (size_t)vectorLength);  
+      memcpy(e->taxonMask, mask,      sizeof(unsigned int) * (size_t)vectorLength);
+      
+      //set frequency of occurence of this pair to 1
+
+      e->supportFromTreeset[0] = 1;
+
+      //set the hash table index to pint to this entry
+
+      h->table[position] = e;
+    }
+
+  //increment hash table entry counter 
+
+  h->entryCount =  h->entryCount + 1;
+}
+
+//function to traverse the partial trees, extract their non-trivial bipartitions and store them, together with the 
+//taxon bit mask in the hash table 
+
+static void bitVectorInitravPartial(tree *tr, unsigned int **bitVectors, unsigned int *taxonMask, nodeptr p,  unsigned int vectorLength, hashtable *h, int *countBranches, int numsp)
+{
+  //if this is a tip it's a trivial bipartition do nothing 
+  if(isTip(p->number, numsp))
+    return;
+  else
+    {
+      nodeptr q = p->next;          
+
+      //handle all other nodes recursively 
+      do 
+	{
+	  bitVectorInitravPartial(tr, 
+				  bitVectors, 
+				  taxonMask, 
+				  q->back, vectorLength, h, countBranches, numsp);
+	  q = q->next;
+	}
+      while(q != p);
+           
+
+      //obtain the bipartition of the present branch in  very similar way we 
+      //compute likelihoods, this is the dedicated function for multifurcating trees 
+      newviewBipartitionsMultifurcating(bitVectors, p, numsp, vectorLength);
+      
+      //make sure that the node value (the bipartition for branch p <-> p->back is there 
+      
+      assert(p->x);
+      
+      //if the back pointer is not a tip insert the bipartition into the hash table 
+
+      if(!(isTip(p->back->number, numsp)))
+	{
+	  unsigned int 
+	    *toInsert  = bitVectors[p->number],
+	    *correctedVector = (unsigned int*)rax_malloc(sizeof(unsigned int) * (size_t)vectorLength);
+
+	  hashNumberType 
+	    position;
+
+	  //need to make a copy of the bit-vector since we may have to reverse it 
+
+	  memcpy(correctedVector, toInsert, sizeof(unsigned int) * (size_t)vectorLength);	 
+
+	  //in RAxML to store the bit vectors representing bipartitions in a canonical form
+	  //we always have the restriction that the very first bit need to be set to 0
+	  //if this is not the case we need to complement the bit vector 
+
+	  if(correctedVector[0] & 1)
+	    {
+	      unsigned int
+		j,
+		count1 = 0,
+		count2 = 0;
+	      
+	      //count the bits in non-reverted vector 
+	      for(j = 0; j < vectorLength; j++)
+		count1 += BIT_COUNT(correctedVector[j]);  
+
+	      //revert the vector by computing the bit-wise complement,
+	      //note that we also need to apply the taxon mask again 
+	      //to make sure that the complemented vector only contains 
+	      //taxa that are in the tree 
+	      for(j = 0; j < vectorLength; j++)		
+		correctedVector[j] = (~toInsert[j]) & taxonMask [j];		
+
+	      //count the number of taxa in thi sbipartition
+	      for(j = 0; j < vectorLength; j++)
+		count2 += BIT_COUNT(correctedVector[j]);
+
+	      //printf("reverting %d\n", tr->start->number);
+
+	      //make sure that everything is correct
+	      assert(count1 + count2 == (unsigned int)tr->ntips);
+	    }
+	 
+	 
+	  //check that the first biot in the bit vector representing the bipartition is 
+	  //not set 
+	 
+	  assert(!(correctedVector[0] & 1));	 
+
+	  //compute hash index 
+
+	  position = oat_hash((unsigned char *)correctedVector, sizeof(unsigned int) * vectorLength);
+	  position = position % h->tableSize;
+	  
+	  //insert into hash table 
+
+	  insertHashPartial(correctedVector, h, vectorLength, position, taxonMask);
+	  
+	  //increment the non-trivial bipartition counter 
+	  *countBranches =  *countBranches + 1;	 
+
+	  //free intermediate storage 
+	  rax_free(correctedVector);
+	}
+      
+    }
+}
+
+static void setBit(unsigned int * v, int i)
+{
+  int
+    j = floor(((double)i)/((double)MASK_LENGTH));
+  
+  v[j] |= mask32[i % MASK_LENGTH];  
+}
+
+static void unsetBit(unsigned int *v, int i)
+{  
+  int
+    j = floor(((double)i)/((double)MASK_LENGTH));
+  
+  v[j] &= ~mask32[i % MASK_LENGTH];  
+}
+
+static int readBit(unsigned int * v, int i)
+{  
+  int
+    j = floor(((double)i)/((double)MASK_LENGTH));
+  
+  if(!(v[j] & mask32[i % MASK_LENGTH]))
+    return 0;
+  
+  return 1;
+}
+
+
+//#define _DEBUG_PARTIAL_IC
+     
+#ifdef _DEBUG_PARTIAL_IC
+
+static void printUIntAsBit(unsigned int * v, int length)
+{
+  int 
+    i;
+  
+  for(i=0;i<length;i++)
+    printf("%d",readBit(v,i));
+}
+#endif
+
+static void invertBits(unsigned int * v, int length)
+{
+  int 
+    i,
+    j = ceil(((double)length)/((double)MASK_LENGTH));
+  
+  for(i = 0; i < j; i++)
+    v[i] = ~v[i];
+}
+
+static void randomBipartitionFill(unsigned int * bip, unsigned int * mask, int length, int64_t * seed)
+{  
+  int 
+    i,
+    result;   
+
+  for(i = 0; i < length; i++)
+    {
+      if(readBit(mask,i) == 0)
+	{      
+	  double
+	    a = randum(seed);
+	  
+	  if(a < 0.5)	    
+	    result = 0;
+	  else
+	    result = 1;
+      
+	  if(result == 1)
+	    {
+	      setBit(bip,i);
+	      
+	      if(i==0)	
+		invertBits(bip,length);	
+	      else
+		unsetBit(bip,i);
+	    }
+	}    
+    }  
+}
+
+static void mergeBipartitions(unsigned int * bipA, unsigned int * bipB, unsigned int * maskA, unsigned int * maskB, int length)
+{
+  int 
+    i,
+    j = ceil(((double)length) / ((double)MASK_LENGTH));
+  
+  boolean 
+    invB = FALSE;  
+  
+  unsigned int 
+    *mask = (unsigned int *)rax_malloc(sizeof(unsigned int) * (size_t)j),
+    *bip = (unsigned int *)rax_malloc(sizeof(unsigned int) * (size_t)j); 
+  
+  if(!areCongruentPart(bipA,bipB,maskA,maskB,j))
+    {
+      printf("Trying to merge incongruent bipartitions! Exiting.");
+      assert(0);
+    }
+    
+  for(i = 0; i < length; i++)
+    {
+      if((readBit(maskA,i) == 1) && (readBit(maskB,i) == 1))
+	{
+	  if(readBit(bipA,i) != readBit(bipB,i))	    
+	      invB = TRUE;	    
+	  break;
+	}
+    }
+      
+  for(i = 0; i < j; i++)
+    {
+      bipA[i] = bipA[i] & maskA[i];
+      bipB[i] = bipB[i] & maskB[i];
+    
+      if(invB)	
+	bip[i] = bipA[i] | ~(bipB[i]);
+      else
+	bip[i] = bipA[i] | bipB[i];     
+      
+      mask[i] = maskA[i] | maskB[i];
+    }
+  
+  
+  if(readBit(bip,0) != 0)  
+    invertBits(bip,length);
+    
+  for(i = 0; i < j; i++)  
+    bip[i] = bip[i] & mask[i];  
+  
+  memcpy(bipA, bip, sizeof(unsigned int) * (size_t)j);
+  
+  memcpy(bipB, bip, sizeof(unsigned int) * (size_t)j);
+  
+  memcpy(maskA, mask, sizeof(unsigned int) * (size_t)j);
+  
+  memcpy(maskB, mask, sizeof(unsigned int) * (size_t)j);
+  
+  rax_free(bip);
+  rax_free(mask);
+}
+
+static entry * getSubPart(unsigned int * refBip, unsigned int * mask, hashtable* genesHash, int length)
+{  
+  unsigned int 
+    vLength = ceil((double)length/(double)MASK_LENGTH),
+    l, 	      
+    *bipCopy = (unsigned int *)rax_malloc(sizeof(unsigned int) * (size_t)vLength); //allocate space for a copy of the reference bipartition because we need to mask it 
+    
+  hashNumberType 
+    position; //hash table index
+  
+  entry 
+    *e; //hash table element
+  
+  //copy the reference bipartition 
+  memcpy(bipCopy, refBip, sizeof(unsigned int) * (size_t)vLength); 
+  
+  //mask the reference bipartition 
+  for(l = 0; l < vLength; l++)
+    bipCopy[l] = bipCopy[l] & mask[l];
+  
+  //check that we have a canonic representation of the masked ref. bip.
+  assert(!(bipCopy[0] & 1));
+    
+  //compute hash table index for the masked reference bipartition 
+  position = oat_hash((unsigned char *)bipCopy, sizeof(unsigned int) * vLength);
+  position = position % genesHash->tableSize;
+    
+  e = genesHash->table[position];
+    
+  if(e != (entry*)NULL)
+    {
+      //if there is one or more elements here, we need to search the linked list 
+      //for a matching bipartition/mask pair 
+      //we don't necessarily need to find one !
+      
+      do 
+	{	     
+	  boolean 
+	    maskIdentical = FALSE,
+	    bitVectorIdentical = FALSE;
+	
+	  //make sure the bip. stored in the has table 
+	  //is also in canonic form
+	  assert(!(e->bitVector[0] & 1));
+	
+	  //check for identity of bipartitions 				
+	  for(l = 0; l < vLength; l++)
+	    if(bipCopy[l] != e->bitVector[l])
+	      break;
+	  
+	  if(l == vLength)	 	    	     
+	    bitVectorIdentical = TRUE;	   	    
+	  
+	  //check for identity of taxon masks		    
+	  for(l = 0; l < vLength; l++)
+	    if(mask[l] != e->taxonMask[l])
+	      break;
+	  
+	  if(l == vLength)	 	    	     
+	    maskIdentical = TRUE;
+	  
+	  //if the bipartition vector and the taxon mask are identical
+	  //just print out the frequency 
+	  
+	  if(maskIdentical && bitVectorIdentical)	    	     
+	    return e;      		  	    
+	  e = e->next;
+	}
+      while(e != (entry*)NULL); 
+    }
+        
+  if((e == (entry*)NULL) && (readBit(mask, 0) == 0))
+      {
+	//consider the case where the first bit is unset and thus subset relations may be flipped.
+		  
+	invertBits(bipCopy, length);
+	unsetBit(bipCopy, 0);//only allowed since "readBit(taxonMasks->bitMasks[k], 0)==0"
+	    
+	//mask the reference bipartition 
+	for(l = 0; l < vLength; l++)
+	  bipCopy[l] = bipCopy[l] & mask[l];
+	    
+	//again check that we have a canonic representation of the masked ref. bip.
+	assert(!(bipCopy[0] & 1));
+	      
+	//compute hash table index for the masked reference bipartition 
+	position = oat_hash((unsigned char *)bipCopy, sizeof(unsigned int) * vLength);
+	position = position % genesHash->tableSize;
+	      
+	e = genesHash->table[position];
+	      
+	      
+	if(e == (entry*)NULL)
+	  {
+	    //Alexis Should something happen here?
+	  }
+	else
+	  {
+	    //if there is one or more elements here, we need to search the linked list 
+	    //for a matching bipartition/mask pair 
+	    //we don't necessarily need to find one !
+	    
+	    do 
+	      {	     
+		boolean 
+		  maskIdentical = FALSE,
+		  bitVectorIdentical = FALSE;
+		  
+		//make sure the bip. stored in the has table 
+		//is also in canonic form
+		assert(!(e->bitVector[0] & 1));
+		  
+		//check for identity of bipartitions 				
+		for(l = 0; l < vLength; l++)
+		  if(bipCopy[l] != e->bitVector[l])
+		    break;
+		
+		if(l == vLength)	 	    	     
+		  bitVectorIdentical = TRUE;	   	    
+		
+		//check for identity of taxon masks		    
+		for(l = 0; l < vLength; l++)
+		  if(mask[l] != e->taxonMask[l])
+		    break;
+		
+		if(l == vLength)	 	    	     
+		  maskIdentical = TRUE;
+		
+		//if the bipartition vector and the taxon mask are identical
+		//just print out the frequency 
+		
+		if(maskIdentical && bitVectorIdentical)
+		  return e;      
+			    			  
+		e = e->next;
+	      }
+	    while(e != (entry*)NULL); 
+	  }	
+      }
+    
+  rax_free(bipCopy); 
+  
+  return (entry*)NULL;
+}
+
+
+static double adjustScoreUniform(referenceMaskArray * fullBips,unsigned int * allSuperSets,unsigned int superSets,entry * e,boolean considerRef)
+{
+  int 
+    refCount=0;
+  
+  if(considerRef)  
+    refCount = 1;   
+  
+  //Alexis will the code below work with older C compilers????
+  double 
+    fractions[refCount + superSets];
+  
+  unsigned int 
+    i,
+    id;
+  
+  for(i = 0; i < refCount + superSets; i++)  
+    fractions[i] = 1.0 / (double)(refCount + superSets);
+    
+  for(i = 0; i < superSets; i++)
+    { 
+      id = allSuperSets[i];
+      fullBips->frequencies[id] += fractions[i+refCount] * e->supportFromTreeset[0];
+    }
+  
+  if(considerRef)   
+    return (fractions[0] * e->supportFromTreeset[0]);
+  else    
+    return 0;   
+}
+
+
+static unsigned int polyaDistr(unsigned int * scaleReturn, unsigned int hit, unsigned int rHit, unsigned int miss, unsigned int rMiss)
+{
+  unsigned int 
+    scale = 0,
+    pHit = 2 * rHit - 2,
+    pMiss = 2 * rMiss - 2,
+    n = (hit + miss) - (rHit + rMiss),
+    x = hit-rHit,
+    result = 1,
+    next = 1,
+    i;
+
+  for(i = 0; i < n; i++)
+    {
+      if(i < x)	
+	next = pHit + 2 * i + 1;
+      else
+	next= pMiss + 2 * (i - x) + 1;	
+	
+      //Alexis can UINT_MAC actually ba casted exactly to double?
+      
+      double 
+	ratio = (double)UINT_MAX / (double)next;
+      
+      unsigned int 
+	newScale = 0;
+      
+      while(result >= ratio)
+	{
+	  newScale = floor(log(result) / (log(10) * 2));
+	  result=floor(result / (pow(10, newScale)));
+	  scale += newScale;
+	}
+	
+	result *= next;			
+    }
+      
+  *scaleReturn = scale;
+  
+  return result; 
+}
+
+static double adjustScoreBipart(unsigned int * refBip,referenceMaskArray * fullBips,unsigned int * allSuperSets,unsigned int superSets,entry * e, unsigned int length, boolean considerRef, boolean polya)
+{  
+  //initialization----------------------------------------------------------
+  
+  int 
+    refCount = 0;
+
+  if(considerRef)  
+    refCount=1;   
+  
+  unsigned int 
+    range = superSets + refCount,
+    vectorLen = ceil((double)length / (double)MASK_LENGTH),
+    i,
+    j,
+    id,
+    rHit = 0,
+    rMiss = 0,
+    hit,
+    miss,
+    scaledFractions[range],
+    scale[range], 
+    sumScale = 0;
+  
+  double 
+    sum,
+    sumOfFractions = 0.0,
+    fractions[range];
+  
+  for(i = 0 ; i < range; i++)
+    {
+      fractions[i] = 0;
+      scaledFractions[i] = 0;
+      scale[i] = 0;
+    }
+  
+  int 
+    referenceBit=-1;
+  
+  unsigned int 
+    *bipCopy = (unsigned int *)rax_malloc(sizeof(unsigned int) * (size_t)vectorLen),
+    *maskCopy = (unsigned int *)rax_malloc(sizeof(unsigned int) * (size_t)vectorLen); 
+  
+  memcpy(maskCopy, e->taxonMask, sizeof(unsigned int) * (size_t)vectorLen);
+  memcpy(bipCopy, e->bitVector, sizeof(unsigned int) * (size_t)vectorLen);
+  
+  for(i = 0; i < length; i++)
+    { 
+      if(referenceBit < 0 && (readBit(maskCopy,i) == 1))
+	{
+	  referenceBit = i;
+	  break;
+	}
+    }
+  
+  for(i = referenceBit; i < length; i++)
+    {
+      if(readBit(maskCopy,i) == 1)
+	{
+	  if(readBit(bipCopy, i) == readBit(bipCopy, referenceBit))	    
+	    rHit++;
+	  else
+	    rMiss++;
+	}      
+    }
+    
+  
+  unsigned int 
+    *bipList[range];
+  
+  if(considerRef)  
+    bipList[0] = refBip;
+ 
+  for(i = 0; i < superSets; i++)
+    {
+      id = allSuperSets[i];
+      bipList[refCount + i] = fullBips->bitMasks[id];
+    }
+  
+  sum = 0;
+  
+  //---Calculations-----------------------------------------------------
+
+  for(j = 0; j < range; j++)
+    {
+      hit = 0;
+      miss = 0;
+      
+      for(i = 0; i < length; i++)
+	{
+	  if(readBit(bipList[j], i) == readBit(bipList[j], referenceBit))	    
+	    hit++;
+	  else
+	    miss++;
+	}          
+        
+      assert(hit >= rHit);
+      assert(miss >= rMiss);
+      
+      if(polya)
+	{
+	  scaledFractions[j] = polyaDistr(&scale[j], hit, rHit, miss, rMiss);      
+	  fractions[j] = (double)scaledFractions[j];      
+	}
+      else
+	fractions[j] = pow(((double)hit / (double)length) ,(hit - rHit)) * pow(((double)miss / (double)length), (miss - rMiss));
+      
+      
+      if(polya)
+	{
+	  if(!(sum > 0) || (sumScale < scale[j]))
+	    {
+	      sum = sum / (pow(10, scale[j] - sumScale));
+	      sumScale = scale[j];
+	      sum += fractions[j];
+	    } 
+	  else 
+	    {
+	      if(sumScale > scale[j])	  
+		sum += fractions[j] / (pow(10, sumScale - scale[j]));
+	      else
+		sum += fractions[j];
+	    }      
+	}
+      else
+	sum += fractions[j];        
+    }
+  
+  for(j = 0; j < range; j++)
+    {
+      hit = 0;
+      miss = 0;
+      
+      for(i = 0; i < length; i++)
+	{
+	  if(readBit(bipList[j], i) == readBit(bipList[j], referenceBit))	    
+	    hit++;
+	  else
+	    miss++;
+	}       
+  
+      if(polya)    
+	fractions[j] = fractions[j] / (sum * pow(10, sumScale - scale[j]));
+      else
+	fractions[j] = fractions[j] / sum;
+
+      sumOfFractions += fractions[j];
+    }
+  //finalize results-----------------------------------
+    
+  for(i = 0; i < superSets; i++)
+    {
+      id = allSuperSets[i]; 
+      fullBips->frequenciesStochastic[id] += fractions[i + refCount] * e->supportFromTreeset[0];
+    }
+  
+     
+  if(considerRef)  
+    return (fractions[0] * e->supportFromTreeset[0]);
+  else
+    return 0;     
+}
+
+
+
+static void calcBipartitions_IC_PartialGeneTrees(tree *tr, analdef *adef, char *bootStrapFileName, FILE *treeFile, int numberOfTrees, int numberOfTaxa)
+{  
+  branchInfo 
+    *bInf;
+  
+  unsigned int
+    k = 0,
+    entryCount = 0,
+    vLength = 0,   
+    **bitVectors, 
+    //array for easy access to the bipartitions of the reference tree
+    **referenceBipartitions;
+    
+  //Alexis: allowed in standard C?
+  unsigned int 
+    referenceLinks[tr->mxtips-3];
+  
+  int 
+    bCount = 0,
+    i;
+     
+  hashtable 
+    //hash table containing the bips of the reference tree
+    *h = initHashTable(tr->mxtips * 10),
+    //hash table containing bips of the partial gene trees 
+    *genesHash = initHashTable(tr->mxtips * 10);
+
+  //data structure for parsing the partial gene trees
+  tree   
+    *inputTree = (tree *)rax_malloc(sizeof(tree));
+
+  //data structure to store all taxon masks induced by the partial gene trees
+  taxonMaskArray
+    *taxonMasks;
+
+  referenceBipartitions = (unsigned int **)rax_malloc(sizeof(unsigned int *) * (tr->mxtips - 3));
+
+  //make sure that everything has been parsed correctly
+  
+  assert(numberOfTaxa == tr->mxtips);  
+  
+  //initialize data structure for extracting bipartitions from all trees 
+
+  bitVectors = initBitVector(tr, &vLength);
+    
+  //initialize array for storing taxon masks 
+
+  taxonMasks = initTaxonMaskArray(vLength);
+
+  //extract the bipartitions of the reference tree and store them in hash table h
+
+  bInf = (branchInfo*)rax_malloc(sizeof(branchInfo) * (tr->mxtips - 3)); 
+
+  bitVectorInitravSpecial(bitVectors, tr->nodep[1]->back, tr->mxtips, vLength, h, 0, BIPARTITIONS_PARTIAL_TC, bInf,
+			  &bCount, 1, FALSE, FALSE);
+
+  //make sure this is a fully resolved bifurcating tree 
+
+  assert(bCount == (tr->mxtips - 3));
+  
+  //loop over the hash table to set up the array pointing to the bips of the reference tree
+
+  for(k = 0, entryCount = 0; k < h->tableSize; k++)	     
+    {    
+      if(h->table[k] != NULL)
+	{
+	  entry 
+	    *e = h->table[k];
+		  
+	  /* we resolve collisions by chaining, hence the loop here */
+		  
+	  do
+	    {
+	      unsigned int 
+		*bitVector = e->bitVector; 
+
+	      //set the array to point to the bipartition 
+
+	      referenceBipartitions[entryCount] = bitVector;
+	      referenceLinks[entryCount]=e->bLink;
+
+	      entryCount++;
+	      	      			 		     		      
+	      e = e->next;
+	    }
+	  while(e != NULL);
+	}
+    }
+	  
+  /* 
+     make sure that we got all non-trivial bipartitions of the original tree 
+     and stored them in referenceBipartitions 
+   */
+	  
+  assert(entryCount == (unsigned int)(tr->mxtips - 3));
+  
+    
+  
+  //get the number of trees in the partial gene tree set 
+
+  //  treeFile = getNumberOfTrees(tr, bootStrapFileName, adef);
+
+  //numberOfTrees = tr->numberOfTrees;
+
+  //check that we have enough trees to do something meaningful, i.e., more than 1 tree 
+
+  checkTreeNumber(numberOfTrees, bootStrapFileName);
+
+  //initialize data structure required for parsing potentially multifurcating partial gene trees
+  allocateMultifurcations(tr, inputTree);
+
+  //loop over partial gene trees
+  for(i = 0; i < numberOfTrees; i++)
+    {     
+      int 
+	numberOfSplits;
+
+      inputTree->start = (nodeptr)NULL;
+      
+      //parse partial gene tree
+
+      numberOfSplits = readMultifurcatingTree(treeFile, inputTree, adef, FALSE);  //myabe set to FALSE for complete cleanup ???
+      
+      //if number of non-trivial bipartitions in this tree is greater than 0, analyze it further
+      //otherwise it's not interesting 
+
+      if(numberOfSplits > 0)
+	{
+	  int
+	    taxa = 0,
+	    splits = 0;
+	  
+	  unsigned int 
+	    j,
+	    //allocate tree mask 
+	    *smallTreeMask = (unsigned int *)rax_calloc(vLength, sizeof(unsigned int));            		  	        
+
+	  //  printf("Tree %d Splits %d Taxa %d\n", i, numberOfSplits, inputTree->ntips);
+
+	  //first get the bit mask of taxa in this tree 
+	  
+	  setupMask(smallTreeMask, inputTree->start,       inputTree->mxtips);
+	  setupMask(smallTreeMask, inputTree->start->back, inputTree->mxtips);
+	  
+	  //do a check that the number of set bits in this bit mask is actually 
+	  //identical to the number of taxa in the tree 
+
+	  for(j = 0; j < vLength; j++)
+	    taxa += BIT_COUNT(smallTreeMask[j]);
+	  assert(taxa == inputTree->ntips);
+
+	  //add taxon mask to the dynamic array of bitmasks 
+
+	  addTaxonMask(vLength, smallTreeMask, taxonMasks);
+
+	  //now get the bipartitions of this tree and hash them into the hash table geneHash
+
+	  bitVectorInitravPartial(inputTree, bitVectors, smallTreeMask, inputTree->start->back,  vLength, genesHash, &splits, inputTree->mxtips);
+
+	  //make sure that we hashed all non-trivial bipartitions 
+	  
+	  assert(splits == numberOfSplits);
+	  
+	  //free the tree mask
+	  rax_free(smallTreeMask);
+	}           
+    }     
+  
+  //we are done 
+  // 1. genesHash contains all non-trivial bipartitions of the partial gene trees, they have been stored as taxon mask and 
+  //    bipartition vector pairs and their frequencies 
+  // 2. the dynamic array taxonMasks contains all unique taxon masks found while analyzing the partial gene trees
+  // 3. the array  referenceBipartitions conatins pointers to all bipartitions of the reference tree 
+
+  {
+    unsigned int 
+      i,      
+      j,
+      k,
+      l;
+  
+    //--------------------------------------KASSIAN-----------------------------
+   
+    double 
+      referenceFreq[tr->mxtips - 3],
+      referenceFreqStochastic[tr->mxtips - 3],
+      ic[tr->mxtips - 3],
+      icStochastic[tr->mxtips - 3],
+      ica[tr->mxtips - 3],
+      icaStochastic[tr->mxtips - 3],
+      tc = 0.0,
+      tca = 0.0,
+      tcStochastic = 0.0,
+      tcaStochastic = 0.0;
+  
+    for(i = 0; i < (unsigned int)tr->mxtips - 3; i++) 
+      {
+	referenceFreq[i] = 0.0;
+	referenceFreqStochastic[i] = 0.0;
+      }
+  
+  
+    //Alexis need to force users to pass this seed !
+    //Alexis will implement this
+
+    int64_t  
+      seed = adef->parsimonySeed;      
+    
+    entry 
+      *e;
+    
+    unsigned int 
+      numFound = 0;
+  
+    referenceMaskArray 
+      *partialReferenceBips = initReferenceMaskArray(vLength);
+  
+    
+    //loop through all entries in the genesHash-table TODO can be refined a lot
+    // We find all partial bipartitions that have no super bipartition and add them to
+    // partialReferenceBips.
+    
+    for(i = 0; i < genesHash->tableSize; i++)
+      {		
+	boolean 
+	  iterate;		
+	
+	e = genesHash->table[i];
+
+	if(e != (entry*)NULL)	  
+	  iterate = TRUE;	          
+  
+	while(iterate)
+	  {      
+	    numFound = 0;
+            
+	    for(j = 0; j < (unsigned int)tr->mxtips - 3; j++)// loop through all reference partitions
+	      {	      
+		if(issubsetPart(referenceBipartitions[j], e->bitVector, e->taxonMask, vLength))
+		  {
+		    numFound++;
+		    break;		    
+		  }
+	      }
+	    	    	    	    
+	    if(numFound == 0)
+	      {
+		for(j = 0; j < partialReferenceBips->entries; j++)// loop through all reference partitions
+		  {	      
+		    if(isBsubsetA(partialReferenceBips->bitMasks[j], e->bitVector,partialReferenceBips->taxonMasks[j], e->taxonMask, vLength))
+		      {		
+			numFound++;
+			break;
+		      }
+		    else 
+		      {
+			if(isBsubsetA(e->bitVector, partialReferenceBips->bitMasks[j], e->taxonMask, partialReferenceBips->taxonMasks[j], vLength))
+			  {		
+			    memcpy(partialReferenceBips->taxonMasks[j], e->taxonMask, sizeof(unsigned int) * (size_t)vLength);
+			    memcpy(partialReferenceBips->bitMasks[j], e->bitVector, sizeof(unsigned int) * (size_t)vLength);
+			    
+			    numFound++;
+			    break;
+			  }
+			//Alexis no else required here?
+		      }
+		  }	    
+	      }
+	    	    
+	    if(numFound == 0)
+	      {
+		addReferenceMask(vLength, e->bitVector, e->taxonMask, partialReferenceBips);
+		partialReferenceBips->potentialFrequencies[partialReferenceBips->entries - 1] = e->supportFromTreeset[0];
+	      }
+	    
+	    e = e->next;
+	    
+	    if(e == (entry*)NULL)	      
+	      iterate = FALSE;		    	    
+	  }//end while iterate through all (partial) biparts
+        
+      }//end for loop to iterate through all (partial) biparts
+  
+   
+  referenceMaskArray 
+    *fullBips = initReferenceMaskArray(vLength);
+  
+  int 
+    id;
+  
+  boolean 
+    considerCongruent = TRUE;
+  
+  
+  if(!considerCongruent)
+    {
+      for(j = 0; j < partialReferenceBips->entries; j++)
+	{
+	  randomBipartitionFill(partialReferenceBips->bitMasks[j], partialReferenceBips->taxonMasks[j], tr->mxtips , &seed);
+	  addReferenceMask(vLength, partialReferenceBips->bitMasks[j], partialReferenceBips->taxonMasks[j], fullBips); 
+	}        
+    }
+  else
+    {    
+      int 
+	congruenceMatrix[partialReferenceBips->entries][partialReferenceBips->entries];//congruenceMatrix shows which bipartitions can be combined.
+      // Only partial bipartitions that have no other supersets are
+      //considered
+      //TODO this might be reduced by looking at one entry at a time. (in random or potentialFrqu. order.) No matrix would be needed
+      calcCongruenceMatrix(partialReferenceBips->entries, congruenceMatrix, partialReferenceBips, vLength);
+  
+      int 
+	toConsider[partialReferenceBips->entries];
+     
+      unsigned int  
+	*perm =  (unsigned int *)rax_malloc(sizeof(unsigned int) * (size_t)partialReferenceBips->entries),
+	*smallPerm =  (unsigned int *)rax_malloc(sizeof(unsigned int) * (size_t)partialReferenceBips->entries);
+    
+      uiuiTuple 
+	permTuple[partialReferenceBips->entries];     
+
+    
+      for(j = 0; j < partialReferenceBips->entries; j++)    
+	toConsider[j] = 1;     
+    
+      boolean 
+	randomPerm = FALSE;
+      
+      if(randomPerm)//use random ordering
+	{
+	  for(j = 0; j < partialReferenceBips->entries; j++)	    
+	    perm[j] = j;   
+   
+	  permute(perm, partialReferenceBips->entries, &seed); 
+   
+	}
+      else
+	{
+	  //use greedy approach
+	  
+	  for(j = 0; j < partialReferenceBips->entries; j++)
+	    {	
+	      uiuiTuple 
+		thisTuple;
+	      
+	      thisTuple.id=j;
+	      thisTuple.freq = partialReferenceBips->potentialFrequencies[j];
+	      permTuple[j]=thisTuple;
+	    }
+	
+	qsort(permTuple, partialReferenceBips->entries, sizeof(uiuiTuple), sortuiuiTuple);
+	 
+	for(j = 0; j < partialReferenceBips->entries; j++)
+	   perm[j] = permTuple[j].id;	 	 
+	}
+  
+    
+    unsigned int 
+      congSum;
+    
+    for(i = 0; i < partialReferenceBips->entries; i++)
+      {
+	id = perm[i];
+      
+	if(toConsider[id] == 1)
+	  {
+	    toConsider[id] = 0;
+	    congSum = 0;
+	    
+	    for(j = 0; j < partialReferenceBips->entries; j++)
+	      {
+		if(congruenceMatrix[id][j] == 1)
+		  { 
+		    smallPerm[congSum] = j;
+		    congSum++;
+		  }	  
+	      }			
+		  
+	    if(congSum > 1)
+	      {
+		if(randomPerm)		  
+		  permute(smallPerm, congSum, &seed);
+		else
+		  {
+		    //greedy addition strategy
+
+		    for(j = 0; j < congSum; j++)
+		      {
+			uiuiTuple 
+			  thisTuple;
+
+			thisTuple.id = smallPerm[j];
+			thisTuple.freq = partialReferenceBips->potentialFrequencies[smallPerm[j]];
+			permTuple[j] = thisTuple;
+		      }
+	      
+		    qsort(permTuple, congSum, sizeof(uiuiTuple), sortuiuiTuple);
+	      
+		    for(j = 0; j < congSum; j++)	      
+		      smallPerm[j] = permTuple[j].id;	      	      
+		  }
+	      }
+	    
+	    for(j = 0 ; j < congSum; j++)
+	      {
+		int 
+		  jd = smallPerm[j];
+		// printf("id=%d jd=%d \n",id,jd);
+		
+		if(areCongruentPart(partialReferenceBips->bitMasks[id], partialReferenceBips->bitMasks[jd], partialReferenceBips->taxonMasks[id], partialReferenceBips->taxonMasks[jd], vLength))
+		  { 	      
+		    mergeBipartitions(partialReferenceBips->bitMasks[id], partialReferenceBips->bitMasks[jd], partialReferenceBips->taxonMasks[id], partialReferenceBips->taxonMasks[jd], tr->mxtips);
+		    toConsider[jd] = 0;
+		  }
+		else
+		  {
+		    congruenceMatrix[id][jd] = 0;
+		    congruenceMatrix[jd][id] = 0; 
+		  }		
+	      }
+	
+	    randomBipartitionFill(partialReferenceBips->bitMasks[id], partialReferenceBips->taxonMasks[id], tr->mxtips , &seed);
+	    addReferenceMask(vLength, partialReferenceBips->bitMasks[id], partialReferenceBips->taxonMasks[id], fullBips);	
+	  }
+      }
+    
+    rax_free(perm);
+    rax_free(smallPerm);
+    
+    }
+  //NOTE end if considerCongruent=TRUE
+     
+  freeReferenceMask(partialReferenceBips);
+     
+  //calculate "potential frequencies" for fullBips. Potential frequencies are frequencies of subpartitions added up.
+     
+  for(i = 0; i < fullBips->entries; i++)
+    {	
+      unsigned int 
+	*refBip = fullBips->bitMasks[i];
+              
+       //make sure that it is stored in canonic form !
+       assert(!(refBip[0] & 1));
+       
+       //loop over all taxon masks of the partial trees 
+       for(j = 0; j < taxonMasks->entries; j++)
+	 {	 	 	 
+	   entry 
+	     *e = getSubPart(refBip, taxonMasks->bitMasks[j], genesHash, tr->mxtips);
+	   if(e != (entry*)NULL)	     
+	     fullBips->potentialFrequencies[i] += e->supportFromTreeset[0];	   	     
+	 }
+    }
+     
+  uiuiTuple 
+    sortedList[fullBips->entries];
+     
+  for(i = 0; i < fullBips->entries; i++)
+    {	
+      uiuiTuple 
+	thisTuple;
+      
+      thisTuple.id=i;
+      thisTuple.freq=fullBips->potentialFrequencies[i];
+      sortedList[i]=thisTuple;      
+    }
+          
+  qsort(sortedList, fullBips->entries, sizeof(uiuiTuple), sortuiuiTuple);
+  
+  unsigned int 
+    conflicts,
+    conflictingBips[fullBips->entries];
+     
+  for(i = 0; i < (unsigned int)tr->mxtips - 3; i++)
+    // loop through all reference partitions
+    { 
+      // for each reference bip, find conflicting bipartitions and store in "conflictingBips".
+	      
+      conflicts = 0;
+      
+      unsigned int 
+	*refBip = referenceBipartitions[i];
+	      
+      for(j = 0; j < fullBips->entries; j++)
+	{	
+	  id = sortedList[j].id;
+	  
+	  unsigned int 
+	    *confBip = fullBips->bitMasks[id],
+	    *confMask=fullBips->taxonMasks[id];
+		
+	  if(!areCompatibleBipMask(refBip, confBip, confMask, tr->mxtips))
+	    {
+	      for(k = 0; k < conflicts; k++)		
+		if(areCompatibleBipMaskMask(fullBips->bitMasks[conflictingBips[k]], confBip, confMask, fullBips->taxonMasks[conflictingBips[k]], tr->mxtips))
+		  break;		  
+
+	      if(k == conflicts)
+		{
+		  conflictingBips[conflicts] = id;
+		  conflicts++;
+		}	      	      		
+		
+	    }
+	}
+	      
+      entry 
+	*e,
+	*clearList[1 + conflicts];
+
+      unsigned int 
+	allSuperSets[conflicts],
+	superSets,
+	clearNum;
+
+      int 
+	jd;	     	      	      
+	      	      
+      for(k = 0; k < taxonMasks->entries; k++) 
+	{
+	  // Update Frequ: -find subset S ->find all supersets of S in conflictingBips, calc adjusted freqScore according to different rules.	      
+	  clearNum = 0;	      
+	  e = getSubPart(refBip, taxonMasks->bitMasks[k], genesHash, tr->mxtips);
+	      	      
+	  if(e != (entry*)NULL)
+	    assert(!e->wasFound);
+	      
+	  if((e != (entry*)NULL) && (!e->wasFound))
+	    {
+	      e->wasFound = TRUE;
+	      clearList[clearNum] = e;
+	      clearNum++;
+	      superSets = 0;
+				
+	      for(j = 0; j < conflicts; j++)
+		{
+		  jd = conflictingBips[j];
+		  
+		  if(issubsetPart(fullBips->bitMasks[jd], e->bitVector,e->taxonMask, vLength))
+		    {
+		      allSuperSets[superSets] = jd;
+		      superSets++;
+		    }
+		}				
+	
+		if(superSets == 0)
+		  {
+		    referenceFreq[i] += e->supportFromTreeset[0];
+		    referenceFreqStochastic[i] += e->supportFromTreeset[0];
+		  }
+		else
+		  {
+		    referenceFreq[i] += adjustScoreUniform(fullBips, allSuperSets, superSets, e, TRUE);
+		    referenceFreqStochastic[i] += adjustScoreBipart(refBip, fullBips, allSuperSets, superSets, e, (unsigned int)tr->mxtips, TRUE, TRUE);
+		  }
+	    }
+	      
+	  for(j = 0; j < conflicts; j++)
+	    {	
+	      jd = conflictingBips[j];
+	      e = getSubPart(fullBips->bitMasks[jd], taxonMasks->bitMasks[k], genesHash, tr->mxtips);
+	      
+	      if((e != (entry*)NULL) && (!e->wasFound))
+		{
+		  e->wasFound = TRUE;
+		  clearList[clearNum] = e;
+		  clearNum++;
+		  
+		  allSuperSets[0] = jd;
+		  superSets = 1;
+		  
+		  int 
+		    ld;
+		  
+		  for(l = j + 1; l < conflicts; l++)
+		    {
+		      ld = conflictingBips[l];
+		      
+		      if(issubsetPart(fullBips->bitMasks[ld], e->bitVector, e->taxonMask, vLength))
+			{		      
+			  allSuperSets[superSets] = ld;
+			  superSets++;		      
+			}		    
+		    }
+		
+		  if(superSets == 1)
+		    {
+		      fullBips->frequencies[jd] += e->supportFromTreeset[0];
+		      fullBips->frequenciesStochastic[jd] += e->supportFromTreeset[0];
+		    }
+		  else
+		    {
+		      adjustScoreUniform(fullBips, allSuperSets, superSets, e, FALSE);
+		      adjustScoreBipart(refBip, fullBips, allSuperSets, superSets, e, (unsigned int)tr->mxtips, FALSE, TRUE);
+		    }		  		  
+		}
+	    }
+	      
+	  for(l = 0; l < clearNum; l++)	      
+	    clearList[l]->wasFound = FALSE;	      
+	}
+	    
+      double 
+	maxima[conflicts];
+	    	  
+      unsigned int 
+	currConflicts,
+	threshold = numberOfTrees / 20;
+		    
+      uiuiTuple 
+	sortedList[conflicts];
+		              		     	
+      for(j = 0; j < conflicts; j++)
+	{	
+	  uiuiTuple 
+	    thisTuple;
+
+	  thisTuple.id = j;
+	  thisTuple.freq = fullBips->frequencies[conflictingBips[j]];
+	  sortedList[j] = thisTuple;
+	}
+		     
+      qsort(sortedList, conflicts, sizeof(uiuiTuple), sortuiuiTuple);
+		     
+      currConflicts = conflicts;
+		     
+      for(j = 0; j < conflicts; j++)		     
+	maxima[j] = sortedList[j].freq;		     
+
+      for(j = 1; j < conflicts; j++)//j=0 might be correct, however, standard algorithm also works this way.
+	{
+	  if(sortedList[j].freq < threshold)
+	    {
+	      currConflicts = j;
+	      break;
+	    }
+	}		     
+		     
+      ic[i] = computeIC_ValueD(referenceFreq[i], maxima, numberOfTrees, conflicts, FALSE, FALSE);		     
+      ica[i] = computeIC_ValueD(referenceFreq[i], maxima, numberOfTrees, currConflicts, TRUE, FALSE);	
+		     		     		     
+      for(j = 0; j < conflicts; j++)
+	{	
+	  uiuiTuple 
+	    thisTuple;
+	  
+	  thisTuple.id = j;
+	  thisTuple.freq = fullBips->frequenciesStochastic[conflictingBips[j]];
+	  sortedList[j] = thisTuple;
+	}
+		     
+      qsort(sortedList, conflicts, sizeof(uiuiTuple), sortuiuiTuple);//llpqr
+		     		     
+      for(j = 0; j < conflicts; j++)		     
+	maxima[j] = sortedList[j].freq;		     
+		     
+      for(j = 1; j < conflicts; j++)//same as above
+	{	  
+	  if(sortedList[j].freq < threshold)
+	    {
+	      currConflicts = j;
+	      break;			 
+	    }
+	}		     
+      
+      icStochastic[i]   = computeIC_ValueD(referenceFreqStochastic[i], maxima, numberOfTrees, conflicts, FALSE, FALSE);
+      icaStochastic[i] 	= computeIC_ValueD(referenceFreqStochastic[i], maxima, numberOfTrees, currConflicts, TRUE, FALSE);		    	    	    
+	    
+      tc += ic[i];			//tc+=ic[i]/(double)(tr->mxtips-3);
+      tca += ica[i];		//tca+=ica[i]/(double)(tr->mxtips-3);
+	    
+      tcStochastic += icStochastic[i];	//tcStochastic+=icStochastic[i]/(double)(tr->mxtips-3);
+      tcaStochastic += icaStochastic[i];	//tcaStochastic+=icaStochastic[i]/(double)(tr->mxtips-3);
+ 
+      //reset frequencies
+      for(j = 0; j < conflicts; j++)
+	{
+	  jd = conflictingBips[j];
+	      
+	  fullBips->frequencies[jd] = 0;
+	  fullBips->frequenciesStochastic[jd] = 0;
+	}	    	    
+    }//end for all reference partitions b->frequencies
+     
+
+     
+#ifdef _DEBUG_PARTIAL_IC
+     
+  printf("uniform ic     ");
+
+  for(i = 0 ; i < (unsigned int)(tr->mxtips - 3); i++)    
+    printf("%.3f ", ic[i]); 
+     
+  printf("\n");
+          
+  printf("uniform ica    ");
+     
+  for(i = 0; i < (unsigned int)(tr->mxtips - 3); i++)    
+    printf("%.3f ", ica[i]); 
+     
+  printf("\n");
+  printf("\n");
+  
+  printf("Stochastic ica ");
+  
+  for(i = 0; i < (unsigned int)(tr->mxtips - 3); i++)     
+    printf("%.3f ", icaStochastic[i]);      
+  printf("\n");
+     
+  printf("Stochastic ic  ");
+  
+  for(i = 0; i < (unsigned int)(tr->mxtips - 3); i++)    
+    printf("%.3f ", icStochastic[i]); 
+     
+  printf("\n");
+  printf("\n");
+#endif
+     
+  //stochastic
+  for(i = 0; i < (unsigned int)(tr->mxtips - 3); i++)
+    {
+       bInf[referenceLinks[i]].ic = icStochastic[i];
+       bInf[referenceLinks[i]].icAll = icaStochastic[i];
+       //bInf[i].ic = icStochastic[i];
+       //bInf[i].icAll = icaStochastic[i];
+    }
+     
+  printBipartitionResult(tr, adef, TRUE, TRUE, icFileNameBranchLabelsStochastic); 
+     
+  //uniform 
+  for(i = 0; i < (unsigned int)(tr->mxtips - 3); i++)
+    {
+      bInf[referenceLinks[i]].ic = ic[i];
+      bInf[referenceLinks[i]].icAll = ica[i];
+      //bInf[i].ic = ic[i];
+      //bInf[i].icAll = ica[i];
+    }
+     
+  printBipartitionResult(tr, adef, TRUE, TRUE, icFileNameBranchLabelsUniform); 
+     
+  assert(tc <= (double)(tr->mxtips - 3));
+  
+  printBothOpen("Tree certainty under uniform adjustment for this tree: %f\n", tc);
+  printBothOpen("Relative tree certainty under uniform adjustment for this tree: %f\n\n", tc / (double)(tr->mxtips - 3));
+
+  printBothOpen("Tree certainty including all conflicting bipartitions (TCA) under uniform adjustment for this tree: %f\n", tca);
+  printBothOpen("Relative tree certainty including all conflicting bipartitions (TCA) under uniform adjustment for this tree: %f\n\n", tca / (double)(tr->mxtips - 3));
+     
+     
+  printBothOpen("Tree certainty under uniform adjustment for this tree: %f\n", tcStochastic );
+  printBothOpen("Relative tree certainty under uniform adjustment for this tree: %f\n\n", tcStochastic / (double)(tr->mxtips - 3));
+
+  printBothOpen("Tree certainty including all conflicting bipartitions (TCA) under uniform adjustment for this tree: %f\n", tcaStochastic );
+  printBothOpen("Relative tree certainty including all conflicting bipartitions (TCA) under uniform adjustment for this tree: %f\n\n", tcaStochastic / (double)(tr->mxtips - 3));
+  
+  
+  /* consensus tree building from modified bip freqs, do not erase, to be continued 
+   *	{
+   *	  entry 
+   **consensusBips = (entry **)rax_calloc(tr->mxtips - 3, sizeof(entry *));
+   
+   int
+   consensusBipsLen = 0;  
+   
+   //TODO how do we set the threshold  
+   
+   //threshold definition correct? I use tree counts, Kassian uses real frequencies or doesn't he?
+   
+   //why is mr_tresh an integer and not a double????
+   
+   tr->mr_thresh = ((double)numberOfTrees / 2.0); 
+   
+   
+   
+   printf("trees %d threshold %f\n", numberOfTrees, tr->mr_thresh);
+   
+   printf(" entries in potential bips: %d\n", fullBips->entries);
+   
+   for(i = 0; i < fullBips->entries; i++)
+   {
+   int 
+   cnt = fullBips->potentialFrequencies[i]; //is potential frequencies the correct variable?
+   
+   if((tr->consensusType == MR_CONSENSUS     && cnt > (unsigned int)tr->mr_thresh) || 
+   (tr->consensusType == STRICT_CONSENSUS && cnt == numberOfTrees) ||
+   (tr->consensusType ==  USER_DEFINED    && cnt > (numberOfTrees * tr->consensusUserThreshold) / 100))
+   {
+   entry 
+   e = initEntry();
+   
+   //has vector length been set?
+   
+   e->bitVector = fullBips->bitMasks[i];
+   //make sure that we have a canonic representation of the bit vector!
+   assert(!(e->bitVector[0] & 1));
+   //TODO check bitmask correct -> correct part of bits set to 1!
+   
+   
+   consensusBips[consensusBipsLen] = e;
+   consensusBipsLen++;
+   }
+   }
+   
+   
+   
+   //
+   }
+   
+   //TODO pass this mask to consensus tree building algorithm 
+   // type is defined as referenceMaskArray 
+   
+   */
+  
+  freeReferenceMask(fullBips);
+  
+  
+  
+  
+  }
+  
+  fclose(treeFile);
+  
+  //free data structures 
+  
+  freeMultifurcations(inputTree);
+  rax_free(inputTree); 
+  
+  rax_free(referenceBipartitions);
+  
+  freeTaxonMask(taxonMasks);
+  rax_free(taxonMasks);
+  
+  freeHashTable(genesHash);
+  rax_free(genesHash); 
+  
+  freeBitVectors(bitVectors, 2 * tr->mxtips);
+  rax_free(bitVectors);
+  freeHashTable(h);
+  rax_free(h); 
+  
+  rax_free(bInf);
+}
+
+
+

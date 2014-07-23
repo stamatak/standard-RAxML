@@ -251,6 +251,7 @@
 #define BIPARTITIONS_RF  4
 #define GATHER_BIPARTITIONS_IC 5
 #define FIND_BIPARTITIONS_IC 6
+#define BIPARTITIONS_PARTIAL_TC 7
 
 
 
@@ -351,6 +352,13 @@ struct ent
   unsigned int bipNumber;
   unsigned int bipNumber2;
   unsigned int supportFromTreeset[2]; 
+  
+  //added by Kassian for TC/IC correction on partial gene trees
+  unsigned int *taxonMask;
+  boolean wasFound;
+  unsigned int bLink;
+  //Kassian modif end 
+
   struct ent *next;
 };
 
@@ -457,7 +465,6 @@ typedef struct epBrData
 typedef struct
 {
   epaBranchData *epa;
-
   unsigned int *vector; 
   int support;
   int *supports;
@@ -940,6 +947,8 @@ typedef  struct  {
   boolean useGammaMedian;
   boolean noRateHet;
 
+  boolean corrected_IC_Score;
+
 #ifdef _USE_PTHREADS
 
   double *ancestralStates;
@@ -1181,13 +1190,14 @@ extern boolean whitechar ( int ch );
 extern void errorExit ( int e );
 extern void printResult ( tree *tr, analdef *adef, boolean finalPrint );
 extern void printBootstrapResult ( tree *tr, analdef *adef, boolean finalPrint );
-extern void printBipartitionResult ( tree *tr, analdef *adef, boolean finalPrint, boolean printIC);
+extern void printBipartitionResult ( tree *tr, analdef *adef, boolean finalPrint, boolean printIC, char *fileName);
 extern void printLog ( tree *tr, analdef *adef, boolean finalPrint );
 extern void printStartingTree ( tree *tr, analdef *adef, boolean finalPrint );
 extern void writeInfoFile ( analdef *adef, tree *tr, double t );
 extern int main ( int argc, char *argv[] );
 extern void calcBipartitions ( tree *tr, analdef *adef, char *bestTreeFileName, char *bootStrapFileName );
-extern void calcBipartitions_IC ( tree *tr, analdef *adef, char *bestTreeFileName, char *bootStrapFileName );
+extern void calcBipartitions_IC_Global(tree *tr, analdef *adef, char *bestTreeFileName, char *bootStrapFileName);
+//extern void calcBipartitions_IC ( tree *tr, analdef *adef, char *bestTreeFileName, char *bootStrapFileName );
 
 extern void initReversibleGTR (tree *tr, int model);
 extern double LnGamma ( double alpha );
