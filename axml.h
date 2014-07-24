@@ -1120,6 +1120,7 @@ typedef  struct {
   boolean       optimizeBaseFrequencies;
   boolean       ascertainmentBias;
   boolean       rellBootstrap;
+  boolean       quietAlignmentValidation;
 } analdef;
 
 
