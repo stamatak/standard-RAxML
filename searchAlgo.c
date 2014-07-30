@@ -1331,6 +1331,9 @@ void computeBIGRAPID (tree *tr, analdef *adef, boolean estimateModel)
   else
     treeEvaluate(tr, 2);  
 
+ 
+
+
 
   printLog(tr, adef, FALSE); 
 
