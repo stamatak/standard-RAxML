@@ -73,7 +73,9 @@ char run_id[128] = "",
   binaryModelParamsInputFileName[1024] = "",
   quartetGroupingFileName[1024] = "",
   rellBootstrapFileName[1024] = "",
-  rellBootstrapFileNamePID[1024] = "";
+  rellBootstrapFileNamePID[1024] = "",
+  mesquiteModel[1024] = "",
+  mesquiteTrees[1024] = "";
 
 
 

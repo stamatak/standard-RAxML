@@ -63,7 +63,8 @@ extern FILE   *INFILE, *permutationFile, *logFile, *infoFile;
 extern char seq_file[1024];
 extern char permFileName[1024], resultFileName[1024], 
   logFileName[1024], checkpointFileName[1024], infoFileName[1024], run_id[128], workdir[1024], bootStrapFile[1024], bootstrapFileName[1024], 
-  bipartitionsFileName[1024],bipartitionsFileNameBranchLabels[1024], rellBootstrapFileNamePID[1024]; 
+  bipartitionsFileName[1024],bipartitionsFileNameBranchLabels[1024], rellBootstrapFileNamePID[1024], mesquiteTrees[1024],
+  mesquiteModel[1024];
 
 
 
@@ -1498,6 +1499,47 @@ void doBootstrap(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
     }
 }
 
+
+
+static void printMesquite(tree *tr, analdef *adef)
+{
+  if(adef->mesquite)
+    {
+      FILE 
+	*f = myfopen(mesquiteTrees, "ab"),
+	*models = myfopen(mesquiteModel, "ab");
+      
+      switch(tr->rateHetModel)
+	{
+	case GAMMA:
+	case GAMMA_I:
+	  Tree2String(tr->tree_string, tr, tr->start->back, TRUE, TRUE, FALSE, FALSE, TRUE, adef, SUMMARIZE_LH, FALSE, FALSE, FALSE, FALSE);
+	  break;
+	case CAT:
+	  Tree2String(tr->tree_string, tr, tr->start->back, FALSE, TRUE, FALSE, FALSE, TRUE, adef, NO_BRANCHES, FALSE, FALSE, FALSE, FALSE);
+	  break;
+	default:
+	  assert(0);
+	}
+	  
+      fprintf(f, "%s", tr->tree_string);
+	  
+      fprintf(models, "%f\n", tr->likelihood);
+      
+      //TODO extend whatever is printed here 
+      //TODO decide if we just want to print the model params of the final 
+      // optimal tree, probably makes most sense ...
+
+      fclose(f);      
+      fclose(models);
+      
+      //printf("print mesquite\n");
+    }    
+}
+
+
+  
+
 void doInference(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
 {
   int i, n;
@@ -1581,6 +1623,10 @@ void doInference(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
                        
       computeBIGRAPID(tr, adef, TRUE);  
 
+      
+      if(tr->catOnly)
+	printMesquite(tr, adef);
+
 #ifdef _WAYNE_MPI
       if(tr->likelihood > bestLH)
 	{
@@ -1602,8 +1648,7 @@ void doInference(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
 #endif
 
       loopTime = gettime() - loopTime; 
-      writeInfoFile(adef, tr, loopTime);
-     
+      writeInfoFile(adef, tr, loopTime);     
     }     
  
   assert(best >= 0);
@@ -1649,7 +1694,7 @@ void doInference(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
 	  tr->likelihoods[best] = tr->likelihood;
 	  saveTL(rl, tr, best);
 	  tr->treeID = best; 
-	  printResult(tr, adef, TRUE);
+	  printResult(tr, adef, TRUE);	
 	  newBest = best;      
 	  
 	  for(i = 0; i < n; i++)
@@ -1692,6 +1737,16 @@ void doInference(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
 		    }
 		  tr->treeID = i;
 		  printResult(tr, adef, TRUE);
+		  printMesquite(tr, adef);
+		}
+	      else
+		{
+		  if(adef->mesquite)
+		    {
+		      restoreTL(rl, tr, i);
+		      evaluateGenericInitrav(tr, tr->start);
+		      printMesquite(tr, adef);
+		    }
 		}
 
 	      
@@ -1728,7 +1783,7 @@ void doInference(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
 	  bestLH = tr->likelihood;     
 	  saveTL(rl, tr, best);
 	  tr->treeID = best;
-	  printResult(tr, adef, TRUE);
+	  printResult(tr, adef, TRUE);	 
 	  newBest = best;
 	  
 	  for(i = 0; i < n; i++)
@@ -1773,8 +1828,18 @@ void doInference(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
 		      saveTL(rl, tr, i);	  
 		    }
 		  tr->treeID = i;
-		  printResult(tr, adef, TRUE);
+		  printResult(tr, adef, TRUE);	
+		  printMesquite(tr, adef);
 		} 
+	      else
+		{
+		  if(adef->mesquite)
+		    {
+		      restoreTL(rl, tr, i);
+		      evaluateGenericInitrav(tr, tr->start);
+		      printMesquite(tr, adef);
+		    }
+		}
 	      
 	      if(n == 1)	    
 		printBothOpen("Inference[%d] final GAMMA-based Likelihood: %f tree written to file %s\n", i, tr->likelihoods[i], resultFileName);
@@ -1827,7 +1892,7 @@ void doInference(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
 	  
 	  strcpy(bestTreeFileName, workdir); 
 	  strcat(bestTreeFileName, "RAxML_bestTree.");
-	  strcat(bestTreeFileName,         run_id);
+	  strcat(bestTreeFileName, run_id);
 	  
 	  
 	  Tree2String(tr->tree_string, tr, tr->start->back, TRUE, TRUE, FALSE, FALSE, TRUE, adef, SUMMARIZE_LH, FALSE, FALSE, FALSE, FALSE);
@@ -1835,6 +1900,8 @@ void doInference(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
 	  f = myfopen(bestTreeFileName, "wb");
 	  fprintf(f, "%s", tr->tree_string);
 	  fclose(f);
+
+	  printMesquite(tr, adef);	 
 	  
 	  if(adef->perGeneBranchLengths)
 	    printTreePerGene(tr, adef, bestTreeFileName, "w");      
@@ -1901,6 +1968,12 @@ void doInference(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
 	  if(adef->perGeneBranchLengths && tr->NumberOfModels > 1)    
 	    printBothOpen("Per-Partition branch lengths of best-scoring ML tree written to %s.PARTITION.0 to  %s.PARTITION.%d\n\n", bestTreeFileName,  bestTreeFileName, 
 			  tr->NumberOfModels - 1);  
+	}
+
+      if(adef->mesquite)
+	{
+	  printBothOpen("Mesquite tree file written to:   %s\n",  mesquiteTrees);
+	  printBothOpen("Mesquite model file written to:   %s\n\n", mesquiteModel);
 	}
       
       printBothOpen("Overall execution time: %f secs or %f hours or %f days\n\n", overallTime, overallTime/3600.0, overallTime/86400.0);    
