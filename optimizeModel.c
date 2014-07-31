@@ -3235,8 +3235,6 @@ static void autoProtein(tree *tr)
 
 //#define _DEBUG_MOD_OPT
 
-static void optimizeGTR(tree *tr);
-
 
 
 static void checkTolerance(double l1, double l2)
@@ -3254,6 +3252,7 @@ static void checkTolerance(double l1, double l2)
     }
 }
 
+static void optimizeRatesBFGS(tree *tr);
 
 void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilon)
 { 
@@ -3283,9 +3282,7 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
   
   assert(!adef->useBinaryModelFile);
  
-  modelEpsilon = 0.0001;
-  
-  //optimizeGTR(tr);
+  modelEpsilon = 0.0001; 
   
   for(i = 0; i < tr->NumberOfModels; i++)
     {
@@ -3369,7 +3366,12 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
       printf("start: %1.40f\n", currentLikelihood);
 #endif
 
-      optRatesGeneric(tr, modelEpsilon, rateList);         
+      if(tr->NumberOfModels == 1 && tr->partitionData[0].dataType == DNA_DATA && adef->useBFGS)
+	{	  
+	  optimizeRatesBFGS(tr);
+	}
+      else
+	optRatesGeneric(tr, modelEpsilon, rateList);         
 
       evaluateGenericInitrav(tr, tr->start); 
       
@@ -3494,6 +3496,8 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
 	  assert(0);
 	}       
       
+      //printf("%f \n", tr->likelihood);
+
       checkTolerance(tr->likelihood, currentLikelihood);
                   
       printAAmatrix(tr, fabs(currentLikelihood - tr->likelihood));    
@@ -3582,17 +3586,27 @@ double treeLength(tree *tr, int model)
 
 static double targetFunk(double *x, int n, tree *tr)
 {
-  int 
-    i;
+  int
+    model,
+    i = 1;
 
-  for(i = 1; i <= n; i++)
-#ifdef _HET
-    assert(0);//not supported !
-#else
-  setRateModel(tr, 0, x[i], i - 1);
-#endif
+ 
+  for(model = 0; model < tr->NumberOfModels; model++)
+    {
+      int 
+	k;
+      
+      for(k = 0; k < 5; k++, i++)
+	{
+	  //printf("model %d rate %d i %d value %f\n", model, k, i, x[i]);
+	  setRateModel(tr, model, x[i], k);  
+	}
+      
+      initReversibleGTR(tr, model);	
+    }
 
-  initReversibleGTR(tr, 0);
+  assert(i == n + 1);
+  
   
   //TODO when optimizing some quantities we actually need to 
   //only evaluate at the root without re-traversing the entire tree 
@@ -3601,6 +3615,8 @@ static double targetFunk(double *x, int n, tree *tr)
   
   //minh confirm that we are actually really trying to minimize, hence 
   //reverting the sign of the lnl is correct below?
+  ////MINH: Yes correct, this is minization, returning negative logl does the job
+  
 
   return (-1.0 * tr->likelihood);
 }
@@ -3611,7 +3627,7 @@ static double maxarg1,maxarg2;
 #define FMAX(a,b) (maxarg1=(a),maxarg2=(b),(maxarg1) > (maxarg2) ?\
         (maxarg1) : (maxarg2))
 
-static void fixBound(double *x, double *lower, double *upper, int n, tree *tr) 
+static void fixBound(double *x, double *lower, double *upper, int n) 
 {
   int 
     i;
@@ -3627,6 +3643,7 @@ static void fixBound(double *x, double *lower, double *upper, int n, tree *tr)
 }
 
 //minh please confirm that *f just is a single value and not potentially an array?
+////MINH: yes, *f points to 1 single value
 
 static void lnsrch(int n, double *xold, double fold, double *g, double *p, double *x,
                    double *f, double stpmax, int *check, double *lower, double *upper, tree *tr) 
@@ -3684,10 +3701,10 @@ static void lnsrch(int n, double *xold, double fold, double *g, double *p, doubl
       for(i = 1;i <= n; i++) 
 	x[i] = xold[i] + alam * p[i];
       
-      fixBound(x, lower, upper, n, tr);
+      fixBound(x, lower, upper, n);
 
       //minh is the commented code below needed?
-
+      ////MINH: this is indeed not needed
       //checkRange(x);
             
       *f=targetFunk(x, n, tr);
@@ -3750,7 +3767,9 @@ static void dfpmin(double *p, int n, double *lower, double *upper, double gtol, 
 static double derivativeFunk(double *x, double *dfx, int n, tree *tr);
 
 //minh is guess over-written by this function?
+////MINH: yes, guess will be overwritten by the optimized values. IMPORTANT: all arrays guess,lower,upper,bound_check are indexed from 1 to ndim (not starting from 0!). I don't know why, ask Numerical Recipes guys ;-)
 //minh what is the exact meaining of gtol, does it refer to x or f(x)?
+////MINH: gtol is the tolerance for the first derivative f'(x). It stops when |f'(x)| < gtol, because optimization means to find the root of f'(x)
 
 static double minimizeMultiDimen(double *guess, int ndim, double *lower, double *upper, boolean *bound_check, double gtol, tree *tr) 
 {
@@ -3761,13 +3780,16 @@ static double minimizeMultiDimen(double *guess, int ndim, double *lower, double 
     
   double 
     fret, 
-    minf = 10000000.0, //minh is this some maximum value for (-log likelihood) of the tree does the number need to be large?
+    minf = -1.0 * unlikely, 
+    //10000000.0, 
+    //minh is this some maximum value for (-log likelihood) of the tree does the number need to be large?
+    ////MINH: yes it needs to be very large initially, as minf stores the function value at the minimum point
     *minx = (double*)rax_malloc(sizeof(double) * (ndim + 1));
   
   boolean 
     restart;
 
-  static int64_t 
+  static long 
     seed = 12345;
   
   do 
@@ -3805,6 +3827,7 @@ static double minimizeMultiDimen(double *guess, int ndim, double *lower, double 
 	  for (i = 1; i <= ndim; i++) 
 	    {
 	      //minh our randum() function yields values between [0,1), confirm that this is correct?
+	      ////MINH: correct!
 	      guess[i] = randum(&seed) * (upper[i] - lower[i])/3 + lower[i];
 	    }
 	} 
@@ -3897,10 +3920,7 @@ static void dfpmin(double *p, int n, double *lower, double *upper, double gtol, 
       sum += p[i]*p[i];
     }
   
-  //minh do we need the code below or shall it remain commented out?
-
-  //checkBound(p, xi, lower, upper, n);
-  //checkDirection(p, xi);
+ 
 
   stpmax = STPMX * FMAX(sqrt(sum),(double)n);
   
@@ -3937,7 +3957,12 @@ static void dfpmin(double *p, int n, double *lower, double *upper, double gtol, 
       
       derivativeFunk(p, g, n, tr);
       test=0.0;
-      den=FMAX(*fret,1.0);
+      
+      den = FMAX(fabs(*fret),1.0);
+      //corrected according to this post here:
+      //http://www.nr.com/forum/showthread.php?t=1327
+      
+      //den=FMAX(*fret,1.0);
       
       for (i=1;i<=n;i++) 
 	{
@@ -3995,11 +4020,7 @@ static void dfpmin(double *p, int n, double *lower, double *upper, double gtol, 
 	  for (j=1;j<=n;j++) xi[i] -= hessin[i][j]*g[j];
 	}
       
-      //minh do we need the code below or shall it remain commented out?
-
-      //checkBound(p, xi, lower, upper, n);
-      //checkDirection(p, xi);
-      //if (*iter > 200) cout << "iteration=" << *iter << endl;
+      
     }
   printf("too many iterations in dfpmin\n");
   assert(0);
@@ -4024,14 +4045,7 @@ static void dfpmin(double *p, int n, double *lower, double *upper, double gtol, 
 */
 static double derivativeFunk(double *x, double *dfx, int n, tree *tr) 
 {
-  //minh do we need the check range function? what does it do?
-  //I had commented this out, I assume that it checks if the params 
-  //are within the min<->max range, correct?
   
-  /*
-    if (!checkRange(x))
-    return INFINITIVE;
-  */
   
   double  
     h, 
@@ -4060,67 +4074,73 @@ static double derivativeFunk(double *x, double *dfx, int n, tree *tr)
 }
 
 
-//test function to optimize DNA GTR params for an unpartitioned dataset 
 
-static void optimizeGTR(tree *tr)
+
+
+
+static void optimizeRatesBFGS(tree *tr)
 {
   int 
-    i,
-    n = 5;
+    model,
+    i = 0,
+    nGTR = 5 * tr->NumberOfModels;
 
-  double 
-    likelihoodEpsilon = 0.1,
-    currentLikelihood = unlikely,
-    *guess = (double*)rax_malloc(sizeof(double) * (n + 1)),
-    *lower = (double*)rax_malloc(sizeof(double) * (n + 1)),
-    *upper = (double*)rax_malloc(sizeof(double) * (n + 1));
+  double  
+    startLH,
+    endLH,
+    *guessGTR = (double*)rax_malloc(sizeof(double) * (nGTR + 1)),
+    *lowerGTR = (double*)rax_malloc(sizeof(double) * (nGTR + 1)),
+    *upperGTR = (double*)rax_malloc(sizeof(double) * (nGTR + 1)),
+    *rateBuffer = (double*)rax_malloc(sizeof(double) * 6);
 
   boolean
-    *bound_check = (boolean*)rax_malloc(sizeof(boolean) * sizeof(boolean));
-
-  for(i = 1; i <= n; i++)
-    {
-      guess[i] = tr->partitionData[0].substRates[i - 1];
-      bound_check[i] = TRUE;
-      lower[i] = RATE_MIN;
-      upper[i] = RATE_MAX;
-    }
+    *bound_check_GTR = (boolean*)rax_malloc(sizeof(boolean) * (nGTR + 1));
   
-  do
-    {           
-      currentLikelihood = tr->likelihood; 
+  assert(tr->NumberOfModels == 1);
+  assert(tr->partitionData[0].dataType == DNA_DATA);
+  
+  evaluateGenericInitrav(tr, tr->start);
+  startLH = tr->likelihood;
+  
+  //printf("Enter Rates %f\n", tr->likelihood);
 
-      //minh unclear if guess is over-written by minimzeMultiDimen
-      for(i = 1; i <= n; i++)    
-	guess[i] = tr->partitionData[0].substRates[i - 1];
-
-      minimizeMultiDimen(guess, n, lower, upper, bound_check, 0.0001, tr);
-      evaluateGenericInitrav(tr, tr->start);
-      printf("after rates: %f\n", tr->likelihood);
-      //TODO maybe add a check to re-wind param changes if optimization has been unsuccesful
+  for(model = 0, i = 1; model < tr->NumberOfModels; model++)
+    {
+      int 
+	k;
       
-
-      treeEvaluate(tr, 0.0625); 
-      printf("after branches: %f\n", tr->likelihood);
-      
-       if(tr->likelihood < currentLikelihood)
-	{	 
-	  if(fabs(tr->likelihood - currentLikelihood) > MIN(0.0000001, likelihoodEpsilon))
-	    {
-	      printf("%1.40f %1.40f\n", tr->likelihood, currentLikelihood);
-	      assert(0);
-	    }
+      for(k = 0; k < 5; k++, i++)
+	{
+	  guessGTR[i] = tr->partitionData[model].substRates[k];	
+	  bound_check_GTR[i] = TRUE;
+	  lowerGTR[i] = RATE_MIN;
+	  upperGTR[i] = RATE_MAX;
 	}
     }
-  while(fabs(currentLikelihood - tr->likelihood) > likelihoodEpsilon); 
+
+  assert(i == nGTR + 1);
+ 
+  minimizeMultiDimen(guessGTR, nGTR, lowerGTR, upperGTR, bound_check_GTR, 0.0001, tr);  
 
   evaluateGenericInitrav(tr, tr->start);
-  printf("Exit: %f\n", tr->likelihood);
+  endLH = tr->likelihood;
 
-  rax_free(guess);
-  rax_free(lower);
-  rax_free(upper);
-  rax_free(bound_check);
-  
-  exit(0);
+  //printf("Exit: %f\n", tr->likelihood);
+
+  if(endLH < startLH)
+    {
+      printBothOpen("Reverting BFGS ... \n");
+      memcpy(tr->partitionData[0].substRates, rateBuffer, sizeof(double) * 6);
+      initReversibleGTR(tr, 0);
+      evaluateGenericInitrav(tr, tr->start);
+      assert(startLH == tr->likelihood);
+    }
+
+  //assert(endLH >= startLH);
+
+  rax_free(guessGTR);
+  rax_free(lowerGTR);
+  rax_free(upperGTR);
+  rax_free(bound_check_GTR);
+  rax_free(rateBuffer);
 }

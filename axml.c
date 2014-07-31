@@ -3414,6 +3414,7 @@ static void initAdef(analdef *adef)
   adef->mesquite = FALSE;
   adef->silent = FALSE;
   adef->noSequenceCheck = FALSE;
+  adef->useBFGS = TRUE;
 }
 
 
@@ -4486,7 +4487,7 @@ static void parseOutgroups(char *outgr, tree *tr)
 static void printVersionInfo(boolean terminal, FILE *infoFile)
 {
   char 
-    text[10][1024];
+    text[11][1024];
 
   int 
     i;
@@ -4496,11 +4497,12 @@ static void printVersionInfo(boolean terminal, FILE *infoFile)
   sprintf(text[2], "Andre Aberer      (HITS)\n");     
   sprintf(text[3], "Simon Berger      (HITS)\n"); 
   sprintf(text[4], "Alexey Kozlov     (HITS)\n"); 
-  sprintf(text[5], "Nick Pattengale   (Sandia)\n"); 
-  sprintf(text[6], "Wayne Pfeiffer    (SDSC)\n");
-  sprintf(text[7], "Akifumi S. Tanabe (NRIFS)\n");
-  sprintf(text[8], "David Dao         (KIT)\n");
-  sprintf(text[9], "Charlie Taylor    (UF)\n\n");
+  sprintf(text[5], "Kassian Kobert    (HITS)\n"); 
+  sprintf(text[6], "David Dao         (KIT and HITS)\n");
+  sprintf(text[7], "Nick Pattengale   (Sandia)\n"); 
+  sprintf(text[8], "Wayne Pfeiffer    (SDSC)\n");
+  sprintf(text[9], "Akifumi S. Tanabe (NRIFS)\n");  
+  sprintf(text[10], "Charlie Taylor    (UF)\n\n");
   
 
   for(i = 0; i < 10; i++)
@@ -4673,9 +4675,9 @@ static void printREADME(void)
   printf("      [-x rapidBootstrapRandomNumberSeed] [-X] [-y] [-Y quartetGroupingFileName|ancestralSequenceCandidatesFileName]\n");
   printf("      [-z multipleTreesFile] [-#|-N numberOfRuns|autoFC|autoMR|autoMRE|autoMRE_IGN]\n");
 #ifdef _WAYNE_MPI
-  printf("      [--silent][--no-seq-check]\n");
+  printf("      [--silent][--no-seq-check][--no-bfgs]\n");
 #else
-  printf("      [--mesquite][--silent][--no-seq-check]\n");
+  printf("      [--mesquite][--silent][--no-seq-check][--no-bfgs]\n");
 #endif
   printf("\n");
   printf("      -a      Specify a column weight file name to assign individual weights to each column of \n");
@@ -5052,6 +5054,11 @@ static void printREADME(void)
   printf("                     Before using this, make sure to check the alignment using the \"-f c\" option!\n");
   printf("\n");
   printf("              DEFAULT: Off \n");
+  printf("\n");
+  printf("      --no-bfgs Disables automatic usage of BFGS method to optimize GTR rates on unpartitioned DNA datasets\n");
+  printf("\n");
+  printf("              DEFAULT: BFGS on\n");
+  printf("\n");
   
   printf("\n\n\n\n");
 
@@ -5163,12 +5170,13 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
   while(1)
     {      
       static struct 
-	option long_options[4] =
+	option long_options[5] =
 	{
 	  /* These options set a flag. */
 	  {"mesquite",     no_argument, &flag, 1},
 	  {"silent",       no_argument, &flag, 1},
 	  {"no-seq-check", no_argument, &flag, 1},
+	  {"no-bfgs",      no_argument, &flag, 1},
 	  /* These options don't set a flag.
 	     We distinguish them by their indices. */
 	  //{"add",     no_argument,       0, 'a'},
@@ -5209,6 +5217,9 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	      break;
 	    case 2:
 	      adef->noSequenceCheck = TRUE;
+	      break;
+	    case 3:
+	      adef->useBFGS = FALSE;
 	      break;
 	    default:
 	      assert(0);
@@ -12769,6 +12780,9 @@ int main (int argc, char *argv[])
     else
       printBothOpen("\n\nWARNING: RAxML is not checking sequences for duplicate seqs and sites with missing data!\n\n");
     
+    if(tr->NumberOfModels == 1 && tr->partitionData[0].dataType == DNA_DATA && adef->useBFGS)
+      printBothOpen("\n\nUsing BFGS method to optimize GTR rate parameters, to disable this specify \"--no-bfgs\" \n\n");
+
     
     if(adef->mode == SPLIT_MULTI_GENE)
       {
