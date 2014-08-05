@@ -573,7 +573,7 @@ static void rax_getline_insptr_valid(char **lineptr, size_t *n, size_t ins_ptr )
   }
 }
 
-static ssize_t rax_getline(char **lineptr, size_t *n, FILE *h) 
+ssize_t rax_getline(char **lineptr, size_t *n, FILE *h) 
 {
   size_t 
     ins_ptr = 0;
@@ -4598,6 +4598,9 @@ static void printMinusFUsage(void)
 
   printf("              \"-f p\": perform pure stepwise MP addition of new sequences to an incomplete starting tree and exit\n");
 
+  printf("              \"-f P\": perform a phylogenetic placement of sub trees specified in a file passed via \"-z\" into a given reference tree\n");
+  printf("                      in which these subtrees are contained that is passed via \"-t\" using the evolutionary placement algorithm.\n");
+
   printf("              \"-f q\": fast quartet calculator\n");
 
   printf("              \"-f r\": compute pairwise Robinson-Foulds (RF) distances between all pairs of trees in a tree file passed via \"-z\" \n");
@@ -4662,7 +4665,7 @@ static void printREADME(void)
   printf("      [-b bootstrapRandomNumberSeed] [-B wcCriterionThreshold]\n");
   printf("      [-c numberOfCategories] [-C] [-d] [-D]\n");
   printf("      [-e likelihoodEpsilon] [-E excludeFileName]\n");
-  printf("      [-f a|A|b|B|c|C|d|D|e|E|F|g|G|h|H|i|I|j|J|k|m|n|N|o|p|q|r|R|s|S|t|T|u|v|V|w|W|x|y] [-F]\n");
+  printf("      [-f a|A|b|B|c|C|d|D|e|E|F|g|G|h|H|i|I|j|J|k|m|n|N|o|p|P|q|r|R|s|S|t|T|u|v|V|w|W|x|y] [-F]\n");
   printf("      [-g groupingFileName] [-G placementThreshold] [-h] [-H]\n");
   printf("      [-i initialRearrangementSetting] [-I autoFC|autoMR|autoMRE|autoMRE_IGN]\n");
   printf("      [-j] [-J MR|MR_DROP|MRE|STRICT|STRICT_DROP|T_<PERCENT>] [-k] [-K] \n");
@@ -5732,6 +5735,9 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	      case 'p':
 		adef->mode =  PARSIMONY_ADDITION;
 		break;
+	      case 'P':
+		adef->mode =  SUBTREE_EPA;
+		break;
 	      case 'q':
 		adef->mode = QUARTET_CALCULATION;
 		break;	  	 
@@ -5883,6 +5889,20 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 
   if(disablePatternCompression)
     adef->compressPatterns = FALSE;
+
+  if(adef->mode == SUBTREE_EPA)
+    {
+      if(!treeSet)
+	{
+	  printf("Error: for subtree placements you need to specify a tree file via \"-t\"\n");
+	  errorExit(-1);
+	}
+      if(!treesSet)
+	{
+	  printf("Error: for subtree placements you need to specify a subtree specification file via \"-z\"\n");
+	  errorExit(-1);
+	}
+    }
   
   if(adef->mode == MISSING_SEQUENCE_PREDICTION)
     {
@@ -6782,6 +6802,9 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
 	  break;
 	case ROOT_TREE:
 	  printBoth(infoFile, "\nRAxML tree rooting algorithm\n\n");
+	  break;
+	case SUBTREE_EPA:
+	  printBoth(infoFile, "\nRAxML Evolutionary Placement Algorithm for (taxonomic) subtrees\n\n");
 	  break;
 	default:
 	  assert(0);
@@ -12969,6 +12992,17 @@ int main (int argc, char *argv[])
       
       switch(adef->mode)
 	{  
+	case SUBTREE_EPA:
+	  if(adef->useBinaryModelFile)      
+	    readBinaryModel(tr, adef);	       
+	  else
+	    initModel(tr, rdta, cdta, adef);
+	  
+	  getStartingTree(tr, adef);
+
+	  subtreeEPA(tr, adef);
+	  assert(0);
+	  break;
 	case CLASSIFY_MP:
 	  getStartingTree(tr, adef);
 	  assert(0);
@@ -12979,7 +13013,7 @@ int main (int argc, char *argv[])
 	  else
 	    initModel(tr, rdta, cdta, adef);
 	  
-	  getStartingTree(tr, adef);
+	  getStartingTree(tr, adef);	 	  
 	  exit(0);
 	  break;
 	case GENERATE_BS:

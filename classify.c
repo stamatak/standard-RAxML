@@ -50,7 +50,7 @@ extern int globalArgc;
 extern char  workdir[1024];
 extern char run_id[128];
 extern double masterTime;
-
+extern char bootStrapFile[1024];
 
 #ifdef _USE_PTHREADS
 extern volatile int NumberOfThreads;
@@ -241,7 +241,10 @@ static char *Tree2StringClassifyRec(char *treestr, tree *tr, nodeptr p, int *cou
 		}
 	    }
 	  else
-	    sprintf(treestr, ":%8.20f{%d", p->bInf->epa->originalBranchLength, p->bInf->epa->jointLabel);  
+	    {	     
+	      sprintf(treestr, ":%8.20f{%d", p->bInf->epa->originalBranchLength, 
+		      p->bInf->epa->jointLabel);  
+	    }
 	}
       else
 	sprintf(treestr, ":%8.20f[%s", p->bInf->epa->originalBranchLength, p->bInf->epa->branchLabel);	
@@ -272,7 +275,7 @@ static char *Tree2StringClassifyRec(char *treestr, tree *tr, nodeptr p, int *cou
 
 
 char *Tree2StringClassify(char *treestr, tree *tr, int *inserts, 
-			  boolean  originalTree, boolean jointLabels, boolean likelihood)
+			  boolean  originalTree, boolean jointLabels, boolean likelihood, int rootNumber)
 {
   nodeptr 
     p;
@@ -303,7 +306,7 @@ char *Tree2StringClassify(char *treestr, tree *tr, int *inserts,
   else
     {
       if(jointLabels)
-	p = tr->nodep[tr->mxtips + 1];
+	p = tr->nodep[rootNumber];
       else
 	p = tr->start->back;
       
@@ -1641,6 +1644,175 @@ static void analyzeReads(tree *tr)
     }
 }
 
+static void printStandardFormat(tree *tr, char *jointFormatTreeFileName, int rootNumber, int numberOfTipsForInsertion, boolean subtreePlacement)
+{
+  FILE
+    *treeFile = myfopen(jointFormatTreeFileName, "wb"); 
+
+  info 
+    *inf = (info*)rax_malloc(sizeof(info) * tr->numberOfBranches);
+
+  int
+    i,
+    j;
+  
+  Tree2StringClassify(tr->tree_string, tr, tr->inserts, TRUE, TRUE, TRUE, rootNumber);
+  
+  fprintf(treeFile, "{\n");
+  fprintf(treeFile, "\t\"tree\": \"%s\", \n", tr->tree_string);
+  fprintf(treeFile, "\t\"placements\": [\n");
+                 
+  for(i = 0; i < numberOfTipsForInsertion; i++)    
+    {
+      double
+	all,
+	maxprob = 0.0,
+	lmax = 0.0,
+	acc = 0.0;
+      
+      int 
+	k,
+	validEntries = 0;
+      
+      for(j =  0; j < tr->numberOfBranches; j++) 
+	{
+	  inf[j].lh            = tr->bInf[j].epa->likelihoods[i];
+	  inf[j].pendantBranch = tr->bInf[j].epa->branches[i];
+	  inf[j].distalBranch  = tr->bInf[j].epa->distalBranches[i];
+	  inf[j].number        = tr->bInf[j].epa->jointLabel;
+	}
+      
+      qsort(inf, tr->numberOfBranches, sizeof(info), infoCompare);	 
+      
+      for(j =  0; j < tr->numberOfBranches; j++) 
+	if(inf[j].lh == unlikely)
+	  break;
+	else	     
+	  validEntries++;	     	      
+      
+      assert(validEntries > 0);
+      
+      j = 0;
+      
+      lmax = inf[0].lh;
+      
+      for(k = 0, all = 0.0; k < validEntries; k++)
+	all += exp(inf[k].lh - lmax);
+      
+      fprintf(treeFile, "\t{\"p\":[");
+      
+      /* 
+	 Erick's cutoff:
+	 
+	 I keep at most 7 placements and throw away anything that has less than
+	 0.01*best_ml_ratio.
+	 
+	 my old cutoff was at 0.95 accumulated likelihood weight:
+	 
+	 while(acc <= 0.95)
+      */
+      
+      /*#define _ALL_ENTRIES*/
+      
+#ifdef _ALL_ENTRIES
+      assert(validEntries == tr->numberOfBranches);
+      while(j < validEntries)	  
+#else
+	while(j < validEntries && j < 7)	  
+#endif
+	  { 
+	    
+	    double 
+	      prob = 0.0;
+	    
+	    acc += (prob = (exp(inf[j].lh - lmax) / all));
+	    
+	    if(j == 0)
+	      maxprob = prob;
+#ifndef _ALL_ENTRIES
+	    if(prob >= maxprob * 0.01)
+#endif
+	      {
+		if(j > 0)
+		  {
+		    if(tr->wasRooted && inf[j].number == tr->rootLabel)
+		      {
+			double 
+			  b = getBranch(tr, tr->leftRootNode->z, tr->rightRootNode->z);
+			
+			if(inf[j].distalBranch > 0.5 * b)
+			  fprintf(treeFile, ",[%d, %f, %f, %f, %f]", tr->numberOfBranches, inf[j].lh, prob, inf[j].distalBranch - 0.5 * b, inf[j].pendantBranch);
+			else
+			  fprintf(treeFile, ",[%d, %f, %f, %f, %f]", inf[j].number, inf[j].lh, prob, 0.5 * b - inf[j].distalBranch, inf[j].pendantBranch); 
+		      }
+		    else
+		      fprintf(treeFile, ",[%d, %f, %f, %f, %f]", inf[j].number, inf[j].lh, prob, inf[j].distalBranch, inf[j].pendantBranch);
+		  }
+		else
+		  {
+		    if(tr->wasRooted && inf[j].number == tr->rootLabel)
+		      {
+			double 
+			  b = getBranch(tr, tr->leftRootNode->z, tr->rightRootNode->z);
+			
+			if(inf[j].distalBranch > 0.5 * b)
+			  fprintf(treeFile, "[%d, %f, %f, %f, %f]", tr->numberOfBranches, inf[j].lh, prob, inf[j].distalBranch - 0.5 * b, inf[j].pendantBranch);
+			else
+			  fprintf(treeFile, "[%d, %f, %f, %f, %f]", inf[j].number, inf[j].lh, prob, 0.5 * b - inf[j].distalBranch, inf[j].pendantBranch); 
+		      }
+		    else
+		      fprintf(treeFile, "[%d, %f, %f, %f, %f]", inf[j].number, inf[j].lh, prob,  inf[j].distalBranch, inf[j].pendantBranch);
+		  }
+	      }
+	    	      
+	    j++;
+	  }
+      
+      if(subtreePlacement)
+	{
+	  if(i == numberOfTipsForInsertion - 1)
+	    fprintf(treeFile, "], \"n\":[\"%s\"]}\n", "subtree");
+	  else
+	    fprintf(treeFile, "], \"n\":[\"%s\"]},\n", "subtree");
+	}
+      else
+	{
+	  if(i == numberOfTipsForInsertion - 1)
+	    fprintf(treeFile, "], \"n\":[\"%s\"]}\n", tr->nameList[tr->inserts[i]]);
+	  else
+	    fprintf(treeFile, "], \"n\":[\"%s\"]},\n", tr->nameList[tr->inserts[i]]);
+	}
+    }      
+    
+  rax_free(inf);      
+
+#ifdef _ALL_ENTRIES
+  assert(j == tr->numberOfBranches);
+#endif
+
+  fprintf(treeFile, "\t ],\n");
+  fprintf(treeFile, "\t\"metadata\": {\"invocation\": ");
+
+  fprintf(treeFile, "\"");
+  
+    
+  for(i = 0; i < globalArgc; i++)
+    fprintf(treeFile,"%s ", globalArgv[i]);
+  
+  fprintf(treeFile, "\", \"raxml_version\": \"%s\"", programVersion);
+  fprintf(treeFile,"},\n");
+
+  fprintf(treeFile, "\t\"version\": 2,\n");
+  fprintf(treeFile, "\t\"fields\": [\n");
+  fprintf(treeFile, "\t\"edge_num\", \"likelihood\", \"like_weight_ratio\", \"distal_length\", \n");
+  fprintf(treeFile, "\t\"pendant_length\"\n");
+  fprintf(treeFile, "\t]\n");
+  fprintf(treeFile, "}\n");
+  
+  fclose(treeFile);
+
+  /* JSON format end */
+}
 
 void classifyML(tree *tr, analdef *adef)
 {
@@ -1823,175 +1995,23 @@ void classifyML(tree *tr, analdef *adef)
  
  
   treeFile = myfopen(labelledTreeFileName, "wb");
-  Tree2StringClassify(tr->tree_string, tr, tr->inserts, FALSE, FALSE, TRUE);
+  Tree2StringClassify(tr->tree_string, tr, tr->inserts, FALSE, FALSE, TRUE, tr->mxtips + 1);
   fprintf(treeFile, "%s\n", tr->tree_string);    
   fclose(treeFile);
   
  
   treeFile = myfopen(originalLabelledTreeFileName, "wb");
-  Tree2StringClassify(tr->tree_string, tr, tr->inserts, TRUE, FALSE, TRUE);
+  Tree2StringClassify(tr->tree_string, tr, tr->inserts, TRUE, FALSE, TRUE, tr->mxtips + 1);
   fprintf(treeFile, "%s\n", tr->tree_string);    
   fclose(treeFile);
 
   /* 
      JSON format only works for sequential version 
-     porting this to Pthreads will be a pain in the ass
-     
+     porting this to Pthreads will be a pain in the ass     
   */
-
-  treeFile = myfopen(jointFormatTreeFileName, "wb");
-  Tree2StringClassify(tr->tree_string, tr, tr->inserts, TRUE, TRUE, TRUE);
+ 
+  printStandardFormat(tr, jointFormatTreeFileName, tr->mxtips + 1, tr->numberOfTipsForInsertion, FALSE);
   
-  fprintf(treeFile, "{\n");
-  fprintf(treeFile, "\t\"tree\": \"%s\", \n", tr->tree_string);
-  fprintf(treeFile, "\t\"placements\": [\n");
-      
-  {
-    info 
-      *inf = (info*)rax_malloc(sizeof(info) * tr->numberOfBranches);
-        
-    for(i = 0; i < tr->numberOfTipsForInsertion; i++)    
-      {
-	double
-	  all,
-	  maxprob = 0.0,
-	  lmax = 0.0,
-	  acc = 0.0;
-	
-	int 
-	  k,
-	  validEntries = 0;
-
-	for(j =  0; j < tr->numberOfBranches; j++) 
-	  {
-	    inf[j].lh            = tr->bInf[j].epa->likelihoods[i];
-	    inf[j].pendantBranch = tr->bInf[j].epa->branches[i];
-	    inf[j].distalBranch  = tr->bInf[j].epa->distalBranches[i];
-	    inf[j].number        = tr->bInf[j].epa->jointLabel;
-	  }
-
-	qsort(inf, tr->numberOfBranches, sizeof(info), infoCompare);	 
-
-	for(j =  0; j < tr->numberOfBranches; j++) 
-	  if(inf[j].lh == unlikely)
-	    break;
-	  else	     
-	    validEntries++;	     	      
-
-	assert(validEntries > 0);
-
-	j = 0;
-
-	lmax = inf[0].lh;
-
-	for(k = 0, all = 0.0; k < validEntries; k++)
-	  all += exp(inf[k].lh - lmax);
-
-	fprintf(treeFile, "\t{\"p\":[");
-
-	/* 
-	   Erick's cutoff:
-	   
-	   I keep at most 7 placements and throw away anything that has less than
-	   0.01*best_ml_ratio.
-	   
-	   my old cutoff was at 0.95 accumulated likelihood weight:
-	   	     
-	   while(acc <= 0.95)
-	*/
-
-	/*#define _ALL_ENTRIES*/
-	  
-#ifdef _ALL_ENTRIES
-	assert(validEntries == tr->numberOfBranches);
-	while(j < validEntries)	  
-#else
-	while(j < validEntries && j < 7)	  
-#endif
-	  { 
-
-	    double 
-	      prob = 0.0;
-
-	    acc += (prob = (exp(inf[j].lh - lmax) / all));
-	      
-	    if(j == 0)
-	      maxprob = prob;
-#ifndef _ALL_ENTRIES
-	    if(prob >= maxprob * 0.01)
-#endif
-	      {
-		if(j > 0)
-		  {
-		    if(tr->wasRooted && inf[j].number == tr->rootLabel)
-		      {
-			double 
-			  b = getBranch(tr, tr->leftRootNode->z, tr->rightRootNode->z);
-			
-			if(inf[j].distalBranch > 0.5 * b)
-			  fprintf(treeFile, ",[%d, %f, %f, %f, %f]", tr->numberOfBranches, inf[j].lh, prob, inf[j].distalBranch - 0.5 * b, inf[j].pendantBranch);
-			else
-			  fprintf(treeFile, ",[%d, %f, %f, %f, %f]", inf[j].number, inf[j].lh, prob, 0.5 * b - inf[j].distalBranch, inf[j].pendantBranch); 
-		      }
-		    else
-		      fprintf(treeFile, ",[%d, %f, %f, %f, %f]", inf[j].number, inf[j].lh, prob, inf[j].distalBranch, inf[j].pendantBranch);
-		  }
-		else
-		  {
-		    if(tr->wasRooted && inf[j].number == tr->rootLabel)
-		      {
-			double 
-			  b = getBranch(tr, tr->leftRootNode->z, tr->rightRootNode->z);
-			
-			if(inf[j].distalBranch > 0.5 * b)
-			  fprintf(treeFile, "[%d, %f, %f, %f, %f]", tr->numberOfBranches, inf[j].lh, prob, inf[j].distalBranch - 0.5 * b, inf[j].pendantBranch);
-			else
-			  fprintf(treeFile, "[%d, %f, %f, %f, %f]", inf[j].number, inf[j].lh, prob, 0.5 * b - inf[j].distalBranch, inf[j].pendantBranch); 
-		      }
-		    else
-		      fprintf(treeFile, "[%d, %f, %f, %f, %f]", inf[j].number, inf[j].lh, prob,  inf[j].distalBranch, inf[j].pendantBranch);
-		  }
-	      }
-	    	      
-	    j++;
-	  }
-	  
-	if(i == tr->numberOfTipsForInsertion - 1)
-	  fprintf(treeFile, "], \"n\":[\"%s\"]}\n", tr->nameList[tr->inserts[i]]);
-	else
-	  fprintf(treeFile, "], \"n\":[\"%s\"]},\n", tr->nameList[tr->inserts[i]]);
-      }      
-    
-    rax_free(inf);      
-  }
-
-#ifdef _ALL_ENTRIES
-  assert(j == tr->numberOfBranches);
-#endif
-
-  fprintf(treeFile, "\t ],\n");
-  fprintf(treeFile, "\t\"metadata\": {\"invocation\": ");
-
-  fprintf(treeFile, "\"");
-  
-  {
-    int i;
-    
-    for(i = 0; i < globalArgc; i++)
-      fprintf(treeFile,"%s ", globalArgv[i]);
-  }
-  fprintf(treeFile, "\", \"raxml_version\": \"%s\"", programVersion);
-  fprintf(treeFile,"},\n");
-
-  fprintf(treeFile, "\t\"version\": 2,\n");
-  fprintf(treeFile, "\t\"fields\": [\n");
-  fprintf(treeFile, "\t\"edge_num\", \"likelihood\", \"like_weight_ratio\", \"distal_length\", \n");
-  fprintf(treeFile, "\t\"pendant_length\"\n");
-  fprintf(treeFile, "\t]\n");
-  fprintf(treeFile, "}\n");
-  
-  fclose(treeFile);
-
   /* JSON format end */
 
   classificationFile = myfopen(classificationFileName, "wb");
@@ -2110,4 +2130,623 @@ void classifyML(tree *tr, analdef *adef)
   exit(0);
 }
 
+/***** subtree EPA ****/
 
+
+
+//#define _DEBUG_SUBTREE_EPA
+
+//function to determine if nodeptr p is the root of a subtree 
+//that contains all taxa of the subtree specified in a line of the 
+//subtree specification file passed via -z
+
+static boolean isRoot(nodeptr p, tree *tr, int tipsFound, int *subtreeTips, int *counter)
+{
+  if(isTip(p->number, tr->rdta->numsp))
+    {
+      int 
+	i;
+
+      //if it is a tip, check if the tip number is contained in the list of tip numbers
+      //stored in subtreeTips that span the subtree we want to place
+
+      for(i = 0; i < tipsFound; i++)
+	{
+	  if(subtreeTips[i] == p->number)
+	    {
+	      //if this tip forms part of the subtree we are looking for 
+	      //increment the counter of subtree tips we have found and return TRUE
+	      *counter = *counter + 1;
+	      return TRUE;
+	    }
+	}
+      return FALSE;
+      
+    }
+  else
+    {     
+      //if our node p is an annier node 
+      //check if the left and right subtrees only contain tips that belong to the subtree we want to place
+      //if this is the case return TRUE
+
+      nodeptr 
+	q = p->next;
+
+      while(q != p)
+	{
+	  if(isRoot(q->back, tr, tipsFound, subtreeTips, counter) == FALSE)
+	    return FALSE;
+	  q = q->next;
+	}
+
+      return TRUE;
+    }
+}
+
+
+//function that checks if the subtree that shall be placed as specified in the 
+//file passed via -z is monophyletic, if this is the case it returns the root of that subtree
+//otherwise it will return NULL
+static nodeptr findRoot(tree *tr, int tipsFound, int *subtreeTips)
+{
+  nodeptr 
+    p = (nodeptr)NULL,
+    *subtrees = (nodeptr *)rax_malloc(sizeof(nodeptr) * 3 * tr->mxtips);
+
+  boolean 
+    monophyletic = FALSE;
+
+  int 
+    i,
+    count = 0,
+    tipCounter = 0;
+    
+  //function that finds the roots of all subtrees containing tipsFound taxa 
+  //in the comprehensive reference tree 
+  //it stores the subtree roots in an array called subtrees and 
+  //returns the number of subtrees it found in count
+  collectSubtrees(tr, subtrees, &count, tipsFound);
+  
+  //now loop over all subtrees that have the size of the subtree we are looking for 
+  //and determine if one of them contains all taxa of the subtree we actually want to place
+  
+  for(i = 0; (i < count) && (!monophyletic); i++)
+    if(isRoot(subtrees[i], tr, tipsFound, subtreeTips, &tipCounter))
+      {
+	//set the return value if this is the subtree we have been looking for
+	p = subtrees[i];
+	
+	//break the loop
+	monophyletic = TRUE;
+	
+	//make sure that the subtree really contains all taxa of the subtree we want to place
+	assert(tipCounter == tipsFound);
+      }	    
+
+  rax_free(subtrees);
+
+  //return the subtree root 
+
+  return p;
+}
+
+#ifdef _DEBUG_SUBTREE_EPA
+//debugging function for printing the subtree we want to place, once we have found his root
+
+static void printRec(nodeptr p, tree *tr)
+{
+  if(isTip(p->number, tr->mxtips))
+    printf("%s", tr->nameList[p->number]);
+  else
+    {
+      nodeptr
+	q = p->next;
+
+      printf("(");
+      while(q != p)
+	{
+	  printRec(q->back, tr);	  
+
+	  if(q->next != p)
+	    printf(",");
+	  q = q->next;
+	}
+      printf(")");
+    }
+}
+#endif
+  
+//function that computes the insertion likelihood of our subtree rooted at subTreeRoot 
+//into a branch q <-> q->back of the remaining reference tree
+//the rootNumber parameter is required for the jplace standard output format to determine 
+//the direction of the root for defining pendant and distal branch lengths
+
+static void testInsertSubtree(tree *tr, nodeptr subTreeRoot, nodeptr q, int rootNumber)
+{
+  double 
+    //store the original branch length of the reference tree
+    originalBranchLength = getBranch(tr, q->z, q->back->z),
+    result,           
+    qz[NUM_BRANCHES],
+    z[NUM_BRANCHES];
+  
+  nodeptr      
+    root = (nodeptr)NULL,  
+    x = q->back; 
+
+  int 
+    j;
+  
+  //rooted trees and the EPA extension for mult-gene datasets are currently not allowed!
+  assert(!tr->wasRooted);
+  assert(!tr->perPartitionEPA);
+  
+  //determine if the virtual root for the jplace output format lies in 
+  //the direction of or q->back, that is, on which end of our insertion branch it lies
+  root = findRootDirection(q, tr, rootNumber);
+
+  //make sure that we found it!
+  assert(root);
+
+  //store the original branch lengths between 
+  //q and q->back (x)
+  for(j = 0; j < tr->numBranches; j++)    
+    {
+      qz[j] = q->z[j];
+      z[j] = sqrt(qz[j]); 
+
+      if(z[j] < zmin) 
+	z[j] = zmin;
+      
+      if(z[j] > zmax)
+	z[j] = zmax;
+    }  
+    
+  //insert the subtree into the branch connecting q and x 
+  hookup(subTreeRoot->next,       q, z, tr->numBranches);
+  hookup(subTreeRoot->next->next, x, z, tr->numBranches);
+  
+  //set a default value for the branch to which the subtree is attached
+  hookupDefault(subTreeRoot, subTreeRoot->back, tr->numBranches);      		     
+  
+  //re-calculate the cond likelihood vector at the subtree root
+  newviewGeneric(tr, subTreeRoot);
+
+  //optimize the three branch lengths around the insertion position
+  localSmooth(tr, subTreeRoot, smoothings);
+
+  //calculate the insertion likelihood
+  result = evaluateGeneric(tr, subTreeRoot);
+  
+
+  //now store data for generating jplace output later-on
+  {
+    double 
+      modifiedBranchLength = 0.0,
+      distalLength = 0.0,
+      ratio = 0.0;
+    
+
+    //get the pendant branch for this placement
+    tr->bInf[q->bInf->epa->branchNumber].epa->branches[0] = getBranch(tr, subTreeRoot->z, subTreeRoot->back->z);
+
+    //store the likelihood for placing the subtree in here
+    tr->bInf[q->bInf->epa->branchNumber].epa->likelihoods[0] = result;
+    
+    //get the sum of branch lengths on the path from q to x on which we inserted our subtree
+    modifiedBranchLength = getBranch(tr, q->z, q->back->z) + getBranch(tr, x->z, x->back->z);
+    
+    //calculate the ration between the original branch connecting q and x 
+    //and the current pathe length between q and x 
+    ratio = originalBranchLength / modifiedBranchLength;
+    
+    //if the root lies in the direction of x 
+    //the branch leading from the subtree insertion point to x is the distal branch
+    if(root == x)		
+      distalLength = getBranch(tr, x->z, x->back->z);	       
+    //otherwise it's the branch leading from the subtree insertion point to q
+    else
+      {
+	assert(root == q); 	
+	distalLength = getBranch(tr, q->z, q->back->z);
+      }
+    
+    //now scale the distal length by the ratio 
+    distalLength *= ratio;
+    
+    //must be shorter than the originalBranch 
+    assert(distalLength <= originalBranchLength);
+    
+    //store the distal branch
+    tr->bInf[q->bInf->epa->branchNumber].epa->distalBranches[0] = distalLength;
+  }
+  
+#ifdef _DEBUG_SUBTREE_EPA
+  printf("insertion likelihood %f\n", result);
+#endif
+  
+  //repair the original branch between q and x such that we can move on 
+  hookup(q, x, qz, tr->numBranches);
+  
+  //set the attachment points of the subtree root to NULL for a more clean implementation
+  //the actual subtree we are placing in the tree is attached to subTreeRoot->back!
+  subTreeRoot->next->next->back = subTreeRoot->next->back = (nodeptr) NULL; 
+}
+
+//function to recursively place the subtree rooted at subtreeRoot into all branches of the reference 
+//tree
+static void placeSubtreeRec(tree *tr, nodeptr subtreeRoot, nodeptr q, int *insertionCount, int rootNumber)
+{     
+  //insert subtree and calculate likelihood into the branch q and q->back
+  testInsertSubtree(tr, subtreeRoot, q, rootNumber);
+  
+  //increment the number of subtree insertions we have conducted
+  *insertionCount = *insertionCount + 1;
+
+  //if q is not a tip descend into the left and right subtree of q
+  if(!isTip(q->number, tr->rdta->numsp))
+    {   
+      nodeptr 
+	a = q->next;
+
+      while(a != q)
+	{
+	  placeSubtreeRec(tr, subtreeRoot, a->back, insertionCount, rootNumber);
+	  a = a->next;
+	}      
+    }
+} 
+
+//function to calculate all placements for a specific subtree into the remaining tree
+//subTreeRoot is the root of the subtree to be placed
+//tipsFound the number of tips this subtree contains
+//subTreeIndex the index of the subtree in the input file
+
+static void placeSubtree(nodeptr subTreeRoot, tree *tr, int tipsFound, int subTreeIndex)
+{
+  int 
+    rootNumber = 0,
+    //number of branches in the reference tree
+    branchesInReferenceTree = 2 * (tr->mxtips - tipsFound) - 3,
+    //number of tips in the reference tree
+    taxaInReferenceTree = tr->mxtips - tipsFound,
+    insertionCount = 0, 
+    i;
+
+  //branch length buffers to store the branches such as to be able to repair the 
+  //original tree
+  double
+    z1[NUM_BRANCHES],
+    z2[NUM_BRANCHES],
+    z3[NUM_BRANCHES];
+  
+  nodeptr 
+    //nodes to repair the pruning of the subtree to be placed 
+    //and restore the original comprehensive tree once we are done with placing
+    //thus subtree
+    p1 = subTreeRoot->back,
+    p2 = subTreeRoot->next->back,
+    p3 = subTreeRoot->next->next->back,
+    q,
+    start;
+
+  char 
+    buf[64] = "",
+    subTreeFileName[1024] = "";
+
+  //first generate a file name for the jplace output file for the placements of the current subtree
+
+  sprintf(buf, "%d", subTreeIndex);
+
+  strcpy(subTreeFileName, workdir);
+  strcat(subTreeFileName, "RAxML_subtreePlacement.");
+  strcat(subTreeFileName, run_id);
+  strcat(subTreeFileName, ".");
+  strcat(subTreeFileName, buf);
+  strcat(subTreeFileName, ".jplace");
+  
+
+  //store the branch lengths of the initial comprehensive tree
+  for(i = 0; i < tr->numBranches; i++)
+    {
+      z1[i] = p1->z[i];
+      z2[i] = p2->z[i];
+      z3[i] = p3->z[i];
+    }
+	
+  //prune the subtree and return the node q that is located on 
+  //one end of the branch from which we pruned the subtree
+  q = removeNodeBIG(tr, subTreeRoot, tr->numBranches);
+  //find an arbitrary tip in the remaining tree into which we are going to place the subtree
+  start = findAnyTip(q, tr->mxtips);
+  //set an ARBITRARY inner node of the remaining subtree as root, this si required 
+  //for the jplace format!
+  rootNumber = start->back->number;
+
+  /*****/
+  
+  //set some variables of the tree data structure such that the EPA functions we are going to re-use 
+  //will work properly without assertions failing
+  tr->ntips = taxaInReferenceTree;
+  tr->branchCounter = 0;
+  tr->numberOfBranches = branchesInReferenceTree;
+
+  //allocate space for storing placement meta-data associated to branches of the reference tree
+
+  tr->bInf              = (branchInfo*)rax_malloc(tr->numberOfBranches * sizeof(branchInfo));
+  
+  for(i = 0; i < tr->numberOfBranches; i++)
+    {      
+      tr->bInf[i].epa = (epaBranchData*)rax_malloc(sizeof(epaBranchData));      
+
+      tr->bInf[i].epa->branches          = (double*)rax_calloc(1, sizeof(double));   
+      tr->bInf[i].epa->distalBranches    = (double*)rax_calloc(1, sizeof(double)); 
+         
+      tr->bInf[i].epa->likelihoods = (double*)rax_calloc(1, sizeof(double));      
+      tr->bInf[i].epa->branchNumber = i;
+      
+      sprintf(tr->bInf[i].epa->branchLabel, "I%d", i);     
+    } 
+
+  //link this data structure to the branches of the reference tree 
+  //we traverse it at the inner node that starts at start->back, start
+  //was an arbitrary tip node!
+
+  setupBranchMetaInfo(tr, start->back, taxaInReferenceTree, tr->bInf);
+    
+  //make sure that we have linked meta-information structures to all branches 
+  //of the reference tree
+  assert(tr->branchCounter == tr->numberOfBranches);  
+
+  //EPA-internal branch labels and jplace branch labels are identical,
+  //because no rooting of the reference tree can be determined since
+  //we pruned a part of the tree (the subtree to be placed) 
+  //that might have contained the original root or top-level trifurcation
+  for(i = 0; i < tr->numberOfBranches; i++)         
+    tr->bInf[i].epa->jointLabel = tr->bInf[i].epa->branchNumber;           
+  
+  /******/
+
+  //make sure that the rootNumber node for the jplace format is an inner node and not a tip
+  assert(rootNumber > tr->mxtips);
+
+  //do a full traversal of the reference tree, might not be required, but feels safer
+  evaluateGenericInitrav(tr, start);
+
+  //TODO maybe re-optimize branch lengths as well?
+
+  printBothOpen("\nLikelihood of reference tree for subtree %d: %f\n\n", subTreeIndex, tr->likelihood);
+
+  //now call the function that calculates the likelihoods for 
+  //placing the subtree into all branches of the reference tree
+  placeSubtreeRec(tr, subTreeRoot, start->back, &insertionCount, rootNumber);
+
+  //make sure that we have placed the subtree into all branches
+  assert(insertionCount == branchesInReferenceTree);
+
+  //print jplace-formatted placement result to file
+  printStandardFormat(tr, subTreeFileName, rootNumber, 1, TRUE);
+
+
+  //repair the original comprehensive tree by re-inserting the subtree 
+  //into its original position with original branch length values
+  hookup(subTreeRoot,             p1, z1, tr->numBranches);
+  hookup(subTreeRoot->next,       p2, z2, tr->numBranches);
+  hookup(subTreeRoot->next->next, p3, z3, tr->numBranches);
+  
+  //do a full traversal of the now, again comprehensive tree, maybe not required but feels 
+  //safer
+  evaluateGenericInitrav(tr, tr->start);
+
+#ifdef _DEBUG_SUBTREE_EPA
+  printf("repaired like %f\n\n", tr->likelihood);
+#endif
+
+  //free the branch length meta-data 
+  
+  for(i = 0; i < tr->numberOfBranches; i++)
+    {            
+      rax_free(tr->bInf[i].epa->branches);
+      rax_free(tr->bInf[i].epa->distalBranches);         
+      rax_free(tr->bInf[i].epa->likelihoods);      
+      rax_free(tr->bInf[i].epa);                
+    } 
+
+  rax_free(tr->bInf);
+
+  //TODO maybe cleanup the node to meta-data links,
+  //after the free operation above they actually point into the Nirvana 
+  // p->bInf       = &bInf[countBranches];
+  // p->back->bInf = &bInf[countBranches];
+
+  printBothOpen("Subtree placements for subtree %d written to file %s\n\n", subTreeIndex, subTreeFileName);
+
+  printBothOpen("****************************************************************\n");
+}
+
+//top level function that computes subtree placements for a list of subtrees
+void subtreeEPA(tree *tr, analdef *adef)
+{
+  int    
+    //input file line count
+    lineCount = 0,
+    //count of subtrees in that file
+    subTreeCount = 0,
+    //data structure for storing tip node numbers of the subtree under consideration
+    *subtreeTips = (int *)rax_malloc(sizeof(int) * (size_t)(tr->mxtips)); 
+  
+  char 
+    *line = (char*)NULL;
+
+  size_t 
+    len = 0;
+
+  ssize_t 
+    read;     
+  
+  FILE 
+    *f = myfopen(bootStrapFile, "rb");
+  
+  //no outgroups and hauristic likelihood evaluations allowd
+  adef->outgroup = FALSE;
+  tr->doCutoff   = FALSE;
+  
+  //make sure that an input tree was provided via -t 
+  //and the the input tree contains all taxa!
+  assert(adef->restart);
+  assert(tr->ntips == tr->mxtips);
+  
+  //set tree was rooted to FALSE,
+  //since the reference trees will always be subtrees of the input tree
+  //the information on the root is potentially useless
+  if(tr->wasRooted)
+    tr->wasRooted = FALSE;
+  
+  //use binary model file for avoiding re-optimization of model parameters 
+  //for faster production deployement 
+  //Attention: not tested yet!
+  if(adef->useBinaryModelFile)
+    {      
+      evaluateGenericInitrav(tr, tr->start);
+      //treeEvaluate(tr, 2);
+    }
+  //just re-optimize all parameters 
+  else
+    {
+      evaluateGenericInitrav(tr, tr->start); 
+  
+      modOpt(tr, adef, TRUE, 0.1);
+    }
+
+  printBothOpen("\nLikelihood of comprehensive tree: %f\n\n", tr->likelihood);
+  
+  printBothOpen("****************************************************************\n");
+
+  //loop over the lines of the input file 
+
+  while((read = rax_getline(&line, &len, f)) != -1)
+    {
+      nodeptr
+	p,
+	subTreeRoot;
+
+      int 	
+	tipsFound = 0,
+	i = 0;         
+
+      while(i < read - 1)
+	{	  	  	  
+	  //if there is not a whitechar in the current line start putting together the taxon name 
+	  //it contains until we meet the next whitespace
+	  if(!whitechar(line[i]))
+	    {
+	      int	       
+		tipNumber = -1,
+		nameLength = 0;
+	      
+	      char  
+		str[nmlngth + 2]="";      	      
+
+	      //copy taxon name from the line of the file into a string buffer
+	      do
+		{
+		  str[nameLength] = line[i];
+		  i++;
+		  nameLength++;
+		}
+	      while(!whitechar(line[i]) && i < read - 1);
+	 
+	      //make sure the taxon name is not too long
+	      assert(nameLength < nmlngth + 2);
+
+	      //look up if the taxon name specified in the file actually exists 
+	      tipNumber = treeFindTipByLabelString(str, tr, FALSE);
+	      
+	      if(tipNumber == 0)
+		{
+		  printBothOpen("\nCouldn't find tip with name %s, exiting\n", str);
+		  exit(-1);
+		}
+
+#ifdef _DEBUG_SUBTREE_EPA
+	      printf("tipnumber %d\n", tipNumber);
+#endif
+	      //if the taxon name exists add it to our list of taxa 
+	      //that span the current subtree
+
+	      subtreeTips[tipsFound] = tipNumber;
+	      
+#ifdef _DEBUG_SUBTREE_EPA	      
+	      printf("found tip %s\n", tr->nameList[tipNumber]);
+#endif
+	      
+	      tipsFound++;
+	    }
+	  else
+	    i++;
+	}        
+      
+      lineCount++;
+
+      //now that we have processed the entire line and determined 
+      //that all taxon names in that line exist determine if they actually span
+      //a subtree
+
+      if(tipsFound > 0)	
+	{
+	  printBothOpen("\nFound a subtree with %d tips for placement\n", tipsFound);
+          	
+	  //determine if the taxa in the list span a subtree of the current tree
+	  p = findRoot(tr, tipsFound, subtreeTips); 
+	  
+	  //if they don't exit 
+	  if(p == (nodeptr)NULL)
+	    {
+	      printBothOpen("\nSubtree in line %d of input file is not monophyletic as it ought to be, exiting ...\n", lineCount);
+	      exit(-1);
+	    }
+
+#ifdef _DEBUG_SUBTREE_EPA
+	  printRec(p, tr);
+	  printf("\n\n");
+#endif
+
+	  //p is the root node of the subtree but we actually need to go back 
+	  //to p->back which is the node that defines the branch on which the 
+	  //subtree root is hanging, it's this node we actually need to place 
+	  //into the remaining reference tree
+	  subTreeRoot = p->back;
+
+	  //make sure the node from which the subtree is hanging is not a tip
+	  assert(!isTip(subTreeRoot->number, tr->mxtips));
+
+	  //make sure the remaining tree has at least 3 taxa, otherwise this doesn't make sense
+	  if(tr->mxtips - tipsFound > 2)
+	    {
+	      subTreeCount++;
+	      placeSubtree(subTreeRoot, tr, tipsFound, subTreeCount);	   
+	    }
+	  else
+	    {	 
+	      //just skip the subtree
+	      printBothOpen("The subtree specified in line %d of the input file is so large that\n", lineCount);
+	      printBothOpen("the remaining tree into which it shall be placed only has %d taxa\n", tr->mxtips - tipsFound);
+	      printBothOpen("... skipping this subtree ... \n");
+	    }
+	}         
+
+    }
+   
+  //free some data structures and we are done
+
+  if(line)
+    rax_free(line);   
+  
+  fclose(f);
+
+  rax_free(subtreeTips);
+
+  printBothOpen("\n\nRAxML computed placements for %d subtrees in the given tree and will exit now, nastrovje!\n\n", subTreeCount);
+
+  exit(0);
+}

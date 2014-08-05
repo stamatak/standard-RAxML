@@ -2454,12 +2454,12 @@ void classifyMP(tree *tr, analdef *adef)
  
 
   treeFile = myfopen(originalLabelledTreeFileName, "wb");
-  Tree2StringClassify(tr->tree_string, tr, tr->inserts, TRUE, FALSE, FALSE);
+  Tree2StringClassify(tr->tree_string, tr, tr->inserts, TRUE, FALSE, FALSE, tr->mxtips + 1);
   fprintf(treeFile, "%s\n", tr->tree_string);    
   fclose(treeFile); 
 
   treeFile = myfopen(jointFormatTreeFileName, "wb");
-  Tree2StringClassify(tr->tree_string, tr, tr->inserts, TRUE, TRUE, FALSE);
+  Tree2StringClassify(tr->tree_string, tr, tr->inserts, TRUE, TRUE, FALSE, tr->mxtips + 1);
   
   fprintf(treeFile, "{\n");
   fprintf(treeFile, "\t\"tree\": \"%s\", \n", tr->tree_string);
@@ -2581,7 +2581,7 @@ void classifyMP(tree *tr, analdef *adef)
   fclose(likelihoodWeightsFile); 
     
   
-  Tree2StringClassify(tr->tree_string, tr, tr->inserts, FALSE, FALSE, FALSE);
+  Tree2StringClassify(tr->tree_string, tr, tr->inserts, FALSE, FALSE, FALSE, tr->mxtips + 1);
   treeFile = fopen(labelledTreeFileName, "wb");
   fprintf(treeFile, "%s\n", tr->tree_string);
   fclose(treeFile);

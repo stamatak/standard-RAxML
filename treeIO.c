@@ -367,7 +367,7 @@ static char *Tree2StringREC(char *treestr, tree *tr, nodeptr p, boolean printBra
 }
 
 
-static void collectSubtrees(tree *tr, nodeptr *subtrees, int *count, int ogn)
+void collectSubtrees(tree *tr, nodeptr *subtrees, int *count, int ogn)
 {
   int i;
   for(i = tr->mxtips + 1; i <= tr->mxtips + tr->mxtips - 2; i++)
@@ -847,7 +847,7 @@ static boolean  treeFlushLabel (FILE *fp)
 
 
 
-static int treeFindTipByLabelString(char  *str, tree *tr, boolean check)                    
+int treeFindTipByLabelString(char  *str, tree *tr, boolean check)                    
 {
   int 
     lookup = lookupWord(str, tr->nameHash);
