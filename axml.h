@@ -165,8 +165,8 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "RAxML"
-#define programVersion     "8.1.2"
-#define programDate        "August 5 2014"
+#define programVersion     "8.1.3"
+#define programDate        "August 13 2014"
 
 
 #define  TREE_EVALUATION                 0
@@ -1223,7 +1223,7 @@ extern int treeFindTipByLabelString(char  *str, tree *tr, boolean check);
 extern ssize_t rax_getline(char **lineptr, size_t *n, FILE *h);
 extern void markTips(nodeptr p, int *perm, int maxTips);
 extern char *Tree2StringClassify(char *treestr, tree *tr, int *inserts, 
-				 boolean  originalTree, boolean jointLabels, boolean likelihood, int rootNumber);
+				 boolean  originalTree, boolean jointLabels, boolean likelihood, int rootNumber, boolean subtreePlacement);
 
 
 extern void doBootstrap ( tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta );

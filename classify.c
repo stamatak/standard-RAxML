@@ -135,15 +135,22 @@ static double getBranchPerPartition(tree *tr, double *b, double *bb, int j)
 
 
 static char *Tree2StringClassifyRec(char *treestr, tree *tr, nodeptr p, int *countBranches, 
-				    int *inserts, boolean originalTree, boolean jointLabels, boolean likelihood)
+				    int *inserts, boolean originalTree, boolean jointLabels, boolean likelihood, boolean subtreePlacement)
 {        
-  branchInfo *bInf = p->bInf;
-  int        i, countQuery = 0;   
+  branchInfo 
+    *bInf = p->bInf;
+
+  //for subtree placements only, this variable tells us if we are 
+  //at the branch from which we pruned the subtree
+  boolean
+    atPruningBranch = FALSE;
+  
+  int        
+    i, 
+    countQuery = 0;   
 
   *countBranches = *countBranches + 1;
-
   
-
   if(!originalTree)
     {
       for(i = 0; i < tr->numberOfTipsForInsertion; i++)
@@ -193,28 +200,51 @@ static char *Tree2StringClassifyRec(char *treestr, tree *tr, nodeptr p, int *cou
 	}
     }
 
+  //normally p->bInf and p->back->bInf that define a branch 
+  //must point to the same branch meta-data entry, except for one branch 
+  //in the subtree placement procedure, this is the branch from which we pruned the 
+  //subtree
+
+  if(p->bInf != p->back->bInf)
+    {
+      //if this was a subtree placement set pruning branch to true
+      if(subtreePlacement)
+	{
+	  assert(originalTree);
+	  atPruningBranch = TRUE;	  
+	}
+      else
+	//otherwise exit with an assertion 
+	assert(p->bInf == p->back->bInf);
+    }
+     
+
   if(isTip(p->number, tr->rdta->numsp)) 
     {
-      char *nameptr = tr->nameList[p->number];  
+      char 
+	*nameptr = tr->nameList[p->number];  
         
       sprintf(treestr, "%s", nameptr);    
-      while (*treestr) treestr++;
+      
+      while(*treestr) 
+	treestr++;
     }
   else 
-    {                    
+    {          
       *treestr++ = '(';     
       treestr = Tree2StringClassifyRec(treestr, tr, p->next->back, 
-				       countBranches, inserts, originalTree, jointLabels, likelihood);     
+				       countBranches, inserts, originalTree, jointLabels, likelihood, subtreePlacement);     
       *treestr++ = ',';
       treestr = Tree2StringClassifyRec(treestr, tr, p->next->next->back, 
-				       countBranches, inserts, originalTree, jointLabels, likelihood);          
+				       countBranches, inserts, originalTree, jointLabels, likelihood, subtreePlacement);          
       *treestr++ = ')';                         
     }
    
   if(countQuery > 0)
     {
       sprintf(treestr, ":%8.20f[%s]", 0.5 * p->bInf->epa->originalBranchLength, p->bInf->epa->branchLabel);
-      while (*treestr) treestr++;
+      while (*treestr) 
+	treestr++;
       *treestr++ = ')'; 
     }
     
@@ -242,8 +272,15 @@ static char *Tree2StringClassifyRec(char *treestr, tree *tr, nodeptr p, int *cou
 	    }
 	  else
 	    {	     
-	      sprintf(treestr, ":%8.20f{%d", p->bInf->epa->originalBranchLength, 
-		      p->bInf->epa->jointLabel);  
+	      //if we are doing subtree placements and this is the branch from which we pruned the tree
+	      //we actually output both branch labels that were connected to the subtree root node that 
+	      //we pruned
+	      if(subtreePlacement && atPruningBranch)
+		sprintf(treestr, ":%8.20f{%d,%d", p->bInf->epa->originalBranchLength, 
+			p->bInf->epa->jointLabel, p->back->bInf->epa->jointLabel);
+	      else
+		sprintf(treestr, ":%8.20f{%d", p->bInf->epa->originalBranchLength, 
+			p->bInf->epa->jointLabel);  
 	    }
 	}
       else
@@ -275,7 +312,7 @@ static char *Tree2StringClassifyRec(char *treestr, tree *tr, nodeptr p, int *cou
 
 
 char *Tree2StringClassify(char *treestr, tree *tr, int *inserts, 
-			  boolean  originalTree, boolean jointLabels, boolean likelihood, int rootNumber)
+			  boolean  originalTree, boolean jointLabels, boolean likelihood, int rootNumber, boolean subtreePlacement)
 {
   nodeptr 
     p;
@@ -287,13 +324,14 @@ char *Tree2StringClassify(char *treestr, tree *tr, int *inserts,
   if(jointLabels && tr->wasRooted)
     { 
       assert(originalTree);
+      assert(!subtreePlacement);
       
       *treestr++ = '(';
       treestr = Tree2StringClassifyRec(treestr, tr, tr->leftRootNode, &countBranches, 
-				       inserts, originalTree, jointLabels, likelihood);
+				       inserts, originalTree, jointLabels, likelihood, subtreePlacement);
       *treestr++ = ',';
       treestr = Tree2StringClassifyRec(treestr, tr, tr->rightRootNode, &countBranches, 
-				       inserts, originalTree, jointLabels, likelihood);	 
+				       inserts, originalTree, jointLabels, likelihood, subtreePlacement);	 
       *treestr++ = ')';
       *treestr++ = ';';
       
@@ -314,13 +352,13 @@ char *Tree2StringClassify(char *treestr, tree *tr, int *inserts,
       
       *treestr++ = '(';
       treestr = Tree2StringClassifyRec(treestr, tr, p->back, &countBranches, 
-				       inserts, originalTree, jointLabels, likelihood);
+				       inserts, originalTree, jointLabels, likelihood, subtreePlacement);
       *treestr++ = ',';
       treestr = Tree2StringClassifyRec(treestr, tr, p->next->back, &countBranches, 
-				       inserts, originalTree, jointLabels, likelihood);
+				       inserts, originalTree, jointLabels, likelihood, subtreePlacement);
       *treestr++ = ',';
       treestr = Tree2StringClassifyRec(treestr, tr, p->next->next->back, &countBranches, 
-				       inserts, originalTree, jointLabels, likelihood);
+				       inserts, originalTree, jointLabels, likelihood, subtreePlacement);
       *treestr++ = ')';
       *treestr++ = ';';
       
@@ -1656,7 +1694,7 @@ static void printStandardFormat(tree *tr, char *jointFormatTreeFileName, int roo
     i,
     j;
   
-  Tree2StringClassify(tr->tree_string, tr, tr->inserts, TRUE, TRUE, TRUE, rootNumber);
+  Tree2StringClassify(tr->tree_string, tr, tr->inserts, TRUE, TRUE, TRUE, rootNumber, subtreePlacement);
   
   fprintf(treeFile, "{\n");
   fprintf(treeFile, "\t\"tree\": \"%s\", \n", tr->tree_string);
@@ -1688,8 +1726,14 @@ static void printStandardFormat(tree *tr, char *jointFormatTreeFileName, int roo
 	if(inf[j].lh == unlikely)
 	  break;
 	else	     
-	  validEntries++;	     	      
-      
+	  validEntries++;	  
+
+      //for subtree placements make sure we have as many valid entries in the list 
+      //as we have branches in the reference tree (after sutree pruning!)
+      if(subtreePlacement)
+	assert(validEntries == (2 * tr->ntips) - 3);
+           
+      //otherwise also make sure that there is at least one valid entry!
       assert(validEntries > 0);
       
       j = 0;
@@ -1995,13 +2039,13 @@ void classifyML(tree *tr, analdef *adef)
  
  
   treeFile = myfopen(labelledTreeFileName, "wb");
-  Tree2StringClassify(tr->tree_string, tr, tr->inserts, FALSE, FALSE, TRUE, tr->mxtips + 1);
+  Tree2StringClassify(tr->tree_string, tr, tr->inserts, FALSE, FALSE, TRUE, tr->mxtips + 1, FALSE);
   fprintf(treeFile, "%s\n", tr->tree_string);    
   fclose(treeFile);
   
  
   treeFile = myfopen(originalLabelledTreeFileName, "wb");
-  Tree2StringClassify(tr->tree_string, tr, tr->inserts, TRUE, FALSE, TRUE, tr->mxtips + 1);
+  Tree2StringClassify(tr->tree_string, tr, tr->inserts, TRUE, FALSE, TRUE, tr->mxtips + 1, FALSE);
   fprintf(treeFile, "%s\n", tr->tree_string);    
   fclose(treeFile);
 
@@ -2433,7 +2477,6 @@ static void placeSubtree(nodeptr subTreeRoot, tree *tr, int tipsFound, int subTr
   char 
     buf[64] = "",
     subTreeFileName[1024] = "";
-
   //first generate a file name for the jplace output file for the placements of the current subtree
 
   sprintf(buf, "%d", subTreeIndex);
@@ -2443,8 +2486,7 @@ static void placeSubtree(nodeptr subTreeRoot, tree *tr, int tipsFound, int subTr
   strcat(subTreeFileName, run_id);
   strcat(subTreeFileName, ".");
   strcat(subTreeFileName, buf);
-  strcat(subTreeFileName, ".jplace");
-  
+  strcat(subTreeFileName, ".jplace");  
 
   //store the branch lengths of the initial comprehensive tree
   for(i = 0; i < tr->numBranches; i++)
@@ -2457,55 +2499,13 @@ static void placeSubtree(nodeptr subTreeRoot, tree *tr, int tipsFound, int subTr
   //prune the subtree and return the node q that is located on 
   //one end of the branch from which we pruned the subtree
   q = removeNodeBIG(tr, subTreeRoot, tr->numBranches);
+
   //find an arbitrary tip in the remaining tree into which we are going to place the subtree
   start = findAnyTip(q, tr->mxtips);
+  
   //set an ARBITRARY inner node of the remaining subtree as root, this si required 
   //for the jplace format!
-  rootNumber = start->back->number;
-
-  /*****/
-  
-  //set some variables of the tree data structure such that the EPA functions we are going to re-use 
-  //will work properly without assertions failing
-  tr->ntips = taxaInReferenceTree;
-  tr->branchCounter = 0;
-  tr->numberOfBranches = branchesInReferenceTree;
-
-  //allocate space for storing placement meta-data associated to branches of the reference tree
-
-  tr->bInf              = (branchInfo*)rax_malloc(tr->numberOfBranches * sizeof(branchInfo));
-  
-  for(i = 0; i < tr->numberOfBranches; i++)
-    {      
-      tr->bInf[i].epa = (epaBranchData*)rax_malloc(sizeof(epaBranchData));      
-
-      tr->bInf[i].epa->branches          = (double*)rax_calloc(1, sizeof(double));   
-      tr->bInf[i].epa->distalBranches    = (double*)rax_calloc(1, sizeof(double)); 
-         
-      tr->bInf[i].epa->likelihoods = (double*)rax_calloc(1, sizeof(double));      
-      tr->bInf[i].epa->branchNumber = i;
-      
-      sprintf(tr->bInf[i].epa->branchLabel, "I%d", i);     
-    } 
-
-  //link this data structure to the branches of the reference tree 
-  //we traverse it at the inner node that starts at start->back, start
-  //was an arbitrary tip node!
-
-  setupBranchMetaInfo(tr, start->back, taxaInReferenceTree, tr->bInf);
-    
-  //make sure that we have linked meta-information structures to all branches 
-  //of the reference tree
-  assert(tr->branchCounter == tr->numberOfBranches);  
-
-  //EPA-internal branch labels and jplace branch labels are identical,
-  //because no rooting of the reference tree can be determined since
-  //we pruned a part of the tree (the subtree to be placed) 
-  //that might have contained the original root or top-level trifurcation
-  for(i = 0; i < tr->numberOfBranches; i++)         
-    tr->bInf[i].epa->jointLabel = tr->bInf[i].epa->branchNumber;           
-  
-  /******/
+  rootNumber = start->back->number;          
 
   //make sure that the rootNumber node for the jplace format is an inner node and not a tip
   assert(rootNumber > tr->mxtips);
@@ -2514,6 +2514,9 @@ static void placeSubtree(nodeptr subTreeRoot, tree *tr, int tipsFound, int subTr
   evaluateGenericInitrav(tr, start);
 
   //TODO maybe re-optimize branch lengths as well?
+  //Alexey could you please test ?
+  //Note that, for this we need to save all branch lengths prior to pruning the subtree and 
+  //restore them again before we exit the function again!
 
   printBothOpen("\nLikelihood of reference tree for subtree %d: %f\n\n", subTreeIndex, tr->likelihood);
 
@@ -2523,6 +2526,11 @@ static void placeSubtree(nodeptr subTreeRoot, tree *tr, int tipsFound, int subTr
 
   //make sure that we have placed the subtree into all branches
   assert(insertionCount == branchesInReferenceTree);
+
+ 
+  //set the actual number of tips in the reference tree, required such that 
+  //an assertion in printStandardFormat does not fail
+  tr->ntips =  taxaInReferenceTree;
 
   //print jplace-formatted placement result to file
   printStandardFormat(tr, subTreeFileName, rootNumber, 1, TRUE);
@@ -2542,23 +2550,6 @@ static void placeSubtree(nodeptr subTreeRoot, tree *tr, int tipsFound, int subTr
   printf("repaired like %f\n\n", tr->likelihood);
 #endif
 
-  //free the branch length meta-data 
-  
-  for(i = 0; i < tr->numberOfBranches; i++)
-    {            
-      rax_free(tr->bInf[i].epa->branches);
-      rax_free(tr->bInf[i].epa->distalBranches);         
-      rax_free(tr->bInf[i].epa->likelihoods);      
-      rax_free(tr->bInf[i].epa);                
-    } 
-
-  rax_free(tr->bInf);
-
-  //TODO maybe cleanup the node to meta-data links,
-  //after the free operation above they actually point into the Nirvana 
-  // p->bInf       = &bInf[countBranches];
-  // p->back->bInf = &bInf[countBranches];
-
   printBothOpen("Subtree placements for subtree %d written to file %s\n\n", subTreeIndex, subTreeFileName);
 
   printBothOpen("****************************************************************\n");
@@ -2567,7 +2558,8 @@ static void placeSubtree(nodeptr subTreeRoot, tree *tr, int tipsFound, int subTr
 //top level function that computes subtree placements for a list of subtrees
 void subtreeEPA(tree *tr, analdef *adef)
 {
-  int    
+  int  
+    i = 0,
     //input file line count
     lineCount = 0,
     //count of subtrees in that file
@@ -2586,6 +2578,9 @@ void subtreeEPA(tree *tr, analdef *adef)
   
   FILE 
     *f = myfopen(bootStrapFile, "rb");
+
+  nodeptr 
+    q;
   
   //no outgroups and hauristic likelihood evaluations allowd
   adef->outgroup = FALSE;
@@ -2599,9 +2594,45 @@ void subtreeEPA(tree *tr, analdef *adef)
   //set tree was rooted to FALSE,
   //since the reference trees will always be subtrees of the input tree
   //the information on the root is potentially useless
+  //note that, the order of branch labels is maintained, however the way the output reference trees are actually rooted may change!
   if(tr->wasRooted)
-    tr->wasRooted = FALSE;
-  
+    {      
+      printBothOpen("WARNING: setting rooted to FALSE!\n");
+      tr->wasRooted = FALSE;
+    }
+
+  //set up variables required for storing branch meta-data
+
+  tr->branchCounter = 0;
+  tr->numberOfBranches = (2 * tr->mxtips) - 3;
+
+  //initialize branch meta-data structure
+
+  tr->bInf              = (branchInfo*)rax_malloc(tr->numberOfBranches * sizeof(branchInfo));
+
+  for(i = 0; i < tr->numberOfBranches; i++)
+    {      
+      tr->bInf[i].epa = (epaBranchData*)rax_malloc(sizeof(epaBranchData));      
+
+      tr->bInf[i].epa->branches          = (double*)rax_calloc(1, sizeof(double));   
+      tr->bInf[i].epa->distalBranches    = (double*)rax_calloc(1, sizeof(double)); 
+         
+      tr->bInf[i].epa->likelihoods = (double*)rax_calloc(1, sizeof(double));      
+      tr->bInf[i].epa->branchNumber = i;
+      
+      sprintf(tr->bInf[i].epa->branchLabel, "I%d", i);     
+    } 
+
+  //link branch meta-data information to the full, comprehensive reference tree
+  //just like in standard EPA
+
+  q = findAnyTip(tr->start, tr->rdta->numsp);
+
+  setupBranchInfo(tr, q->back);
+    
+  //make sure we linked branch meta-data to as many branches as the tree actually has
+  assert(tr->branchCounter == tr->numberOfBranches);
+
   //use binary model file for avoiding re-optimization of model parameters 
   //for faster production deployement 
   //Attention: not tested yet!
@@ -2723,7 +2754,20 @@ void subtreeEPA(tree *tr, analdef *adef)
 	  //make sure the remaining tree has at least 3 taxa, otherwise this doesn't make sense
 	  if(tr->mxtips - tipsFound > 2)
 	    {
+	      int 
+		i;
+
 	      subTreeCount++;
+
+	      //make sure to reset all entries in the branch meta-data structure to default values 
+	      //because we will be re-using them for every subtree specified in the file
+	      for(i = 0; i < tr->numberOfBranches; i++) 
+		{
+		  tr->bInf[i].epa->likelihoods[0]    = unlikely;  
+		  tr->bInf[i].epa->branches[0]       = -1.0;
+		  tr->bInf[i].epa->distalBranches[0] = -1.0;		 
+		}
+
 	      placeSubtree(subTreeRoot, tr, tipsFound, subTreeCount);	   
 	    }
 	  else
@@ -2746,7 +2790,19 @@ void subtreeEPA(tree *tr, analdef *adef)
 
   rax_free(subtreeTips);
 
-  printBothOpen("\n\nRAxML computed placements for %d subtrees in the given tree and will exit now, nastrovje!\n\n", subTreeCount);
+  //free the branch length meta-data 
+  
+  for(i = 0; i < tr->numberOfBranches; i++)
+    {            
+      rax_free(tr->bInf[i].epa->branches);
+      rax_free(tr->bInf[i].epa->distalBranches);         
+      rax_free(tr->bInf[i].epa->likelihoods);      
+      rax_free(tr->bInf[i].epa);                
+    } 
+
+  rax_free(tr->bInf);
+  
+  printBothOpen("\n\nRAxML computed placements for %d subtrees in the given tree and will exit now, na zdorovja!\n\n", subTreeCount);
 
   exit(0);
 }
