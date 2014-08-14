@@ -34,6 +34,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <inttypes.h>
+#include <sys/types.h>
 
 #ifdef __AVX
 #define BYTE_ALIGNMENT 32
