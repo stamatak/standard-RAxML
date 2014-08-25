@@ -64,7 +64,7 @@ http://sco.h-its.org/exelixis/pubs/Exelixis-RRDR-2010-3.pdf
 
 and look at these slides: 
 
-http://sco.h-its.org/exelixis/Phylo100225.pdf
+http://sco.h-its.org/exelixis/resource/doc/Phylo100225.pdf
 
 type:
 "make -f Makefile.HYBRID.gcc" 
