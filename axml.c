@@ -5151,6 +5151,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 #endif
   
 
+  tr->doSubtreeEPA = FALSE;
   tr->useFastScaling = TRUE; 
   tr->bootStopCriterion = -1;
   tr->wcThreshold = 0.03;
@@ -5737,6 +5738,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 		break;
 	      case 'P':
 		adef->mode =  SUBTREE_EPA;
+		tr->doSubtreeEPA = TRUE;
 		break;
 	      case 'q':
 		adef->mode = QUARTET_CALCULATION;

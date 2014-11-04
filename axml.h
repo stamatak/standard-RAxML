@@ -1021,6 +1021,7 @@ typedef  struct  {
 #endif
   
   int *origNumSitePerModel;
+  boolean doSubtreeEPA;
 
 } tree;
 
