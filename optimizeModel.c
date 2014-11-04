@@ -3789,7 +3789,7 @@ static double minimizeMultiDimen(double *guess, int ndim, double *lower, double 
   boolean 
     restart;
 
-  static long 
+  int64_t
     seed = 12345;
   
   do 
