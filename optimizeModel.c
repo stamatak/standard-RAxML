@@ -3602,7 +3602,10 @@ static double targetFunk(double *x, int n, tree *tr)
 	  setRateModel(tr, model, x[i], k);  
 	}
       
-      initReversibleGTR(tr, model);	
+      initReversibleGTR(tr, model); 
+#ifdef _USE_PTHREADS
+      masterBarrier(THREAD_COPY_RATES, tr);	
+#endif
     }
 
   assert(i == n + 1);
@@ -4134,6 +4137,9 @@ static void optimizeRatesBFGS(tree *tr)
       printBothOpen("Reverting BFGS ... \n");
       memcpy(tr->partitionData[0].substRates, rateBuffer, sizeof(double) * 6);
       initReversibleGTR(tr, 0);
+#ifdef _USE_PTHREADS
+      masterBarrier(THREAD_COPY_RATES, tr);	
+#endif
       evaluateGenericInitrav(tr, tr->start);
       assert(startLH == tr->likelihood);
     }
