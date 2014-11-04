@@ -4099,6 +4099,8 @@ static void optimizeRatesBFGS(tree *tr)
   assert(tr->NumberOfModels == 1);
   assert(tr->partitionData[0].dataType == DNA_DATA);
   
+  memcpy(rateBuffer, tr->partitionData[0].substRates, sizeof(double) * 6);
+
   evaluateGenericInitrav(tr, tr->start);
   startLH = tr->likelihood;
   
