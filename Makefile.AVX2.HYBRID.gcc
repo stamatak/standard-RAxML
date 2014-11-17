@@ -18,7 +18,7 @@ raxmlHPC-HYBRID-AVX2 : $(objs)
 	$(CC) -o raxmlHPC-HYBRID-AVX2 $(objs) $(LIBRARIES) $(LDFLAGS) 
 
 avxLikelihood.o : avxLikelihood.c $(GLOBAL_DEPS)
-		$(CC) $(CFLAGS) -mavx2 -D_FMA -march=native -c -o avxLikelihood.o avxLikelihood.c
+		$(CC) $(CFLAGS) -mavx2 -D_FMA -march=core-avx2 -c -o avxLikelihood.o avxLikelihood.c
 
 fastDNAparsimony.o : fastDNAparsimony.c $(GLOBAL_DEPS)
 		   $(CC) $(CFLAGS) -mavx -c -o fastDNAparsimony.o fastDNAparsimony.c
