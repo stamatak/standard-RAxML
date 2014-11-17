@@ -3711,8 +3711,7 @@ void computeBootStopOnly(tree *tr, char *bootStrapFileName, analdef *adef)
     {                  
       int 
 	bCount = 0;           
-     
-
+          
       treeReadLen(treeFile, tr, FALSE, FALSE, TRUE, adef, TRUE, FALSE); 
       assert(tr->mxtips == tr->ntips);
       

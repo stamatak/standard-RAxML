@@ -721,6 +721,14 @@ void parsePartitions(analdef *adef, rawdata *rdta, tree *tr)
 	      exit(-1);
 	    }     
 	  
+	   if(adef->compressPatterns == FALSE)
+	    {
+	      printf("\nError: You are not allowed to use interleaved partitions, that is, assign non-contiguous sites\n");
+	      printf("to the same partition model, when pattern compression is disabled via the -c flag,\n");
+	      printf("or when pattern compression is disabled implicitely by some other option that requires it!\n\n");
+	      exit(-1);
+	    }
+
 	  l = 0;
 	  while(isNum(*ch))
 	    {
