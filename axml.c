@@ -10412,7 +10412,8 @@ static void writeLG4(tree *tr, int model, int dataType, FILE *f, partitionLength
 void writeBinaryModel(tree *tr, analdef *adef)
 {
   int   
-    model; 
+    model,
+    progVers = programVersionInt; 
   
   FILE 
     *f = myfopen(binaryModelParamsOutputFileName, "w"); 
@@ -10424,6 +10425,10 @@ void writeBinaryModel(tree *tr, analdef *adef)
   /* rate heterogeneity model */
 
   myfwrite(&tr->rateHetModel, sizeof(int), 1, f);
+
+  /* prog version */
+
+  myfwrite(&progVers, sizeof(int), 1, f);
 
   /* cdta */   
 
@@ -10519,6 +10524,7 @@ void readBinaryModel(tree *tr, analdef *adef)
     compressPatterns;
 
   int 
+    progVers,
     rateHetModel,
     model;
 
@@ -10534,10 +10540,17 @@ void readBinaryModel(tree *tr, analdef *adef)
   /* pattern compression */
 
   myfread(&compressPatterns, sizeof(boolean), 1, f);
+  if(tr->rateHetModel == CAT && adef->compressPatterns && adef->mode == CLASSIFY_ML)
+    {     
+      printf("\n\nError: You need to disable site pattern compression by specifying the \"-H\" command line option\n");
+      printf("when generating and reading binary model checkpoints for the EPA under CAT!\n\n");
+      errorExit(-1);
+    }
 
   if(compressPatterns != adef->compressPatterns)
     {
-      printf("Error you may need to disable pattern compression via the \"-H\" command line option!\n");
+      printf("\n\nError you may need to disable pattern compression via the \"-H\" command line option!\n");
+      printf("Or, when using CAT, disable it in the call you use to generate the binary model file.\n\n");
       errorExit(-1);
     }
 
@@ -10551,8 +10564,19 @@ void readBinaryModel(tree *tr, analdef *adef)
       char 
 	*modelNames[3] = {"CAT", "GAMMA", "GAMMAI"};
     
-      printf("Error: Rate heterogeneity models between binary model file that uses %s and the current command line that uses %s don't match \n\n\n", 
+      printf("\n\nError: Rate heterogeneity models between binary model file that uses %s and the current command line that uses %s don't match \n\n\n", 
 	     modelNames[rateHetModel], modelNames[tr->rateHetModel]);     
+      errorExit(-1);
+    } 
+
+  /* program version  */
+
+  myfread(&progVers, sizeof(int), 1, f);
+
+   if(progVers != programVersionInt)
+    {       
+      printf("Error: Program versions between binary model file: %d and the current RAxML executable: %d don't match \n\n\n", 
+	     progVers, programVersionInt);     
       errorExit(-1);
     } 
 

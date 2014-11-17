@@ -167,6 +167,7 @@
 
 #define programName        "RAxML"
 #define programVersion     "8.1.5"
+#define programVersionInt   815
 #define programDate        "November 17 2014"
 
 
