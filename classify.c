@@ -1575,7 +1575,7 @@ static void consolidateInfoMLHeuristics(tree *tr, int throwAwayStart)
     j;
 
   info 
-    *inf = (info*)rax_malloc(sizeof(info) * tr->numberOfBranches);
+    *inf = (info*)rax_malloc(sizeof(info) * (size_t)tr->numberOfBranches);
 
   assert(tr->useEpaHeuristics);
 
@@ -1587,7 +1587,7 @@ static void consolidateInfoMLHeuristics(tree *tr, int throwAwayStart)
 	  inf[i].number = i;
 	}
       
-      qsort(inf, tr->numberOfBranches, sizeof(info), infoCompare);
+      qsort(inf, (size_t)tr->numberOfBranches, sizeof(info), infoCompare);
 
       for(i = throwAwayStart; i < tr->numberOfBranches; i++)       
 	tr->bInf[inf[i].number].epa->executeThem[j] = 0;	   	
@@ -1694,7 +1694,7 @@ static void printStandardFormat(tree *tr, char *jointFormatTreeFileName, int roo
     *treeFile = myfopen(jointFormatTreeFileName, "wb"); 
 
   info 
-    *inf = (info*)rax_malloc(sizeof(info) * tr->numberOfBranches);
+    *inf = (info*)rax_malloc(sizeof(info) * (size_t)tr->numberOfBranches);
 
   int
     i,
@@ -1726,7 +1726,7 @@ static void printStandardFormat(tree *tr, char *jointFormatTreeFileName, int roo
 	  inf[j].number        = tr->bInf[j].epa->jointLabel;
 	}
       
-      qsort(inf, tr->numberOfBranches, sizeof(info), infoCompare);	 
+      qsort(inf, (size_t)tr->numberOfBranches, sizeof(info), infoCompare);	 
       
       for(j =  0; j < tr->numberOfBranches; j++) 
 	if(inf[j].lh == unlikely)
@@ -1914,8 +1914,8 @@ void classifyML(tree *tr, analdef *adef)
 
   printBothOpen("\nLikelihood of reference tree: %f\n\n", tr->likelihood);
 
-  perm    = (int *)rax_calloc(tr->mxtips + 1, sizeof(int));
-  tr->inserts = (int *)rax_calloc(tr->mxtips, sizeof(int));
+  perm    = (int *)rax_calloc((size_t)tr->mxtips + 1, sizeof(int));
+  tr->inserts = (int *)rax_calloc((size_t)tr->mxtips, sizeof(int));
 
   markTips(tr->start,       perm, tr->mxtips);
   markTips(tr->start->back, perm ,tr->mxtips);
@@ -1937,23 +1937,23 @@ void classifyML(tree *tr, analdef *adef)
 
   assert(tr->numberOfTipsForInsertion == (tr->mxtips - tr->ntips));      
 
-  tr->bInf              = (branchInfo*)rax_malloc(tr->numberOfBranches * sizeof(branchInfo)); 
+  tr->bInf              = (branchInfo*)rax_malloc((size_t)tr->numberOfBranches * sizeof(branchInfo)); 
 
   for(i = 0; i < tr->numberOfBranches; i++)
     {      
       tr->bInf[i].epa = (epaBranchData*)rax_malloc(sizeof(epaBranchData));
 
-      tr->bInf[i].epa->countThem   = (int*)rax_calloc(tr->numberOfTipsForInsertion, sizeof(int));      
+      tr->bInf[i].epa->countThem   = (int*)rax_calloc((size_t)tr->numberOfTipsForInsertion, sizeof(int));      
       
-      tr->bInf[i].epa->executeThem = (int*)rax_calloc(tr->numberOfTipsForInsertion, sizeof(int));
+      tr->bInf[i].epa->executeThem = (int*)rax_calloc((size_t)tr->numberOfTipsForInsertion, sizeof(int));
       
       for(j = 0; j < tr->numberOfTipsForInsertion; j++)
 	tr->bInf[i].epa->executeThem[j] = 1;
 
-      tr->bInf[i].epa->branches          = (double*)rax_calloc(tr->numberOfTipsForInsertion, sizeof(double));   
-      tr->bInf[i].epa->distalBranches    = (double*)rax_calloc(tr->numberOfTipsForInsertion, sizeof(double)); 
+      tr->bInf[i].epa->branches          = (double*)rax_calloc((size_t)tr->numberOfTipsForInsertion, sizeof(double));   
+      tr->bInf[i].epa->distalBranches    = (double*)rax_calloc((size_t)tr->numberOfTipsForInsertion, sizeof(double)); 
          
-      tr->bInf[i].epa->likelihoods = (double*)rax_calloc(tr->numberOfTipsForInsertion, sizeof(double));      
+      tr->bInf[i].epa->likelihoods = (double*)rax_calloc((size_t)tr->numberOfTipsForInsertion, sizeof(double));      
       tr->bInf[i].epa->branchNumber = i;
       
       sprintf(tr->bInf[i].epa->branchLabel, "I%d", i);     
@@ -2041,7 +2041,7 @@ void classifyML(tree *tr, analdef *adef)
   rax_free(tr->tree_string);
   tr->treeStringLength *= 16;
 
-  tr->tree_string  = (char*)rax_calloc(tr->treeStringLength, sizeof(char));
+  tr->tree_string  = (char*)rax_calloc((size_t)tr->treeStringLength, sizeof(char));
  
  
   treeFile = myfopen(labelledTreeFileName, "wb");
@@ -2086,7 +2086,7 @@ void classifyML(tree *tr, analdef *adef)
   
   {
     info 
-      *inf = (info*)rax_malloc(sizeof(info) * tr->numberOfBranches);
+      *inf = (info*)rax_malloc(sizeof(info) * (size_t)tr->numberOfBranches);
     
     FILE 
       *likelihoodWeightsFile;
@@ -2119,7 +2119,7 @@ void classifyML(tree *tr, analdef *adef)
 	    inf[j].number = j;
 	  }
 	
-	qsort(inf, tr->numberOfBranches, sizeof(info), infoCompare);	 
+	qsort(inf, (size_t)tr->numberOfBranches, sizeof(info), infoCompare);	 
 	
 	for(j =  0; j < tr->numberOfBranches; j++) 
 	  if(inf[j].lh == unlikely)
@@ -2241,7 +2241,7 @@ static nodeptr findRoot(tree *tr, int tipsFound, int *subtreeTips)
 {
   nodeptr 
     p = (nodeptr)NULL,
-    *subtrees = (nodeptr *)rax_malloc(sizeof(nodeptr) * 3 * tr->mxtips);
+    *subtrees = (nodeptr *)rax_malloc(sizeof(nodeptr) * 3 * (size_t)tr->mxtips);
 
   boolean 
     monophyletic = FALSE;
@@ -2562,7 +2562,7 @@ static void placeSubtree(nodeptr subTreeRoot, tree *tr, int tipsFound, int subTr
 }
 
 //top level function that computes subtree placements for a list of subtrees
-void subtreeEPA(tree *tr, analdef *adef)
+void subtreeEPA(tree *tr, analdef *adef) 
 {
   int  
     i = 0,
@@ -2614,7 +2614,7 @@ void subtreeEPA(tree *tr, analdef *adef)
 
   //initialize branch meta-data structure
 
-  tr->bInf              = (branchInfo*)rax_malloc(tr->numberOfBranches * sizeof(branchInfo));
+  tr->bInf              = (branchInfo*)rax_malloc((size_t)tr->numberOfBranches * sizeof(branchInfo));
 
   for(i = 0; i < tr->numberOfBranches; i++)
     {      
@@ -2668,8 +2668,9 @@ void subtreeEPA(tree *tr, analdef *adef)
 	subTreeRoot;
 
       int 	
-	tipsFound = 0,
-	i = 0;         
+	tipsFound = 0;
+
+      i = 0;         
 
       while(i < read - 1)
 	{	  	  	  
@@ -2721,7 +2722,7 @@ void subtreeEPA(tree *tr, analdef *adef)
 	    }
 	  else
 	    i++;
-	}        
+	}       
       
       lineCount++;
 
@@ -2761,17 +2762,17 @@ void subtreeEPA(tree *tr, analdef *adef)
 	  if(tr->mxtips - tipsFound > 2)
 	    {
 	      int 
-		i;
+		j;
 
 	      subTreeCount++;
 
 	      //make sure to reset all entries in the branch meta-data structure to default values 
 	      //because we will be re-using them for every subtree specified in the file
-	      for(i = 0; i < tr->numberOfBranches; i++) 
+	      for(j = 0; j < tr->numberOfBranches; j++) 
 		{
-		  tr->bInf[i].epa->likelihoods[0]    = unlikely;  
-		  tr->bInf[i].epa->branches[0]       = -1.0;
-		  tr->bInf[i].epa->distalBranches[0] = -1.0;		 
+		  tr->bInf[j].epa->likelihoods[0]    = unlikely;  
+		  tr->bInf[j].epa->branches[0]       = -1.0;
+		  tr->bInf[j].epa->distalBranches[0] = -1.0;		 
 		}
 
 	      placeSubtree(subTreeRoot, tr, tipsFound, subTreeCount);	   

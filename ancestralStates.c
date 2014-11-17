@@ -127,7 +127,7 @@ static void ancestralCat(double *v, double *sumBuffer, double *diagptable, int i
   double 
     *ancestral = &sumBuffer[numStates * i],
     sum = 0.0,
-    *term = (double*)rax_malloc(sizeof(double) * numStates);
+    *term = (double*)rax_malloc(sizeof(double) * (size_t)numStates);
 
   for(l = 0; l < numStates; l++)
     {
@@ -155,7 +155,7 @@ static void newviewFlexCat_Ancestral(int tipCase, double *extEV,
 				     int n, double *left, double *right, const int numStates, double *diagptable, double *sumBuffer)
 {
   double   
-    *x3 = (double *)rax_malloc(sizeof(double) * numStates),
+    *x3 = (double *)rax_malloc(sizeof(double) * (size_t)numStates),
     *le, *ri, *v, *vl, *vr,
     ump_x1, ump_x2, x1px2;
   int 
@@ -314,7 +314,7 @@ static void ancestralGamma(double *_v, double *sumBuffer, double *diagptable, in
     *v,
     *ancestral = &sumBuffer[gammaStates * i],
     sum = 0.0,
-    *term = (double*)rax_malloc(sizeof(double) * numStates);	      	      
+    *term = (double*)rax_malloc(sizeof(double) * (size_t)numStates);	      	      
 
   for(l = 0; l < numStates; l++)
     term[l] = 0.0;
@@ -351,7 +351,7 @@ static void newviewFlexGamma_Ancestral(int tipCase,
 {
   double  
     *v,
-    *x3 = (double*)rax_malloc(sizeof(double) * 4 * numStates);
+    *x3 = (double*)rax_malloc(sizeof(double) * 4 * (size_t)numStates);
   double x1px2;
   int  i, j, l, k, scale;
   double *vl, *vr, al, ar;
@@ -565,23 +565,23 @@ void newviewIterativeAncestral(tree *tr)
 	    case CAT:
 	      {	
 		double
-		  *diagptable = (double*)rax_malloc(tr->partitionData[model].numberOfCategories * states * states * sizeof(double));
+		  *diagptable = (double*)rax_malloc((size_t)tr->partitionData[model].numberOfCategories * (size_t)states * (size_t)states * sizeof(double));
 		
 		makeP_Flex(qz, rz, tr->partitionData[model].perSiteRates,
 			   tr->partitionData[model].EI,
 			   tr->partitionData[model].EIGN,
-			   tr->partitionData[model].numberOfCategories, left, right, states);
+			   tr->partitionData[model].numberOfCategories, left, right, (int)states);
 		
 
 		makeP_Flex_Ancestral(tr->partitionData[model].perSiteRates,
 				     tr->partitionData[model].EI,
 				     tr->partitionData[model].EIGN,
-				     tr->partitionData[model].numberOfCategories, diagptable, states);
+				     tr->partitionData[model].numberOfCategories, diagptable, (int)states);
 				     
 
 		newviewFlexCat_Ancestral(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
 					 x1_start, x2_start, tr->partitionData[model].tipVector,
-					 tipX1, tipX2, width, left, right, states, diagptable, 
+					 tipX1, tipX2, (int)width, left, right, (int)states, diagptable, 
 					 tr->partitionData[model].sumBuffer);
 
 		rax_free(diagptable);
@@ -591,17 +591,17 @@ void newviewIterativeAncestral(tree *tr)
 	    case GAMMA_I:
 	      {	
 		double
-		  *diagptable = (double*)rax_malloc(4 * states * states * sizeof(double));
+		  *diagptable = (double*)rax_malloc(4 * (size_t)states * (size_t)states * sizeof(double));
 		
 		makeP_Flex(qz, rz, tr->partitionData[model].gammaRates,
 			   tr->partitionData[model].EI,
 			   tr->partitionData[model].EIGN,
-			   4, left, right, states);
+			   4, left, right, (int)states);
 		
 		makeP_Flex_Ancestral(tr->partitionData[model].gammaRates,
 				     tr->partitionData[model].EI,
 				     tr->partitionData[model].EIGN,
-				     4, diagptable, states);
+				     4, diagptable, (int)states);
 		
 
 		newviewFlexGamma_Ancestral(tInfo->tipCase,
@@ -609,7 +609,7 @@ void newviewIterativeAncestral(tree *tr)
 					   tr->partitionData[model].EV,
 					   tr->partitionData[model].tipVector,
 					   tipX1, tipX2,
-					   width, left, right, states, diagptable, tr->partitionData[model].sumBuffer);
+					   (int)width, left, right, (int)states, diagptable, tr->partitionData[model].sumBuffer);
 		
 		rax_free(diagptable);
 	      }
@@ -739,8 +739,8 @@ static void computeAncestralRec(tree *tr, nodeptr p, int *counter, FILE *probsFi
     globalIndex = 0;
   
   ancestralState 
-    *a = (ancestralState *)rax_malloc(sizeof(ancestralState) * tr->cdta->endsite),
-    *unsortedA = (ancestralState *)rax_malloc(sizeof(ancestralState) * tr->rdta->sites);
+    *a = (ancestralState *)rax_malloc(sizeof(ancestralState) * (size_t)tr->cdta->endsite),
+    *unsortedA = (ancestralState *)rax_malloc(sizeof(ancestralState) * (size_t)tr->rdta->sites);
   
   if(!atRoot)
     {
@@ -775,7 +775,7 @@ static void computeAncestralRec(tree *tr, nodeptr p, int *counter, FILE *probsFi
       int	
 	offset,
 	i,
-	width = tr->partitionData[model].upper - tr->partitionData[model].lower,	
+	width = (int)(tr->partitionData[model].upper - tr->partitionData[model].lower),	
 	states = tr->partitionData[model].states;
 #ifdef _USE_PTHREADS
       double
@@ -807,7 +807,7 @@ static void computeAncestralRec(tree *tr, nodeptr p, int *counter, FILE *probsFi
 	    c;
 
 	  a[globalIndex].states = states;
-	  a[globalIndex].probs = (double *)rax_malloc(sizeof(double) * states);
+	  a[globalIndex].probs = (double *)rax_malloc(sizeof(double) * (size_t)states);
 	  
 	  for(l = 0; l < states; l++)
 	    {
@@ -855,8 +855,8 @@ static void computeAncestralRec(tree *tr, nodeptr p, int *counter, FILE *probsFi
 	      
 	      unsortedA[unsorted].states = a[sorted].states;
 	      unsortedA[unsorted].c = a[sorted].c;
-	      unsortedA[unsorted].probs = (double*)rax_malloc(sizeof(double) * unsortedA[unsorted].states);
-	      memcpy(unsortedA[unsorted].probs,  a[sorted].probs, sizeof(double) * a[sorted].states);	      
+	      unsortedA[unsorted].probs = (double*)rax_malloc(sizeof(double) * (size_t)unsortedA[unsorted].states);
+	      memcpy(unsortedA[unsorted].probs,  a[sorted].probs, sizeof(double) * (size_t)a[sorted].states);	      
 	    }	   
 	}  
 

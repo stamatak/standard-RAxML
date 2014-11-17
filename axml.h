@@ -1217,9 +1217,9 @@ extern void makeGammaCats (double alpha, double *gammaRates, int K,  boolean use
 extern void initModel ( tree *tr, rawdata *rdta, cruncheddata *cdta, analdef *adef );
 extern void doAllInOne ( tree *tr, analdef *adef );
 
-extern void classifyML(tree *tr, analdef *adef);
+extern void classifyML(tree *tr, analdef *adef) __attribute__((noreturn));
 extern void classifyMP(tree *tr, analdef *adef);
-extern void subtreeEPA(tree *tr, analdef *adef);
+extern void subtreeEPA(tree *tr, analdef *adef) __attribute__((noreturn));
 extern void collectSubtrees(tree *tr, nodeptr *subtrees, int *count, int ogn);
 extern int treeFindTipByLabelString(char  *str, tree *tr, boolean check);
 extern ssize_t rax_getline(char **lineptr, size_t *n, FILE *h);
