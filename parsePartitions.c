@@ -211,7 +211,8 @@ static void analyzeIdentifier(char **ch, int modelNumber, tree *tr)
       else
 	{
 	  /* AA */
-	  
+	  tr->initialPartitionData[modelNumber].ascBias = FALSE;
+	   
 	  for(i = 0; i < NUM_PROT_MODELS && !found; i++)
 	    {	
 	      strcpy(thisModel, protModels[i]);
