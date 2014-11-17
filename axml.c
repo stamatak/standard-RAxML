@@ -10421,6 +10421,10 @@ void writeBinaryModel(tree *tr, analdef *adef)
 
   myfwrite(&adef->compressPatterns, sizeof(boolean), 1, f);
 
+  /* rate heterogeneity model */
+
+  myfwrite(&tr->rateHetModel, sizeof(int), 1, f);
+
   /* cdta */   
 
   myfwrite(tr->cdta->rateCategory, sizeof(int), tr->rdta->sites + 1, f);
@@ -10514,7 +10518,8 @@ void readBinaryModel(tree *tr, analdef *adef)
   boolean 
     compressPatterns;
 
-  int  
+  int 
+    rateHetModel,
     model;
 
   FILE 
@@ -10535,7 +10540,21 @@ void readBinaryModel(tree *tr, analdef *adef)
       printf("Error you may need to disable pattern compression via the \"-H\" command line option!\n");
       errorExit(-1);
     }
+
+  /* rate heterogeneity model */
+
+  
+  myfread(&rateHetModel, sizeof(int), 1, f);
+
+  if(rateHetModel != tr->rateHetModel)
+    {
+      char 
+	*modelNames[3] = {"CAT", "GAMMA", "GAMMAI"};
     
+      printf("Error: Rate heterogeneity models between binary model file that uses %s and the current command line that uses %s don't match \n\n\n", 
+	     modelNames[rateHetModel], modelNames[tr->rateHetModel]);     
+      errorExit(-1);
+    } 
 
   /* cdta */   
 
