@@ -8266,6 +8266,7 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
       break;
     case THREAD_FIX_MODEL_INDICES:
       threadFixModelIndices(tr, localTree, tid, n);
+      setupPresenceMask(localTree);
       break;    
     case THREAD_EVALUATE:
       sendTraversalInfo(localTree, tr);
