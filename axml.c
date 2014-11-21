@@ -7045,7 +7045,10 @@ void printResult(tree *tr, analdef *adef, boolean finalPrint)
 		  
 		  break;
 		case CAT:
-		  Tree2String(tr->tree_string, tr, tr->start->back, FALSE, TRUE, FALSE, FALSE, finalPrint, adef, NO_BRANCHES, FALSE, FALSE, FALSE, FALSE);
+		  if(adef->mesquite)
+		    Tree2String(tr->tree_string, tr, tr->start->back, TRUE, TRUE, FALSE, FALSE, finalPrint, adef, SUMMARIZE_LH, FALSE, FALSE, FALSE, FALSE);
+		  else
+		    Tree2String(tr->tree_string, tr, tr->start->back, FALSE, TRUE, FALSE, FALSE, finalPrint, adef, NO_BRANCHES, FALSE, FALSE, FALSE, FALSE);
 
 		  logFile = myfopen(temporaryFileName, "wb");
 		  fprintf(logFile, "%s", tr->tree_string);
@@ -7057,7 +7060,10 @@ void printResult(tree *tr, analdef *adef, boolean finalPrint)
 	    }
 	  else
 	    {
-	      Tree2String(tr->tree_string, tr, tr->start->back, FALSE, TRUE, FALSE, FALSE, finalPrint, adef, NO_BRANCHES, FALSE, FALSE, FALSE, FALSE);
+	      if(adef->mesquite)
+		Tree2String(tr->tree_string, tr, tr->start->back, TRUE, TRUE, FALSE, FALSE, finalPrint, adef, SUMMARIZE_LH, FALSE, FALSE, FALSE, FALSE);
+	      else
+		Tree2String(tr->tree_string, tr, tr->start->back, FALSE, TRUE, FALSE, FALSE, finalPrint, adef, NO_BRANCHES, FALSE, FALSE, FALSE, FALSE);
 	      logFile = myfopen(temporaryFileName, "wb");
 	      fprintf(logFile, "%s", tr->tree_string);
 	      fclose(logFile);
@@ -7098,7 +7104,10 @@ void printBootstrapResult(tree *tr, analdef *adef, boolean finalPrint)
 	}
       else
 	{
-	  Tree2String(tr->tree_string, tr, tr->start->back, FALSE, TRUE, FALSE, FALSE, finalPrint, adef, NO_BRANCHES, FALSE, FALSE, FALSE, FALSE);
+	  if(adef->mesquite)
+	    Tree2String(tr->tree_string, tr, tr->start->back, TRUE, TRUE, FALSE, FALSE, finalPrint, adef, SUMMARIZE_LH, FALSE, FALSE, FALSE, FALSE);
+	  else
+	    Tree2String(tr->tree_string, tr, tr->start->back, FALSE, TRUE, FALSE, FALSE, finalPrint, adef, NO_BRANCHES, FALSE, FALSE, FALSE, FALSE);
 	  
 	  logFile = myfopen(fileName, "ab");
 	  fprintf(logFile, "%s", tr->tree_string);
@@ -7184,7 +7193,7 @@ void printLog(tree *tr, analdef *adef, boolean finalPrint)
 	    }
 
 
-	  if(!adef->checkpoints)
+	  if(!adef->checkpoints && !adef->mesquite)
 	    {
 	      logFile = myfopen(temporaryFileName, "ab");
 
@@ -7194,24 +7203,63 @@ void printLog(tree *tr, analdef *adef, boolean finalPrint)
 	    }
 	  else
 	    {
-	      logFile = myfopen(temporaryFileName, "ab");
+	      if(adef->mesquite)
+		{ 
+		  char 
+		    temporaryFileName2[1024] = "";
+		  
+		  logFile = myfopen(temporaryFileName, "ab");
 
-	      fprintf(logFile, "%f %f %d\n", t, lh, tr->checkPointCounter);
+		  fprintf(logFile, "%f %f\n", t, lh);
+		  
+		  fclose(logFile);
 
-	      fclose(logFile);
+		  Tree2String(tr->tree_string, tr, tr->start->back, TRUE, TRUE, FALSE, FALSE, finalPrint, adef, SUMMARIZE_LH, FALSE, FALSE, FALSE, FALSE);
+		  
+		  //now print raxml result 
+		  
+		  strcpy(temporaryFileName2, resultFileName);
+		  
+		  if(adef->multipleRuns > 1)
+		    {
+		      char
+			treeID[64] = "";
+		      sprintf(treeID, "%d", tr->treeID);
+		      strcat(temporaryFileName2, ".RUN.");
+		      strcat(temporaryFileName2, treeID);
+		    }
 
-	      strcat(checkPoints, ".");
+		  //printf("Mesquite printing intemediate tree %s to file %s\n", tr->tree_string, temporaryFileName2);
 
-	      sprintf(treeID, "%d", tr->checkPointCounter);
-	      strcat(checkPoints, treeID);
+		  logFile = myfopen(temporaryFileName2, "wb");
+		  
+		  fprintf(logFile, "%s", tr->tree_string);
+		  
+		  fclose(logFile);
+		}
+	      else
+		{
+		  assert(adef->checkpoints);
 
-	      Tree2String(tr->tree_string, tr, tr->start->back, FALSE, TRUE, FALSE, FALSE, finalPrint, adef, NO_BRANCHES, FALSE, FALSE, FALSE, FALSE);
-
-	      logFile = myfopen(checkPoints, "ab");
-	      fprintf(logFile, "%s", tr->tree_string);
-	      fclose(logFile);
-
-	      tr->checkPointCounter++;
+		  logFile = myfopen(temporaryFileName, "ab");
+		  
+		  fprintf(logFile, "%f %f %d\n", t, lh, tr->checkPointCounter);
+		  
+		  fclose(logFile);
+		  
+		  strcat(checkPoints, ".");
+		  
+		  sprintf(treeID, "%d", tr->checkPointCounter);
+		  strcat(checkPoints, treeID);
+		  
+		  Tree2String(tr->tree_string, tr, tr->start->back, FALSE, TRUE, FALSE, FALSE, finalPrint, adef, NO_BRANCHES, FALSE, FALSE, FALSE, FALSE);
+		  
+		  logFile = myfopen(checkPoints, "ab");
+		  fprintf(logFile, "%s", tr->tree_string);
+		  fclose(logFile);
+		  
+		  tr->checkPointCounter++;
+		}
 	    }
 	}
       break;   

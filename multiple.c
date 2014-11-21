@@ -1516,7 +1516,7 @@ static void printMesquite(tree *tr, analdef *adef)
 	  Tree2String(tr->tree_string, tr, tr->start->back, TRUE, TRUE, FALSE, FALSE, TRUE, adef, SUMMARIZE_LH, FALSE, FALSE, FALSE, FALSE);
 	  break;
 	case CAT:
-	  Tree2String(tr->tree_string, tr, tr->start->back, FALSE, TRUE, FALSE, FALSE, TRUE, adef, NO_BRANCHES, FALSE, FALSE, FALSE, FALSE);
+	  Tree2String(tr->tree_string, tr, tr->start->back, TRUE, TRUE, FALSE, FALSE, TRUE, adef, SUMMARIZE_LH, FALSE, FALSE, FALSE, FALSE);
 	  break;
 	default:
 	  assert(0);
