@@ -320,6 +320,10 @@ static boolean qupdate (tree *tr, nodeptr p)
       
   makenewzGeneric(tr, p, q, z0, 1, z, FALSE); 	 
       
+#ifdef _BASTIEN
+  assert(0);
+#endif 
+
   for(i = 0; i < tr->numBranches; i++)
     p->z[i] = q->z[i] = z[i]; 
         

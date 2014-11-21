@@ -707,7 +707,7 @@ void newviewGenericAncestral (tree *tr, nodeptr p, boolean atRoot)
       
      
       tr->td[0].count = 1;
-      computeTraversalInfo(p, &(tr->td[0].ti[0]), &(tr->td[0].count), tr->mxtips, tr->numBranches);
+      computeTraversalInfo(tr, p, &(tr->td[0].ti[0]), &(tr->td[0].count), tr->mxtips, tr->numBranches);
       
       if(tr->td[0].count > 1)
 	{

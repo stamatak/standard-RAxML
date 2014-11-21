@@ -498,6 +498,10 @@ static boolean updateEPA(tree *tr, nodeptr p, int j)
   setPartitionMask(tr, j, tr->executeModel);
   makenewzGeneric(tr, p, q, z0, newzpercycle, z, FALSE);
   
+#ifdef _BASTIEN
+  assert(0);
+#endif 
+
   for(i = 0; i < tr->numBranches; i++)    
     smoothedPartitions[i]  = tr->partitionSmoothed[i];
       
@@ -877,6 +881,10 @@ static void updateClassify(tree *tr, double *z, boolean *partitionSmoothed, bool
     z0[i] = z[i];          
 
   makenewzClassify(tr, newzpercycle, newz, z0, x1, x2, tipX1, tipX2, tipCase, partitionConverged, insertions); 
+
+#ifdef _BASTIEN
+  assert(0);
+#endif 
 
   for(i = 0; i < tr->numBranches; i++)    
     smoothedPartitions[i]  = partitionSmoothed[i];

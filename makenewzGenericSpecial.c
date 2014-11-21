@@ -4487,6 +4487,12 @@ static void topLevelMakenewz(tree *tr, double *z0, int _maxiter, double *result)
 
   for(i = 0; i < numBranches; i++)
     result[i] = z[i];
+
+#ifdef _BASTIEN
+  for(i = 0; i < numBranches; i++)
+    tr->secondDerivative[i] = d2lnLdlz2[i];
+#endif 
+
 }
 
 #ifdef _USE_PTHREADS
@@ -5125,10 +5131,10 @@ void makenewzGeneric(tree *tr, nodeptr p, nodeptr q, double *z0, int maxiter, do
   tr->td[0].count = 1;
     
   if(!p->x)
-    computeTraversalInfo(p, &(tr->td[0].ti[0]), &(tr->td[0].count), tr->mxtips, tr->numBranches);
+    computeTraversalInfo(tr, p, &(tr->td[0].ti[0]), &(tr->td[0].count), tr->mxtips, tr->numBranches);
 
   if(!q->x)
-    computeTraversalInfo(q, &(tr->td[0].ti[0]), &(tr->td[0].count), tr->mxtips, tr->numBranches);
+    computeTraversalInfo(tr, q, &(tr->td[0].ti[0]), &(tr->td[0].count), tr->mxtips, tr->numBranches);
    
 #ifdef _HET
   topLevelMakenewz(tr, z0, maxiter, result, isTipBranch);

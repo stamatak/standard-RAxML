@@ -540,6 +540,11 @@ void hookup (nodeptr p, nodeptr q, double *z, int numBranches)
 
   for(i = 0; i < numBranches; i++)
     p->z[i] = q->z[i] = z[i];
+
+#ifdef _BASTIEN
+  for(i = 0; i < numBranches; i++)
+    p->secondDerivativeValid[i] = q->secondDerivativeValid[i] = FALSE;
+#endif
 }
 
 void hookupDefault (nodeptr p, nodeptr q, int numBranches)
@@ -551,6 +556,11 @@ void hookupDefault (nodeptr p, nodeptr q, int numBranches)
 
   for(i = 0; i < numBranches; i++)
     p->z[i] = q->z[i] = defaultz;
+
+#ifdef _BASTIEN
+  for(i = 0; i < numBranches; i++)
+    p->secondDerivativeValid[i] = q->secondDerivativeValid[i] = FALSE;
+#endif
 }
 
 
@@ -5167,6 +5177,11 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
   tr->noRateHet = FALSE;
   tr->perPartitionEPA = FALSE;
   tr->useBrLenScaler = FALSE;
+
+#ifdef _BASTIEN
+  tr->doBastienStuff = FALSE;
+#endif
+
   /********* tr inits end*************/
 
   static int flag;
@@ -10142,6 +10157,10 @@ static void computeDistances(tree *tr, analdef *adef)
 
 	makenewzGenericDistance(tr, 10, z0, result, i, j);
 
+#ifdef _BASTIEN
+	assert(0);
+#endif 
+
 	if(tr->multiBranch)
 	  {
 	    int k;
@@ -13036,6 +13055,12 @@ int main (int argc, char *argv[])
     
     printModelAndProgramInfo(tr, adef, argc, argv);
       
+#ifdef _BASTIEN
+    if(adef->mode != TREE_EVALUATION)
+      assert(0);
+#endif
+
+
       switch(adef->mode)
 	{  
 	case SUBTREE_EPA:
@@ -13131,6 +13156,14 @@ int main (int argc, char *argv[])
 	      else
 		{	      
 		  modOpt(tr, adef, TRUE, adef->likelihoodEpsilon);	  
+#ifdef _BASTIEN
+		  printf("likelihood of current tree: %f\n", tr->likelihood);
+
+		  tr->doBastienStuff = TRUE;
+		  printf("do a full traversal\n");
+		  evaluateGenericInitrav(tr, tr->start);
+		  exit(0);
+#endif
 		  writeBinaryModel(tr, adef);
 		}
 	      

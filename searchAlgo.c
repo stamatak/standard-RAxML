@@ -143,6 +143,11 @@ boolean update(tree *tr, nodeptr p)
 	  */
 	  	  
 	  p->z[i] = q->z[i] = z[i];	 
+#ifdef _BASTIEN
+	  //printf("update %f\n", tr->secondDerivative[i]);
+	  p->secondDerivative[i] = q->secondDerivative[i] = tr->secondDerivative[i];
+	  p->secondDerivativeValid[i] = q->secondDerivativeValid[i] = TRUE;
+#endif
 	}
     }
   
@@ -434,6 +439,8 @@ nodeptr  removeNodeBIG (tree *tr, nodeptr p, int numBranches)
   hookup(q, r, result, numBranches); 
       
   p->next->next->back = p->next->back = (node *) NULL;
+
+
 
   return  q; 
 }

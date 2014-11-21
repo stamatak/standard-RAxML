@@ -3051,6 +3051,21 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 	  else
 	    z = pz[0];
 
+
+#ifdef _BASTIEN
+	  if(tr->doBastienStuff)
+	    {
+	      if(tr->multiBranch)
+		assert(0);
+	      else
+		{
+		  assert(tr->td[0].ti[0].secondDerivativeP[0] == tr->td[0].ti[0].secondDerivativeQ[0]);
+		  printf("\nHello, I am the second derivative at the root branch %1.40f\n", tr->td[0].ti[0].secondDerivativeQ[0]);
+		}
+		  
+	    }
+#endif
+
 	  //printf("branch %f\n", z);
 
 	  if(writeVector)
@@ -3528,10 +3543,10 @@ double evaluateGeneric (tree *tr, nodeptr p)
   tr->td[0].count = 1;
   
   if(!p->x)
-    computeTraversalInfo(p, &(tr->td[0].ti[0]), &(tr->td[0].count), tr->mxtips, tr->numBranches);
+    computeTraversalInfo(tr, p, &(tr->td[0].ti[0]), &(tr->td[0].count), tr->mxtips, tr->numBranches);
   
   if(!q->x)
-    computeTraversalInfo(q, &(tr->td[0].ti[0]), &(tr->td[0].count), tr->mxtips, tr->numBranches);  
+    computeTraversalInfo(tr, q, &(tr->td[0].ti[0]), &(tr->td[0].count), tr->mxtips, tr->numBranches);  
   
 #ifdef _USE_PTHREADS 
   {
@@ -3989,9 +4004,9 @@ double evaluateGenericVector (tree *tr, nodeptr p)
     
     tr->td[0].count = 1;
     if(!p->x)
-      computeTraversalInfo(p, &(tr->td[0].ti[0]), &(tr->td[0].count), tr->mxtips, tr->numBranches);
+      computeTraversalInfo(tr, p, &(tr->td[0].ti[0]), &(tr->td[0].count), tr->mxtips, tr->numBranches);
     if(!q->x)
-      computeTraversalInfo(q, &(tr->td[0].ti[0]), &(tr->td[0].count), tr->mxtips, tr->numBranches);  
+      computeTraversalInfo(tr, q, &(tr->td[0].ti[0]), &(tr->td[0].count), tr->mxtips, tr->numBranches);  
     
 #ifdef _USE_PTHREADS 
     {

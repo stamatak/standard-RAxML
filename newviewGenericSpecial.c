@@ -7639,7 +7639,7 @@ static void newviewGTRGAMMASECONDARY_7(int tipCase,
 
 
 
-void computeTraversalInfo(nodeptr p, traversalInfo *ti, int *counter, int maxTips, int numBranches)
+void computeTraversalInfo(tree *tr, nodeptr p, traversalInfo *ti, int *counter, int maxTips, int numBranches)
 {
   if(isTip(p->number, maxTips))
     return;
@@ -7678,14 +7678,29 @@ void computeTraversalInfo(nodeptr p, traversalInfo *ti, int *counter, int maxTip
 
 	for(i = 0; i < numBranches; i++)
 	  {
-	    double z;
-	    z = q->z[i];
-	  
+	    double 
+	      z;
+	    
+	    z = q->z[i];	  
 	    z = (z > zmin) ? log(z) : log(zmin);
 	    ti[*counter].qz[i] = z;
+
 	    z = r->z[i];
 	    z = (z > zmin) ? log(z) : log(zmin);
 	    ti[*counter].rz[i] = z;
+
+#ifdef _BASTIEN
+	    if(tr->doBastienStuff)
+	      {
+		assert(q->secondDerivative[i] == q->back->secondDerivative[i]);
+		assert(r->secondDerivative[i] == r->back->secondDerivative[i]);
+		assert(q->secondDerivativeValid[i] && q->back->secondDerivativeValid[i]);
+		assert(r->secondDerivativeValid[i] && r->back->secondDerivativeValid[i]);
+	      }
+
+	    ti[*counter].secondDerivativeQ[i] = q->secondDerivative[i];
+	    ti[*counter].secondDerivativeR[i] = r->secondDerivative[i];
+#endif
 	  }
 	*counter = *counter + 1;
       }
@@ -7705,7 +7720,7 @@ void computeTraversalInfo(nodeptr p, traversalInfo *ti, int *counter, int maxTip
 	    while ((! p->x) || (! r->x))
 	      {
 		if (! r->x)
-		  computeTraversalInfo(r, ti, counter, maxTips, numBranches);
+		  computeTraversalInfo(tr, r, ti, counter, maxTips, numBranches);
 		if (! p->x)
 		  getxnode(p);
 	      }
@@ -7722,14 +7737,27 @@ void computeTraversalInfo(nodeptr p, traversalInfo *ti, int *counter, int maxTip
 	    for(i = 0; i < numBranches; i++)
 	      {
 		double z;
-		z = q->z[i];
-			
+
+		z = q->z[i];			
 		z = (z > zmin) ? log(z) : log(zmin);
 		ti[*counter].qz[i] = z;
 
 		z = r->z[i];
 		z = (z > zmin) ? log(z) : log(zmin);
 		ti[*counter].rz[i] = z;
+
+#ifdef _BASTIEN
+		if(tr->doBastienStuff)
+		  {
+		    assert(q->secondDerivative[i] == q->back->secondDerivative[i]);
+		    assert(r->secondDerivative[i] == r->back->secondDerivative[i]);
+		    assert(q->secondDerivativeValid[i] && q->back->secondDerivativeValid[i]);
+		    assert(r->secondDerivativeValid[i] && r->back->secondDerivativeValid[i]);
+		  }
+		    
+		ti[*counter].secondDerivativeQ[i] = q->secondDerivative[i];
+		ti[*counter].secondDerivativeR[i] = r->secondDerivative[i];
+#endif
 	      }
 
 	    *counter = *counter + 1;
@@ -7740,9 +7768,9 @@ void computeTraversalInfo(nodeptr p, traversalInfo *ti, int *counter, int maxTip
 	    while ((! p->x) || (! q->x) || (! r->x))
 	      {
 		if (! q->x)
-		  computeTraversalInfo(q, ti, counter, maxTips, numBranches);
+		  computeTraversalInfo(tr, q, ti, counter, maxTips, numBranches);
 		if (! r->x)
-		  computeTraversalInfo(r, ti, counter, maxTips, numBranches);
+		  computeTraversalInfo(tr, r, ti, counter, maxTips, numBranches);
 		if (! p->x)
 		  getxnode(p);
 	      }
@@ -7757,14 +7785,27 @@ void computeTraversalInfo(nodeptr p, traversalInfo *ti, int *counter, int maxTip
 	    for(i = 0; i < numBranches; i++)
 	      {
 		double z;
+		
 		z = q->z[i];	
-
 		z = (z > zmin) ? log(z) : log(zmin);
 		ti[*counter].qz[i] = z;
 
 		z = r->z[i];
 		z = (z > zmin) ? log(z) : log(zmin);
 		ti[*counter].rz[i] = z;
+
+#ifdef _BASTIEN
+		if(tr->doBastienStuff)
+		  {
+		    assert(q->secondDerivative[i] == q->back->secondDerivative[i]);
+		    assert(r->secondDerivative[i] == r->back->secondDerivative[i]);
+		    assert(q->secondDerivativeValid[i] && q->back->secondDerivativeValid[i]);
+		    assert(r->secondDerivativeValid[i] && r->back->secondDerivativeValid[i]);
+		  }
+
+		ti[*counter].secondDerivativeQ[i] = q->secondDerivative[i];
+		ti[*counter].secondDerivativeR[i] = r->secondDerivative[i];
+#endif
 	      }
 
 	    *counter = *counter + 1;
@@ -8069,7 +8110,20 @@ void newviewIterative (tree *tr)
 		  qz = tInfo->qz[0];
 		  rz = tInfo->rz[0];
 		}
-	      	  
+
+#ifdef _BASTIEN
+	      if(tr->doBastienStuff)
+		{
+		  if(tr->multiBranch)
+		    assert(0);
+		  else
+		    {		  
+		      printf("\nnewview\n");
+		      printf("Hello, I am the second derivative at the q branch %1.40f\n", tInfo->secondDerivativeQ[0]);
+		      printf("Hello, I am the second derivative at the r branch %1.40f\n", tInfo->secondDerivativeR[0]);
+		    }		  
+		}
+#endif	      	  
 	     
 	      
 	      switch(tr->partitionData[model].dataType)
@@ -8589,7 +8643,7 @@ void newviewGeneric (tree *tr, nodeptr p)
     return;
 
   tr->td[0].count = 1;
-  computeTraversalInfo(p, &(tr->td[0].ti[0]), &(tr->td[0].count), tr->mxtips, tr->numBranches);
+  computeTraversalInfo(tr, p, &(tr->td[0].ti[0]), &(tr->td[0].count), tr->mxtips, tr->numBranches);
     
   if(tr->td[0].count > 1)
     {
@@ -8623,7 +8677,7 @@ void newviewGenericMasked(tree *tr, nodeptr p)
     
       {
 	tr->td[0].count = 1;
-	computeTraversalInfo(p, &(tr->td[0].ti[0]), &(tr->td[0].count), tr->mxtips, tr->numBranches);
+	computeTraversalInfo(tr, p, &(tr->td[0].ti[0]), &(tr->td[0].count), tr->mxtips, tr->numBranches);
 
 	if(tr->td[0].count > 1)
 	  {

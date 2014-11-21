@@ -121,7 +121,10 @@ static void insertFast (tree *tr, nodeptr p, nodeptr q, int numBranches)
       makenewzGeneric(tr, q, r, qz, iterations, zqr, FALSE);           
       makenewzGeneric(tr, q, s, defaultArray, iterations, zqs, FALSE);                  
       makenewzGeneric(tr, r, s, defaultArray, iterations, zrs, FALSE);
-      
+
+#ifdef _BASTIEN
+      assert(0);
+#endif      
       
       for(i = 0; i < numBranches; i++)
 	{

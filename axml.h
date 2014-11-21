@@ -428,6 +428,11 @@ typedef struct
 #ifdef _HET
   boolean parentIsTip;
 #endif
+#ifdef _BASTIEN
+  double secondDerivativeQ[NUM_BRANCHES];
+  double secondDerivativeR[NUM_BRANCHES];
+  double secondDerivativeP[NUM_BRANCHES];
+#endif
   int pNumber;
   int qNumber;
   int rNumber;
@@ -504,6 +509,10 @@ typedef  struct noderec
 {  
   branchInfo      *bInf;
   double           z[NUM_BRANCHES];
+#ifdef _BASTIEN
+  double           secondDerivative[NUM_BRANCHES];
+  boolean          secondDerivativeValid[NUM_BRANCHES];
+#endif
   struct noderec  *next;
   struct noderec  *back;
   hashNumberType   hash;
@@ -869,6 +878,11 @@ typedef  struct  {
 
   double            fracchange;
   double            rawFracchange;
+
+#ifdef _BASTIEN
+  double           secondDerivative[NUM_BRANCHES];
+  boolean          doBastienStuff;
+#endif
 
 #ifdef _HET
   double            fracchange_TIP;
@@ -1341,7 +1355,7 @@ extern double evaluateGenericVector (tree *tr, nodeptr p);
 extern void categorizeGeneric (tree *tr, nodeptr p);
 extern double makenewzPartitionGeneric(tree *tr, nodeptr p, nodeptr q, double z0, int maxiter, int model);
 extern boolean isTip(int number, int maxTips);
-extern void computeTraversalInfo(nodeptr p, traversalInfo *ti, int *counter, int maxTips, int numBranches);
+extern void computeTraversalInfo(tree *tr, nodeptr p, traversalInfo *ti, int *counter, int maxTips, int numBranches);
 
 
 
@@ -1393,7 +1407,7 @@ extern nodeptr findAnyTip(nodeptr p, int numsp);
 
 extern void parseProteinModel(double *externalAAMatrix, char *fileName);
 extern int filexists(char *filename);
-extern void computeFullTraversalInfo(nodeptr p, traversalInfo *ti, int *counter, int maxTips, int numBranches);
+extern void computeFullTraversalInfo(tree *tr, nodeptr p, traversalInfo *ti, int *counter, int maxTips, int numBranches);
 
 extern void computeNextReplicate(tree *tr, int64_t *seed, int *originalRateCategories, int *originalInvariant, boolean isRapid, boolean fixRates, analdef *adef);
 /*extern void computeNextReplicate(tree *tr, analdef *adef, int *originalRateCategories, int *originalInvariant);*/

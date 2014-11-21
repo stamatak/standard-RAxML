@@ -1157,7 +1157,7 @@ static double evaluatePartialGTRCATSECONDARY_7(int i, double ki, int counter,  t
 
 
 
-void computeFullTraversalInfo(nodeptr p, traversalInfo *ti, int *counter, int maxTips, int numBranches)
+void computeFullTraversalInfo(tree *tr, nodeptr p, traversalInfo *ti, int *counter, int maxTips, int numBranches)
 {
   if(isTip(p->number, maxTips))
     return; 
@@ -1195,6 +1195,7 @@ void computeFullTraversalInfo(nodeptr p, traversalInfo *ti, int *counter, int ma
 	for(i = 0; i < numBranches; i++)
 	  {
 	    double z;
+
 	    z = q->z[i];
 	    z = (z > zmin) ? log(z) : log(zmin);
 	    ti[*counter].qz[i] = z;
@@ -1202,6 +1203,20 @@ void computeFullTraversalInfo(nodeptr p, traversalInfo *ti, int *counter, int ma
 	    z = r->z[i];
 	    z = (z > zmin) ? log(z) : log(zmin);
 	    ti[*counter].rz[i] = z;	    
+
+#ifdef _BASTIEN
+	    if(tr->doBastienStuff)
+	      {
+		assert(q->secondDerivative[i] == q->back->secondDerivative[i]);
+		assert(r->secondDerivative[i] == r->back->secondDerivative[i]);
+		assert(q->secondDerivativeValid[i] && q->back->secondDerivativeValid[i]);
+		assert(r->secondDerivativeValid[i] && r->back->secondDerivativeValid[i]);
+	      }
+
+
+	    ti[*counter].secondDerivativeQ[i] = q->secondDerivative[i];
+	    ti[*counter].secondDerivativeR[i] = r->secondDerivative[i];
+#endif
 	  }     
 	*counter = *counter + 1;
       }  
@@ -1218,7 +1233,7 @@ void computeFullTraversalInfo(nodeptr p, traversalInfo *ti, int *counter, int ma
 		q = tmp;
 	      }
 	    
-	    computeFullTraversalInfo(r, ti, counter, maxTips, numBranches);	
+	    computeFullTraversalInfo(tr, r, ti, counter, maxTips, numBranches);	
 	    	   
 	    ti[*counter].tipCase = TIP_INNER; 
 	    ti[*counter].pNumber = p->number;
@@ -1237,14 +1252,27 @@ void computeFullTraversalInfo(nodeptr p, traversalInfo *ti, int *counter, int ma
 		z = r->z[i];
 		z = (z > zmin) ? log(z) : log(zmin);
 		ti[*counter].rz[i] = z;		
+
+#ifdef _BASTIEN
+		if(tr->doBastienStuff)
+		  {
+		    assert(q->secondDerivative[i] == q->back->secondDerivative[i]);
+		    assert(r->secondDerivative[i] == r->back->secondDerivative[i]);
+		    assert(q->secondDerivativeValid[i] && q->back->secondDerivativeValid[i]);
+		    assert(r->secondDerivativeValid[i] && r->back->secondDerivativeValid[i]);
+		  }
+
+		ti[*counter].secondDerivativeQ[i] = q->secondDerivative[i];
+		ti[*counter].secondDerivativeR[i] = r->secondDerivative[i];
+#endif
 	      }   
 	    
 	    *counter = *counter + 1;
 	  }
 	else
 	  {	 	  
-	    computeFullTraversalInfo(q, ti, counter, maxTips, numBranches);	       
-	    computeFullTraversalInfo(r, ti, counter, maxTips, numBranches);
+	    computeFullTraversalInfo(tr, q, ti, counter, maxTips, numBranches);	       
+	    computeFullTraversalInfo(tr, r, ti, counter, maxTips, numBranches);
 	   
 	    ti[*counter].tipCase = INNER_INNER; 
 	    ti[*counter].pNumber = p->number;
@@ -1264,6 +1292,19 @@ void computeFullTraversalInfo(nodeptr p, traversalInfo *ti, int *counter, int ma
 		z = r->z[i];
 		z = (z > zmin) ? log(z) : log(zmin);
 		ti[*counter].rz[i] = z;		
+
+#ifdef _BASTIEN
+		if(tr->doBastienStuff)
+		  {
+		    assert(q->secondDerivative[i] == q->back->secondDerivative[i]);
+		    assert(r->secondDerivative[i] == r->back->secondDerivative[i]);
+		    assert(q->secondDerivativeValid[i] && q->back->secondDerivativeValid[i]);
+		    assert(r->secondDerivativeValid[i] && r->back->secondDerivativeValid[i]);
+		  }
+		
+		ti[*counter].secondDerivativeQ[i] = q->secondDerivative[i];
+		ti[*counter].secondDerivativeR[i] = r->secondDerivative[i];
+#endif
 	      }   
 	    
 	    *counter = *counter + 1;
@@ -1283,11 +1324,32 @@ void determineFullTraversal(nodeptr p, tree *tr)
   for(k = 0; k < tr->numBranches; k++)        
     tr->td[0].ti[0].qz[k] = q->z[k];    
 
+#ifdef _BASTIEN 
+  if(tr->doBastienStuff)
+    {
+      for(k = 0; k < tr->numBranches; k++) 
+	{	
+	  assert(q->secondDerivative[k] == q->back->secondDerivative[k]);
+	  assert(p->secondDerivative[k] == p->back->secondDerivative[k]);
+	  assert(q->secondDerivativeValid[k] && q->back->secondDerivativeValid[k]);
+	  assert(p->secondDerivativeValid[k] && p->back->secondDerivativeValid[k]);
+	}
+      
+      for(k = 0; k < tr->numBranches; k++)
+	{
+	  tr->td[0].ti[0].secondDerivativeQ[k] = q->secondDerivative[k];
+	  tr->td[0].ti[0].secondDerivativeP[k] = p->secondDerivative[k];     
+	}
+
+      //printf("Start %f %f\n", q->secondDerivative[0],  p->secondDerivative[0]);
+    }
+#endif	    
+
   assert(isTip(p->number, tr->mxtips));
 
   tr->td[0].count = 1; 
-  computeFullTraversalInfo(q, &(tr->td[0].ti[0]),  &(tr->td[0].count), tr->mxtips, tr->numBranches); 
-  computeFullTraversalInfo(p, &(tr->td[0].ti[0]),  &(tr->td[0].count), tr->mxtips, tr->numBranches);
+  computeFullTraversalInfo(tr, q, &(tr->td[0].ti[0]),  &(tr->td[0].count), tr->mxtips, tr->numBranches); 
+  computeFullTraversalInfo(tr, p, &(tr->td[0].ti[0]),  &(tr->td[0].count), tr->mxtips, tr->numBranches);
 }
 
 
