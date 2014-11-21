@@ -6553,7 +6553,9 @@ static void makeFileNames(void)
   strcpy(rellBootstrapFileName, workdir);
   strcpy(mesquiteModel, workdir);
   strcpy(mesquiteTrees, workdir);
-
+  strcpy(mesquiteMLTrees, workdir);
+  strcpy(mesquiteMLLikes, workdir);
+  
   strcat(verboseSplitsFileName,             "RAxML_verboseSplits.");
   strcat(permFileName,                      "RAxML_parsimonyTree.");
   strcat(resultFileName,                    "RAxML_result.");
@@ -6575,6 +6577,8 @@ static void makeFileNames(void)
   strcat(rellBootstrapFileName,             "RAxML_rellBootstrap.");
   strcat(mesquiteModel,                     "RAxML_mesquiteModel.");
   strcat(mesquiteTrees,                     "RAxML_mesquiteTrees.");
+  strcat(mesquiteMLTrees,                   "RAxML_mesquite_ML_Trees.");
+  strcat(mesquiteMLLikes,                   "RAxML_mesquite_ML_Likes.");
 
   strcat(verboseSplitsFileName,            run_id);
   strcat(permFileName,                     run_id);
@@ -6597,6 +6601,8 @@ static void makeFileNames(void)
   strcat(rellBootstrapFileName,            run_id);
   strcat(mesquiteModel,                    run_id);
   strcat(mesquiteTrees,                    run_id);
+  strcat(mesquiteMLTrees,                  run_id);
+  strcat(mesquiteMLLikes,                  run_id);
 
 #ifdef _WAYNE_MPI  
   {

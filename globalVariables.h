@@ -75,7 +75,9 @@ char run_id[128] = "",
   rellBootstrapFileName[1024] = "",
   rellBootstrapFileNamePID[1024] = "",
   mesquiteModel[1024] = "",
-  mesquiteTrees[1024] = "";
+  mesquiteTrees[1024] = "",
+  mesquiteMLTrees[1024]="",
+  mesquiteMLLikes[1024] = "";
 
 
 
