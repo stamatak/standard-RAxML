@@ -4770,7 +4770,7 @@ static void coreClassify(tree *tr, volatile double *_dlnLdlz, volatile double *_
 		case CAT:
 		  coreGTRCAT(width, tr->partitionData[model].numberOfCategories, sumBuffer,
 			     &dlnLdlz, &d2lnLdlz2,
-			     patrat, tr->partitionData[model].EIGN,  rateCategory, lz, tr->partitionData[model].wgt);
+			     patrat, tr->partitionData[model].EIGN,  rateCategory, lz, wgt);
 		  break;
 		case GAMMA:
 		  coreGTRGAMMA(width, sumBuffer,
