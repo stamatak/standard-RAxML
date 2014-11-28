@@ -95,7 +95,7 @@ static void analyzeIdentifier(char **ch, int modelNumber, tree *tr)
     model[2048] = "",
     thisModel[2048] = "";
   
-  int 
+  int   
     i = 0, 
     n, 
     j,
@@ -111,22 +111,27 @@ static void analyzeIdentifier(char **ch, int modelNumber, tree *tr)
       *ch = *ch + 1;
     }
   
+  ident[i] = '\0';
+
   n = i;
   i = 0;
   
+  
+
   for(i = 0; i < n; i++)
     if(ident[i] == ',') 
       containsComma = 1;
 
   if(!containsComma)
     {
-      printf("Error, model file must have format: DNA or AA model, then a comma, and then the partition name\n");
+      printf("Error, model file must have format: Substitution model, then a comma, and then the partition name\n");
       exit(-1);
     }
   else
     {
       boolean 
-	useProteinSubstitutionFile = FALSE,
+	analyzeRest = TRUE,
+	useExternalFile = FALSE,
 	found = FALSE;
       
       int 
@@ -156,59 +161,137 @@ static void analyzeIdentifier(char **ch, int modelNumber, tree *tr)
       if(closeBracket > 0 || openBracket > 0)
 	{
 	  if((closeBracket == 1) && (openBracket == 1) && (openPos < closePos))
-	    useProteinSubstitutionFile = TRUE;
+	    useExternalFile = TRUE;
 	  else
 	    {
-	      printf("\nError: Apparently you want to specify a user-defined protein substitution model that shall be read from file\n");
-	      printf("It must be enclosed in opening and closing bracktes like this: [fileName]\n\n");
+	      printf("\nError: Apparently you want to specify a user-defined protein substitution model\n");
+	      printf("or ascertainment bias correction model that shall be read from file\n");
+	      printf("It must be enclosed in opening and closing bracktes like this: [prot=fileName] or [asc=fileName]\n\n");
 	      printf("you specified: %s\n\n", model);
 	      exit(-1);
 	    }
 	}
       
-      if(useProteinSubstitutionFile)
+      if(useExternalFile)
 	{
-	  char 
-	    protFileName[2048] = "";
+	  char
+	    designator[2048] = "",
+	    fileName[2048] = "";
 
 	  int 
-	    pos,
-	    k,
+	    pos,	   
+	    index,
 	    lower = 0,
-	    upper = i - 1;
+	    upper = i - 1;	       
+	  
+	  boolean
+	    isProteinFile   = TRUE;
 
-	  while(model[lower] == '[' || model[lower] == ' ')
+	  while(model[lower] == '[')
 	    lower++;
 
-	  while(model[upper] == ']' || model[upper] == ' ')
+	  while(model[upper] == ']')
 	    upper--;
 	  
 	  assert(lower < upper);
 
-	  for(k = lower, pos = 0; k <= upper; k++, pos++)
-	    protFileName[pos] = model[k];
+	  index = lower;
+	  pos = 0;	  
 	  
-	  protFileName[pos] = '\0';
-
-	  
-
-	  if(!filexists(protFileName))
+	  while(model[index] != '~')
 	    {
-	      printf("\n\ncustom protein substitution file [%s] you want to use does not exist!\n", protFileName);
+	      designator[pos] = model[index];
+	      pos++;
+	      index++;
+	    }
+
+	  designator[pos] = '\0';
+	  
+	  if(strcmp(designator, "asc") == 0)	    
+	    isProteinFile = FALSE;	    
+	  else
+	    {
+	      if(strcmp(designator, "prot") == 0)
+		isProteinFile = TRUE;
+	      else
+		{
+		  printf("Error external partition file type %s does not exist\n", designator);
+		  printf("Available file types: asc and prot\n");
+		  exit(-1);
+		}	       
+	    }	    	 
+	  
+	  while(model[index] == '~')	    	     
+	    index++;	   
+
+	  pos = 0;
+	  
+	  while(model[index] != ']')
+	    {
+	      fileName[pos] = model[index];
+	      index++;
+	      pos++;
+	    }	    	  
+	  
+	  fileName[pos] = '\0';	 
+
+	  if(!filexists(fileName))
+	    {
+	      printf("\n\ncustom protein substitution or ascertainment bias file [%s] you want to use does not exist!\n", fileName);
 	      printf("you need to specify the full path\n");
 	      printf("the file name shall not contain blanks!\n\n");
-	      exit(0);
+	      exit(-1);
 	    }
 	  
-
-	  strcpy(tr->initialPartitionData[modelNumber].proteinSubstitutionFileName, protFileName);
-	  /*printf("%s \n", tr->initialPartitionData[modelNumber].proteinSubstitutionFileName);*/
 	  
-	  tr->initialPartitionData[modelNumber].protModels = PROT_FILE;		  
-	  tr->initialPartitionData[modelNumber].usePredefinedProtFreqs  = TRUE;
-	  tr->initialPartitionData[modelNumber].dataType   = AA_DATA;
+	  if(isProteinFile)
+	    {
+	      strcpy(tr->initialPartitionData[modelNumber].proteinSubstitutionFileName, fileName);
+	      /*printf("%s \n", tr->initialPartitionData[modelNumber].proteinSubstitutionFileName);*/
+	      
+	      tr->initialPartitionData[modelNumber].protModels = PROT_FILE;		  
+	      tr->initialPartitionData[modelNumber].usePredefinedProtFreqs  = TRUE;
+	      tr->initialPartitionData[modelNumber].dataType   = AA_DATA;
+	      analyzeRest = FALSE;
+	    }
+	  else
+	    {
+	      int 
+		newIndex = 0;
+	      	      
+	      strcpy(tr->initialPartitionData[modelNumber].ascFileName, fileName); 
+	      
+	      i = 0;
+	      
+	      while(ident[i] != ',')
+		{
+		  if(ident[i] == '\0')
+		    {
+		      printf("Expecting two commas in string %s\n", ident);
+		      exit(-1);
+		    }
+		  i++;
+		}
+	      
+	      i++;	     
+
+	      while(ident[i] != ',')
+		{
+		  if(ident[i] == '\0')
+		    {
+		      printf("Expecting two commas in string %s\n", ident);
+		      exit(-1);
+		    }
+		  model[newIndex] = ident[i];
+		  i++;
+		  newIndex++;
+		}
+		    	     
+	      model[newIndex] = '\0';
+	    }	 
 	}
-      else
+      
+      if(analyzeRest)
 	{
 	  /* AA */
 	  tr->initialPartitionData[modelNumber].ascBias = FALSE;
@@ -1532,6 +1615,7 @@ void parseSecondaryStructure(tree *tr, analdef *adef, int sites)
 	      partBuffer[i].partitionName = (char*)rax_malloc((strlen(tr->extendedPartitionData[i].partitionName) + 1) * sizeof(char));
 	      strcpy(partBuffer[i].partitionName, tr->extendedPartitionData[i].partitionName);
 	      strcpy(partBuffer[i].proteinSubstitutionFileName, tr->extendedPartitionData[i].proteinSubstitutionFileName);
+	      strcpy(partBuffer[i].ascFileName, tr->extendedPartitionData[i].ascFileName);
 	      partBuffer[i].dataType =  tr->extendedPartitionData[i].dataType;
 	      partBuffer[i].protModels =  tr->extendedPartitionData[i].protModels;
 	      partBuffer[i].usePredefinedProtFreqs =  tr->extendedPartitionData[i].usePredefinedProtFreqs;	      
@@ -1549,6 +1633,7 @@ void parseSecondaryStructure(tree *tr, analdef *adef, int sites)
 	      tr->extendedPartitionData[i].partitionName = (char*)rax_malloc((strlen(partBuffer[i].partitionName) + 1) * sizeof(char));
 	      strcpy(tr->extendedPartitionData[i].partitionName, partBuffer[i].partitionName);
 	      strcpy(tr->extendedPartitionData[i].proteinSubstitutionFileName, partBuffer[i].proteinSubstitutionFileName);
+	      strcpy(tr->extendedPartitionData[i].ascFileName, partBuffer[i].ascFileName);
 	      tr->extendedPartitionData[i].dataType =  partBuffer[i].dataType;
 	      tr->extendedPartitionData[i].protModels= partBuffer[i].protModels;
 	      tr->extendedPartitionData[i].usePredefinedProtFreqs=  partBuffer[i].usePredefinedProtFreqs;

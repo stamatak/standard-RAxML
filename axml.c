@@ -1878,6 +1878,7 @@ static void getinput(analdef *adef, rawdata *rdta, cruncheddata *cdta, tree *tr)
 	      tr->initialPartitionData[0].usePredefinedProtFreqs  = TRUE;
 	      tr->initialPartitionData[0].optimizeBaseFrequencies = FALSE;
 	      strcpy(tr->initialPartitionData[0].proteinSubstitutionFileName, proteinModelFileName);
+	      
 	    }
 	  
 	  for(i = 0; i <= rdta->sites; i++)
@@ -1898,6 +1899,7 @@ static void getinput(analdef *adef, rawdata *rdta, cruncheddata *cdta, tree *tr)
 	      tr->extendedPartitionData[i].partitionName = (char*)rax_malloc((strlen(tr->initialPartitionData[i].partitionName) + 1) * sizeof(char));
 	      strcpy(tr->extendedPartitionData[i].partitionName, tr->initialPartitionData[i].partitionName);
 	      strcpy(tr->extendedPartitionData[i].proteinSubstitutionFileName, tr->initialPartitionData[i].proteinSubstitutionFileName);
+	      strcpy(tr->extendedPartitionData[i].ascFileName, tr->initialPartitionData[i].ascFileName);
 	      tr->extendedPartitionData[i].dataType   = tr->initialPartitionData[i].dataType;	      
 	      tr->extendedPartitionData[i].protModels = tr->initialPartitionData[i].protModels;
 	      tr->extendedPartitionData[i].usePredefinedProtFreqs  = tr->initialPartitionData[i].usePredefinedProtFreqs;
@@ -3181,6 +3183,9 @@ static void allocPartitions(tree *tr)
       tr->partitionData[i].frequencies       = (double*)rax_malloc(pl->frequenciesLength * sizeof(double));
       tr->partitionData[i].freqExponents     = (double*)rax_malloc(pl->frequenciesLength * sizeof(double));
       tr->partitionData[i].tipVector         = (double *)rax_malloc(pl->tipVectorLength * sizeof(double));
+
+      tr->partitionData[i].invariableFrequencies  = (double *)rax_malloc(pl->states * sizeof(double));      
+      
 
 #ifdef _HET
       
@@ -4692,6 +4697,7 @@ static void printREADME(void)
 #else
   printf("      [--mesquite][--silent][--no-seq-check][--no-bfgs]\n");
 #endif
+  printf("      [--asc-corr=stamatakis|felsenstein|lewis]\n");
   printf("\n");
   printf("      -a      Specify a column weight file name to assign individual weights to each column of \n");
   printf("              the alignment. Those weights must be integers separated by any type and number \n");
@@ -5051,7 +5057,7 @@ static void printREADME(void)
   printf("              Bootstopping will only work in combination with \"-x\" or \"-b\"\n");
   printf("\n");
   printf("              DEFAULT: 1 single analysis\n");
-  printf("\n");
+  printf("\n");  
 #ifndef _WAYNE_MPI
   printf("      --mesquite Print output files that can be parsed by Mesquite.\n");
   printf("\n");
@@ -5071,6 +5077,16 @@ static void printREADME(void)
   printf("      --no-bfgs Disables automatic usage of BFGS method to optimize GTR rates on unpartitioned DNA datasets\n");
   printf("\n");
   printf("              DEFAULT: BFGS on\n");
+  printf("\n");
+  printf("      --asc-corr Allows to specify the type of ascertainment bias correction you wish to use. There are three\n");
+  printf("                 types available:\n");
+  printf("                 --asc-corr=lewis: the standard correction by Paul Lewis\n");
+  printf("                 --asc-corr=felsenstein: a correction introduced by Joe Felsenstein that allows to explicitely specify\n");
+  printf("                                         the number of invariable sites (if known) one wants to correct for.\n");
+  printf("                 --asc-corr=stamatakis: a correction introduced by myself that allows to explicitely specify\n");
+  printf("                                        the number of invariable sites for each character (if known) one wants to correct for.\n");
+  printf("                 For further details please refer to the manual!\n");
+
   printf("\n");
   
   printf("\n\n\n\n");
@@ -5177,6 +5193,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
   tr->noRateHet = FALSE;
   tr->perPartitionEPA = FALSE;
   tr->useBrLenScaler = FALSE;
+  tr->ascertainmentCorrectionType = NOT_DEFINED;
 
 #ifdef _BASTIEN
   tr->doBastienStuff = FALSE;
@@ -5189,13 +5206,14 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
   while(1)
     {      
       static struct 
-	option long_options[5] =
+	option long_options[6] =
 	{
 	  /* These options set a flag. */
 	  {"mesquite",     no_argument, &flag, 1},
 	  {"silent",       no_argument, &flag, 1},
 	  {"no-seq-check", no_argument, &flag, 1},
 	  {"no-bfgs",      no_argument, &flag, 1},
+	  {"asc-corr",     required_argument, &flag, 1},
 	  /* These options don't set a flag.
 	     We distinguish them by their indices. */
 	  //{"add",     no_argument,       0, 'a'},
@@ -5239,6 +5257,45 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	      break;
 	    case 3:
 	      adef->useBFGS = FALSE;
+	      break;
+	    case 4:
+	      {
+		char 
+		  *ascModels[3] = {"lewis", "felsenstein", "stamatakis"};
+
+		int 
+		  k;
+
+		for(k = 0; k < 3; k++)		  
+		  if(strcmp(optarg, ascModels[k]) == 0)
+		    break;
+
+		if(k == 3)
+		  {
+		    printf("\nError, unknown ascertainment correction type, you can specify one of the following corrections:\n\n");
+		    for(k = 0; k < 3; k++)
+		      printf("--asc-corr=%s\n", ascModels[k]);
+		    printf("\n");
+		    errorExit(-1);
+		  }
+		else
+		  {
+		    switch(k)
+		      {
+		      case 0:
+			tr->ascertainmentCorrectionType = LEWIS_CORRECTION;
+			break;
+		      case 1:
+			tr->ascertainmentCorrectionType = FELSENSTEIN_CORRECTION;
+			break;
+		      case 2:
+			tr->ascertainmentCorrectionType = STAMATAKIS_CORRECTION;
+			break;
+		      default:
+			assert(0);
+		      }
+		  }
+	      }
 	      break;
 	    default:
 	      assert(0);
@@ -8143,6 +8200,7 @@ static void initPartition(tree *tr, tree *localTree, int tid)
       localTree->cdta->patratStored = tr->cdta->patratStored;
 
       localTree->discreteRateCategories = tr->discreteRateCategories;     
+      localTree->ascertainmentCorrectionType = tr->ascertainmentCorrectionType;
 
       for(model = 0; model < localTree->NumberOfModels; model++)
 	{
@@ -8603,8 +8661,11 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 	      localTree->partitionData[model].propInvariant = tr->partitionData[model].propInvariant;
 	      localTree->partitionData[model].lower      = tr->partitionData[model].lower;
 	      localTree->partitionData[model].upper      = tr->partitionData[model].upper;
-	      
+	      	      
 	      localTree->partitionData[model].numberOfCategories      = tr->partitionData[model].numberOfCategories;
+	      
+	      localTree->partitionData[model].invariableWeight = tr->partitionData[model].invariableWeight;
+	      memcpy(localTree->partitionData[model].invariableFrequencies,   tr->partitionData[model].invariableFrequencies,   pl->states * sizeof(double));
 	    }	   
 	}     
 
@@ -11988,6 +12049,91 @@ static void checkAscBias(tree *tr)
       }
 }
 
+
+static void readAscFiles(tree *tr)
+ {     
+   if(tr->ascertainmentCorrectionType == STAMATAKIS_CORRECTION || tr->ascertainmentCorrectionType == FELSENSTEIN_CORRECTION)
+     {
+       int 
+	 model;
+       
+       for(model = 0; model < tr->NumberOfModels; model++)
+	 {
+	   if(tr->partitionData[model].ascBias)
+	     {
+	       if(filexists(tr->partitionData[model].ascFileName))
+		 {
+		   FILE 
+		     *f = myfopen(tr->partitionData[model].ascFileName, "rb");
+		   
+		   switch(tr->ascertainmentCorrectionType)
+		     {
+		     case STAMATAKIS_CORRECTION:
+		       {
+			 boolean
+			   errorDetected = FALSE;
+			 
+			 unsigned int
+			   *weights = (unsigned int*)rax_malloc((size_t)tr->partitionData[model].states * sizeof(unsigned int));
+			 
+			 int
+			   i;
+			 
+			 for(i = 0; i < tr->partitionData[model].states; i++)
+			   if(fscanf(f, "%u", &weights[i]) != 1)
+			     {
+			       errorDetected = TRUE;
+			       break;
+			     }
+			 
+			 if(errorDetected)
+			   {
+			     printf("\nProblem reading number of invariable sites in ascertainment correction file %s\n", tr->partitionData[model].ascFileName);
+			     printf("for stamatakis ascertainment bias correction for partition %d with name %s.\n\n", model, tr->partitionData[model].partitionName);
+			     errorExit(-1);
+			   }
+			 
+			 for(i = 0; i < tr->partitionData[model].states; i++)
+			   tr->partitionData[model].invariableFrequencies[i] = (double)weights[i];
+			 
+			 rax_free(weights);
+		       }
+		       break;
+		     case FELSENSTEIN_CORRECTION:
+		       {
+			 unsigned int 
+			   length;
+			 
+			 if(fscanf(f, "%u", &length) != 1)
+			   {
+			     printf("\nProblem reading number of invariable sites in ascertainment correction file %s\n", tr->partitionData[model].ascFileName);
+			     printf("for felsenstein ascertainment bias correction for partition %d with name %s.\n\n", model, tr->partitionData[model].partitionName);
+			     errorExit(-1);
+			   }
+			 
+			 tr->partitionData[0].invariableWeight = (double)length;
+		       }
+		       break;
+		     default:
+		       assert(0);
+		     }
+		   
+		   fclose(f);
+		 }
+	       else
+		 {
+		   printf("You specified that you want to use a stamatakis or felsenstein ascertainment bias correction for partition %d with name %s.\n", 
+			  model, tr->partitionData[model].partitionName);
+		   printf("but did not specify a correction file for this partition in the partition file!\n\n");
+		   errorExit(-1);
+		 }
+	     }	      			      
+	 }
+     }
+ }
+      
+     
+
 /******* missing data prediction code -f k option **************************************************/
 
 //function that makes the actual sequence guess estimate given a node of the tree p which is a tip
@@ -13086,7 +13232,16 @@ int main (int argc, char *argv[])
     setRateHetAndDataIncrement(tr, adef);
 
     if(countAscBias > 0 && !adef->readTaxaOnly)
-      checkAscBias(tr);
+      {
+	if(tr->ascertainmentCorrectionType == NOT_DEFINED)
+	  {
+	    printf("\nError, one or more of your partitions use an ascertainment bias correction,\n");
+	    printf("but you have not specified which correction type you want to use via \"--asc-corr\" \n\n");
+	    errorExit(-1);
+	  }
+
+	checkAscBias(tr);				      					
+      }
 
 #ifdef _USE_PTHREADS
     startPthreads(tr);
@@ -13097,6 +13252,10 @@ int main (int argc, char *argv[])
     if(!adef->readTaxaOnly)  
       allocNodex(tr);
 #endif
+    
+    
+    readAscFiles(tr);
+   
     
     if(!adef->readTaxaOnly) 
       {

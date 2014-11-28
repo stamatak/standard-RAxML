@@ -1158,13 +1158,18 @@ static void coreGammaFlex(double *gammaRates, double *EIGN, double *sumtable, in
 }
 
 static double coreCatAsc(double *EIGN, double *sumtable, int upper,
-			 volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double lz, const int numStates)
+			 volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double lz, const int numStates, 
+			 volatile double *standard_ext_dlnLdlz,  volatile double *standard_ext_d2lnLdlz2, 
+			 volatile double *felsenstein_ext_dlnLdlz,  volatile double *felsenstein_ext_d2lnLdlz2,
+			 double *weightVector)
 {
   double  
     diagptable[1024], 
     lh = 0.0,
     dlnLdlz = 0.0,
     d2lnLdlz2 = 0.0,
+    standard_dlnLdlz = 0.0,
+    standard_d2lnLdlz2 = 0.0,
     ki, 
     kisqr;
 
@@ -1202,28 +1207,55 @@ static double coreCatAsc(double *EIGN, double *sumtable, int upper,
 	  d2lnLidlz2 += tmp * diagptable[l * 4 + 2];
 	}	            
             
+      if(weightVector)
+	{
+	  double
+	    standard_inv_Li = inv_Li,
+	    standard_dlnLidlz = dlnLidlz,
+	    standard_d2lnLidlz2 = d2lnLidlz2;
+	    
+	  standard_inv_Li = 1.0 / FABS(standard_inv_Li);
+
+	  standard_dlnLidlz   *= standard_inv_Li;
+	  standard_d2lnLidlz2 *= standard_inv_Li;
+
+	  standard_dlnLdlz   += weightVector[i] * standard_dlnLidlz;
+	  standard_d2lnLdlz2 += weightVector[i] * (standard_d2lnLidlz2 - standard_dlnLidlz * standard_dlnLidlz);
+	}
+      
       inv_Li = FABS(inv_Li);             
        
       lh        += inv_Li;	  	 
       dlnLdlz   += dlnLidlz;
-      d2lnLdlz2 += d2lnLidlz2;       
+      d2lnLdlz2 += d2lnLidlz2;            
     } 
 
   *ext_dlnLdlz   = (dlnLdlz / (lh - 1.0));
   *ext_d2lnLdlz2 = (((lh - 1.0) * (d2lnLdlz2) - (dlnLdlz * dlnLdlz)) / ((lh - 1.0) * (lh - 1.0)));  
+
+  *felsenstein_ext_dlnLdlz    = dlnLdlz / lh;
+  *felsenstein_ext_d2lnLdlz2 = ((d2lnLdlz2 * lh) - (dlnLdlz * dlnLdlz)) / (lh * lh);
+
+  *standard_ext_dlnLdlz   = standard_dlnLdlz;
+  *standard_ext_d2lnLdlz2 = standard_d2lnLdlz2;
 
   return lh;
 }
 
 
 static double coreGammaAsc(double *gammaRates, double *EIGN, double *sumtable, int upper,
-			   volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double lz, const int numStates)
+			   volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double lz, const int numStates, 
+			   volatile double *standard_ext_dlnLdlz,  volatile double *standard_ext_d2lnLdlz2, 
+			   volatile double *felsenstein_ext_dlnLdlz,  volatile double *felsenstein_ext_d2lnLdlz2,
+			   double *weightVector)
 {
   double  
     diagptable[1024], 
     lh = 0.0,
     dlnLdlz = 0.0,
     d2lnLdlz2 = 0.0,
+    standard_dlnLdlz = 0.0,
+    standard_d2lnLdlz2 = 0.0,    
     ki, 
     kisqr;
 
@@ -1269,6 +1301,22 @@ static double coreGammaAsc(double *gammaRates, double *EIGN, double *sumtable, i
 	    }	  
 	}    
             
+      if(weightVector)
+	{
+	  double
+	    standard_inv_Li = inv_Li,
+	    standard_dlnLidlz = dlnLidlz,
+	    standard_d2lnLidlz2 = d2lnLidlz2;
+	  
+	  standard_inv_Li = 1.0 / FABS(standard_inv_Li);
+
+	  standard_dlnLidlz   *= standard_inv_Li;
+	  standard_d2lnLidlz2 *= standard_inv_Li;
+
+	  standard_dlnLdlz   += weightVector[i] * standard_dlnLidlz;
+	  standard_d2lnLdlz2 += weightVector[i] * (standard_d2lnLidlz2 - standard_dlnLidlz * standard_dlnLidlz);	  	  
+	}
+
       inv_Li = 0.25 * FABS(inv_Li);         
       dlnLidlz *= 0.25;
       d2lnLidlz2 *= 0.25;
@@ -1280,6 +1328,12 @@ static double coreGammaAsc(double *gammaRates, double *EIGN, double *sumtable, i
 
   *ext_dlnLdlz   = (dlnLdlz / (lh - 1.0));
   *ext_d2lnLdlz2 = (((lh - 1.0) * (d2lnLdlz2) - (dlnLdlz * dlnLdlz)) / ((lh - 1.0) * (lh - 1.0)));  
+  
+  *felsenstein_ext_dlnLdlz    = dlnLdlz / lh;
+  *felsenstein_ext_d2lnLdlz2 = ((d2lnLdlz2 * lh) - (dlnLdlz * dlnLdlz)) / (lh * lh);
+
+  *standard_ext_dlnLdlz   = standard_dlnLdlz;
+  *standard_ext_d2lnLdlz2 = standard_d2lnLdlz2;
 
   return lh;
 }
@@ -4223,36 +4277,62 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 		i;
 
 	      double 
-		correction;
+		*weightVector = (double*)NULL;
 
 	      int	     
 		w = 0;
 	      
 	      volatile double 
 		d1 = 0.0,
-		d2 = 0.0;	      	    
+		d2 = 0.0,
+		standard_d1 = 0.0,
+		standard_d2 = 0.0,
+		felsenstein_d1 = 0.0,
+		felsenstein_d2 = 0.0;
 	      
-	      for(i = tr->partitionData[model].lower; i < tr->partitionData[model].upper; i++)
-		w += tr->cdta->aliaswgt[i];	
+	      if(tr->ascertainmentCorrectionType == STAMATAKIS_CORRECTION)		
+		weightVector = tr->partitionData[model].invariableFrequencies;			      	    	
 	      
 	       switch(tr->rateHetModel)
 		 {
 		 case CAT:
-		   correction = coreCatAsc(tr->partitionData[model].EIGN, tr->partitionData[model].ascSumBuffer, states,
-					     &d1,  &d2, lz, states);	  
+		   coreCatAsc(tr->partitionData[model].EIGN, tr->partitionData[model].ascSumBuffer, states,
+			      &d1,  &d2, lz, states, &standard_d1, &standard_d2, 
+					   &felsenstein_d1, &felsenstein_d2,
+					   weightVector);	  
 		   break;
 		 case GAMMA:
-		   correction = coreGammaAsc(tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, tr->partitionData[model].ascSumBuffer, states,
-					     &d1,  &d2, lz, states);	  
+		   coreGammaAsc(tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, tr->partitionData[model].ascSumBuffer, states,
+				&d1,  &d2, lz, states, &standard_d1, &standard_d2, 
+				&felsenstein_d1, &felsenstein_d2,
+				weightVector);	  
 		   break;
 		 default:
 		   assert(0);
 		 }
 	     
-	      correction = 1.0 - correction;
+	      
 	  
-	      _dlnLdlz[branchIndex]   =  _dlnLdlz[branchIndex] + dlnLdlz - (double)w * d1;
-	      _d2lnLdlz2[branchIndex] =  _d2lnLdlz2[branchIndex] + d2lnLdlz2-  (double)w * d2;
+	        switch(tr->ascertainmentCorrectionType)
+		  {
+		  case LEWIS_CORRECTION:
+		    for(i = tr->partitionData[model].lower; i < tr->partitionData[model].upper; i++)
+		      w += tr->cdta->aliaswgt[i];
+		    
+		    _dlnLdlz[branchIndex]   =  _dlnLdlz[branchIndex] + dlnLdlz - (double)w * d1;
+		    _d2lnLdlz2[branchIndex] =  _d2lnLdlz2[branchIndex] + d2lnLdlz2-  (double)w * d2;
+		    break;
+		  case STAMATAKIS_CORRECTION:
+		    _dlnLdlz[branchIndex]   += dlnLdlz + standard_d1;
+		    _d2lnLdlz2[branchIndex] += d2lnLdlz2 + standard_d2;
+		    break;
+		  case FELSENSTEIN_CORRECTION:
+		    _dlnLdlz[branchIndex]   += dlnLdlz +   tr->partitionData[model].invariableWeight * felsenstein_d1;
+		    _d2lnLdlz2[branchIndex] += d2lnLdlz2 + tr->partitionData[model].invariableWeight * felsenstein_d2;
+		    break;
+		  default:
+		    assert(0);
+		  }
 		
 	    }  
 	    else

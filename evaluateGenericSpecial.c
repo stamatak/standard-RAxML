@@ -254,7 +254,7 @@ static double evaluateCatFlex(int *ex1, int *ex2, int *cptr, int *wptr,
 static double evaluateCatAsc(int *ex1, int *ex2,
 			     double *x1, double *x2,  
 			     double *tipVector, 
-			     unsigned char *tipX1, int n, double *diagptable, const int numStates)
+			     unsigned char *tipX1, int n, double *diagptable, const int numStates, double *accumulator, double *weightVector)
 {
   double
     exponent,
@@ -300,6 +300,9 @@ static double evaluateCatAsc(int *ex1, int *ex2,
 	    }
 #endif	  
 	    
+	  if(weightVector)
+	    *accumulator += weightVector[i] * (LOG(FABS(term)) + (ex2[i] * LOG(minlikelihood)));
+
 	  sum += unobserved;
 	}              
     }              
@@ -331,7 +334,10 @@ static double evaluateCatAsc(int *ex1, int *ex2,
 	  assert(exponent < 700.0);
 	  
 	  unobserved = FABS(term) * exp(exponent);	  	  
-  
+
+	  if(weightVector)
+	    *accumulator += weightVector[i] * (LOG(FABS(term)) + ((ex1[i] + ex2[i]) * LOG(minlikelihood)));
+					       
 	  sum += unobserved;
 	}             
     }        
@@ -343,7 +349,7 @@ static double evaluateCatAsc(int *ex1, int *ex2,
 static double evaluateGammaAsc(int *ex1, int *ex2,
 				double *x1, double *x2,  
 				double *tipVector, 
-				unsigned char *tipX1, int n, double *diagptable, const int numStates)
+			       unsigned char *tipX1, int n, double *diagptable, const int numStates, double *accumulator, double *weightVector)
 {
   double
     exponent,
@@ -394,7 +400,9 @@ static double evaluateGammaAsc(int *ex1, int *ex2,
 	      assert(0);
 	    }
 #endif	  
-	    
+	  if(weightVector)
+	    *accumulator += weightVector[i] * (LOG(0.25 * FABS(term)) + (ex2[i] * LOG(minlikelihood)));
+	  
 	  sum += unobserved;
 	}              
     }              
@@ -428,7 +436,10 @@ static double evaluateGammaAsc(int *ex1, int *ex2,
 	  assert(exponent < 700.0);
 	  
 	  unobserved = 0.25 * FABS(term) * exp(exponent);	  	  
-  
+	  
+	   if(weightVector)
+	     *accumulator += weightVector[i] * (LOG(0.25 * FABS(term)) + ((ex1[i] + ex2[i]) * LOG(minlikelihood)));
+
 	  sum += unobserved;
 	}             
     }        
@@ -3458,8 +3469,14 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 		    int	       
 		      w = 0;
 		    
-		    double 		   		  
+		    double 	
+		      *weightVector = (double*)NULL,
+		      accumulator = 0.0,
 		      correction;
+
+		    if(tr->ascertainmentCorrectionType == STAMATAKIS_CORRECTION)		     
+		      weightVector = tr->partitionData[model].invariableFrequencies;		      
+		    //		      invariableWeight;
 
 		    switch(tr->rateHetModel)
 		      {
@@ -3473,23 +3490,36 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 			  
 			  
 			  correction = evaluateCatAsc(ex1_asc, ex2_asc, x1_start_asc, x2_start_asc, tr->partitionData[model].tipVector,
-						      tip, ascWidth, diagptable, ascWidth);			 		 	       
+						      tip, ascWidth, diagptable, ascWidth, &accumulator, weightVector);			 		 	       
 			}
 			break;
 		      case GAMMA:			
 			correction = evaluateGammaAsc(ex1_asc, ex2_asc, x1_start_asc, x2_start_asc, tr->partitionData[model].tipVector,
-						      tip, ascWidth, diagptable, ascWidth);			 		 	       
+						      tip, ascWidth, diagptable, ascWidth, &accumulator, weightVector);			 		 	       
 			break;
 		      default:
 			assert(0);
 		      }
 		    
-		    
-		    
-		    for(i = tr->partitionData[model].lower; i < tr->partitionData[model].upper; i++)
-		      w += tr->cdta->aliaswgt[i];		  		  	      	     	     		   
-
-		    partitionLikelihood = partitionLikelihood - (double)w * LOG(1.0 - correction);		    
+		    switch(tr->ascertainmentCorrectionType)
+		      {
+		      case LEWIS_CORRECTION:		    
+			for(i = tr->partitionData[model].lower; i < tr->partitionData[model].upper; i++)
+			  w += tr->cdta->aliaswgt[i];		  		  	      	     	     		   
+			partitionLikelihood = partitionLikelihood - (double)w * LOG(1.0 - correction);		    
+			break;
+		      case STAMATAKIS_CORRECTION:
+			//printf("accumulator %f\n", accumulator);
+			//exit(1);
+			partitionLikelihood += accumulator;
+			break;
+		      case FELSENSTEIN_CORRECTION:
+			partitionLikelihood += tr->partitionData[model].invariableWeight * LOG(correction);
+			//	printf("correction %f %f\n", partitionLikelihood, tr->partitionData[model].invariableWeight * LOG(correction));
+			break;
+		      default:
+			assert(0);
+		      }
 	      
 #ifdef _DEBUG_ASC 	      
 		    printf("E w: %f %f ARG %f ragu %f\n", partitionLikelihood, (double)w, 1.0 - correction, (double)w * LOG(1.0 - correction));

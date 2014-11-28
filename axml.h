@@ -166,9 +166,9 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "RAxML"
-#define programVersion     "8.1.6"
-#define programVersionInt   816
-#define programDate        "November 26 2014"
+#define programVersion     "8.1.7"
+#define programVersionInt   817
+#define programDate        "November 28 2014"
 
 
 #define  TREE_EVALUATION                 0
@@ -599,6 +599,7 @@ typedef struct {
 
   char   *partitionName;
   char   proteinSubstitutionFileName[2048];
+  char   ascFileName[2048];
   double externalAAMatrix[420];
 
   double *sumBuffer;
@@ -610,6 +611,9 @@ typedef struct {
 
   double *left;
   double *right;
+
+  double    *invariableFrequencies;
+  double    invariableWeight;
 
 #ifdef _HET
   /* heterotachy */
@@ -768,6 +772,14 @@ typedef  struct
 
 
 
+/***********************************************************/
+
+#define NOT_DEFINED              0
+#define LEWIS_CORRECTION         1
+#define FELSENSTEIN_CORRECTION   2
+#define STAMATAKIS_CORRECTION    3
+
+
 /**************************************************************/
 
 
@@ -878,6 +890,8 @@ typedef  struct  {
 
   double            fracchange;
   double            rawFracchange;
+
+  int               ascertainmentCorrectionType;
 
 #ifdef _BASTIEN
   double           secondDerivative[NUM_BRANCHES];
