@@ -4698,6 +4698,7 @@ static void printREADME(void)
   printf("      [--mesquite][--silent][--no-seq-check][--no-bfgs]\n");
 #endif
   printf("      [--asc-corr=stamatakis|felsenstein|lewis]\n");
+  printf("      [--flag-check]\n");
   printf("\n");
   printf("      -a      Specify a column weight file name to assign individual weights to each column of \n");
   printf("              the alignment. Those weights must be integers separated by any type and number \n");
@@ -5086,7 +5087,9 @@ static void printREADME(void)
   printf("                 --asc-corr=stamatakis: a correction introduced by myself that allows to explicitely specify\n");
   printf("                                        the number of invariable sites for each character (if known) one wants to correct for.\n");
   printf("                 For further details please refer to the manual!\n");
-
+  printf("\n");
+  printf("      --flag-check When using this option, RAxML will only check if all command line flags specifed are available and then exit\n");
+  printf("                   with a message listing all invalid command line flags or with a message stating that all flags are valid.\n");
   printf("\n");
   
   printf("\n\n\n\n");
@@ -5145,7 +5148,9 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
     wcThreshold,
     fastEPAthreshold;
   
-  int    
+  int
+    invalidOptions = 0,
+    i,
     c,
     nameSet = 0,
     alignmentSet = 0,
@@ -5160,7 +5165,8 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
     bSeedSet = FALSE,
     xSeedSet = FALSE,
     multipleRunsSet = FALSE,
-    yFileSet = FALSE;
+    yFileSet = FALSE,
+    flagCheck = FALSE;
 
   run_id[0] = 0;
   workdir[0] = 0;
@@ -5201,12 +5207,21 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 
   /********* tr inits end*************/
 
+  for(i = 1; i < argc; i++)
+    if(strcmp(argv[i], "--flag-check") == 0)
+      {
+	flagCheck = TRUE;
+	opterr = 0;
+	break;
+      }
+
+
   static int flag;
 
   while(1)
     {      
       static struct 
-	option long_options[6] =
+	option long_options[7] =
 	{
 	  /* These options set a flag. */
 	  {"mesquite",     no_argument, &flag, 1},
@@ -5214,6 +5229,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	  {"no-seq-check", no_argument, &flag, 1},
 	  {"no-bfgs",      no_argument, &flag, 1},
 	  {"asc-corr",     required_argument, &flag, 1},
+	  {"flag-check,",  no_argument, &flag, 1},
 	  /* These options don't set a flag.
 	     We distinguish them by their indices. */
 	  //{"add",     no_argument,       0, 'a'},
@@ -5230,7 +5246,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
       flag = 0;
       
       c = getopt_long(argc,argv, "R:T:E:N:B:L:P:S:Y:A:G:I:J:K:W:l:x:z:g:r:e:a:b:c:f:i:m:t:w:s:n:o:q:#:p:vudyjhHkMDFQUOVCX", long_options, &option_index/*&optind, &optarg*/);
-    
+         
       if(c == -1)
 	break;          
       
@@ -5238,7 +5254,6 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	{
 	  switch(option_index)
 	    {
-
 	    case 0:	    
 	      adef->mesquite = TRUE;
 #ifdef _WAYNE_MPI
@@ -5297,8 +5312,16 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 		  }
 	      }
 	      break;
+	    case 5:
+	      break;
 	    default:
-	      assert(0);
+	      if(flagCheck)
+		{
+		  printf("Option %s not supported\n", argv[optind - 1]);
+		  invalidOptions++;
+		}
+	      else
+		assert(0);
 	    }
 	}
       else
@@ -5879,14 +5902,20 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 		adef->mode = CLASSIFY_MP;
 		break;
 	      default:
-		{
-		  if(processID == 0)
-		    {
-		      printf("Error select one of the following algorithms via -f :\n");
-		      printMinusFUsage();
-		    }
-		  errorExit(-1);
-		}
+		if(flagCheck)
+		  {
+		    printf("Option -f %s not supported\n", optarg);
+		    invalidOptions++;
+		  }
+		else
+		  {
+		    if(processID == 0)
+		      {
+			printf("Error select one of the following algorithms via -f :\n");
+			printMinusFUsage();
+		      }
+		    errorExit(-1);
+		  }
 	      }
 	    break;
 	  case 'i':
@@ -5957,9 +5986,23 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	      modelSet = 1;
 	    break;
 	  default:
-	    errorExit(-1);
+	    if(flagCheck)
+	      {
+		printf("Option %s not supported\n", argv[optind-1]);
+		invalidOptions++;		
+	      }
+	    else
+	      errorExit(-1);
 	  }
     }
+  
+  if(flagCheck)
+    {
+      if(invalidOptions == 0)
+	printf("All options supported\n");
+      exit(0);
+    }
+  
 
   if(disablePatternCompression)
     adef->compressPatterns = FALSE;
