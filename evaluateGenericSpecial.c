@@ -56,34 +56,44 @@ extern volatile int NumberOfThreads;
 extern const unsigned int mask32[32];
 
 
-void ascertainmentBiasSequence(unsigned char tip[32], int numStates)
+
+
+void ascertainmentBiasSequence(unsigned char tip[32], int numStates, int dataType)
 { 
   assert(numStates <= 32 && numStates > 1);
 
-  switch(numStates)
+  switch(dataType)
     {
-    case 2:     
+    case BINARY_DATA:     
       tip[0] = 1;
       tip[1] = 2;
       break;
-    case 4:
+    case DNA_DATA:
       tip[0] = 1;
       tip[1] = 2;
       tip[2] = 4;
       tip[3] = 8;
       break;
-    default:
+    case AA_DATA:
       {
 	int 
 	  i;
-	for(i = 0; i < numStates; i++)
-	  {
-	    tip[i] = i;
-	    //printf("%c ", inverseMeaningPROT[i]);
-	  }
-	//printf("\n");
+	
+	for(i = 0; i < numStates; i++)	  
+	  tip[i] = i;	  
+      }    
+      break;
+    case GENERIC_32:
+      {
+	int 
+	  i;
+	
+	for(i = 0; i < numStates; i++)	  
+	  tip[i] = i;
       }
       break;
+    default:
+      assert(0);
     }
 }
 
@@ -254,7 +264,7 @@ static double evaluateCatFlex(int *ex1, int *ex2, int *cptr, int *wptr,
 static double evaluateCatAsc(int *ex1, int *ex2,
 			     double *x1, double *x2,  
 			     double *tipVector, 
-			     unsigned char *tipX1, int n, double *diagptable, const int numStates, double *accumulator, double *weightVector)
+			     unsigned char *tipX1, int n, double *diagptable, const int numStates, double *accumulator, double *weightVector, int dataType)
 {
   double
     exponent,
@@ -272,7 +282,7 @@ static double evaluateCatAsc(int *ex1, int *ex2,
   unsigned char 
     tip[32];
 
-  ascertainmentBiasSequence(tip, numStates);
+  ascertainmentBiasSequence(tip, numStates, dataType);
    
   if(tipX1)
     {               
@@ -349,7 +359,7 @@ static double evaluateCatAsc(int *ex1, int *ex2,
 static double evaluateGammaAsc(int *ex1, int *ex2,
 				double *x1, double *x2,  
 				double *tipVector, 
-			       unsigned char *tipX1, int n, double *diagptable, const int numStates, double *accumulator, double *weightVector)
+			       unsigned char *tipX1, int n, double *diagptable, const int numStates, double *accumulator, double *weightVector, int dataType)
 {
   double
     exponent,
@@ -371,7 +381,7 @@ static double evaluateGammaAsc(int *ex1, int *ex2,
   unsigned char 
     tip[32];
 
-  ascertainmentBiasSequence(tip, numStates);
+  ascertainmentBiasSequence(tip, numStates, dataType);
    
   if(tipX1)
     {               
@@ -3490,12 +3500,12 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 			  
 			  
 			  correction = evaluateCatAsc(ex1_asc, ex2_asc, x1_start_asc, x2_start_asc, tr->partitionData[model].tipVector,
-						      tip, ascWidth, diagptable, ascWidth, &accumulator, weightVector);			 		 	       
+						      tip, ascWidth, diagptable, ascWidth, &accumulator, weightVector, tr->partitionData[model].dataType);     		  	 	       
 			}
 			break;
 		      case GAMMA:			
 			correction = evaluateGammaAsc(ex1_asc, ex2_asc, x1_start_asc, x2_start_asc, tr->partitionData[model].tipVector,
-						      tip, ascWidth, diagptable, ascWidth, &accumulator, weightVector);			 		 	       
+						      tip, ascWidth, diagptable, ascWidth, &accumulator, weightVector, tr->partitionData[model].dataType);	 		 	       
 			break;
 		      default:
 			assert(0);
@@ -3540,6 +3550,7 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 #endif
 	    }
 	  result += partitionLikelihood;	  
+	 
 	  tr->perPartitionLH[model] = partitionLikelihood; 	       
 	}
     }
@@ -3660,7 +3671,7 @@ double evaluateGenericInitrav (tree *tr, nodeptr p)
       }      
     }
 #else
-  result = evaluateIterative(tr, FALSE);
+  result = evaluateIterative(tr, FALSE);     
 #endif
 
   assert(result <= 0.0);

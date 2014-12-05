@@ -528,7 +528,7 @@ static void newviewAscCat(int tipCase,
 			  double *x1, double *x2, double *x3, double *extEV, double *tipVector,
 			  int *ex3, 
 			  const int n, double *left, double *right, 			    
-			  const int numStates)
+			  const int numStates, int dataType)
 {
   double
     *le, *ri, *v, *vl, *vr,
@@ -541,7 +541,7 @@ static void newviewAscCat(int tipCase,
   unsigned char 
     tip[32];
 
-  ascertainmentBiasSequence(tip, numStates);
+  ascertainmentBiasSequence(tip, numStates, dataType);
   
   switch(tipCase)
     {
@@ -679,7 +679,7 @@ static void newviewAscGamma(int tipCase,
 			    double *x1, double *x2, double *x3, double *extEV, double *tipVector,
 			    int *ex3, 
 			    const int n, double *left, double *right, 			    
-			    const int numStates)
+			    const int numStates, int dataType)
 {
   
   int  
@@ -695,7 +695,7 @@ static void newviewAscGamma(int tipCase,
   unsigned char 
     tip[32];
 
-  ascertainmentBiasSequence(tip, numStates);
+  ascertainmentBiasSequence(tip, numStates, dataType);
   
   switch(tipCase)
     {
@@ -8597,7 +8597,7 @@ void newviewIterative (tree *tr)
 				      tr->partitionData[model].EV,
 				      tr->partitionData[model].tipVector,
 				      ex3_asc,
-				      states, left, right, states);
+				      states, left, right, states, tr->partitionData[model].dataType);
 		      }
 		      break;
 		    case GAMMA:
@@ -8606,7 +8606,7 @@ void newviewIterative (tree *tr)
 				      tr->partitionData[model].EV,
 				      tr->partitionData[model].tipVector,
 				      ex3_asc,
-				      states, left, right, states);			   
+				      states, left, right, states, tr->partitionData[model].dataType);			   
 		      break;
 		    default:
 		      assert(0);

@@ -166,9 +166,9 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "RAxML"
-#define programVersion     "8.1.7"
-#define programVersionInt   817
-#define programDate        "November 28 2014"
+#define programVersion     "8.1.8"
+#define programVersionInt   818
+#define programDate        "December 5 2014"
 
 
 #define  TREE_EVALUATION                 0
@@ -200,8 +200,13 @@
 #define  PLAUSIBILITY_CHECKER            26
 #define  CALC_BIPARTITIONS_IC            27
 #define  ROOT_TREE                       28
-#define  MISSING_SEQUENCE_PREDICTION     29
+#define  STEAL_BRANCH_LENGTHS            29
 #define  SUBTREE_EPA                     30
+
+#define AUTO_ML   0
+#define AUTO_BIC  1
+#define AUTO_AIC  2
+#define AUTO_AICC 3
 
 #define M_GTRCAT         1
 #define M_GTRGAMMA       2
@@ -892,6 +897,12 @@ typedef  struct  {
   double            rawFracchange;
 
   int               ascertainmentCorrectionType;
+  int               autoProteinSelectionType;
+
+  unsigned int      numberOfEPAEntries;
+  double            accumulatedEPACutoff;
+  boolean           useAccumulatedEPACutoff;
+  double            probThresholdEPA;
 
 #ifdef _BASTIEN
   double           secondDerivative[NUM_BRANCHES];
@@ -1190,7 +1201,7 @@ typedef struct
 
 /****************************** FUNCTIONS ****************************************************/
 
-extern void ascertainmentBiasSequence(unsigned char tip[32], int numStates);
+extern void ascertainmentBiasSequence(unsigned char tip[32], int numStates, int dataType);
 
 extern void computePlacementBias(tree *tr, analdef *adef);
 

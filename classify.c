@@ -1768,58 +1768,55 @@ static void printStandardFormat(tree *tr, char *jointFormatTreeFileName, int roo
 	 my old cutoff was at 0.95 accumulated likelihood weight:
 	 
 	 while(acc <= 0.95)
-      */
+      */            
       
-      /*#define _ALL_ENTRIES*/
-      
-#ifdef _ALL_ENTRIES
-      assert(validEntries == tr->numberOfBranches);
+      assert(tr->numberOfEPAEntries > 0);
+      tr->numberOfEPAEntries = MIN(tr->numberOfEPAEntries, (unsigned int)validEntries);
+
       while(j < validEntries)	  
-#else
-	while(j < validEntries && j < 7)	  
-#endif
 	  { 
-	    
-	    double 
-	      prob = 0.0;
-	    
-	    acc += (prob = (exp(inf[j].lh - lmax) / all));
-	    
-	    if(j == 0)
-	      maxprob = prob;
-#ifndef _ALL_ENTRIES
-	    if(prob >= maxprob * 0.01)
-#endif
+	    if((!tr->useAccumulatedEPACutoff && (unsigned int)j < tr->numberOfEPAEntries) || (tr->useAccumulatedEPACutoff && acc <= tr->accumulatedEPACutoff))
 	      {
-		if(j > 0)
+		double 
+		  prob = 0.0;
+	    
+		acc += (prob = (exp(inf[j].lh - lmax) / all));
+	    
+		if(j == 0)
+		  maxprob = prob;
+
+		if((!tr->useAccumulatedEPACutoff && prob >= maxprob * tr->probThresholdEPA) || (tr->useAccumulatedEPACutoff))
 		  {
-		    if(tr->wasRooted && inf[j].number == tr->rootLabel)
+		    if(j > 0)
 		      {
-			double 
-			  b = getBranch(tr, tr->leftRootNode->z, tr->rightRootNode->z);
-			
-			if(inf[j].distalBranch > 0.5 * b)
-			  fprintf(treeFile, ",[%d, %f, %f, %f, %f]", tr->numberOfBranches, inf[j].lh, prob, inf[j].distalBranch - 0.5 * b, inf[j].pendantBranch);
+			if(tr->wasRooted && inf[j].number == tr->rootLabel)
+			  {
+			    double 
+			      b = getBranch(tr, tr->leftRootNode->z, tr->rightRootNode->z);
+			    
+			    if(inf[j].distalBranch > 0.5 * b)
+			      fprintf(treeFile, ",[%d, %f, %f, %f, %f]", tr->numberOfBranches, inf[j].lh, prob, inf[j].distalBranch - 0.5 * b, inf[j].pendantBranch);
+			    else
+			      fprintf(treeFile, ",[%d, %f, %f, %f, %f]", inf[j].number, inf[j].lh, prob, 0.5 * b - inf[j].distalBranch, inf[j].pendantBranch); 
+			  }
 			else
-			  fprintf(treeFile, ",[%d, %f, %f, %f, %f]", inf[j].number, inf[j].lh, prob, 0.5 * b - inf[j].distalBranch, inf[j].pendantBranch); 
+			  fprintf(treeFile, ",[%d, %f, %f, %f, %f]", inf[j].number, inf[j].lh, prob, inf[j].distalBranch, inf[j].pendantBranch);
 		      }
 		    else
-		      fprintf(treeFile, ",[%d, %f, %f, %f, %f]", inf[j].number, inf[j].lh, prob, inf[j].distalBranch, inf[j].pendantBranch);
-		  }
-		else
-		  {
-		    if(tr->wasRooted && inf[j].number == tr->rootLabel)
 		      {
-			double 
-			  b = getBranch(tr, tr->leftRootNode->z, tr->rightRootNode->z);
-			
-			if(inf[j].distalBranch > 0.5 * b)
-			  fprintf(treeFile, "[%d, %f, %f, %f, %f]", tr->numberOfBranches, inf[j].lh, prob, inf[j].distalBranch - 0.5 * b, inf[j].pendantBranch);
+			if(tr->wasRooted && inf[j].number == tr->rootLabel)
+			  {
+			    double 
+			      b = getBranch(tr, tr->leftRootNode->z, tr->rightRootNode->z);
+			    
+			    if(inf[j].distalBranch > 0.5 * b)
+			      fprintf(treeFile, "[%d, %f, %f, %f, %f]", tr->numberOfBranches, inf[j].lh, prob, inf[j].distalBranch - 0.5 * b, inf[j].pendantBranch);
+			    else
+			      fprintf(treeFile, "[%d, %f, %f, %f, %f]", inf[j].number, inf[j].lh, prob, 0.5 * b - inf[j].distalBranch, inf[j].pendantBranch); 
+			  }
 			else
-			  fprintf(treeFile, "[%d, %f, %f, %f, %f]", inf[j].number, inf[j].lh, prob, 0.5 * b - inf[j].distalBranch, inf[j].pendantBranch); 
+			  fprintf(treeFile, "[%d, %f, %f, %f, %f]", inf[j].number, inf[j].lh, prob,  inf[j].distalBranch, inf[j].pendantBranch);
 		      }
-		    else
-		      fprintf(treeFile, "[%d, %f, %f, %f, %f]", inf[j].number, inf[j].lh, prob,  inf[j].distalBranch, inf[j].pendantBranch);
 		  }
 	      }
 	    	      

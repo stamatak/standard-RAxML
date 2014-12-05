@@ -1033,6 +1033,8 @@ static void checkTaxonName(char *buffer, int len)
 {
   int i;
 
+  //printf("checking taxon name\n");
+
   for(i = 0; i < len - 1; i++)
     {
       boolean valid;
@@ -1342,12 +1344,44 @@ static boolean getdata(analdef *adef, rawdata *rdta, tree *tr)
 		    return  FALSE;
 		  }
 	    }
-	  while (ch != '\n' && ch != EOF && ch != '\r') ch = getc(INFILE);  /* flush line *//* PC-LINEBREAK*/
+	  while (ch != '\n' && ch != EOF && ch != '\r') 
+	    ch = getc(INFILE);  /* flush line *//* PC-LINEBREAK*/
 	}
 
       firstpass = FALSE;
       basesread = basesnew;
       allread = (basesread >= rdta->sites);
+    }
+
+  if(ch != EOF)
+    {
+      int
+	garbageCount = 0;  
+
+      do
+	{
+	  if(!whitechar(ch))
+	    garbageCount++;
+
+	  if(garbageCount > 0)
+	    {
+	      if(garbageCount == 1)
+		printf("\nOups, there is garbage at the end of your file:\n\n");
+	      if(garbageCount < 1000)
+		printf("%c", ch);	     
+	      if(garbageCount == 1000)
+		printf("\n .... and so on\n");
+	    }
+	}
+      while((ch = getc(INFILE)) != EOF);
+      
+      if(garbageCount > 0)
+	{
+	  printf("\n\nRAxML correctly finished parsing your PHYLIP file,\n");
+	  printf("but there seems to be garbage at the end of the file, i.e., non-whitespace characters!\n");
+	  printf("RAxML will exit now\n\n");
+	  errorExit(-1);
+	}
     }
 
   for(j = 1; j <= tr->mxtips; j++)
@@ -1957,7 +1991,9 @@ static void getinput(analdef *adef, rawdata *rdta, cruncheddata *cdta, tree *tr)
       
       tr->nameHash = initStringHashTable(10 * tr->mxtips);
       for(i = 1; i <= tr->mxtips; i++)
-	addword(tr->nameList[i], tr->nameHash, i);
+	{	 
+	  addword(tr->nameList[i], tr->nameHash, i);
+	}
 
       fclose(INFILE);
     }
@@ -3432,9 +3468,6 @@ static void initAdef(analdef *adef)
   adef->useBFGS = TRUE;
 }
 
-
-
-
 static int modelExists(char *model, analdef *adef)
 {
   int 
@@ -3967,7 +4000,7 @@ static int modelExists(char *model, analdef *adef)
       return 1;
     }
 
-  if(strcmp(model, "PROTCATIGTR\0") == 0)
+  if(strcmp(model, "PROTCATIGTRX\0") == 0)
     {
       adef->model = M_PROTCAT;
       adef->proteinMatrix = GTR;
@@ -4352,7 +4385,7 @@ static int modelExists(char *model, analdef *adef)
 	  adef->proteinMatrix = i;
 	  adef->protEmpiricalFreqs = 0;
 	  adef->useInvariant = FALSE;
-	  adef->optimizeBaseFrequencies = TRUE;
+	  adef->optimizeBaseFrequencies = TRUE;	  
 	  return 1;
 	}
 
@@ -4591,9 +4624,10 @@ static void printMinusFUsage(void)
 
   printf("              \"-f J\": Compute SH-like support values on a given tree passed via \"-t\".\n"); 
 
-  printf("              \"-f k\": Predict missing sequence data in a partitioned multi-gene alignment for a given tree.\n");
-  printf("                      Only works in conjunction with \"-t\", \"-M\", and \"-q\".\n");
-  printf("                      This option is in an early experimental state, use at your own risk!\n");
+  printf("              \"-f k\": Fix long branch lengths in partitioned data sets with missing data using the\n");
+  printf("                      branch length stealing algorithm.\n");  
+  printf("                      This option only works in conjunction with \"-t\", \"-M\", and \"-q\".\n");
+  printf("                      It will print out a tree with shorter branch lengths, but having the same likelihood score.\n");
 
   printf("              \"-f m\": compare bipartitions between two bunches of trees passed via \"-t\" and \"-z\" \n");
   printf("                      respectively. This will return the Pearson correlation between all bipartitions found\n");
@@ -4698,7 +4732,9 @@ static void printREADME(void)
   printf("      [--mesquite][--silent][--no-seq-check][--no-bfgs]\n");
 #endif
   printf("      [--asc-corr=stamatakis|felsenstein|lewis]\n");
-  printf("      [--flag-check]\n");
+  printf("      [--flag-check][--auto-prot=ml|bic|aic|aicc]\n");
+  printf("      [--epa-keep-placements=number][--epa-accumulated-threshold=threshold]\n");
+  printf("      [--epa-prob-threshold=threshold]\n");
   printf("\n");
   printf("      -a      Specify a column weight file name to assign individual weights to each column of \n");
   printf("              the alignment. Those weights must be integers separated by any type and number \n");
@@ -4946,9 +4982,11 @@ static void printREADME(void)
     printf("%s\n", protModels[i]);
   }
   
-  printf("                With the optional \"F\" appendix you can specify if you want to use empirical base frequencies\n");
-  printf("                Please note that for mixed models you can in addition specify the per-gene AA model in\n");
-  printf("                the mixed model file (see manual for details). Also note that if you estimate AA GTR parameters on a partitioned\n");
+  printf("                With the optional \"F\" appendix you can specify if you want to use empirical base frequencies.\n");
+  printf("                AUTOF and AUTOX are not supported any more, if you specify AUTO it will test prot subst. models with and without empirical\n");
+  printf("                base frequencies now!\n");
+  printf("                Please note that for partitioned models you can in addition specify the per-gene AA model in\n");
+  printf("                the partition file (see manual for details). Also note that if you estimate AA GTR parameters on a partitioned\n");
   printf("                dataset, they will be linked (estimated jointly) across all partitions to avoid over-parametrization\n");
   printf("\n");
   printf("      -M      Switch on estimation of individual per-partition branch lengths. Only has effect when used in combination with \"-q\"\n");
@@ -5091,7 +5129,26 @@ static void printREADME(void)
   printf("      --flag-check When using this option, RAxML will only check if all command line flags specifed are available and then exit\n");
   printf("                   with a message listing all invalid command line flags or with a message stating that all flags are valid.\n");
   printf("\n");
-  
+  printf("      --auto-prot=ml|bic|aic|aicc When using automatic protein model selection you can chose the criterion for selecting these models.\n");
+  printf("                  RAxML will test all available prot subst. models except for LG4M, LG4X and GTR-based models, with and without empirical base frequencies.\n");
+  printf("                  You can chose between ML score based selection and the BIC, AIC, and AICc criteria.\n");
+  printf("\n");
+  printf("                  DEFAULT: ml\n");
+  printf("\n");
+  printf("      --epa-keep-placements=number specify the number of potential placements you want to keep for each read in the EPA algorithm.\n");
+  printf("                  Note that, the actual values printed will also depend on the settings for --epa-prob-threshold=threshold !\n");
+  printf("\n");
+  printf("                  DEFAULT: 7\n");
+  printf("\n");  
+  printf("      --epa-prob-threshold=threshold specify a percent threshold for including potential placements of a read depending on the \n");
+  printf("                  maximum placement weight for this read. If you set this value to 0.01 placements that have a placement weight of 1 per cent of\n");
+  printf("                  the maximum placement will still be printed to file if the setting of --epa-keep-placements allows for it\n");
+  printf("\n");
+  printf("                  DEFAULT: 0.01\n");
+  printf("\n");
+  printf("      --epa-accumulated-threshold=threshold specify an accumulated likelihood weight threshold for which different placements of read are printed\n");
+  printf("                  to file. Placements for a read will be printed until the sum of their placement weights has reached the threshold value.\n");
+  printf("                  Note that, this option can neither be used in combination with --epa-prob-threshold nor with --epa-keep-placements!\n");
   printf("\n\n\n\n");
 
 }
@@ -5133,7 +5190,8 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 {
   boolean  
     disablePatternCompression = FALSE,   
-    resultDirSet = FALSE;
+    resultDirSet = FALSE, 
+    epaSet = FALSE;
 
   char
     resultDir[1024] = "",
@@ -5200,6 +5258,14 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
   tr->perPartitionEPA = FALSE;
   tr->useBrLenScaler = FALSE;
   tr->ascertainmentCorrectionType = NOT_DEFINED;
+  tr->autoProteinSelectionType = AUTO_ML;
+  
+  //EPA related stuff 
+
+  tr->numberOfEPAEntries = 7;
+  tr->accumulatedEPACutoff = 0.95;
+  tr->useAccumulatedEPACutoff = FALSE;
+  tr->probThresholdEPA = 0.01;
 
 #ifdef _BASTIEN
   tr->doBastienStuff = FALSE;
@@ -5221,15 +5287,19 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
   while(1)
     {      
       static struct 
-	option long_options[7] =
+	option long_options[11] =
 	{
 	  /* These options set a flag. */
-	  {"mesquite",     no_argument, &flag, 1},
-	  {"silent",       no_argument, &flag, 1},
-	  {"no-seq-check", no_argument, &flag, 1},
-	  {"no-bfgs",      no_argument, &flag, 1},
+	  {"mesquite",     no_argument,       &flag, 1},
+	  {"silent",       no_argument,       &flag, 1},
+	  {"no-seq-check", no_argument,       &flag, 1},
+	  {"no-bfgs",      no_argument,       &flag, 1},
 	  {"asc-corr",     required_argument, &flag, 1},
-	  {"flag-check,",  no_argument, &flag, 1},
+	  {"flag-check",  no_argument,       &flag, 1},
+	  {"auto-prot",   required_argument, &flag, 1},
+	  {"epa-keep-placements",       required_argument, &flag, 1},
+	  {"epa-accumulated-threshold", required_argument, &flag, 1},
+	  {"epa-prob-threshold",        required_argument, &flag, 1}, 
 	  /* These options don't set a flag.
 	     We distinguish them by their indices. */
 	  //{"add",     no_argument,       0, 'a'},
@@ -5313,6 +5383,92 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	      }
 	      break;
 	    case 5:
+	      break;
+	    case 6:
+	      {
+		char 
+		  *autoModels[4] = {"ml", "bic", "aic", "aicc"};
+
+		int 
+		  k;
+
+		for(k = 0; k < 4; k++)		  
+		  if(strcmp(optarg, autoModels[k]) == 0)
+		    break;
+
+		if(k == 4)
+		  {
+		    printf("\nError, unknown protein model selection type, you can specify one of the following selection criteria:\n\n");
+		    for(k = 0; k < 4; k++)
+		      printf("--auto-prot=%s\n", autoModels[k]);
+		    printf("\n");
+		    errorExit(-1);
+		  }
+		else
+		  {
+		    switch(k)
+		      {
+		      case 0:
+			tr->autoProteinSelectionType = AUTO_ML;
+			break;
+		      case 1:
+			tr->autoProteinSelectionType = AUTO_BIC;
+			break;
+		      case 2:
+			tr->autoProteinSelectionType = AUTO_AIC;
+			break;
+		      case 3:
+			tr->autoProteinSelectionType = AUTO_AICC;
+			break;
+		      default:
+			assert(0);
+		      }
+		  }
+	      }
+	      break;
+	    case 7:	      	 
+	      if(sscanf(optarg,"%u", &(tr->numberOfEPAEntries)) != 1)
+		{
+		  printf("\nError parsing number of EPA placements to print, RAxML expects a positive integer value\n\n");
+		  errorExit(-1);
+		}
+	     	     
+	      if(tr->numberOfEPAEntries == 0)
+		{
+		  printf("\nError parsing number of EPA placements to print, RAxML expects an integer value larger than 0\n\n");
+		  errorExit(-1);
+		}
+
+	      epaSet = TRUE;
+	      break;
+	    case 8:
+	      if(sscanf(optarg, "%lf", &(tr->accumulatedEPACutoff)) != 1)
+		{
+		  printf("\nError parsing accumulated EPA placement weight cutoff, RAxML expects a floating point value > 0.0 and <= 1.0\n\n");
+		  errorExit(-1);
+		}
+
+	      if(tr->accumulatedEPACutoff <= 0.0 || tr->accumulatedEPACutoff > 1.0)
+		{
+		  printf("\nError parsing accumulated EPA placement weight cutoff, RAxML expects a floating point value > 0.0 and <= 1.0\n\n");
+		  errorExit(-1);
+		}
+	     
+	      tr->useAccumulatedEPACutoff = TRUE;
+	      break;
+	    case 9:
+	      if(sscanf(optarg, "%lf", &(tr->probThresholdEPA)) != 1)
+		{
+		  printf("\nError parsing EPA relative probability cutoff, RAxML expects a floating point value >= 0.0 and <= 1.0\n\n");
+		  errorExit(-1);
+		}
+	      if(tr->probThresholdEPA < 0.0 || tr->probThresholdEPA > 1.0)
+		{
+		  printf("\nError parsing accumulated epa placement weight cutoff, RAxML expects a floating point value >= 0.0 and <= 1.0\n\n");
+		  errorExit(-1);
+		}	    
+
+	      epaSet = TRUE;
 	      break;
 	    default:
 	      if(flagCheck)
@@ -5808,7 +5964,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 		tr->useFastScaling = FALSE;
 		break;
 	      case 'k':
-		adef->mode = MISSING_SEQUENCE_PREDICTION;
+		adef->mode = STEAL_BRANCH_LENGTHS;
 		tr->useFastScaling = FALSE;	    
 		adef->compressPatterns  = FALSE;
 		break;
@@ -5941,49 +6097,69 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	    alignmentSet = 1;
 	    break;
 	  case 'm':
-	    strcpy(model,optarg);
-	    if(modelExists(model, adef) == 0)
-	      {
-		if(processID == 0)
-		  {
-		    printf("Model %s does not exist\n\n", model);
-		    printf("For BINARY data use:  BINCAT[X]             or BINGAMMA[X]             or\n");
-		    printf("                      BINCATI[X]            or BINGAMMAI[X]            or\n");
-		    printf("                      ASC_BINGAMMA[X]       or ASC_BINCAT[X]\n");
-		    printf("For DNA data use:     GTRCAT[X]             or GTRGAMMA[X]             or\n");
-		    printf("                      GTRCATI[X]            or GTRGAMMAI[X]            or\n");
-		    printf("                      ASC_GTRGAMMA[X]       or ASC_GTRCAT[X]\n");
-		    printf("For Multi-state data: MULTICAT[X]          or MULTIGAMMA[X]           or\n");
-		    printf("                      MULTICATI[X]         or MULTIGAMMAI[X]          or\n");		
-		    printf("                      ASC_MULTIGAMMA[X]    or ASC_MULTICAT[X]\n");
-		    printf("For AA data use:      PROTCATmatrixName[F|X]  or PROTGAMMAmatrixName[F|X]  or\n");
-		    printf("                      PROTCATImatrixName[F|X] or PROTGAMMAImatrixName[F|X] or\n");
-		    printf("                      ASC_PROTGAMMAmatrixName[X] or  ASC_PROTCATmatrixName[X]\n");
-		    printf("The AA substitution matrix can be one of the following: \n");
-		    
-		    {
-		      int 
-			i;
+	    {
+	      int 
+		result;
+	      strcpy(model,optarg);
+	      
+	      result = modelExists(model, adef);
+
+	      if(adef->proteinMatrix == AUTO && !(adef->optimizeBaseFrequencies) && adef->protEmpiricalFreqs)
+		{
+		  printf("\nError: Option AUTOF has been deprecated, exiting\n\n");
+		   errorExit(-1);
+		}
+	       if(adef->proteinMatrix == AUTO && adef->optimizeBaseFrequencies)
+		{
+		  printf("\nError: Option AUTOX has been deprecated, exiting\n\n");
+		   errorExit(-1);
+		}
+	      
+	      
+
+	      if(result == 0)
+		{		  		  
+		  if(processID == 0)
+		    {		    
+		      printf("Model %s does not exist\n\n", model);
+		      printf("For BINARY data use:  BINCAT[X]             or BINGAMMA[X]             or\n");
+		      printf("                      BINCATI[X]            or BINGAMMAI[X]            or\n");
+		      printf("                      ASC_BINGAMMA[X]       or ASC_BINCAT[X]\n");
+		      printf("For DNA data use:     GTRCAT[X]             or GTRGAMMA[X]             or\n");
+		      printf("                      GTRCATI[X]            or GTRGAMMAI[X]            or\n");
+		      printf("                      ASC_GTRGAMMA[X]       or ASC_GTRCAT[X]\n");
+		      printf("For Multi-state data: MULTICAT[X]          or MULTIGAMMA[X]           or\n");
+		      printf("                      MULTICATI[X]         or MULTIGAMMAI[X]          or\n");		
+		      printf("                      ASC_MULTIGAMMA[X]    or ASC_MULTICAT[X]\n");
+		      printf("For AA data use:      PROTCATmatrixName[F|X]  or PROTGAMMAmatrixName[F|X]  or\n");
+		      printf("                      PROTCATImatrixName[F|X] or PROTGAMMAImatrixName[F|X] or\n");
+		      printf("                      ASC_PROTGAMMAmatrixName[X] or  ASC_PROTCATmatrixName[X]\n");
+		      printf("The AA substitution matrix can be one of the following: \n");
 		      
-		      for(i = 0; i < NUM_PROT_MODELS - 1; i++)
-			{
-			  if(i % 8 == 0)	  
-			    printf("\n");
-			  printf("%s, ", protModels[i]);
-			}
+		      {
+			int 
+			  i;
+			
+			for(i = 0; i < NUM_PROT_MODELS - 1; i++)
+			  {
+			    if(i % 8 == 0)	  
+			      printf("\n");
+			    printf("%s, ", protModels[i]);
+			  }
+			
+			printf("%s\n\n", protModels[i]);
+		      }
 		      
-		      printf("%s\n\n", protModels[i]);
+		      printf("With the optional \"F\" appendix you can specify if you want to use empirical base frequencies.\n");
+		      printf("With the optional \"X\" appendix you can specify that you want to do a ML estimate of base frequencies.\n");
+		      printf("Please note that for mixed models you can in addition specify the per-gene model in\n");
+		      printf("the mixed model file (see manual for details).\n");
 		    }
-		    
-		    printf("With the optional \"F\" appendix you can specify if you want to use empirical base frequencies.\n");
-		    printf("With the optional \"X\" appendix you can specify that you want to do a ML estimate of base frequencies.\n");
-		    printf("Please note that for mixed models you can in addition specify the per-gene model in\n");
-		    printf("the mixed model file (see manual for details).\n");
-		  }
-		errorExit(-1);
-	      }
-	    else
-	      modelSet = 1;
+		  errorExit(-1);
+		}
+	      else
+		modelSet = 1;
+	    }
 	    break;
 	  default:
 	    if(flagCheck)
@@ -6003,7 +6179,12 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
       exit(0);
     }
   
-
+  if(tr->useAccumulatedEPACutoff && epaSet)
+    {
+      printf("\nError: the EPA flag: --epa-accumulated-threshold can neither be used in combination with --epa-keep-placements nor --epa-prob-threshold\n\n");
+      errorExit(-1);
+    }
+    
   if(disablePatternCompression)
     adef->compressPatterns = FALSE;
 
@@ -6021,27 +6202,23 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	}
     }
   
-  if(adef->mode == MISSING_SEQUENCE_PREDICTION)
+  if(adef->mode == STEAL_BRANCH_LENGTHS)
     {
       if(!treeSet)
 	{
-	  printf("Error: for sequence prediction you need to specify a tree file via \"-t\"\n");
+	  printf("Error: for branch length stealing you need to specify a tree file via \"-t\"\n");
 	  errorExit(-1);
 	}
       if(!adef->useMultipleModel)
 	{
-	  printf("Error: for sequence prediction you need to specify a partition file via \"-q\"\n");
+	  printf("Error: for branch length stealing  you need to specify a partition file via \"-q\"\n");
 	  errorExit(-1);
 	}
       if(!adef->perGeneBranchLengths)
 	{
-	  printf("Error: for sequence prediction you need to specify a per partition branch length estimate via \"-M\"\n");
+	  printf("Error: for branch length stealing you need to specify a per partition branch length estimate via \"-M\"\n");
 	  errorExit(-1);
-	}
-#ifdef _USE_PTHREADS
-       printf("Error: for sequence prediction not yet implemented for the PThreads version ... \n");
-       errorExit(-1);
-#endif      
+	}      
     }
 
 #ifdef _USE_PTHREADS
@@ -6835,8 +7012,8 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
 	case TREE_EVALUATION :
 	  printBoth(infoFile, "\nRAxML Model Optimization up to an accuracy of %f log likelihood units\n\n", adef->likelihoodEpsilon);
 	  break;
-	case MISSING_SEQUENCE_PREDICTION:
-	  printBoth(infoFile, "\nRAxML missing sequence prediction\n\n");
+	case STEAL_BRANCH_LENGTHS:
+	  printBoth(infoFile, "\nRAxML branch length stealing\n\n");
 	  break;
 	case  BIG_RAPID_MODE:
 	  if(adef->rapidBoot)
@@ -12177,277 +12354,8 @@ static void readAscFiles(tree *tr)
       
      
 
-/******* missing data prediction code -f k option **************************************************/
+/******* branch length stealing code -f k option **************************************************/
 
-//function that makes the actual sequence guess estimate given a node of the tree p which is a tip
-
-static void analyzeTip(nodeptr p, tree *tr, int *count, int whichPartition, double *partitionStats, boolean testIt, unsigned char *alignmentGuess)
-{
-  int 
-    countMissingPartitions = 0,
-    *missingData = (int *)rax_calloc(tr->NumberOfModels, sizeof(int)),
-    model;
-
-  //TODO PTHREADS !
-#ifdef _USE_PTHREADS
-  assert(0);
-#endif
-     
-  //initially analyze the tip sequence for each partition to determine if it 
-  //consist entirely of missing data 
-
-  for(model = 0; model < tr->NumberOfModels; model++)
-    {
-      size_t
-	i;
-
-      boolean
-	missing = TRUE;
-
-      //get value of undetermined state (may be different for DNA and protein data 
-      //and get access to the tip sequence for the present partition 
-      
-      unsigned char 	
-	undetermined = getUndetermined(tr->partitionData[model].dataType),
-	*tip = tr->partitionData[model].yVector[p->number];
-
-      //if we are not doing the systematic testing check if all states of the sequence 
-      //are undetermined
-
-      if(!testIt)
-	{
-	  for(i = 0; i < tr->partitionData[model].width && missing; i++)
-	    if(tip[i] != undetermined)
-	      missing = FALSE;
-	}
-
-      //if they all are undetermined or if we do systematic testing for the present partition 
-      //store that we want to predict the sequence for this partition 
-      
-      if((testIt && model == whichPartition) || missing == TRUE)
-	{
-	  missingData[model] = 1;
-	  countMissingPartitions++;
-	}
-      else
-	{
-	  //if the sequence does not only contain missing data copy it directly to the data structure 
-	  //for the output alignment
-	  memcpy(&alignmentGuess[tr->cdta->endsite * (p->number - 1) + tr->partitionData[model].lower], tip, sizeof(unsigned char) *  tr->partitionData[model].width);
-	}
-    }
-  
-  //if the sequence at node p has at least one partition for which it only contains 
-  //missing data predict it :-) 
-
-  if(countMissingPartitions > 0)
-    {
-      int 
-	wgtsum = 0;
-
-      double 	
-	branchLength = 0.0;
-
-      *count = *count + 1;
-     
-      //git accumulated number of sites for those parts of the sequence 
-      //for which there is data 
-
-      for(model = 0; model < tr->NumberOfModels; model++)	
-	if(missingData[model] == 0)
-	  wgtsum += tr->partitionData[model].width;
-
-      //loop over partitions for which we have data and collect their per partition branch lengths
-      //we also compute a weighted (using the partition width) average of this branch length 
-      ///which we then use to predict the missing data 
-
-      for(model = 0; model < tr->NumberOfModels; model++)
-	{
-	  if(missingData[model] == 0)
-	    {
-	      double 
-		factor = (double)tr->partitionData[model].width / (double)wgtsum,
-		z = p->z[model];	      
-
-	      if(z < zmin)
-		z = zmin;
-
-	      z = -log(z) * tr->fracchanges[model];
-	      
-	      branchLength += z * factor;
-	    }
-	}     
-      
-      //properly re-orient the likelihood vector at inner node p->back
-
-      newviewGeneric(tr, p->back);
-
-      //now loop over the partition sand predict the sequences 
-
-      for(model = 0; model < tr->NumberOfModels; model++)
-	{
-	  if(missingData[model] == 1)
-	    {	
-	      //states we need to evaluate for binary, DNA, and protein data 
-	      unsigned char
-		binStates[2] = {1, 2};
-	      unsigned char
-		dnaStates[4] = {1, 2, 4, 8};
-	      unsigned char
-		proteinStates[20] = {0, 1, 2 , 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19};	      
-		      	           	      	      
-	      int 	
-		mismatches = 0;
-		
-	      
-	      size_t
-		i,
-		width = tr->partitionData[model].width,
-		states = (size_t)tr->partitionData[model].states;
-
-	      unsigned char 
-		*partitionStates,
-		*originalSequence = (unsigned char*)rax_malloc(sizeof(unsigned char) * width),		
-		*bestState = (unsigned char *)rax_calloc(width, sizeof(unsigned char)),
-		undetermined = getUndetermined(tr->partitionData[model].dataType);
-
-	      double
-		*likes = (double*)rax_malloc(sizeof(double) * width),	       
-		oldBranch = p->z[model],
-		targetBranch = exp(-(branchLength)/ tr->fracchanges[model]);
-
-	      //save the original (missing) sequence 
-
-	      memcpy(originalSequence, tr->partitionData[model].yVector[p->number], sizeof(unsigned char) * width);	      
-	     
-	      //initialize an array for storing per site log likelihoods 
-
-	      for(i = 0; i < width; i++)
-		likes[i] = unlikely;	     
-
-	      //now set the branch length to the branch we calculated above 
-
-	      p->z[model] = targetBranch;
-	      p->back->z[model] = targetBranch;
-
-	      //set the state array pointer to the datatype of the present partition 
-
-	      switch(states)
-		{
-		case 2: 
-		  partitionStates = binStates;
-		  break;
-		case 4:
-		  partitionStates = dnaStates;
-		  break;
-		case 20:
-		  partitionStates = proteinStates;
-		  break;
-		default:
-		  assert(0);
-		}
-
-	      //loop over all states in our data type, for DNA there are four states corresponding to A, C, G, T
-	      //note that, I have omitted checking ambiguous states 
-
-	      for(i = 0; i < states; i++)
-		{
-		  size_t
-		    index,
-		    j;
-		  
-		  //set all sites of the missing sequence to a state, for instance to A
-
-		  for(j = 0; j < width; j++)
-		    tr->partitionData[model].yVector[p->number][j] = partitionStates[i];
-
-		  evaluateGenericVector(tr, p);
-
-		  //compute the per-site log likelihoods 
-
-		  //store the state yielding the best per-site likelihood 
-		  //for each site 
-
-		  for(j = tr->partitionData[model].lower, index = 0; j <  tr->partitionData[model].upper; j++, index++)
-		    {
-		      if(tr->perSiteLL[j] > likes[index])
-			{
-			  likes[index] = tr->perSiteLL[j];
-			  bestState[index] = partitionStates[i];
-			}
-		    }
-		}
-	      
-	      //copy the sequence we have estimated to the output alignment data structire 
-
-	      memcpy(&alignmentGuess[tr->cdta->endsite * (p->number - 1) + tr->partitionData[model].lower], bestState, sizeof(unsigned char) *  tr->partitionData[model].width);
-
-	      //when doing the systematic testing we can directly compute the hamming distance since we have the true sequence 
-
-	      if(testIt)
-		{
-		  for(i = 0; i < width; i++)
-		    {
-		      if(originalSequence[i] != bestState[i] && originalSequence[i] != undetermined)		    		     
-			mismatches++;		
-		    }	      
-		  
-		  partitionStats[model] += (double)mismatches / (double)width;			     
-		}
-
-	      //repair the branch length, set it to the old value 
-
-	      p->z[model]       = oldBranch;
-	      p->back->z[model] = oldBranch;
-
-	      //restore the old sequence 
-
-	      memcpy(tr->partitionData[model].yVector[p->number], originalSequence, sizeof(unsigned char) * width);
-
-	      //free the arrays we have allocated 
-
-	      rax_free(originalSequence);
-	      rax_free(bestState);
-	      rax_free(likes);	      
-	    }
-	}
-
-    }
- 
-  rax_free(missingData);
-}
-
-// recursive function that traverses the tree to visit all taxa
-
-static void analyzeMissing(tree *tr, nodeptr p, int *count, int whichPartition, double *partitionStats, boolean testIt, unsigned char *alignmentGuess)
-{
-  if(isTip(p->number, tr->mxtips))    
-    //check if this tip contains missing data that can be predicted 
-    analyzeTip(p, tr, count, whichPartition, partitionStats, testIt, alignmentGuess);   
-  else
-    {
-      //continue recursion through tree 
-      nodeptr 
-	q = p->next;
-      
-      while(q != p)
-	{
-	  analyzeMissing(tr, q->back, count, whichPartition, partitionStats, testIt, alignmentGuess);
-
-	  q = q->next;
-	}
-
-    }
-}
-
-
-/* uncomment define below to activate new method for better prediction of sequences located in per-partition subtrees 
-   where data for the entire subtree is missing 
-*/
-
-//#define _SUBTREE_PREDICTION
-
-#ifdef _SUBTREE_PREDICTION
 
 /* function to determine if tip with tip index number for model/partition model 
    only consists of missing data */
@@ -12484,7 +12392,7 @@ static boolean hasData(tree *tr, nodeptr p, int model)
   
 
 /* recursive function to adapt branch lengths of subtrees of partitions with missing data using 
-   branch length infor from those partitions that have data ! */
+   branch length info from those partitions that have data ! */
 
 static void adaptBranchLengths(tree *tr, nodeptr p, int *count)
 {  
@@ -12515,7 +12423,7 @@ static void adaptBranchLengths(tree *tr, nodeptr p, int *count)
     {
       if(hasData(tr, p, model) && hasData(tr, p->back, model))
 	{
-	  wgtsum += tr->partitionData[model].width;
+	  wgtsum += (tr->partitionData[model].upper - tr->partitionData[model].lower);
 	  partitionsWithData++;
 	  missingData[model] = 0;
 	}  
@@ -12537,7 +12445,7 @@ static void adaptBranchLengths(tree *tr, nodeptr p, int *count)
       if(missingData[model] == 0 &&  partitionsWithoutData > 0)
 	{
 	  double 
-	    factor = (double)tr->partitionData[model].width / (double)wgtsum,
+	    factor = (double)(tr->partitionData[model].upper - tr->partitionData[model].lower) / (double)wgtsum,
 	    z = p->z[model];	      
 	  
 	  //printf("factor %f\n", factor);
@@ -12560,9 +12468,15 @@ static void adaptBranchLengths(tree *tr, nodeptr p, int *count)
       if(missingData[model] == 1)
 	{
 	  double
-	    targetBranch = exp(-(branchLength)/ tr->fracchanges[model]);
+	    targetBranch = exp(-(branchLength) / tr->fracchanges[model]);
 
 	  //printf("adapted one branch in part %d %1.40f -> %1.40f\n", model, p->z[model], targetBranch);
+
+	  if(targetBranch < zmin)
+	    targetBranch = zmin;
+
+	  if(targetBranch > zmax)
+	    targetBranch = zmax;
 
 	  p->z[model] = targetBranch;
 	  p->back->z[model] = targetBranch;	  
@@ -12581,11 +12495,7 @@ static void adaptBranchLengths(tree *tr, nodeptr p, int *count)
 
 }
 
-#endif
-
-//function to predict missing sequences 
-
-static void predictMissingSequence(tree *tr, analdef *adef)
+static void stealBranchLengths(tree *tr, analdef *adef)
 {
   char 
     fileName[1024];
@@ -12594,24 +12504,14 @@ static void predictMissingSequence(tree *tr, analdef *adef)
     *f;
   
   int
-    i,   
-    model;
+    model,
+    count = 0;
 
-  size_t
-    j;
-
-  double 
-    averageError = 0.0,
-    *partitionStats = (double *)rax_malloc(sizeof(double) * tr->NumberOfModels);
-
-  unsigned char 
-    *alignmentGuess = (unsigned char*)rax_malloc(sizeof(unsigned char) * tr->mxtips * tr->cdta->endsite);
-
-  /* when systematic test is set to TRUE it will guess all sequences in the alignment regardeless of 
-     whether they are missing or not */
+  double
+    wgtsum = 0.0,
+    treeLengthBefore = 0.0,
+    treeLengthAfter = 0.0;
   
-  boolean 
-    systematicTest = FALSE;
   
   //-M must be set in the command line and we need to use a partition file
 
@@ -12622,374 +12522,71 @@ static void predictMissingSequence(tree *tr, analdef *adef)
   modOpt(tr, adef, TRUE, adef->likelihoodEpsilon);
   printBothOpen("After model optimization on the tree: %f with %d taxa\n", tr->likelihood, tr->mxtips);
 
-  assert(!isTip(tr->start->back->number, tr->mxtips));
+  assert(!isTip(tr->start->back->number, tr->mxtips));            
 
+  //get the initial likelihood   
 
-  if(systematicTest)
-    {
-      // do the systametic test where we estimate each sequence regardeless of wether it is there or not
-      // we loop over all partitions and estimate the sequences for one partition at a time 
+  evaluateGenericInitrav(tr, tr->start);
 
-      for(model = 0; model < tr->NumberOfModels; model++)
-	{
-	  int 
-	    count = 0;
-	  
-	  partitionStats[model] = 0.0;
-	  
-	  //recursively traverse the tree to estimate the sequence, starting at nodes tr->start 
-	  //and tr->start->back 
-	  
-	  analyzeMissing(tr, tr->start, &count, model, partitionStats,       systematicTest, alignmentGuess);
-	  analyzeMissing(tr, tr->start->back, &count, model, partitionStats, systematicTest, alignmentGuess);
-	  
-
-	  //make sure that we have made a sequence guess for all sequences 
-	  assert(count == tr->mxtips);
-	 
-	  //print average error (hamming distances) that does not count N <-> A|C|G|T as a mismtach over
-	  //all sequences in this partition 
-
-	  printBothOpen("Found and predicted sequences for %d taxa at partition %d average error %f\n", count, model, partitionStats[model] / (double)count);
-	  
-	  //sum the average error 
-
-	  averageError +=  partitionStats[model] / (double)count;		  
-	}
-      
-      //print out the average prediction error over all sequences and all partitions 
-      printBothOpen("Average prediction error: %f\n\n", averageError / (double)tr->NumberOfModels);
-    }
-  else
-    {
-      int 
-	count = 0;
-
-
-#ifdef _SUBTREE_PREDICTION
-      //new code for dealing with entire subtrees containing missing data
-
-      int 
-	toBePredicted = 0,
-	**proposalMatrix = (int**)rax_malloc(((size_t)tr->mxtips + 1) * sizeof(int *)),
-	*perm,
-	numberOfPermutations,
-	*taxonList = (int*)rax_malloc(sizeof(int) * (size_t)tr->mxtips),
-	taxonListLength = 0;
-
-      double
-	bestLikelihood;
-
-      long 
-	seed = 12345;
-	
-      //matrix to store which sequences in which partitions are missing
-
-      proposalMatrix[0] = (int *)NULL;
-      
-      for(i = 1; i <= tr->mxtips; i++)
-	proposalMatrix[i] = (int *)rax_calloc((size_t)tr->NumberOfModels, sizeof(int));
-
-      //get the initial likelihood
-
-      evaluateGenericInitrav(tr, tr->start);
-      printf("Likelihood before br-len adaptation %f\n\n", tr->likelihood);
-
-
-      //now adapt branch lengths
-      adaptBranchLengths(tr, tr->start->back, &count);
-
-      //make sure that we visited all branches
-      assert(count == 2 * tr->mxtips - 3);
-
-
-      //re-calculate likelihood, note that the branch length adaptation doesn't alter 
-      //the likelihood (or shouldn't if this is correctly implemented) since we only changed
-      //branch lengths for those parts of the tree that have missing data
-      evaluateGenericInitrav(tr, tr->start);
-      printf("Likelihood after br-len adaptation %f\n\n", tr->likelihood);
-
-      
-      //fill the entries of the matrix that tells us which sequences for which partitions
-      //to predict
-      for(i = 1; i <= tr->mxtips; i++)
-	for(model = 0; model < tr->NumberOfModels; model++)
-	  {
-	    if(tipHasData(tr, model, i))
-	      proposalMatrix[i][model] = 0;
-	    else
-	      {
-		proposalMatrix[i][model] = 1;
-		toBePredicted++;
-	      }
-	  }
-      
-
-      //make sure that there is at least one sequence in one partition to predict
-      assert(toBePredicted > 0);      
-
-      //randomly initialize the sequences we intend to predict
-
-      for(i = 1; i <= tr->mxtips; i++)
-	for(model = 0; model < tr->NumberOfModels; model++)
-	  {
-	    if(proposalMatrix[i][model] == 1)
-	      {
-		unsigned char
-		  binStates[2] = {1, 2};
-		unsigned char
-		  dnaStates[4] = {1, 2, 4, 8};
-		unsigned char
-		  proteinStates[20] = {0, 1, 2 , 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19};	   	   
-
-		unsigned char 
-		  *tip = tr->partitionData[model].yVector[i];
-		
-		size_t
-		  k,
-		  states = (size_t)tr->partitionData[model].states;
-
-		for(k = 0; k < tr->partitionData[model].width; k++)
-		  {
-		    int 
-		      state = (int)((double)states * randum(&seed));
-
-		    switch(tr->partitionData[model].states)
-		      {
-		      case 2:
-			tip[k] = binStates[state];
-			break;
-		      case 4:
-			tip[k] = dnaStates[state];
-			break;
-		      case 20:
-			tip[k] = proteinStates[state];
-			break;
-		      default:
-			assert(0);
-		      }		    		   
-		  }
-	      }	   
-	  }
-       
-      //calculate likelihood of the tree where the missing sequences have been randomly initialized 
-      evaluateGenericInitrav(tr, tr->start);
-      printf("Likelihood after random initialization of missing sequences %f\n", tr->likelihood);     
-      
-      //initialize the currently best likelihood with the above score
-      bestLikelihood = tr->likelihood;
-
-      //generate a list of taxa with missing data that we want to predict
-      for(i = 1; i <= tr->mxtips; i++)
-	for(model = 0; model < tr->NumberOfModels; model++)
-	  if(proposalMatrix[i][model] == 1)
-	    {
-	      taxonList[taxonListLength] = i;
-	      taxonListLength++;
-	      break;
-	    }
-      
-      printf("Taxa to be predicted %d\n", taxonListLength);
-            
-      //allocate an array for permuting the order of taxa with missing data
-      perm = (int*)rax_malloc(sizeof(int) * taxonListLength + 1);	
-      
-      //initialize random number seed required to generate the permutations
-      adef->parsimonySeed = 12345;
-      
-      //do 100 random permutations visting and re-predicting the missing sequences in different orders
-      //this is required because the sequence predictions for different taxa depend on each other
-      for(numberOfPermutations = 0; numberOfPermutations < 100; numberOfPermutations++)
-	{
-	  int 
-	    j;
-	  
-	  //permute the order by which we visit the taxa
-	  makePermutation(perm, 0, taxonListLength - 1, adef);
-	  
-	  //iterate over all taxa with missing data 
-	  for(j = 0; j < taxonListLength; j++)
-	    {
-	      int 
-		taxonNumber = taxonList[perm[j]],	   
-		numberOfImputes = 0;
-	      
-	      //make sure that the taxon index is within the allowed range 
-	      assert(taxonNumber >= 1 && taxonNumber <= tr->mxtips);
-	      
-
-	      //re-calculate the likelihood on the entire tree, just to be shure that everything is consistent
-	      //printf("Predicting taxon %d\n", taxonNumber);
-	      evaluateGenericInitrav(tr, tr->start);
-	      //printf("Start like %1.40f\n", tr->likelihood);
-	      
-
-	      //loop over all partitions for this taxon and do a ML imputation of the 
-	      //states of the missing sequence
-	      for(model = 0; model < tr->NumberOfModels; model++)
-		{		  		  
-		  if(proposalMatrix[taxonNumber][model] == 1)
-		    {
-		      unsigned char
-			binStates[2] = {1, 2};
-		      unsigned char
-			dnaStates[4] = {1, 2, 4, 8};
-		      unsigned char
-			proteinStates[20] = {0, 1, 2 , 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19};
-		      
-		      size_t
-			i,
-			width = tr->partitionData[model].width,
-			states = (size_t)tr->partitionData[model].states;
-		      
-		      unsigned char 
-			*partitionStates,		       		
-			*bestState = (unsigned char *)rax_calloc(width, sizeof(unsigned char));
-		      
-		      double
-			*likes = (double*)rax_malloc(sizeof(double) * width);		    	      
-		      
-		      numberOfImputes++;
-		      
-		      //initialize an array for storing per site log likelihoods 
-		      
-		      for(i = 0; i < width; i++)
-			likes[i] = unlikely;	     	     
-		      
-		      //set the state array pointer to the datatype of the present partition 
-		      
-		      switch(states)
-			{
-			case 2: 
-			  partitionStates = binStates;
-			  break;
-			case 4:
-			  partitionStates = dnaStates;
-			  break;
-			case 20:
-			  partitionStates = proteinStates;
-			  break;
-			default:
-			  assert(0);
-			}
-		      
-		      //loop over all states in our data type, for DNA there are four states corresponding to A, C, G, T
-		      //note that, I have omitted checking ambiguous states 
-		      
-		      for(i = 0; i < states; i++)
-			{
-			  size_t
-			    index,
-			    j;
-			  
-			  //set all sites of the missing sequence to a state, for instance to A
-			  
-			  for(j = 0; j < width; j++)
-			    tr->partitionData[model].yVector[taxonNumber][j] = partitionStates[i];
-			  
-			  evaluateGenericVector(tr, tr->nodep[taxonNumber]);
-			  
-			  //compute the per-site log likelihoods 
-			  
-			  //store the state yielding the best per-site likelihood 
-			  //for each site 
-			  
-			  for(j = tr->partitionData[model].lower, index = 0; j <  tr->partitionData[model].upper; j++, index++)
-			    {
-			      if(tr->perSiteLL[j] > likes[index])
-				{
-				  likes[index] = tr->perSiteLL[j];
-				  bestState[index] = partitionStates[i];
-				}
-			    }
-			}
-		      
-		      //copy the imputed sequence to the tree data structure
-		      memcpy(tr->partitionData[model].yVector[taxonNumber], bestState, sizeof(unsigned char) *  tr->partitionData[model].width);						  			
-		      
-		      rax_free(bestState);
-		      rax_free(likes);	      					     
-		    }
-		}
-		
-	      //make sure that at least one sequence in one partition was predicted
-	      assert(numberOfImputes > 0);
-	      
-	      //re-compute the likelihood
-	      evaluateGeneric(tr, tr->nodep[taxonNumber]);
-	      
-	      //let the user know that the likelihood has improved by (re-)predicting the missing sequence of the current taxon
-	      if(tr->likelihood > bestLikelihood)
-		{
-		  printf("Better likelihood %f -> %f found by imputing new sequence for taxon %s\n", bestLikelihood, tr->likelihood, tr->nameList[taxonNumber]);
-		  bestLikelihood = tr->likelihood;
-		}
-	      
-	    }
-	}
-	
-      //free data structures
-      rax_free(taxonList);
-      rax_free(perm);
-         
-      //copy the sequence we have estimated to the output alignment data structire 
-      for(i = 1; i <= tr->mxtips; i++)
-	for(model = 0; model < tr->NumberOfModels; model++)
-	  memcpy(&alignmentGuess[tr->cdta->endsite * (i - 1) + tr->partitionData[model].lower], tr->partitionData[model].yVector[i], sizeof(unsigned char) *  tr->partitionData[model].width);
-
-
-      //free the remaining data structures we have allocated 
-      for(i = 1; i <= tr->mxtips; i++)
-	rax_free(proposalMatrix[i]);
-
-      rax_free(proposalMatrix);
-
-      printBothOpen("Guessed missing sequeces for %d taxa\n\n", taxonListLength);
-
-#else
-      //standard procedure for guessing sequences for which there really is missing data
-
-      analyzeMissing(tr, tr->start,       &count, -1, (double*)NULL, systematicTest, alignmentGuess);
-      analyzeMissing(tr, tr->start->back, &count, -1, (double*)NULL, systematicTest, alignmentGuess); 
-
-      assert(count <= tr->mxtips);
-      
-      printBothOpen("Guessed missing sequeces for %d taxa\n\n", count);
-#endif
-    }
-
-  // print out the guessed complete alignment 
- 
-  strcpy(fileName, workdir);
-  strcat(fileName, "RAxML_SequenceGuesstimate.");
-  strcat(fileName, run_id);
+  for(model = 0; model < tr->NumberOfModels; model++)   
+    wgtsum += (double)(tr->partitionData[model].upper - tr->partitionData[model].lower);
   
-  f = myfopen(fileName, "w");
-
-  fprintf(f, "%d %d\n", tr->mxtips, tr->cdta->endsite);
-
-  for(i = 0; i < tr->mxtips; i++)
+  for(model = 0; model < tr->NumberOfModels; model++)
     {
-      fprintf(f, "%s ", tr->nameList[i + 1]);
+      double 
+	factor = (double)(tr->partitionData[model].upper - tr->partitionData[model].lower) / wgtsum;           
 
-      unsigned char 
-	*currentTip = &alignmentGuess[tr->cdta->endsite * i];
+      assert(factor == tr->partitionContributions[model]);
+      
+      //printf("%d %f factor %f\n", model, treeLength(tr, model), factor);
 
-      for(model = 0; model < tr->NumberOfModels; model++)
-	{
-	  for(j = tr->partitionData[model].lower; j < tr->partitionData[model].upper; j++)	    
-	    fprintf(f, "%c", getInverseMeaning(tr->partitionData[model].dataType, currentTip[j]));	    
-	}
-      fprintf(f, "\n");
+      treeLengthBefore += treeLength(tr, model) * factor;
     }
-	      
+
+  printBothOpen("Likelihood before br-len stealing %f\n\n", tr->likelihood);
+  printBothOpen("Tree length before br-len stealing %f\n\n", treeLengthBefore);
+  
+  //Tree2String(tr->tree_string, tr, tr->start->back, TRUE, TRUE, FALSE, FALSE, TRUE, adef, SUMMARIZE_LH, FALSE, FALSE, FALSE, FALSE);
+
+  printf("%s \n", tr->tree_string);
+  
+  //now adapt branch lengths
+  adaptBranchLengths(tr, tr->start->back, &count);
+  
+  //make sure that we visited all branches
+  assert(count == 2 * tr->mxtips - 3);
+
+
+  //re-calculate likelihood, note that the branch length adaptation doesn't alter 
+  //the likelihood (or shouldn't if this is correctly implemented) since we only changed
+  //branch lengths for those parts of the tree that have missing data
+  evaluateGenericInitrav(tr, tr->start);
+
+  for(model = 0; model < tr->NumberOfModels; model++)
+    {
+      double 
+	factor = (double)(tr->partitionData[model].upper - tr->partitionData[model].lower) / wgtsum;           
+
+      treeLengthAfter += treeLength(tr, model) * factor;
+    }
+  
+  printBothOpen("Likelihood after br-len stealing %f\n\n", tr->likelihood);
+  printBothOpen("Tree length after br-len stealing %f\n\n", treeLengthAfter);
+  
+  strcpy(fileName, workdir);
+  strcat(fileName,             "RAxML_stolenBranchLengths.");
+  strcat(fileName,            run_id);
+
+  Tree2String(tr->tree_string, tr, tr->start->back, TRUE, TRUE, FALSE, FALSE, TRUE, adef, SUMMARIZE_LH, FALSE, FALSE, FALSE, FALSE);
+
+  f = myfopen(fileName, "wb");
+
+  fprintf(f, "%s", tr->tree_string);
+  
   fclose(f);
 
-  printBothOpen("An alignment containing guesses for the missing data has been written to file: %s\n\n", fileName);
-  
-  rax_free(alignmentGuess);
-  rax_free(partitionStats);
-  
+  printBothOpen("Tree with stolen branch lengths written to file %s, giasou file mou.\n\n", fileName);
+
   exit(0);
 }
 
@@ -13389,10 +12986,10 @@ int main (int argc, char *argv[])
 	  initModel(tr, rdta, cdta, adef);
 	  computePerSiteLLs(tr, adef, bootStrapFile);
 	  break;
-	case MISSING_SEQUENCE_PREDICTION:
+	case STEAL_BRANCH_LENGTHS:
 	  initModel(tr, rdta, cdta, adef);      
 	  getStartingTree(tr, adef); 
-	  predictMissingSequence(tr, adef);      
+	  stealBranchLengths(tr, adef);      
 	  break;
 	case TREE_EVALUATION:
 	  initModel(tr, rdta, cdta, adef);

@@ -3110,30 +3110,90 @@ static void optScaler(tree *tr, double modelEpsilon, linkageList *ll)
   optParamGeneric(tr, modelEpsilon, ll, ll->entries, -1, 0.01, 100.0, SCALER_F);
 }
 
-static void autoProtein(tree *tr)
+static void optModel(tree *tr, int numProteinModels, int *bestIndex, double *bestScores, boolean empiricalFreqs)
+{
+  int
+    i,
+    model;
+    
+  for(model = 0; model < tr->NumberOfModels; model++)
+    {      
+      bestIndex[model] = -1;
+      bestScores[model] = unlikely;
+    }
+      
+  for(i = 0; i < numProteinModels; i++)
+    {
+      for(model = 0; model < tr->NumberOfModels; model++)
+	{	   
+	  if(tr->partitionData[model].protModels == AUTO)
+	    { 
+	      if(empiricalFreqs)
+		tr->partitionData[model].usePredefinedProtFreqs = FALSE;
+	      else
+		tr->partitionData[model].usePredefinedProtFreqs = TRUE;
+	      tr->partitionData[model].autoProtModels = i;
+	      initReversibleGTR(tr, model);  
+	    }
+	}
+      
+#ifdef _USE_PTHREADS	
+      masterBarrier(THREAD_COPY_RATES, tr);	   
+#endif
+      
+      resetBranches(tr);
+      evaluateGenericInitrav(tr, tr->start);  
+      treeEvaluate(tr, 0.5);    
+
+      //printf("Subst Model %d Freqs: %s like %f %f\n", i, (empiricalFreqs == TRUE)?"empirical":"fixed", tr->likelihood, tr->perPartitionLH[0]);
+      
+      for(model = 0; model < tr->NumberOfModels; model++)
+	{
+	  if(tr->partitionData[model].protModels == AUTO)
+	    {		  
+	      if(tr->perPartitionLH[model] > bestScores[model])
+		{
+		  bestScores[model] = tr->perPartitionLH[model];
+		  bestIndex[model] = i;		      
+		}
+	    }	      
+	}       
+    }             
+}
+
+static void autoProtein(tree *tr, analdef *adef)
 {
   int 
     countAutos = 0,   
     model;  
   
+  printf("enter\n");
+
   for(model = 0; model < tr->NumberOfModels; model++)	      
     if(tr->partitionData[model].protModels == AUTO)
       countAutos++;
 
   if(countAutos > 0)
     {
-      int 
-	i,
+      int        
 	numProteinModels = AUTO,
 	*bestIndex = (int*)rax_malloc(sizeof(int) * tr->NumberOfModels),
-	*oldIndex  = (int*)rax_malloc(sizeof(int) * tr->NumberOfModels);
+	*oldIndex  = (int*)rax_malloc(sizeof(int) * tr->NumberOfModels),
+	*bestIndexEmpFreqs = (int*)rax_malloc(sizeof(int) * tr->NumberOfModels);
+
+      boolean
+	*oldFreqs =  (boolean*)rax_malloc(sizeof(boolean) * tr->NumberOfModels);
 
       double
 	startLH,
-	*bestScores = (double*)rax_malloc(sizeof(double) * tr->NumberOfModels);    
+	*bestScores         = (double*)rax_malloc(sizeof(double) * tr->NumberOfModels),
+	*bestScoresEmpFreqs = (double*)rax_malloc(sizeof(double) * tr->NumberOfModels);
 
       topolRELL_LIST 
 	*rl = (topolRELL_LIST *)rax_malloc(sizeof(topolRELL_LIST));
+
+      char
+	*autoModels[4] = {"ML", "BIC", "AIC", "AICc"};
 
       initTL(rl, tr, 1);
       saveTL(rl, tr, 0);
@@ -3141,55 +3201,142 @@ static void autoProtein(tree *tr)
       evaluateGenericInitrav(tr, tr->start); 
 
       startLH = tr->likelihood;
-
+      
       for(model = 0; model < tr->NumberOfModels; model++)
 	{
 	  oldIndex[model] = tr->partitionData[model].autoProtModels;
-	  bestIndex[model] = -1;
-	  bestScores[model] = unlikely;
+	  oldFreqs[model] = tr->partitionData[model].usePredefinedProtFreqs;
 	}
-      
-      for(i = 0; i < numProteinModels; i++)
-	{
-	  for(model = 0; model < tr->NumberOfModels; model++)
-	    {	   
-	      if(tr->partitionData[model].protModels == AUTO)
-		{
-		  tr->partitionData[model].autoProtModels = i;
-		  initReversibleGTR(tr, model);  
-		}
-	    }
 
-#ifdef _USE_PTHREADS	
-	  masterBarrier(THREAD_COPY_RATES, tr);	   
-#endif
       
-	  resetBranches(tr);
-	  evaluateGenericInitrav(tr, tr->start);  
-	  treeEvaluate(tr, 0.5);     
-	  
-	  for(model = 0; model < tr->NumberOfModels; model++)
-	    {
-	      if(tr->partitionData[model].protModels == AUTO)
-		{		  
-		  if(tr->perPartitionLH[model] > bestScores[model])
-		    {
-		      bestScores[model] = tr->perPartitionLH[model];
-		      bestIndex[model] = i;		      
-		    }
-		}	      
-	    }       
-	}           
       
-      printBothOpen("Automatic protein model assignment algorithm:\n\n");
+      optModel(tr, numProteinModels, bestIndex, bestScores, FALSE);
+      
+      optModel(tr, numProteinModels, bestIndexEmpFreqs, bestScoresEmpFreqs, TRUE);      
+     
+      printBothOpen("Automatic protein model assignment algorithm using %s criterion:\n\n", autoModels[tr->autoProteinSelectionType]);
 
       for(model = 0; model < tr->NumberOfModels; model++)
 	{	   
 	  if(tr->partitionData[model].protModels == AUTO)
-	    {
-	      tr->partitionData[model].autoProtModels = bestIndex[model];
+	    {	     	      	       
+	      int 
+		bestIndexFixed = bestIndex[model],
+		bestIndexEmp = bestIndexEmpFreqs[model];
+	      
+	      double
+		bestLhFixed = bestScores[model],
+		bestLhEmp   = bestScoresEmpFreqs[model],
+		samples = (double)(tr->partitionData[model].upper -  tr->partitionData[model].lower),		
+		freeParamsFixed = 0.0,
+		freeParamsEmp = 19.0;
+	      
+	     
+
+	      //printf("%f %f\n", bestLhFixed, bestLhEmp);
+	      
+	      /* AIC: 2 * (k - lnL)
+		 AICc: AIC + (2 * k * (k + 1))/(n - k - 1)
+		 BIC: -2 * lnL + k * ln(n) */
+	      
+	      switch(tr->rateHetModel)
+		{
+		case CAT:
+		  freeParamsFixed += (double)tr->partitionData[model].numberOfCategories;
+		  freeParamsEmp += (double)tr->partitionData[model].numberOfCategories;
+		  break;
+		case GAMMA: 
+		  freeParamsFixed += 1.0;
+		  freeParamsEmp += 1.0;
+		  break;
+		case GAMMA_I:
+		  freeParamsFixed += 2.0;
+		  freeParamsEmp += 2.0;
+		  break;
+		default:
+		  assert(0);
+		}
+		    
+
+	      switch(tr->autoProteinSelectionType)
+		{
+		case AUTO_ML:	
+		  if(bestLhFixed > bestLhEmp)
+		    {
+		      tr->partitionData[model].autoProtModels = bestIndexFixed;
+		      tr->partitionData[model].usePredefinedProtFreqs = TRUE;
+		    }
+		  else
+		    {
+		      tr->partitionData[model].autoProtModels = bestIndexEmp;
+		      tr->partitionData[model].usePredefinedProtFreqs = FALSE;
+		    }
+		  break;
+		case AUTO_BIC:
+		  { 
+		    //BIC: -2 * lnL + k * ln(n)
+		    double
+		      bicFixed = -2.0 * bestLhFixed + freeParamsFixed * log(samples),
+		      bicEmp   = -2.0 * bestLhEmp   + freeParamsEmp   * log(samples);
+
+		    if(bicFixed < bicEmp)
+		      {
+			tr->partitionData[model].autoProtModels = bestIndexFixed;
+			tr->partitionData[model].usePredefinedProtFreqs = TRUE;
+		      }
+		    else
+		      {
+			tr->partitionData[model].autoProtModels = bestIndexEmp;
+			tr->partitionData[model].usePredefinedProtFreqs = FALSE;
+		      }		   
+		  }
+		  break;
+		case AUTO_AIC:
+		  {
+		    //AIC: 2 * (k - lnL)
+		    double
+		      aicFixed = 2.0 * (freeParamsFixed - bestLhFixed),
+		      aicEmp   = 2.0 * (freeParamsEmp   - bestLhEmp);
+		    
+		    if(aicFixed < aicEmp)
+		      {
+			tr->partitionData[model].autoProtModels = bestIndexFixed;
+			tr->partitionData[model].usePredefinedProtFreqs = TRUE;
+		      }
+		    else
+		      {
+			tr->partitionData[model].autoProtModels = bestIndexEmp;
+			tr->partitionData[model].usePredefinedProtFreqs = FALSE;
+		      }	
+		  }
+		  break;
+		case AUTO_AICC:
+		  { 
+		    //AICc: AIC + (2 * k * (k + 1))/(n - k - 1)
+		    double
+		      aiccFixed = (2.0 * (freeParamsFixed - bestLhFixed)) + ((2.0 * freeParamsFixed * (freeParamsFixed + 1.0)) / (samples - freeParamsFixed - 1.0)),
+		      aiccEmp   = (2.0 * (freeParamsEmp   - bestLhEmp))   + ((2.0 * freeParamsEmp   * (freeParamsEmp + 1.0))   / (samples - freeParamsEmp   - 1.0));
+
+		    if(aiccFixed < aiccEmp)
+		      {
+			tr->partitionData[model].autoProtModels = bestIndexFixed;
+			tr->partitionData[model].usePredefinedProtFreqs = TRUE;
+		      }
+		    else
+		      {
+			tr->partitionData[model].autoProtModels = bestIndexEmp;
+			tr->partitionData[model].usePredefinedProtFreqs = FALSE;
+		      }	
+		  }
+		  break;
+		default:
+		  assert(0);
+		}
+
 	      initReversibleGTR(tr, model);  
-	      printBothOpen("\tPartition: %d best-scoring AA model: %s likelihood %f\n", model, protModels[tr->partitionData[model].autoProtModels], bestScores[model]);
+	      printBothOpen("\tPartition: %d best-scoring AA model: %s likelihood %f with %s base frequencies\n", 
+			    model, protModels[tr->partitionData[model].autoProtModels], bestScores[model], (tr->partitionData[model].usePredefinedProtFreqs == TRUE)?"fixed":"empirical");
+		  
 	    }	 
 	}
 
@@ -3229,6 +3376,9 @@ static void autoProtein(tree *tr)
       rax_free(oldIndex);
       rax_free(bestIndex);
       rax_free(bestScores);
+      rax_free(bestIndexEmpFreqs);
+      rax_free(bestScoresEmpFreqs);
+      rax_free(oldFreqs);
     }
 }
 
@@ -3379,7 +3529,7 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
       printf("after rates %1.40f\n", tr->likelihood);
 #endif
 
-      autoProtein(tr);
+      autoProtein(tr, adef);
       
       if(adef->mode != OPTIMIZE_BR_LEN_SCALER)
 	treeEvaluate(tr, 0.0625);                     	            
@@ -3531,7 +3681,6 @@ static double branchLength(int model, double *z, tree *tr)
   if (x < zmin) 
     x = zmin;  
   
- 
   assert(x <= zmax);
   
   if(!tr->multiBranch)             
@@ -3540,7 +3689,6 @@ static double branchLength(int model, double *z, tree *tr)
     x = -log(x) * tr->fracchanges[model];
 
   return x;
-
 }
 
 
@@ -3549,14 +3697,17 @@ static double treeLengthRec(nodeptr p, tree *tr, int model)
   double 
     x = branchLength(model, p->z, tr);
 
+  
+
   if(isTip(p->number, tr->rdta->numsp))  
     return x;    
   else
     {
-      double acc = 0;
-      nodeptr q;                
-     
-      q = p->next;      
+      double 
+	acc = 0.0;
+      
+      nodeptr 
+	q = p->next;      
 
       while(q != p)
 	{
@@ -3564,7 +3715,7 @@ static double treeLengthRec(nodeptr p, tree *tr, int model)
 	  q = q->next;
 	}
 
-      return acc + x;
+      return (acc + x);
     }
 }
 

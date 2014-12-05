@@ -118,6 +118,8 @@ void addword(char *s, stringHashtable *h, int nodeNumber)
   hashNumberType position = hashString(s, h->tableSize);
   stringEntry *p = h->table[position];
   
+  
+
   for(; p!= NULL; p = p->next)
     {
       if(strcmp(s, p->word) == 0)		 
@@ -861,6 +863,7 @@ int treeFindTipByLabelString(char  *str, tree *tr, boolean check)
   else
     { 
       printf("ERROR: Cannot find tree species: %s\n", str);
+      printf("The species names in the input tree and alignment file may not match, please check!\n");
       return  0;
     }
 }
@@ -1494,7 +1497,7 @@ int treeReadLen (FILE *fp, tree *tr, boolean readBranches, boolean readNodeLabel
 	  if(completeTree)
 	    {
 	      printBothOpen("Hello this is your friendly RAxML tree parsing routine\n");
-	      printBothOpen("The RAxML option you are uisng requires to read in only complete trees\n");
+	      printBothOpen("The RAxML option you are using requires to read in only complete trees\n");
 	      printBothOpen("with %d taxa, there is at least one tree with %d taxa though ... exiting\n", tr->mxtips, tr->ntips);
 	      exit(-1);
 	    }

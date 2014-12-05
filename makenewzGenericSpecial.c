@@ -2583,7 +2583,7 @@ static void sumGAMMAPROT_GAPPED_SAVE(int tipCase, double *sumtable, double *x1, 
 #endif
 
 static void sumCatAsc(int tipCase, double *sumtable, double *x1, double *x2, double *tipVector,
-			int n, const int numStates)
+		      int n, const int numStates, int dataType)
 {
   int i, k;
   double *left, *right, *sum;
@@ -2591,7 +2591,7 @@ static void sumCatAsc(int tipCase, double *sumtable, double *x1, double *x2, dou
   unsigned char 
     tip[32];
 
-  ascertainmentBiasSequence(tip, numStates);
+  ascertainmentBiasSequence(tip, numStates, dataType);
 
   switch(tipCase)
     {
@@ -2638,7 +2638,7 @@ static void sumCatAsc(int tipCase, double *sumtable, double *x1, double *x2, dou
 }
 
 static void sumGammaAsc(int tipCase, double *sumtable, double *x1, double *x2, double *tipVector,
-			int n, const int numStates)
+			int n, const int numStates, int dataType)
 {
   int i, l, k;
   double *left, *right, *sum;
@@ -2648,7 +2648,7 @@ static void sumGammaAsc(int tipCase, double *sumtable, double *x1, double *x2, d
   unsigned char 
     tip[32];
 
-  ascertainmentBiasSequence(tip, numStates);
+  ascertainmentBiasSequence(tip, numStates, dataType);
 
   switch(tipCase)
     {
@@ -3989,11 +3989,11 @@ void makenewzIterative(tree *tr)
 	      	{
 		case CAT:
 		  sumCatAsc(tipCase, tr->partitionData[model].ascSumBuffer, x1_start_asc, x2_start_asc, tr->partitionData[model].tipVector,
-			      states, states);
+			      states, states, tr->partitionData[model].dataType);
 		  break;
 		case GAMMA:
 		  sumGammaAsc(tipCase, tr->partitionData[model].ascSumBuffer, x1_start_asc, x2_start_asc, tr->partitionData[model].tipVector,
-			      states, states);
+			      states, states, tr->partitionData[model].dataType);
 		  break;
 		default:
 		  assert(0);
