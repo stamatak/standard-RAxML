@@ -3150,7 +3150,13 @@ static void optModel(tree *tr, int numProteinModels, int *bestIndex, double *bes
       for(model = 0; model < tr->NumberOfModels; model++)
 	{
 	  if(tr->partitionData[model].protModels == AUTO)
-	    {		  
+	    {	
+	      /*int k;
+	      for(k = 0; k < 20; k++)
+		printf("%f ", tr->partitionData[model].frequencies[k]);
+		printf("\n");*/
+
+ 
 	      if(tr->perPartitionLH[model] > bestScores[model])
 		{
 		  bestScores[model] = tr->perPartitionLH[model];
@@ -3333,7 +3339,8 @@ static void autoProtein(tree *tr, analdef *adef)
 
 	      initReversibleGTR(tr, model);  
 	      printBothOpen("\tPartition: %d best-scoring AA model: %s likelihood %f with %s base frequencies\n", 
-			    model, protModels[tr->partitionData[model].autoProtModels], bestScores[model], (tr->partitionData[model].usePredefinedProtFreqs == TRUE)?"fixed":"empirical");
+			    model, protModels[tr->partitionData[model].autoProtModels], 
+			    (tr->partitionData[model].usePredefinedProtFreqs == TRUE)?bestLhFixed:bestLhEmp, (tr->partitionData[model].usePredefinedProtFreqs == TRUE)?"fixed":"empirical");
 		  
 	    }	 
 	}
@@ -3347,6 +3354,8 @@ static void autoProtein(tree *tr, analdef *adef)
       resetBranches(tr);
       evaluateGenericInitrav(tr, tr->start); 
       treeEvaluate(tr, 2.0);    
+
+      //printf("exit %f\n", tr->likelihood);
       
       if(tr->likelihood < startLH)
 	{	
