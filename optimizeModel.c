@@ -3166,8 +3166,6 @@ static void autoProtein(tree *tr, analdef *adef)
   int 
     countAutos = 0,   
     model;  
-  
-  printf("enter\n");
 
   for(model = 0; model < tr->NumberOfModels; model++)	      
     if(tr->partitionData[model].protModels == AUTO)
@@ -3357,6 +3355,7 @@ static void autoProtein(tree *tr, analdef *adef)
 	      if(tr->partitionData[model].protModels == AUTO)
 		{
 		  tr->partitionData[model].autoProtModels = oldIndex[model];
+		  tr->partitionData[model].usePredefinedProtFreqs = oldFreqs[model];
 		  initReversibleGTR(tr, model);
 		}
 	    }
