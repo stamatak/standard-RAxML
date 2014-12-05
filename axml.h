@@ -892,6 +892,7 @@ typedef  struct  {
 
 
   double            *partitionContributions;
+  
 
   double            fracchange;
   double            rawFracchange;

@@ -3240,6 +3240,8 @@ static void autoProtein(tree *tr, analdef *adef)
 	      for(k = tr->partitionData[model].lower; k < tr->partitionData[model].upper; k++)
 		samples += (double)tr->cdta->aliaswgt[k];
 
+	      //printf("sample %f\n", samples);
+
 	      //include branches in parameter count
 	      //catch case where tree contains less taxa than tr->mxtips e.g. in the EPA 
 	      assert(tr->ntips <= tr->mxtips);

@@ -346,13 +346,15 @@ static void analyzeIdentifier(char **ch, int modelNumber, tree *tr)
 		      tr->initialPartitionData[modelNumber].dataType   = AA_DATA;		     
 		      tr->initialPartitionData[modelNumber].optimizeBaseFrequencies = TRUE;
 		      found = TRUE;
-		    }	
+		      
+		      if(tr->initialPartitionData[modelNumber].protModels == AUTO)
+			{
+			  printf("\nError: Option AUTOX has been deprecated, exiting\n\n");
+			  errorExit(-1);
+			}
+		    }			  
 
-		  if(tr->initialPartitionData[modelNumber].protModels == AUTO)
-		    {
-		      printf("\nError: Option AUTOX has been deprecated, exiting\n\n");
-		      errorExit(-1);
-		    }
+		 
 		}
 	      
 
