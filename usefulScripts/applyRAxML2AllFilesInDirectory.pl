@@ -1,4 +1,4 @@
-#!/usr/local/bin/perl
+#!/usr/bin/env perl
 
 #print $ARGV[0]." ".$ARGV[1]." ".$#ARGV."\n";
 
