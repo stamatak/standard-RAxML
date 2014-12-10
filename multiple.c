@@ -260,125 +260,6 @@ void reductionCleanup(tree *tr, int *originalRateCategories, int *originalInvari
 
 
 
-/* old problematic code by Andre
-
-void computeNextReplicate(tree *tr, int64_t *randomSeed, int *originalRateCategories, int *originalInvariant, boolean isRapid, boolean fixRates)
-{ 
-  int 
-    j, 
-    count = 0, 
-    model,
-    *weightBuffer, 
-    endsite,
-    *weights, 
-    i, 
-    l;  
-
-  for(j = 0; j < tr->originalCrunchedLength; j++)
-    tr->cdta->aliaswgt[j] = 0;
-
-  for(model = 0; model < tr->NumberOfModels; ++model)
-    {
-      int
-	maxWeight = 0,
-	ctr = 0,
-	//	totalWeight = 0,
-	realNumSites = tr->origNumSitePerModel[model],	
-	*wgtVirtualAln = (int*) rax_calloc(realNumSites, sizeof(int)); 
-
-      for(j = 0; j < tr->originalCrunchedLength; ++j)
-	{
-	  if(tr->originalModel[j] == model)
-	    {
-	      wgtVirtualAln[ctr++] = tr->originalWeights[j]; 
-	      //totalWeight += tr->originalWeights[j] ; 
-	      if(maxWeight < tr->originalWeights[j])
-		maxWeight = tr->originalWeights[j]; 
-	    }
-	}
-
-      weightBuffer = (int *)rax_calloc(realNumSites, sizeof(int));
-      
-      j = 0; 
-      
-      while( j < realNumSites )
-	{
-	  int 
-	    pos = (int) (realNumSites * randum(randomSeed)); 
-	  
-	  //if((int) (totalWeight * randum(randomSeed)) < wgtVirtualAln[pos] )
-	  if((int) (maxWeight * randum(randomSeed)) < wgtVirtualAln[pos] )
-	    {
-	      weightBuffer[pos]++; 
-	      j++; 
-	    }
-	}
-
-      ctr = 0; 
-      for(j = 0; j < tr->originalCrunchedLength; ++j)
-	{
-	  if(model == tr->originalModel[j])
-	    {
-	      tr->cdta->aliaswgt[j] = weightBuffer[ctr];
-	      ctr++; 
-	    }
-	}
-
-       rax_free(weightBuffer);
-       rax_free(wgtVirtualAln);
-    }
-
-   endsite = 0;
-
-   for (j = 0; j < tr->originalCrunchedLength; j++)      
-     if(tr->cdta->aliaswgt[j] > 0)
-       endsite++; 
-
-   weights = tr->cdta->aliaswgt;
-
-   for(i = 0; i < tr->rdta->numsp; i++)
-     {     
-       unsigned char
-	 *yPos    = &(tr->rdta->y0[((size_t)tr->originalCrunchedLength) * ((size_t)i)]),
-	 *origSeq = &(tr->rdta->yBUF[((size_t)tr->originalCrunchedLength) * ((size_t)i)]);
-       int 
-	 l, 
-	 j;
-
-       for(j = 0, l = 0; j < tr->originalCrunchedLength; j++)      
-	 if(tr->cdta->aliaswgt[j] > 0)	  	    
-	   yPos[l++] = origSeq[j];	                  
-    }
-
-  for(j = 0, l = 0; j < tr->originalCrunchedLength; j++)
-    {     
-      if(weights[j])	
-	{
-	  tr->cdta->aliaswgt[l]     = tr->cdta->aliaswgt[j];
-	  tr->dataVector[l]         = tr->originalDataVector[j];
-	  tr->model[l]              = tr->originalModel[j];
-
-	  if(isRapid)
-	    {	      
-	      tr->cdta->rateCategory[l] = originalRateCategories[j];
-	      tr->invariant[l]          = originalInvariant[j];
-	    }
-	  l++;
-	}
-    }
-
-  tr->cdta->endsite = endsite;
-  fixModelIndices(tr, endsite, fixRates);
-
-  count = 0;
-  for(j = 0; j < tr->cdta->endsite; j++)
-    count += tr->cdta->aliaswgt[j];  
-
-  if(count != tr->rdta->sites)
-    printf("count=%d\ttr->rdta->sites=%d\n",count, tr->rdta->sites );
-  assert(count == tr->rdta->sites);
-}
-*/
 
   
 
@@ -496,9 +377,9 @@ void computeNextReplicate(tree *tr, int64_t *randomSeed, int *originalRateCatego
       for(j = 0; j < tr->cdta->endsite; j++)
 	count += tr->cdta->aliaswgt[j];  
       
-      if(count != tr->rdta->sites)
-	printf("count=%d\ttr->rdta->sites=%d\n",count, tr->rdta->sites );
-      assert(count == tr->rdta->sites);
+      if(count != tr->fullSites)
+	printf("count=%d\ttr->fullSites=%d\n",count, tr->fullSites);
+      assert(count == tr->fullSites);
   }
 }
 

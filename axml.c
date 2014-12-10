@@ -2410,7 +2410,7 @@ static void sitecombcrunch (rawdata *rdta, cruncheddata *cdta, tree *tr, analdef
 	undeterminedSites++;
 
       
-
+      
       if(!adef->compressPatterns)
 	tied = 0;
       else
@@ -2517,6 +2517,8 @@ static void sitecombcrunch (rawdata *rdta, cruncheddata *cdta, tree *tr, analdef
 
   if(undeterminedSites > 0)    
     printBothOpen("\nAlignment has %d completely undetermined sites that will be automatically removed from the input data\n\n", undeterminedSites);
+
+  //exit(-1);
 }
 
 
@@ -3104,7 +3106,7 @@ static void generateBS(tree *tr, analdef *adef)
       for(j = 0; j < tr->cdta->endsite; j++)
 	count += tr->cdta->aliaswgt[j];
 
-      assert(count == tr->rdta->sites);
+      assert(count == tr->fullSites);
 
       strcpy(outName, workdir);
       strcat(outName, seq_file);
