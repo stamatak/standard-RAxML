@@ -2254,13 +2254,24 @@ static void adaptRdataToSecondary(tree *tr, rawdata *rdta)
 
 static void sitesort(rawdata *rdta, cruncheddata *cdta, tree *tr, analdef *adef)
 {
-  int  gap, i, j, jj, jg, k, n, nsp;
   int  
+    gap, 
+    i, 
+    j, 
+    jj, 
+    jg, 
+    k, 
+    n, 
+    nsp,  
     *index, 
     *category = (int*)NULL;
 
-  boolean  flip, tied;
-  unsigned char  **data;
+  boolean  
+    flip, 
+    tied;
+  
+  unsigned char  
+    **data;
 
   if(adef->useSecondaryStructure)
     {
@@ -2338,7 +2349,8 @@ static void sitecombcrunch (rawdata *rdta, cruncheddata *cdta, tree *tr, analdef
     sitej, 
     k,
     *aliasModel = (int*)NULL,
-    *aliasSuperModel = (int*)NULL;
+    *aliasSuperModel = (int*)NULL,
+    undeterminedSites = 0;
 
   tr->origNumSitePerModel = (int*)rax_calloc(tr->NumberOfModels, sizeof(int));
  
@@ -2374,8 +2386,31 @@ static void sitecombcrunch (rawdata *rdta, cruncheddata *cdta, tree *tr, analdef
   i = 0;
   for (j = 1; j <= rdta->sites; j++)
     {
+      int 
+	allGap = TRUE;
+
+      unsigned char 
+	undetermined;
+      
       sitei = cdta->alias[i];
       sitej = cdta->alias[j];
+
+      undetermined = getUndetermined(tr->dataVector[sitej]);
+
+      for(k = 1; k <= rdta->numsp; k++)
+	{	 
+	  if(rdta->y[k][sitej] != undetermined)
+	    {
+	      allGap = FALSE;
+	      break;
+	    }
+	}
+
+      if(allGap)      
+	undeterminedSites++;
+
+      
+
       if(!adef->compressPatterns)
 	tied = 0;
       else
@@ -2393,7 +2428,9 @@ static void sitecombcrunch (rawdata *rdta, cruncheddata *cdta, tree *tr, analdef
       for (k = 1; tied && (k <= rdta->numsp); k++)
 	tied = (rdta->y[k][sitei] == rdta->y[k][sitej]);
 
-      if (tied)
+      assert(!(tied && allGap));
+      
+      if (tied && !allGap)
 	{
 	  if(adef->mode == PER_SITE_LL || adef->mode == ANCESTRAL_STATES)
 	    {
@@ -2413,34 +2450,49 @@ static void sitecombcrunch (rawdata *rdta, cruncheddata *cdta, tree *tr, analdef
 	}
       else
 	{
-	  if (cdta->aliaswgt[i] > 0) i++;
-
-	  if(adef->mode == PER_SITE_LL || adef->mode == ANCESTRAL_STATES)
+	  if(!allGap)
 	    {
-	      tr->patternPosition[j - 1] = i;
-	      tr->columnPosition[j - 1] = sitej;
-	      /*printf("Pattern %d is from cloumn %d\n", i, sitej);*/
-	    }
+	      if(cdta->aliaswgt[i] > 0) 
+		i++;
+	      
+	      if(adef->mode == PER_SITE_LL || adef->mode == ANCESTRAL_STATES)
+		{
+		  tr->patternPosition[j - 1] = i;
+		  tr->columnPosition[j - 1] = sitej;
+		  /*printf("Pattern %d is from cloumn %d\n", i, sitej);*/
+		}
 
-	  cdta->aliaswgt[i] = rdta->wgt[sitej];
-	  cdta->alias[i] = sitej;
-	  if(adef->useMultipleModel)
-	    {
-	      aliasModel[i]      = tr->model[sitej];
-	      aliasSuperModel[i] = tr->dataVector[sitej];
+	      cdta->aliaswgt[i] = rdta->wgt[sitej];
+	      cdta->alias[i] = sitej;
+	      if(adef->useMultipleModel)
+		{
+		  aliasModel[i]      = tr->model[sitej];
+		  aliasSuperModel[i] = tr->dataVector[sitej];
+		}
 	    }
 	}
     }
 
   cdta->endsite = i;
-  if (cdta->aliaswgt[i] > 0) cdta->endsite++;
+  if (cdta->aliaswgt[i] > 0) 
+    cdta->endsite++;
 
   if(adef->mode == PER_SITE_LL || adef->mode == ANCESTRAL_STATES)
     {
+      if(undeterminedSites > 0)
+	{
+	  printBothOpen("You are trying to infer per site likelihoods or ancestral states\n");
+	  printBothOpen("on an alignment containing %d sites consisting only of undetermined\n", undeterminedSites);
+	  printBothOpen("characters. Please remove them first and then re-run RAxML!\n");
+
+	  errorExit(-1);
+	}
+
       for(i = 0; i < rdta->sites; i++)
 	{
-	  int p  = tr->patternPosition[i];
-	  int c  = tr->columnPosition[i];
+	  int 
+	    p  = tr->patternPosition[i],
+	    c  = tr->columnPosition[i];
 
 	  assert(p >= 0 && p < cdta->endsite);
 	  assert(c >= 1 && c <= rdta->sites);
@@ -2454,7 +2506,7 @@ static void sitecombcrunch (rawdata *rdta, cruncheddata *cdta, tree *tr, analdef
 	{
 	  tr->model[i]      = aliasModel[i];
 	  tr->dataVector[i] = aliasSuperModel[i];
-	}      
+	}    
     }
 
   if(adef->useMultipleModel)
@@ -2462,6 +2514,9 @@ static void sitecombcrunch (rawdata *rdta, cruncheddata *cdta, tree *tr, analdef
       rax_free(aliasModel);
       rax_free(aliasSuperModel);
     }     
+
+  if(undeterminedSites > 0)    
+    printBothOpen("\nAlignment has %d completely undetermined sites that will be automatically removed from the input data\n\n", undeterminedSites);
 }
 
 
