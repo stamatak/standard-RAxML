@@ -592,7 +592,7 @@ static double evaluateGammaFlex_LG4(int *ex1, int *ex2, int *wptr,
 
   const int 
     gammaStates = numStates * 4;
-            
+
   if(tipX1)
     {          
       if(writeVector)
@@ -656,17 +656,22 @@ static double evaluateGammaFlex_LG4(int *ex1, int *ex2, int *wptr,
       
 	  for(j = 0, term = 0.0; j < 4; j++)
 	    {
+	      double 
+		t = 0.0;
+	      
 	      left  = &(x1[gammaStates * i + numStates * j]);
 	      right = &(x2[gammaStates * i + numStates * j]);	    
 	      
 	      for(l = 0; l < numStates; l++)
-		term += left[l] * right[l] * diagptable[j * numStates + l];	
+		t += left[l] * right[l] * diagptable[j * numStates + l];	
+
+	      term +=  weights[j] * t;
 	    }
 	  
 	  if(fastScaling)
-	    term = LOG(0.25 * FABS(term));
+	    term = LOG(FABS(term));
 	  else
-	    term = LOG(0.25 * FABS(term)) + ((ex1[i] + ex2[i])*LOG(minlikelihood));
+	    term = LOG(FABS(term)) + ((ex1[i] + ex2[i])*LOG(minlikelihood));
 	
 	  vector[i] = term;
   
@@ -678,17 +683,22 @@ static double evaluateGammaFlex_LG4(int *ex1, int *ex2, int *wptr,
 	    
 	    for(j = 0, term = 0.0; j < 4; j++)
 	      {
+		double 
+		  t = 0.0;
+		
 		left  = &(x1[gammaStates * i + numStates * j]);
 		right = &(x2[gammaStates * i + numStates * j]);	    
 		
 		for(l = 0; l < numStates; l++)
-		  term += left[l] * right[l] * diagptable[j * numStates + l];	
+		  t += left[l] * right[l] * diagptable[j * numStates + l];	
+
+		term +=  weights[j] * t;
 	      }
 	    
 	    if(fastScaling)
-	      term = LOG(0.25 * FABS(term));
+	      term = LOG(FABS(term));
 	    else
-	      term = LOG(0.25 * FABS(term)) + ((ex1[i] + ex2[i])*LOG(minlikelihood));
+	      term = LOG(FABS(term)) + ((ex1[i] + ex2[i])*LOG(minlikelihood));
 	    
 	    sum += wptr[i] * term;
 	  }         
