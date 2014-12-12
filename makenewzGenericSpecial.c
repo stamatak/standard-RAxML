@@ -1317,13 +1317,13 @@ static double coreGammaAsc(double *gammaRates, double *EIGN, double *sumtable, i
 	  standard_d2lnLdlz2 += weightVector[i] * (standard_d2lnLidlz2 - standard_dlnLidlz * standard_dlnLidlz);	  	  
 	}
 
-      inv_Li = 0.25 * FABS(inv_Li) * ascScaler[i];         
-      dlnLidlz *= 0.25 * ascScaler[i];
-      d2lnLidlz2 *= 0.25 * ascScaler[i];
+      inv_Li = 0.25 * FABS(inv_Li);         
+      dlnLidlz *= 0.25;
+      d2lnLidlz2 *= 0.25;
        
-      lh        += inv_Li;	  	 
-      dlnLdlz   += dlnLidlz;
-      d2lnLdlz2 += d2lnLidlz2;       
+      lh        += inv_Li * ascScaler[i];	  	 
+      dlnLdlz   += dlnLidlz * ascScaler[i];
+      d2lnLdlz2 += d2lnLidlz2 * ascScaler[i];       
     } 
 
   *ext_dlnLdlz   = (dlnLdlz / (lh - 1.0));
@@ -4320,8 +4320,7 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 	      size_t
 		i;
 
-	      double 
-		*scaleVector = (double *)rax_malloc(sizeof(states) * sizeof(double)),
+	      double 		
 		*weightVector = (double*)NULL;
 
 	      int	     
@@ -4354,9 +4353,7 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 		   break;
 		 default:
 		   assert(0);
-		 }
-	     
-	       rax_free(scaleVector);
+		 }	  
 	  
 	       switch(tr->ascertainmentCorrectionType)
 		 {
