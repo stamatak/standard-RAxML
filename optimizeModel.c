@@ -3167,7 +3167,7 @@ static void optModel(tree *tr, int numProteinModels, int *bestIndex, double *bes
     }             
 }
 
-static void autoProtein(tree *tr, analdef *adef)
+static void autoProtein(tree *tr)
 {
   int 
     countAutos = 0,   
@@ -3223,9 +3223,11 @@ static void autoProtein(tree *tr, analdef *adef)
       for(model = 0; model < tr->NumberOfModels; model++)
 	{	   
 	  if(tr->partitionData[model].protModels == AUTO)
-	    {	     	      	       
-	      int 
-		k,
+	    {	  
+	      size_t
+		k;
+
+	      int 	       
 		bestIndexFixed = bestIndex[model],
 		bestIndexEmp = bestIndexEmpFreqs[model];
 	      
@@ -3563,7 +3565,7 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
       printf("after rates %1.40f\n", tr->likelihood);
 #endif
 
-      autoProtein(tr, adef);
+      autoProtein(tr);
       
       if(adef->mode != OPTIMIZE_BR_LEN_SCALER)
 	treeEvaluate(tr, 0.0625);                     	            

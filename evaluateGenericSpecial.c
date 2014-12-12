@@ -268,7 +268,6 @@ static double evaluateCatAsc(int *ex1, int *ex2,
 {
   double
     exponent,
-    logMin = LOG(twotothe256),
     sum = 0.0, 
     unobserved,
     term,
@@ -296,11 +295,16 @@ static double evaluateCatAsc(int *ex1, int *ex2,
 	  for(l = 0; l < numStates; l++)
 	    term += left[l] * right[l] * diagptable[l];	      	 	 	  	 
 
-	  exponent = ((double)ex2[i] * logMin);	  
+	  /* assumes that pow behaves as expected/specified for underflows
+	     from the man page: 
+	     If  result  underflows, and is not representable, a range error occurs,
+	     and 0.0 is returned.
+	  */
 
-	  assert(exponent < 700.0);
 
-	  unobserved = FABS(term) * exp(exponent);	    
+	  exponent = pow(minlikelihood, (double)ex2[i]);
+
+	  unobserved = FABS(term) * exponent;	    
 	  
 #ifdef _DEBUG_ASC
 	  if(ex2[i] > 0)
@@ -315,23 +319,28 @@ static double evaluateCatAsc(int *ex1, int *ex2,
 
 	  sum += unobserved;
 	}              
-    }              
+    }      
   else
     {           
       for (i = 0; i < n; i++) 
 	{	  	 
 	  term = 0.0;
-	  	 
+	  
 	  left  = &(x1[i * numStates]);
 	  right = &(x2[i * numStates]);	    
-	      
+	  
 	  for(l = 0; l < numStates; l++)
 	    term += left[l] * right[l] * diagptable[l];		  
 	  
-	  //because of the way we scale for sites that only consist of a single character
-	  //ex1 and ex2 will mostly be zero, so there is no re-scaling that needs to be done
+	  /* assumes that pow behaves as expected/specified for underflows
+	     from the man page: 
+	     If  result  underflows, and is not representable, a range error occurs,
+	     and 0.0 is returned.
+	  */
 
-	  exponent = ((double)(ex1[i] + ex2[i]) * logMin);
+	  exponent = pow(minlikelihood, (double)(ex1[i] + ex2[i]));
+	  
+	  unobserved = FABS(term) * exponent;
 	  
 #ifdef _DEBUG_ASC
 	  if(ex2[i] > 0 || ex1[i] > 0)
@@ -340,41 +349,36 @@ static double evaluateCatAsc(int *ex1, int *ex2,
 	      assert(0);
 	    }
 #endif
-
-	  assert(exponent < 700.0);
 	  
-	  unobserved = FABS(term) * exp(exponent);	  	  
-
 	  if(weightVector)
 	    *accumulator += weightVector[i] * (LOG(FABS(term)) + ((ex1[i] + ex2[i]) * LOG(minlikelihood)));
-					       
+	  
 	  sum += unobserved;
-	}             
-    }        
-
+	}          
+    }
+  
   return  sum;
 }
 
 
 static double evaluateGammaAsc(int *ex1, int *ex2,
-				double *x1, double *x2,  
-				double *tipVector, 
+			       double *x1, double *x2,  
+			       double *tipVector, 
 			       unsigned char *tipX1, int n, double *diagptable, const int numStates, double *accumulator, double *weightVector, int dataType)
 {
   double
     exponent,
-    logMin = LOG(twotothe256),
     sum = 0.0, 
     unobserved,
     term,
     *left, 
     *right;
-  
+
   int     
     i, 
     j, 
     l;   
-  
+
   const int 
     gammaStates = numStates * 4;
          
@@ -397,13 +401,18 @@ static double evaluateGammaAsc(int *ex1, int *ex2,
 		term += left[l] * right[l] * diagptable[j * numStates + l];	      
 	    }	 	  	 
 
-	  exponent = ((double)ex2[i] * logMin);	  
 
-	  assert(exponent < 700.0);
+	  /* assumes that pow behaves as expected/specified for underflows
+	     from the man page: 
+	     If  result  underflows, and is not representable, a range error occurs,
+	     and 0.0 is returned.
+	  */
 
-	  unobserved = 0.25 * FABS(term) * exp(exponent);	    
+	  exponent = pow(minlikelihood, (double)ex2[i]);	  
+
+	  unobserved = 0.25 * FABS(term) * exponent;	    
 	  
-#ifdef _DEBUG_ASC
+#ifdef _DEBUG_ASC	 	  
 	  if(ex2[i] > 0)
 	    {
 	      printf("s %d\n", ex2[i]);
@@ -430,10 +439,15 @@ static double evaluateGammaAsc(int *ex1, int *ex2,
 		term += left[l] * right[l] * diagptable[j * numStates + l];	
 	    }
 	  
-	  //because of the way we scale for sites that only consist of a single character
-	  //ex1 and ex2 will mostly be zero, so there is no re-scaling that needs to be done
+	  /* assumes that pow behaves as expected/specified for underflows
+	     from the man page: 
+	     If  result  underflows, and is not representable, a range error occurs,
+	     and 0.0 is returned.
+	  */
 
-	  exponent = ((double)(ex1[i] + ex2[i]) * logMin);
+	  exponent = pow(minlikelihood, (double)(ex1[i] + ex2[i]));
+	  
+	  unobserved = 0.25 * FABS(term) * exponent;
 	  
 #ifdef _DEBUG_ASC
 	  if(ex2[i] > 0 || ex1[i] > 0)
@@ -442,11 +456,7 @@ static double evaluateGammaAsc(int *ex1, int *ex2,
 	      assert(0);
 	    }
 #endif
-
-	  assert(exponent < 700.0);
-	  
-	  unobserved = 0.25 * FABS(term) * exp(exponent);	  	  
-	  
+	 	  	  	  
 	   if(weightVector)
 	     *accumulator += weightVector[i] * (LOG(0.25 * FABS(term)) + ((ex1[i] + ex2[i]) * LOG(minlikelihood)));
 
@@ -3470,9 +3480,7 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 	    }
 	   
 	  if(width > 0)
-	    {	      
-	      //printf("%d %f\n", model, partitionLikelihood);
-	      	  
+	    {	      	      	      	  
 	      if(tr->useFastScaling)		    	      		      
 		partitionLikelihood += (tr->partitionData[model].globalScaler[pNumber] + tr->partitionData[model].globalScaler[qNumber]) * LOG(minlikelihood);		    
 	      
@@ -3515,7 +3523,7 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 			break;
 		      case GAMMA:			
 			correction = evaluateGammaAsc(ex1_asc, ex2_asc, x1_start_asc, x2_start_asc, tr->partitionData[model].tipVector,
-						      tip, ascWidth, diagptable, ascWidth, &accumulator, weightVector, tr->partitionData[model].dataType);	 		 	       
+						      tip, ascWidth, diagptable, ascWidth, &accumulator, weightVector, tr->partitionData[model].dataType);			
 			break;
 		      default:
 			assert(0);
@@ -3684,6 +3692,7 @@ double evaluateGenericInitrav (tree *tr, nodeptr p)
   result = evaluateIterative(tr, FALSE);     
 #endif
 
+  
   assert(result <= 0.0);
 
   tr->likelihood = result;         

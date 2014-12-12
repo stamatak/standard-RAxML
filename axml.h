@@ -166,9 +166,9 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "RAxML"
-#define programVersion     "8.1.11"
-#define programVersionInt   8111
-#define programDate        "December 10 2014"
+#define programVersion     "8.1.12"
+#define programVersionInt   8112
+#define programDate        "December 12 2014"
 
 
 #define  TREE_EVALUATION                 0
@@ -599,6 +599,7 @@ typedef struct {
   int     *ascExpVector;
   double  *ascSumBuffer;
   double  *ascVector;
+  double ascScaler[64];
   //asc bias end
 
 

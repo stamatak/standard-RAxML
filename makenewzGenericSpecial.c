@@ -1161,7 +1161,7 @@ static double coreCatAsc(double *EIGN, double *sumtable, int upper,
 			 volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double lz, const int numStates, 
 			 volatile double *standard_ext_dlnLdlz,  volatile double *standard_ext_d2lnLdlz2, 
 			 volatile double *felsenstein_ext_dlnLdlz,  volatile double *felsenstein_ext_d2lnLdlz2,
-			 double *weightVector)
+			 double *weightVector, double *ascScaler)
 {
   double  
     diagptable[1024], 
@@ -1225,9 +1225,9 @@ static double coreCatAsc(double *EIGN, double *sumtable, int upper,
       
       inv_Li = FABS(inv_Li);             
        
-      lh        += inv_Li;	  	 
-      dlnLdlz   += dlnLidlz;
-      d2lnLdlz2 += d2lnLidlz2;            
+      lh        += inv_Li * ascScaler[i];	  	 
+      dlnLdlz   += dlnLidlz * ascScaler[i];
+      d2lnLdlz2 += d2lnLidlz2 * ascScaler[i];            
     } 
 
   *ext_dlnLdlz   = (dlnLdlz / (lh - 1.0));
@@ -1247,7 +1247,7 @@ static double coreGammaAsc(double *gammaRates, double *EIGN, double *sumtable, i
 			   volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double lz, const int numStates, 
 			   volatile double *standard_ext_dlnLdlz,  volatile double *standard_ext_d2lnLdlz2, 
 			   volatile double *felsenstein_ext_dlnLdlz,  volatile double *felsenstein_ext_d2lnLdlz2,
-			   double *weightVector)
+			   double *weightVector, double *ascScaler)
 {
   double  
     diagptable[1024], 
@@ -1317,9 +1317,9 @@ static double coreGammaAsc(double *gammaRates, double *EIGN, double *sumtable, i
 	  standard_d2lnLdlz2 += weightVector[i] * (standard_d2lnLidlz2 - standard_dlnLidlz * standard_dlnLidlz);	  	  
 	}
 
-      inv_Li = 0.25 * FABS(inv_Li);         
-      dlnLidlz *= 0.25;
-      d2lnLidlz2 *= 0.25;
+      inv_Li = 0.25 * FABS(inv_Li) * ascScaler[i];         
+      dlnLidlz *= 0.25 * ascScaler[i];
+      d2lnLidlz2 *= 0.25 * ascScaler[i];
        
       lh        += inv_Li;	  	 
       dlnLdlz   += dlnLidlz;
@@ -3985,11 +3985,55 @@ void makenewzIterative(tree *tr)
 	    if(tr->partitionData[model].ascBias)
 #endif	 
 	    {
+	      int 
+		pNumber = tr->td[0].ti[0].pNumber, 
+		qNumber = tr->td[0].ti[0].qNumber,
+		i,
+		*ex1_asc = &tr->partitionData[model].ascExpVector[(pNumber - tr->mxtips - 1) * states],
+		*ex2_asc = &tr->partitionData[model].ascExpVector[(qNumber - tr->mxtips - 1) * states];
+
+	      switch(tipCase)
+		{
+		case TIP_TIP:
+		  assert(0);
+		  break;
+		case TIP_INNER:
+		  if(isTip(pNumber, tr->mxtips))
+		    {
+		      for(i = 0; i < states; i++)
+			tr->partitionData[model].ascScaler[i] = pow(minlikelihood, (double)ex2_asc[i]);
+		    }
+		  else
+		    {
+		      for(i = 0; i < states; i++)
+			tr->partitionData[model].ascScaler[i] = pow(minlikelihood, (double)ex1_asc[i]);
+		    }
+		  break;
+		case INNER_INNER:
+		  for(i = 0; i < states; i++)
+		    tr->partitionData[model].ascScaler[i] = pow(minlikelihood, (double)(ex1_asc[i] + ex2_asc[i]));
+		  break;
+		default:
+		  assert(0);
+		}
+
+	      /*for(i = 0; i < states; i++)
+		printf("%d ", ex2_asc[i]);
+	      printf("\n");
+	      for(i = 0; i < states; i++)
+		printf("%d ", ex1_asc[i]);
+		printf("\n");*/
+	      /*for(i = 0; i < states; i++)
+		if(tr->partitionData[model].ascScaler[i] != 1.0)
+		  printf("%f \n", tr->partitionData[model].ascScaler[i]);
+	      //printf("\n");*/
+	      
+
 	      switch(tr->rateHetModel)
 	      	{
 		case CAT:
 		  sumCatAsc(tipCase, tr->partitionData[model].ascSumBuffer, x1_start_asc, x2_start_asc, tr->partitionData[model].tipVector,
-			      states, states, tr->partitionData[model].dataType);
+			    states, states, tr->partitionData[model].dataType);
 		  break;
 		case GAMMA:
 		  sumGammaAsc(tipCase, tr->partitionData[model].ascSumBuffer, x1_start_asc, x2_start_asc, tr->partitionData[model].tipVector,
@@ -4277,6 +4321,7 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 		i;
 
 	      double 
+		*scaleVector = (double *)rax_malloc(sizeof(states) * sizeof(double)),
 		*weightVector = (double*)NULL;
 
 	      int	     
@@ -4291,7 +4336,7 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 		felsenstein_d2 = 0.0;
 	      
 	      if(tr->ascertainmentCorrectionType == STAMATAKIS_CORRECTION)		
-		weightVector = tr->partitionData[model].invariableFrequencies;			      	    	
+		weightVector = tr->partitionData[model].invariableFrequencies;		    
 	      
 	       switch(tr->rateHetModel)
 		 {
@@ -4299,51 +4344,51 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 		   coreCatAsc(tr->partitionData[model].EIGN, tr->partitionData[model].ascSumBuffer, states,
 			      &d1,  &d2, lz, states, &standard_d1, &standard_d2, 
 					   &felsenstein_d1, &felsenstein_d2,
-					   weightVector);	  
+					   weightVector, tr->partitionData[model].ascScaler);	  
 		   break;
 		 case GAMMA:
 		   coreGammaAsc(tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, tr->partitionData[model].ascSumBuffer, states,
 				&d1,  &d2, lz, states, &standard_d1, &standard_d2, 
 				&felsenstein_d1, &felsenstein_d2,
-				weightVector);	  
+				weightVector, tr->partitionData[model].ascScaler);	  
 		   break;
 		 default:
 		   assert(0);
 		 }
 	     
-	      
+	       rax_free(scaleVector);
 	  
-	        switch(tr->ascertainmentCorrectionType)
-		  {
-		  case LEWIS_CORRECTION:
-		    for(i = tr->partitionData[model].lower; i < tr->partitionData[model].upper; i++)
-		      w += tr->cdta->aliaswgt[i];
-		    
-		    _dlnLdlz[branchIndex]   =  _dlnLdlz[branchIndex] + dlnLdlz - (double)w * d1;
-		    _d2lnLdlz2[branchIndex] =  _d2lnLdlz2[branchIndex] + d2lnLdlz2-  (double)w * d2;
-		    break;
-		  case STAMATAKIS_CORRECTION:
-		    _dlnLdlz[branchIndex]   += dlnLdlz + standard_d1;
-		    _d2lnLdlz2[branchIndex] += d2lnLdlz2 + standard_d2;
-		    break;
-		  case FELSENSTEIN_CORRECTION:
-		    _dlnLdlz[branchIndex]   += dlnLdlz +   tr->partitionData[model].invariableWeight * felsenstein_d1;
-		    _d2lnLdlz2[branchIndex] += d2lnLdlz2 + tr->partitionData[model].invariableWeight * felsenstein_d2;
-		    break;
-		  default:
-		    assert(0);
-		  }
-		
+	       switch(tr->ascertainmentCorrectionType)
+		 {
+		 case LEWIS_CORRECTION:
+		   for(i = tr->partitionData[model].lower; i < tr->partitionData[model].upper; i++)
+		     w += tr->cdta->aliaswgt[i];
+		   
+		   _dlnLdlz[branchIndex]   =  _dlnLdlz[branchIndex] + dlnLdlz - (double)w * d1;
+		   _d2lnLdlz2[branchIndex] =  _d2lnLdlz2[branchIndex] + d2lnLdlz2-  (double)w * d2;
+		   break;
+		 case STAMATAKIS_CORRECTION:
+		   _dlnLdlz[branchIndex]   += dlnLdlz + standard_d1;
+		   _d2lnLdlz2[branchIndex] += d2lnLdlz2 + standard_d2;
+		   break;
+		 case FELSENSTEIN_CORRECTION:
+		   _dlnLdlz[branchIndex]   += dlnLdlz +   tr->partitionData[model].invariableWeight * felsenstein_d1;
+		   _d2lnLdlz2[branchIndex] += d2lnLdlz2 + tr->partitionData[model].invariableWeight * felsenstein_d2;
+		   break;
+		 default:
+		   assert(0);
+		 }
+	       
 	    }  
 	    else
 	      {
-		 _dlnLdlz[branchIndex]   = _dlnLdlz[branchIndex]   + dlnLdlz;
-		 _d2lnLdlz2[branchIndex] = _d2lnLdlz2[branchIndex] + d2lnLdlz2;
+		_dlnLdlz[branchIndex]   = _dlnLdlz[branchIndex]   + dlnLdlz;
+		_d2lnLdlz2[branchIndex] = _d2lnLdlz2[branchIndex] + d2lnLdlz2;
 		//printf("lh: %f branch %f\n", like, -lz * tr->fracchange);
 	      }
 	}
     }
-
+  
 #ifdef _DEBUG_MULTI_EPA
   printf("\n");
 #endif 	  
@@ -4351,7 +4396,6 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 #ifdef _DEBUG_ASC
   printf("\n\n");
 #endif
-
 }
 
 
