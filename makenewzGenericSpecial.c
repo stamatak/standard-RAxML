@@ -3995,7 +3995,8 @@ void makenewzIterative(tree *tr)
 	      switch(tipCase)
 		{
 		case TIP_TIP:
-		  assert(0);
+		   for(i = 0; i < states; i++)
+		     tr->partitionData[model].ascScaler[i] = 1.0;		  
 		  break;
 		case TIP_INNER:
 		  if(isTip(pNumber, tr->mxtips))
