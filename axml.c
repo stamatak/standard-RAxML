@@ -2582,6 +2582,14 @@ static boolean makevalues(rawdata *rdta, cruncheddata *cdta, tree *tr, analdef *
 	  i++;
 	}
 
+      if(modelCounter <  tr->NumberOfModels - 1)
+	{
+	  printf("\nYou specified %d partitions, but after parsing and pre-processing ExaML only found %d partitions\n", tr->NumberOfModels, modelCounter + 1);
+	  printf("Presumably one or more partitions vanished because they consisted entirely of undetermined characters.\n");
+	  printf("Please fix your data!\n\n");
+	  exit(-1);
+	}
+
       tr->partitionData[tr->NumberOfModels - 1].upper = cdta->endsite;      
     
       for(i = 0; i < tr->NumberOfModels; i++)		  
@@ -10829,6 +10837,10 @@ void writeBinaryModel(tree *tr, analdef *adef)
   FILE 
     *f = myfopen(binaryModelParamsOutputFileName, "w"); 
 
+  /* number of tips in the tree that generates the model data */
+
+  myfwrite(&(tr->ntips), sizeof(int), 1, f);
+
   /* pattern compression */
 
   myfwrite(&adef->compressPatterns, sizeof(boolean), 1, f);
@@ -10947,6 +10959,9 @@ void readBinaryModel(tree *tr, analdef *adef)
 
   f = fopen(binaryModelParamsInputFileName, "r");   
 
+  /* number of tips in the tree that generated the model data */
+
+  myfread(&(tr->binaryFile_ntips), sizeof(int), 1, f);
 
   /* pattern compression */
 

@@ -55,7 +55,7 @@ extern const unsigned int bitVectorSecondary[256];
 extern const unsigned int bitVector32[33];
 extern const unsigned int bitVectorAA[23];
 extern const unsigned int bitVectorIdentity[256];
-
+extern const unsigned int mask32[32];
 extern const partitionLengths pLengths[MAX_MODEL];
 
 #ifdef _USE_PTHREADS
@@ -167,7 +167,9 @@ static void genericBaseFrequencies(tree *tr, const int numFreqs, rawdata *rdta, 
     sumf[64],   
     temp[64];
  
-  int     
+  int 
+    statesPresent[64],
+    countStatesPresent = 0,
     i, 
     j, 
     k, 
@@ -175,6 +177,41 @@ static void genericBaseFrequencies(tree *tr, const int numFreqs, rawdata *rdta, 
 
   unsigned char  *yptr;  
 	  
+
+  for(i = 0; i < numFreqs; i++)
+    statesPresent[i] = 0;
+
+  for(i = 0; i < rdta->numsp; i++) 
+    {
+      yptr = &(rdta->y0[((size_t)i) * (tr->originalCrunchedLength)]);
+      
+      for(j = lower; j < upper; j++) 
+	{
+	  unsigned int
+	    state = 0,
+	    stateCount = 0,
+	    code = bitMask[yptr[j]];
+
+	  if(precomputed16_bitcount(code) == 1)
+	    {
+	      for(k = 0; k < numFreqs; k++)
+		if(code & mask32[k])
+		  {
+		    state = k;
+		    stateCount++;
+		  }
+
+	      assert(stateCount == 1);
+
+	      statesPresent[state] = 1;
+	    }		    		    	  	
+	}
+    }
+	      
+  for(i = 0, countStatesPresent = 0; i < numFreqs; i++)
+    if(statesPresent[i] == 1)
+      countStatesPresent++;
+
 
   if(tr->partitionData[model].optimizeBaseFrequencies)
     {   
@@ -233,6 +270,13 @@ static void genericBaseFrequencies(tree *tr, const int numFreqs, rawdata *rdta, 
 	  
 	  for(l = 0; l < numFreqs; l++)
 	    pfreqs[l] = sumf[l] / acc;	     
+	}
+
+      if(countStatesPresent < numFreqs)
+	{
+	  printf("Partition %s number %d has a problem, the number of expected states is %d the number of states that are present is %d.\n", 
+		 tr->partitionData[model].partitionName, model, numFreqs, countStatesPresent);
+	  printf("Please go and fix your data!\n\n");
 	}
       
       if(smoothFrequencies)         

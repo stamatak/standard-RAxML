@@ -1907,6 +1907,12 @@ void classifyML(tree *tr, analdef *adef)
 
   if(adef->useBinaryModelFile)
     {      
+      if(tr->ntips != tr->binaryFile_ntips)
+	{
+	  printf("\nError: number of %d tips in reference tree and %d tips in the tree used to estimate\n", tr->ntips, tr->binaryFile_ntips);
+	  printf("the binary model parameter file do not match, RAxML will exit now!\n\n");
+	}
+      assert(tr->ntips == tr->binaryFile_ntips);
       evaluateGenericInitrav(tr, tr->start);
       //treeEvaluate(tr, 2);
     }
@@ -2649,6 +2655,12 @@ void subtreeEPA(tree *tr, analdef *adef)
   //Attention: not tested yet!
   if(adef->useBinaryModelFile)
     {      
+      if(tr->ntips != tr->binaryFile_ntips)
+	{
+	  printf("\nError: number of %d tips in reference tree and %d tips in the tree used to estimate\n", tr->ntips, tr->binaryFile_ntips);
+	  printf("the binary model parameter file do not match, RAxML will exit now!\n\n");
+	}
+      assert(tr->ntips == tr->binaryFile_ntips);
       evaluateGenericInitrav(tr, tr->start);
       //treeEvaluate(tr, 2);
     }
