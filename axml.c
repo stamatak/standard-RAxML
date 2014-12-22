@@ -5291,6 +5291,9 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
     yFileSet = FALSE,
     flagCheck = FALSE;
 
+  FILE 
+    *flagCheckFile = myfopen("RAxML_flagCheck", "wb");
+
   run_id[0] = 0;
   workdir[0] = 0;
   seq_file[0] = 0;
@@ -5539,6 +5542,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	      if(flagCheck)
 		{
 		  printf("Option %s not supported\n", argv[optind - 1]);
+		  fprintf(flagCheckFile, "Option %s not supported\n", argv[optind - 1]);
 		  invalidOptions++;
 		}
 	      else
@@ -6126,6 +6130,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 		if(flagCheck)
 		  {
 		    printf("Option -f %s not supported\n", optarg);
+		    fprintf(flagCheckFile, "Option -f %s not supported\n", optarg);
 		    invalidOptions++;
 		  }
 		else
@@ -6230,6 +6235,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	    if(flagCheck)
 	      {
 		printf("Option %s not supported\n", argv[optind-1]);
+		fprintf(flagCheckFile, "Option %s not supported\n", argv[optind-1]);
 		invalidOptions++;		
 	      }
 	    else
@@ -6240,7 +6246,12 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
   if(flagCheck)
     {
       if(invalidOptions == 0)
-	printf("All options supported\n");
+	{
+	  printf("All options supported\n");
+	  fprintf(flagCheckFile, "All options supported\n");
+	}
+     
+      fclose(flagCheckFile);
       exit(0);
     }
   
