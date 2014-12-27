@@ -5292,7 +5292,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
     flagCheck = FALSE;
 
   FILE 
-    *flagCheckFile = myfopen("RAxML_flagCheck", "wb");
+    *flagCheckFile;
 
   run_id[0] = 0;
   workdir[0] = 0;
@@ -5344,7 +5344,8 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
   for(i = 1; i < argc; i++)
     if(strcmp(argv[i], "--flag-check") == 0)
       {
-	flagCheck = TRUE;
+	flagCheck = TRUE; 
+	flagCheckFile = myfopen("RAxML_flagCheck", "wb");
 	opterr = 0;
 	break;
       }
