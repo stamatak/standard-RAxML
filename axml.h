@@ -166,9 +166,9 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "RAxML"
-#define programVersion     "8.1.14"
-#define programVersionInt   8114
-#define programDate        "December 19 2014"
+#define programVersion     "8.1.15"
+#define programVersionInt   8115
+#define programDate        "December 25 2014"
 
 
 #define  TREE_EVALUATION                 0
@@ -237,16 +237,17 @@
 #define HIVW         15
 #define JTTDCMUT     16
 #define FLU          17 
-#define DUMMY        18
-#define DUMMY2       19
-#define AUTO         20
-#define LG4          21
-#define LG4X         22
-#define PROT_FILE    23
-#define GTR_UNLINKED 24
-#define GTR          25  /* GTR always needs to be the last one */
+#define STMTREV      18
+#define DUMMY        19
+#define DUMMY2       20
+#define AUTO         21
+#define LG4          22
+#define LG4X         23
+#define PROT_FILE    24
+#define GTR_UNLINKED 25
+#define GTR          26  /* GTR always needs to be the last one */
 
-#define NUM_PROT_MODELS 26
+#define NUM_PROT_MODELS 27
 
 
 
