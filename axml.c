@@ -6301,10 +6301,12 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 #ifdef _USE_PTHREADS
   if(NumberOfThreads < 2)
     {
-      printf("\nThe number of threads is currently set to %d\n", NumberOfThreads);
-      printf("Specify the number of threads to run via -T numberOfThreads\n");
+      printf("\nWARNING: The number of threads is currently set to %d\n", NumberOfThreads);
+      printf("You can specify the number of threads to run via -T numberOfThreads\n");
       printf("NumberOfThreads must be set to an integer value greater than 1\n\n");
-      errorExit(-1);
+      printf("RAxML, will now set the number of threads automatically to 2 !\n\n");
+      NumberOfThreads = 2;
+      //errorExit(-1);
     }
 #endif
 
