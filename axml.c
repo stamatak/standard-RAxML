@@ -12314,8 +12314,18 @@ static boolean partitionHasInvariantSites(tree *tr, int model)
       for(j = 1; j <= tr->mxtips; j++)		
 	encoding = encoding & bitVector[tr->yVector[j][i]];       
 
-      if(encoding > 0)          
-	return TRUE;	  
+      if(encoding > 0)    
+	{
+	  printBothOpen("Partition %d with name \"%s\" is to be analyzed using ascertainment bias correction, but it has at least one invariable site!\n", 
+			model, tr->partitionData[model].partitionName);
+	  printBothOpen("This is is not allowed! RAxML will print the offending site and then exit.\n\n");
+
+	  for(j = 1; j <= tr->mxtips; j++)
+	    printBothOpen("%c", getInverseMeaning(tr->partitionData[model].dataType, tr->yVector[j][i]));
+	  printBothOpen("\n");
+		   
+	  return TRUE;	  
+	}
     }
 
   return FALSE;
