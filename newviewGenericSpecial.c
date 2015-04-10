@@ -177,7 +177,7 @@ static void makeP_FlexHet(double z1, double z2, double *rptr, double *EI_1,  dou
 
 #endif
 
-static void makeP_FlexLG4(double z1, double z2, double *rptr, double *EI[4],  double *EIGN[4], int numberOfCategories, double *left, double *right, const int numStates)
+void makeP_FlexLG4(double z1, double z2, double *rptr, double *EI[4],  double *EIGN[4], int numberOfCategories, double *left, double *right, const int numStates)
 {
   int 
     i,

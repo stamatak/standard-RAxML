@@ -462,9 +462,18 @@ static void copyFiles(FILE *source, FILE *destination)
     buf[1024];
   
   assert(processID == 0);
+  assert(sizeof(char) == 1);
 
-  while((c = fread(buf, sizeof(char), 1024, source)) > 0)
-    fwrite(buf, sizeof(char), c, destination);     	
+  while(!feof(source))
+    {
+      if(ferror(source) != 0)
+	assert(0);
+      
+      c = fread(buf, sizeof(char), 1024, source);
+      
+      if(c > 0)
+	fwrite(buf, sizeof(char), c, destination);        
+    }
 }
 
 static void concatenateBSFiles(int processes, char fileName[1024])

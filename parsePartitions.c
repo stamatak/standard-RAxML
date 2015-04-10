@@ -91,6 +91,7 @@ static void skipWhites(char **ch)
 static void analyzeIdentifier(char **ch, int modelNumber, tree *tr)
 {
   char 
+    *start = *ch,
     ident[2048] = "",
     model[2048] = "",
     thisModel[2048] = "";
@@ -103,11 +104,20 @@ static void analyzeIdentifier(char **ch, int modelNumber, tree *tr)
 
   while(**ch != '=')
     {
+      if(**ch == '\n' || **ch == '\r')
+	{
+	  printf("\nPartition file parsing error!\n");
+	  printf("Each line must contain a \"=\" character\n");
+	  printf("Offending line: %s\n", start);
+	  printf("RAxML will exit now.\n\n");
+	  errorExit(-1);
+	}
+
       if(**ch != ' ' && **ch != '\t')
 	{
 	  ident[i] = **ch;      
 	  i++;
-	}
+	}      
       *ch = *ch + 1;
     }
   

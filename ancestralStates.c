@@ -81,7 +81,31 @@ static char getStateCharacter(int dataType, int state)
   return  result;
 }
 
-static void makeP_Flex_Ancestral(double *rptr, double *EI,  double *EIGN, int numberOfCategories, double *left, const int numStates)
+static void makeP_Flex_Ancestral(double *EI, int numberOfCategories, double *left, const int numStates)
+{
+  int 
+    i,
+    j,
+    k;
+  
+  const int
+    rates = numStates - 1,
+    statesSquare = numStates * numStates;
+  
+  assert(numStates <= 64);
+     
+  for(i = 0; i < numberOfCategories; i++)    
+    for(j = 0; j < numStates; j++)
+      {
+	left[statesSquare * i  + numStates * j] = 1.0;	 
+	
+	for(k = 1; k < numStates; k++)	    	    
+	  left[statesSquare * i + numStates * j + k]  = EI[rates * j + (k-1)];	     	   
+      }
+}
+
+
+static void makeP_Flex_AncestralLG4(double *EI[4],  int numberOfCategories, double *left, const int numStates)
 {
   int 
     i,
@@ -92,31 +116,18 @@ static void makeP_Flex_Ancestral(double *rptr, double *EI,  double *EIGN, int nu
     rates = numStates - 1,
     statesSquare = numStates * numStates;
 
-  double 
-    z1 = 0.0,
-    lz1[64],
-    d1[64];
+  assert(numStates <= 64);          
 
-  assert(numStates <= 64);
-     
-  for(i = 0; i < rates; i++)    
-    lz1[i] = EIGN[i] * z1;
-     
-
-  for(i = 0; i < numberOfCategories; i++)
-    {
-      for(j = 0; j < rates; j++)	
-	d1[j] = EXP (rptr[i] * lz1[j]);
-	 
-      for(j = 0; j < numStates; j++)
-	{
-	  left[statesSquare * i  + numStates * j] = 1.0;	 
-
-	  for(k = 1; k < numStates; k++)	    
-	    left[statesSquare * i + numStates * j + k]  = d1[k-1] * EI[rates * j + (k-1)];	     
-	}
-    }  
+  for(i = 0; i < numberOfCategories; i++)         	 
+    for(j = 0; j < numStates; j++)
+      {
+	left[statesSquare * i  + numStates * j] = 1.0;	 
+	
+	for(k = 1; k < numStates; k++)	    
+	  left[statesSquare * i + numStates * j + k]  = EI[i][rates * j + (k-1)];	     
+      }
 }
+
 
 static void ancestralCat(double *v, double *sumBuffer, double *diagptable, int i, int numStates)
 {
@@ -388,6 +399,7 @@ static void newviewFlexGamma_Ancestral(int tipCase,
 		      }
 
 		    x1px2 = al * ar;
+		    
 		    for(j = 0; j < numStates; j++)
 		      v[j] += x1px2 * extEV[numStates * l + j];
 		  }	
@@ -420,7 +432,9 @@ static void newviewFlexGamma_Ancestral(int tipCase,
 			ar += vr[j] * right[k * statesSquare + l * numStates + j];
 		      }
 
-		    x1px2 = al * ar;
+		    x1px2 = al * ar; 
+
+		   
 		    for(j = 0; j < numStates; j++)
 		      v[j] += x1px2 * extEV[numStates * l + j];
 		  }
@@ -464,6 +478,7 @@ static void newviewFlexGamma_Ancestral(int tipCase,
 		   }
 
 		 x1px2 = al * ar;
+		
 		 for(j = 0; j < numStates; j++)
 		   v[j] += x1px2 * extEV[numStates * l + j];
 	       }
@@ -490,8 +505,163 @@ static void newviewFlexGamma_Ancestral(int tipCase,
  
 
   rax_free(x3);
+}
+
+static void newviewFlexGamma_AncestralLG4(int tipCase,
+					  double *x1, double *x2, double *extEV[4], double *tipVector[4],
+					  unsigned char *tipX1, unsigned char *tipX2,
+					  int n, double *left, double *right,
+					  const int numStates, double *diagptable, double *sumBuffer)
+{
+  double  
+    *v,
+    *x3 = (double*)rax_malloc(sizeof(double) * 4 * (size_t)numStates);
+  double x1px2;
+  int  i, j, l, k, scale;
+  double *vl, *vr, al, ar;
+
+
+
+  const int 
+    statesSquare = numStates * numStates,
+    gammaStates = 4 * numStates;
+
+  switch(tipCase)
+    {
+    case TIP_TIP:
+      {
+	for(i = 0; i < n; i++)
+	  {
+	    for(k = 0; k < 4; k++)
+	      {
+		vl = &(tipVector[k][numStates * tipX1[i]]);
+		vr = &(tipVector[k][numStates * tipX2[i]]);
+		v =  &(x3[numStates * k]);
+
+		for(l = 0; l < numStates; l++)
+		  v[l] = 0;
+
+		for(l = 0; l < numStates; l++)
+		  {
+		    al = 0.0;
+		    ar = 0.0;
+		    for(j = 0; j < numStates; j++)
+		      {
+			al += vl[j] * left[k * statesSquare + l * numStates + j];
+			ar += vr[j] * right[k * statesSquare + l * numStates + j];
+		      }
+
+		    x1px2 = al * ar;
+		   
+		    for(j = 0; j < numStates; j++)
+		      v[j] += x1px2 * extEV[k][numStates * l + j];		   
+		  }	
+	      }
+	    
+	    ancestralGamma(x3, sumBuffer, diagptable, i, numStates, gammaStates);	   
+	  }
+      }
+      break;
+    case TIP_INNER:
+      {
+	for (i = 0; i < n; i++)
+	  {
+	    for(k = 0; k < 4; k++)
+	      {
+		vl = &(tipVector[k][numStates * tipX1[i]]);
+		vr = &(x2[gammaStates * i + numStates * k]);
+		v =  &(x3[numStates * k]);
+
+		for(l = 0; l < numStates; l++)
+		  v[l] = 0;
+
+		for(l = 0; l < numStates; l++)
+		  {
+		    al = 0.0;
+		    ar = 0.0;
+		    for(j = 0; j < numStates; j++)
+		      {
+			al += vl[j] * left[k * statesSquare + l * numStates + j];
+			ar += vr[j] * right[k * statesSquare + l * numStates + j];
+		      }
+
+		    x1px2 = al * ar; 
+		   
+		    for(j = 0; j < numStates; j++)
+		      v[j] += x1px2 * extEV[k][numStates * l + j];		  
+		  }
+	      }
+	   
+	    v = x3;
+	    scale = 1;
+	    for(l = 0; scale && (l < gammaStates); l++)
+	      scale = (ABS(v[l]) <  minlikelihood);
+
+	    if(scale)
+	      {
+		for(l = 0; l < gammaStates; l++)
+		  v[l] *= twotothe256;	    
+	      }
+
+	    ancestralGamma(x3, sumBuffer, diagptable, i, numStates, gammaStates);	    	    
+	  }
+      }
+      break;
+    case INNER_INNER:
+      for (i = 0; i < n; i++)
+       {
+	 for(k = 0; k < 4; k++)
+	   {
+	     vl = &(x1[gammaStates * i + numStates * k]);
+	     vr = &(x2[gammaStates * i + numStates * k]);
+	     v =  &(x3[numStates * k]);
+
+	     for(l = 0; l < numStates; l++)
+	       v[l] = 0;
+
+	     for(l = 0; l < numStates; l++)
+	       {
+		 al = 0.0;
+		 ar = 0.0;
+		 for(j = 0; j < numStates; j++)
+		   {
+		     al += vl[j] * left[k * statesSquare + l * numStates + j];
+		     ar += vr[j] * right[k * statesSquare + l * numStates + j];
+		   }
+
+		 x1px2 = al * ar;
+				 
+		 
+		 for(j = 0; j < numStates; j++)
+		   v[j] += x1px2 * extEV[k][numStates * l + j];		
+	       }
+	   }
+	 
+	 v = x3;
+	 scale = 1;
+	 for(l = 0; scale && (l < gammaStates); l++)
+	   scale = ((ABS(v[l]) <  minlikelihood));
+
+	 if (scale)
+	   {
+	     for(l = 0; l < gammaStates; l++)
+	       v[l] *= twotothe256;	     	    
+	   }
+	 
+	 ancestralGamma(x3, sumBuffer, diagptable, i, numStates, gammaStates);	 	 
+       }
+      break;
+    default:
+      assert(0);
+    }
+
+ 
+
+  rax_free(x3);
 
 }
+
+
 void newviewIterativeAncestral(tree *tr)
 {
   traversalInfo 
@@ -573,9 +743,7 @@ void newviewIterativeAncestral(tree *tr)
 			   tr->partitionData[model].numberOfCategories, left, right, (int)states);
 		
 
-		makeP_Flex_Ancestral(tr->partitionData[model].perSiteRates,
-				     tr->partitionData[model].EI,
-				     tr->partitionData[model].EIGN,
+		makeP_Flex_Ancestral(tr->partitionData[model].EI,				   
 				     tr->partitionData[model].numberOfCategories, diagptable, (int)states);
 				     
 
@@ -593,23 +761,42 @@ void newviewIterativeAncestral(tree *tr)
 		double
 		  *diagptable = (double*)rax_malloc(4 * (size_t)states * (size_t)states * sizeof(double));
 		
-		makeP_Flex(qz, rz, tr->partitionData[model].gammaRates,
-			   tr->partitionData[model].EI,
-			   tr->partitionData[model].EIGN,
-			   4, left, right, (int)states);
-		
-		makeP_Flex_Ancestral(tr->partitionData[model].gammaRates,
-				     tr->partitionData[model].EI,
-				     tr->partitionData[model].EIGN,
-				     4, diagptable, (int)states);
-		
+		if(tr->partitionData[model].dataType == AA_DATA && (tr->partitionData[model].protModels == LG4 || tr->partitionData[model].protModels == LG4X))
+		  {
+		    makeP_FlexLG4(qz, rz, tr->partitionData[model].gammaRates,
+				  tr->partitionData[model].EI_LG4,
+				  tr->partitionData[model].EIGN_LG4,
+				  4, left, right, 20);
+		    
+		    makeP_Flex_AncestralLG4(tr->partitionData[model].EI_LG4,					 
+					    4, diagptable, (int)states);
 
-		newviewFlexGamma_Ancestral(tInfo->tipCase,
-					   x1_start, x2_start,
-					   tr->partitionData[model].EV,
-					   tr->partitionData[model].tipVector,
-					   tipX1, tipX2,
-					   (int)width, left, right, (int)states, diagptable, tr->partitionData[model].sumBuffer);
+		    newviewFlexGamma_AncestralLG4(tInfo->tipCase,
+						  x1_start, x2_start,
+						  tr->partitionData[model].EV_LG4,
+						  tr->partitionData[model].tipVector_LG4,
+						  tipX1, tipX2,
+						  (int)width, left, right, (int)states, diagptable, tr->partitionData[model].sumBuffer);
+		    
+		  }
+		else
+		  {
+		    makeP_Flex(qz, rz, tr->partitionData[model].gammaRates,
+			       tr->partitionData[model].EI,
+			       tr->partitionData[model].EIGN,
+			       4, left, right, (int)states);
+		    
+		    makeP_Flex_Ancestral(tr->partitionData[model].EI,					
+					 4, diagptable, (int)states);
+		    
+		    
+		    newviewFlexGamma_Ancestral(tInfo->tipCase,
+					       x1_start, x2_start,
+					       tr->partitionData[model].EV,
+					       tr->partitionData[model].tipVector,
+					       tipX1, tipX2,
+					       (int)width, left, right, (int)states, diagptable, tr->partitionData[model].sumBuffer);
+		  }
 		
 		rax_free(diagptable);
 	      }
