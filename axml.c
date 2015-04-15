@@ -3352,6 +3352,9 @@ static void allocPartitions(tree *tr)
     }
 }
 
+
+
+
 #ifndef _USE_PTHREADS
 
 
@@ -3391,6 +3394,8 @@ static void allocNodex (tree *tr)
 	  	 
 	  tr->partitionData[model].ascExpVector = (int *)rax_calloc(((size_t)tr->innerNodes) * ((size_t)tr->partitionData[model].states),
 								 sizeof(int));
+
+	  tr->partitionData[model].ascMissingVector = (int *)rax_calloc((size_t)(tr->mxtips + 1), sizeof(int));
 	  
 	  tr->partitionData[model].ascSumBuffer = (double *)rax_malloc(((size_t)tr->partitionData[model].ascOffset) *
 								       sizeof(double));
@@ -4797,6 +4802,7 @@ static void printREADME(void)
   printf("      [--flag-check][--auto-prot=ml|bic|aic|aicc]\n");
   printf("      [--epa-keep-placements=number][--epa-accumulated-threshold=threshold]\n");
   printf("      [--epa-prob-threshold=threshold]\n");
+  printf("      [--JC69][--K80][--asc-miss=fraction]\n");
   printf("\n");
   printf("      -a      Specify a column weight file name to assign individual weights to each column of \n");
   printf("              the alignment. Those weights must be integers separated by any type and number \n");
@@ -5211,6 +5217,17 @@ static void printREADME(void)
   printf("      --epa-accumulated-threshold=threshold specify an accumulated likelihood weight threshold for which different placements of read are printed\n");
   printf("                  to file. Placements for a read will be printed until the sum of their placement weights has reached the threshold value.\n");
   printf("                  Note that, this option can neither be used in combination with --epa-prob-threshold nor with --epa-keep-placements!\n");
+  printf("\n");
+  printf("      --JC69 specify that all DNA partitions will evolve under the Jukes-Cantor model, this overrides all other model specifications for DNA partitions.\n");
+  printf("\n");
+  printf("                  DEFAULT: Off\n");
+  printf("\n");
+  printf("      --K80 specify that all DNA partitions will evolve under the K80 model, this overrides all other model specifications for DNA partitions.\n");
+  printf("\n");
+  printf("                  DEFAULT: Off\n");
+  printf("\n");
+  printf("      --asc-miss=fraction specify the fraction of missing data in the variable sites of the alignment you are trying to correct for \n");
+  printf("                  ascertainment bias. Experimental option, needs to be tested!\n");
   printf("\n\n\n\n");
 
 }
@@ -5333,6 +5350,15 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
   tr->useAccumulatedEPACutoff = FALSE;
   tr->probThresholdEPA = 0.01;
 
+  //JC and K80 
+
+  tr->useK80 = FALSE;
+  tr->useJC69 = FALSE;
+
+  //asecryainment bias correction missing data 
+
+  tr->useAscMissing = FALSE;
+
 #ifdef _BASTIEN
   tr->doBastienStuff = FALSE;
 #endif
@@ -5354,26 +5380,21 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
   while(1)
     {      
       static struct 
-	option long_options[11] =
-	{
-	  /* These options set a flag. */
-	  {"mesquite",     no_argument,       &flag, 1},
-	  {"silent",       no_argument,       &flag, 1},
-	  {"no-seq-check", no_argument,       &flag, 1},
-	  {"no-bfgs",      no_argument,       &flag, 1},
-	  {"asc-corr",     required_argument, &flag, 1},
-	  {"flag-check",  no_argument,       &flag, 1},
-	  {"auto-prot",   required_argument, &flag, 1},
+	option long_options[14] =
+	{	 
+	  {"mesquite",                  no_argument,       &flag, 1},
+	  {"silent",                    no_argument,       &flag, 1},
+	  {"no-seq-check",              no_argument,       &flag, 1},
+	  {"no-bfgs",                   no_argument,       &flag, 1},
+	  {"asc-corr",                  required_argument, &flag, 1},
+	  {"flag-check",                no_argument,       &flag, 1},
+	  {"auto-prot",                 required_argument, &flag, 1},
 	  {"epa-keep-placements",       required_argument, &flag, 1},
 	  {"epa-accumulated-threshold", required_argument, &flag, 1},
 	  {"epa-prob-threshold",        required_argument, &flag, 1}, 
-	  /* These options don't set a flag.
-	     We distinguish them by their indices. */
-	  //{"add",     no_argument,       0, 'a'},
-	  //{"append",  no_argument,       0, 'b'},
-	  //{"delete",  required_argument, 0, 'd'},
-	  //{"create",  required_argument, 0, 'c'},
-	  //{"file",    required_argument, 0, 'f'},	 
+	  {"JC69",                      no_argument,       &flag, 1},
+	  {"K80",                       no_argument,       &flag,  1},
+	  {"asc-miss",                  required_argument, &flag, 1},	 	 
 	  {0, 0, 0, 0}
 	};
       
@@ -5537,6 +5558,29 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 
 	      epaSet = TRUE;
 	      break;
+	    case 10:
+	      tr->useJC69 = TRUE;
+	      break;
+	    case 11:
+	      tr->useK80 = TRUE;
+	      break;
+	    case 12:
+	       if(sscanf(optarg, "%lf", &(tr->ascMissing)) != 1)
+		{
+		  printf("\nError parsing ascertainment bias missing data fraction correction, RAxML expects a floating point value > 0.0 and < 1.0\n\n");
+		  errorExit(-1);
+		}
+	       if(tr->ascMissing <= 0.0 || tr->ascMissing >= 1.0)
+		{
+		  printf("\nError parsing ascertainment missing data fraction correction, RAxML expects a floating point value >= 0.0 and <= 1.0\n\n");
+		  errorExit(-1);
+		}
+#ifdef _USE_PTHREADS
+	       printf("\nError: ascertainment missing data fraction correction not implemented for PThreads version yet, exiting!\n\n");
+	       errorExit(-1);
+#endif
+	       tr->useAscMissing = TRUE;
+	      break;
 	    default:
 	      if(flagCheck)
 		{
@@ -5547,6 +5591,15 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	      else
 		assert(0);
 	    }
+
+	  if(tr->useK80 && tr->useJC69)
+	    {
+	      printf("\nYou can't use \"--JC69\" and \"--K80\" options simultaneously!\n");
+	      printf("You can either use  \"--JC69\" or \"--K80\" !\n");
+	      printf("exiting .....\n\n");
+	      errorExit(-1);
+	    }
+
 	}
       else
 	switch(c)
@@ -8580,6 +8633,8 @@ static void allocNodex(tree *tr, int tid, int n)
 
 	  tr->partitionData[model].ascExpVector = (int *)rax_calloc(((size_t)tr->innerNodes) * ((size_t)tr->partitionData[model].states),
 								 sizeof(int));
+
+	  tr->partitionData[model].ascMissingVector = (int *)rax_calloc(((size_t)(tr->mxtips + 1), sizeof(int));
 	  
 	  tr->partitionData[model].ascSumBuffer = (double *)rax_malloc(((size_t)tr->partitionData[model].ascOffset) *
 								       sizeof(double));	  
@@ -12718,6 +12773,34 @@ static void stealBranchLengths(tree *tr, analdef *adef)
 }
 
 
+static void setupAscMissing(tree *tr, analdef *adef)
+ {
+   int     
+     model,    
+     *perm = (int*)rax_malloc(sizeof(int) * (size_t)(tr->mxtips + 1));  
+  
+   for(model = 0; model < tr->NumberOfModels; model++)
+     {
+       if(tr->partitionData[model].ascBias && tr->useAscMissing)
+	 {
+	   int
+	     cutoff = (int)(tr->ascMissing * (double)(tr->mxtips) + 0.5),
+	     i;
+
+	   makePermutation(perm, 1, tr->mxtips, adef);	    
+	    
+	   for(i = 1; i <= cutoff; i++)	     	      
+	     tr->partitionData[model].ascMissingVector[perm[i]] = 1;	    	   
+	 }
+     }
+	
+   //TODO need to add barrier for copying ascMissingVector to all threads 
+   //and we also need to copy the flag value!
+ 
+   rax_free(perm);
+ }
+
+
 
 /*******************************************************/
 
@@ -13022,8 +13105,9 @@ int main (int argc, char *argv[])
     
     
     readAscFiles(tr);
-   
-    
+
+    setupAscMissing(tr, adef);
+
     if(!adef->readTaxaOnly) 
       {
 #ifdef _USE_PTHREADS

@@ -58,39 +58,67 @@ extern const unsigned int mask32[32];
 
 
 
-void ascertainmentBiasSequence(unsigned char tip[32], int numStates, int dataType)
+void ascertainmentBiasSequence(unsigned char tip[32], int numStates, int dataType, int nodeNumber, int *ascMissingVector)
 { 
   assert(numStates <= 32 && numStates > 1);
 
+  assert(nodeNumber > 0);
+  
   switch(dataType)
     {
     case BINARY_DATA:     
-      tip[0] = 1;
-      tip[1] = 2;
+      if(ascMissingVector[nodeNumber] == 1)
+	{
+	  tip[0] = 3;
+	  tip[1] = 3;
+	}
+      else
+	{
+	  tip[0] = 1;
+	  tip[1] = 2;
+	}
       break;
     case DNA_DATA:
-      tip[0] = 1;
-      tip[1] = 2;
-      tip[2] = 4;
-      tip[3] = 8;
+      if(ascMissingVector[nodeNumber] == 1)
+	{
+	  //printf("M %d\n", nodeNumber);
+	  tip[0] = 15;
+	  tip[1] = 15;
+	  tip[2] = 15;
+	  tip[3] = 15;
+	}
+      else
+	{
+	  //printf("D %d\n", nodeNumber);
+	  tip[0] = 1;
+	  tip[1] = 2;
+	  tip[2] = 4;
+	  tip[3] = 8;
+	}
       break;
     case AA_DATA:
-      {
-	int 
-	  i;
-	
-	for(i = 0; i < numStates; i++)	  
-	  tip[i] = i;	  
-      }    
+      if(ascMissingVector[nodeNumber] == 1)
+	assert(0);
+      else
+	{
+	  int 
+	    i;
+	  
+	  for(i = 0; i < numStates; i++)	  
+	    tip[i] = i;	  
+	}    
       break;
     case GENERIC_32:
-      {
-	int 
-	  i;
-	
-	for(i = 0; i < numStates; i++)	  
-	  tip[i] = i;
-      }
+       if(ascMissingVector[nodeNumber] == 1)
+	assert(0);
+      else	
+	{
+	  int 
+	    i;
+	  
+	  for(i = 0; i < numStates; i++)	  
+	    tip[i] = i;
+	}
       break;
     default:
       assert(0);
@@ -264,7 +292,8 @@ static double evaluateCatFlex(int *ex1, int *ex2, int *cptr, int *wptr,
 static double evaluateCatAsc(int *ex1, int *ex2,
 			     double *x1, double *x2,  
 			     double *tipVector, 
-			     unsigned char *tipX1, int n, double *diagptable, const int numStates, double *accumulator, double *weightVector, int dataType)
+			     unsigned char *tipX1, int n, double *diagptable, const int numStates, 
+			     double *accumulator, double *weightVector, int dataType, int nodeNumber, int *ascMissingVector)
 {
   double
     exponent,
@@ -278,13 +307,15 @@ static double evaluateCatAsc(int *ex1, int *ex2,
     i,    
     l;   
          
-  unsigned char 
-    tip[32];
-
-  ascertainmentBiasSequence(tip, numStates, dataType);
+ 
    
   if(tipX1)
-    {               
+    {            
+      unsigned char 
+	tip[32];
+
+      ascertainmentBiasSequence(tip, numStates, dataType, nodeNumber, ascMissingVector);  
+      
       for (i = 0; i < n; i++) 
 	{
 	  left = &(tipVector[numStates * tip[i]]);	  	  
@@ -364,7 +395,8 @@ static double evaluateCatAsc(int *ex1, int *ex2,
 static double evaluateGammaAsc(int *ex1, int *ex2,
 			       double *x1, double *x2,  
 			       double *tipVector, 
-			       unsigned char *tipX1, int n, double *diagptable, const int numStates, double *accumulator, double *weightVector, int dataType)
+			       unsigned char *tipX1, int n, double *diagptable, const int numStates, 
+			       double *accumulator, double *weightVector, int dataType, int nodeNumber, int *ascMissingVector)
 {
   double
     exponent,
@@ -382,13 +414,15 @@ static double evaluateGammaAsc(int *ex1, int *ex2,
   const int 
     gammaStates = numStates * 4;
          
-  unsigned char 
-    tip[32];
-
-  ascertainmentBiasSequence(tip, numStates, dataType);
+  
    
   if(tipX1)
-    {               
+    {   
+      unsigned char 
+	tip[32];
+
+      ascertainmentBiasSequence(tip, numStates, dataType, nodeNumber, ascMissingVector);            
+
       for (i = 0; i < n; i++) 
 	{
 	  left = &(tipVector[numStates * tip[i]]);	  	  
@@ -2964,7 +2998,8 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 	    partitionLikelihood = 0.0, 
 	    *_vector;
 	  
-	  int    
+	  int
+	    tipNodeNumber = -1,
 	    *ex1 = (int*)NULL, 
 	    *ex2 = (int*)NULL,
 	    *ex1_asc = (int*)NULL, 
@@ -3001,7 +3036,9 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 	  if(isTip(pNumber, tr->mxtips) || isTip(qNumber, tr->mxtips))
 	    {	        	    
 	      if(isTip(qNumber, tr->mxtips))
-		{			  		  
+		{
+		  tipNodeNumber = qNumber;
+			  		  
 		  x2_start = tr->partitionData[model].xVector[pNumber - tr->mxtips -1];
 		  
 		  if(!tr->useFastScaling)
@@ -3027,6 +3064,7 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 		}           
 	      else
 		{
+		  tipNodeNumber = pNumber;
 		  
 		  x2_start = tr->partitionData[model].xVector[qNumber - tr->mxtips - 1];
 		  
@@ -3518,12 +3556,14 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 			  
 			  
 			  correction = evaluateCatAsc(ex1_asc, ex2_asc, x1_start_asc, x2_start_asc, tr->partitionData[model].tipVector,
-						      tip, ascWidth, diagptable, ascWidth, &accumulator, weightVector, tr->partitionData[model].dataType);     		  	 	       
+						      tip, ascWidth, diagptable, ascWidth, &accumulator, weightVector, tr->partitionData[model].dataType, 
+						      tipNodeNumber, tr->partitionData[model].ascMissingVector);     		  	 	       
 			}
 			break;
 		      case GAMMA:			
 			correction = evaluateGammaAsc(ex1_asc, ex2_asc, x1_start_asc, x2_start_asc, tr->partitionData[model].tipVector,
-						      tip, ascWidth, diagptable, ascWidth, &accumulator, weightVector, tr->partitionData[model].dataType);			
+						      tip, ascWidth, diagptable, ascWidth, &accumulator, weightVector, tr->partitionData[model].dataType,
+						      tipNodeNumber, tr->partitionData[model].ascMissingVector);			
 			break;
 		      default:
 			assert(0);

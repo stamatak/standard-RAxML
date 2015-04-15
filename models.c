@@ -373,8 +373,7 @@ static void baseFrequenciesGTR(rawdata *rdta, cruncheddata *cdta, tree *tr)
 	case SECONDARY_DATA_6:
 	case SECONDARY_DATA_7:
 	case SECONDARY_DATA:
-	case AA_DATA:
-	case DNA_DATA:
+	case AA_DATA:	
 	case BINARY_DATA:
 	  {
 	    //printf("Smooth freqs: %d\n", getSmoothFreqs(tr->partitionData[model].dataType));
@@ -382,7 +381,22 @@ static void baseFrequenciesGTR(rawdata *rdta, cruncheddata *cdta, tree *tr)
 				   getSmoothFreqs(tr->partitionData[model].dataType),
 				   getBitVector(tr->partitionData[model].dataType));	  	 
 	  }
-	  break;	
+	  break;
+	case DNA_DATA:
+	  if(tr->useK80 || tr->useJC69)
+	    {	   
+	      assert(!tr->partitionData[model].optimizeBaseFrequencies);
+
+	      tr->partitionData[model].frequencies[0] = 0.25;
+	      tr->partitionData[model].frequencies[1] = 0.25;
+	      tr->partitionData[model].frequencies[2] = 0.25;
+	      tr->partitionData[model].frequencies[3] = 0.25;
+	    }
+	  else
+	    genericBaseFrequencies(tr, states, rdta, cdta, lower, upper, model, 
+				   getSmoothFreqs(tr->partitionData[model].dataType),
+				   getBitVector(tr->partitionData[model].dataType));
+	  break;
 	default:
 	  assert(0);     
 	}      
@@ -4281,12 +4295,19 @@ static void genericInvariant(tree *tr, int lower, int upper, const unsigned int 
   *weightOfInvariableColumns += sum;
 }
 
-static void setRates(double *r, int rates)
+static void setRates(double *r, int rates, boolean JC69)
 {
-  int i;
+  int 
+    i;
 
-  for(i = 0; i < rates - 1; i++)
-    r[i] = 0.5;
+
+  if(JC69)
+    for(i = 0; i < rates - 1; i++)    
+      r[i] = 1.0;
+  else
+    for(i = 0; i < rates - 1; i++)    
+      r[i] = 0.5;
+
   r[rates - 1] = 1.0;
 }
 
@@ -4296,10 +4317,16 @@ void initRateMatrix(tree *tr)
 
   for(model = 0; model < tr->NumberOfModels; model++)
     {	
+      boolean 
+	JC69 = FALSE;
+
       int 	
 	i,
 	states = tr->partitionData[model].states,
 	rates  = (states * states - states) / 2;
+      
+      if(tr->partitionData[model].dataType == DNA_DATA && (tr->useJC69 || tr->useK80))
+	JC69 = TRUE;
       
       switch(tr->partitionData[model].dataType)
 	{
@@ -4308,10 +4335,10 @@ void initRateMatrix(tree *tr)
 	case SECONDARY_DATA:
 	case SECONDARY_DATA_6:
 	case SECONDARY_DATA_7:
-	  setRates(tr->partitionData[model].substRates, rates);
+	  setRates(tr->partitionData[model].substRates, rates, JC69);
 #ifdef _HET
 	  assert(tr->partitionData[model].dataType = DNA_DATA);
-	  setRates(tr->partitionData[model].substRates_TIP, rates);
+	  setRates(tr->partitionData[model].substRates_TIP, rates, JC69);
 #endif
 	  break;	  
 	case GENERIC_32:
@@ -4337,7 +4364,7 @@ void initRateMatrix(tree *tr)
 	      
 	      break;
 	    case GTR_MULTI_STATE:
-	      setRates(tr->partitionData[model].substRates, rates);
+	      setRates(tr->partitionData[model].substRates, rates, JC69);
 	      break;
 	    default:
 	      assert(0);
@@ -4381,6 +4408,26 @@ static void setSymmetry(int *s, int *sDest, const int sCount, int *f, int *fDest
   for(i = 0; i < fCount; i++)
     fDest[i] = f[i];
 }
+
+
+static void setupK80Symmetries(tree *tr)
+{
+  int model;
+
+  assert(tr->useK80);
+
+  for(model = 0; model < tr->NumberOfModels; model++)
+    {
+      if(tr->partitionData[model].dataType == DNA_DATA)
+	{
+	  int 
+	    s[6] = {1, 0, 1, 1, 0, 1};
+
+	  memcpy(tr->partitionData[model].symmetryVector, s, sizeof(int) * 6);
+	}
+    }
+}
+
 
 static void setupSecondaryStructureSymmetries(tree *tr)
 {
@@ -4599,6 +4646,10 @@ void initModel(tree *tr, rawdata *rdta, cruncheddata *cdta, analdef *adef)
 
   updatePerSiteRates(tr, FALSE);
  
+
+  if(tr->useK80)
+    setupK80Symmetries(tr);
+
   setupSecondaryStructureSymmetries(tr);
   
   for(model = 0; model < tr->NumberOfModels; model++)

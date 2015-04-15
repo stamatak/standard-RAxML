@@ -166,9 +166,9 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "RAxML"
-#define programVersion     "8.1.18"
-#define programVersionInt   8118
-#define programDate        "April 10 2015"
+#define programVersion     "8.1.19"
+#define programVersionInt   8119
+#define programDate        "April 15 2015"
 
 
 #define  TREE_EVALUATION                 0
@@ -598,6 +598,7 @@ typedef struct {
   boolean ascBias;  
   int     ascOffset;
   int     *ascExpVector;
+  int     *ascMissingVector;
   double  *ascSumBuffer;
   double  *ascVector;
   double ascScaler[64];
@@ -997,6 +998,9 @@ typedef  struct  {
 
   boolean corrected_IC_Score;
 
+  boolean useK80;
+  boolean useJC69;
+
 #ifdef _USE_PTHREADS
 
   double *ancestralStates;
@@ -1065,6 +1069,9 @@ typedef  struct  {
 #endif
     
   boolean doSubtreeEPA;
+
+  double ascMissing;
+  boolean useAscMissing;
 
 } tree;
 
@@ -1204,7 +1211,7 @@ typedef struct
 
 /****************************** FUNCTIONS ****************************************************/
 
-extern void ascertainmentBiasSequence(unsigned char tip[32], int numStates, int dataType);
+extern void ascertainmentBiasSequence(unsigned char tip[32], int numStates, int dataType, int nodeNumber, int *ascMissingVector);
 
 extern void computePlacementBias(tree *tr, analdef *adef);
 

@@ -120,7 +120,7 @@ static void setRateModel(tree *tr, int model, double rate, int position)
        tr->partitionData[model].dataType == SECONDARY_DATA_7))
     assert(rate >= RATE_MIN && rate <= RATE_MAX);
 
-  if(tr->partitionData[model].nonGTR)
+  if(tr->partitionData[model].nonGTR || (tr->partitionData[model].dataType == DNA_DATA && tr->useK80))
     {    
       int 
 	i, 
@@ -128,7 +128,8 @@ static void setRateModel(tree *tr, int model, double rate, int position)
 
       assert(tr->partitionData[model].dataType == SECONDARY_DATA ||
 	     tr->partitionData[model].dataType == SECONDARY_DATA_6 ||
-	     tr->partitionData[model].dataType == SECONDARY_DATA_7);
+	     tr->partitionData[model].dataType == SECONDARY_DATA_7 ||
+	     tr->partitionData[model].dataType == DNA_DATA);
 
       if(k == -1)
 	tr->partitionData[model].substRates[position] = 0.0;
@@ -1880,8 +1881,13 @@ static void optRatesGeneric(tree *tr, double modelEpsilon, linkageList *ll)
 	{
 	case DNA_DATA:	
 	  states = tr->partitionData[ll->ld[i].partitionList[0]].states;
-	  ll->ld[i].valid = TRUE;
-	  dnaPartitions++;  
+	  if(tr->useJC69)
+	    ll->ld[i].valid = FALSE;
+	  else
+	    {
+	      ll->ld[i].valid = TRUE;
+	      dnaPartitions++;  
+	    }
 	  break;
 	case BINARY_DATA:
 	case AA_DATA:
@@ -3552,9 +3558,9 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
       printf("start: %1.40f\n", currentLikelihood);
 #endif
 
-      if(tr->NumberOfModels == 1 && tr->partitionData[0].dataType == DNA_DATA && adef->useBFGS)
-	{	  
-	  optimizeRatesBFGS(tr);
+      if(tr->NumberOfModels == 1 && tr->partitionData[0].dataType == DNA_DATA && adef->useBFGS && !(tr->useJC69 || tr->useK80))
+	{	  	 
+	    optimizeRatesBFGS(tr);
 	}
       else
 	optRatesGeneric(tr, modelEpsilon, rateList);         

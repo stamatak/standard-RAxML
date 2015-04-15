@@ -2583,43 +2583,56 @@ static void sumGAMMAPROT_GAPPED_SAVE(int tipCase, double *sumtable, double *x1, 
 #endif
 
 static void sumCatAsc(int tipCase, double *sumtable, double *x1, double *x2, double *tipVector,
-		      int n, const int numStates, int dataType)
+		      int n, const int numStates, int dataType, int qNumber, int rNumber, int *ascMissingVector, int maxtips)
 {
   int i, k;
   double *left, *right, *sum;
 
-  unsigned char 
-    tip[32];
-
-  ascertainmentBiasSequence(tip, numStates, dataType);
-
   switch(tipCase)
     {
     case TIP_TIP:
-      for(i = 0; i < n; i++)
-	{
-	  left  = &(tipVector[numStates * tip[i]]);
-	  right = &(tipVector[numStates * tip[i]]);
+      {
+	unsigned char 
+	  tip1[32],
+	  tip2[32];
 
-	  
-	  sum = &sumtable[i * numStates];
-	  
-	  for(k = 0; k < numStates; k++)
-	    sum[k] = left[k] * right[k];	  
-	}
+	ascertainmentBiasSequence(tip1, numStates, dataType, qNumber, ascMissingVector);
+	ascertainmentBiasSequence(tip2, numStates, dataType, rNumber, ascMissingVector);
+	
+	for(i = 0; i < n; i++)
+	  {
+	    left  = &(tipVector[numStates * tip1[i]]);
+	    right = &(tipVector[numStates * tip2[i]]);
+	    	    
+	    sum = &sumtable[i * numStates];
+	    
+	    for(k = 0; k < numStates; k++)
+	      sum[k] = left[k] * right[k];	  
+	  }
+      }
       break;
     case TIP_INNER:
-      for(i = 0; i < n; i++)
-	{
-	  left = &(tipVector[numStates * tip[i]]);
+      {
+	unsigned char 
+	  tip[32];
 
-	  
-	  right = &(x2[i * numStates]);
-	  sum = &sumtable[i * numStates];
+	if(rNumber <= maxtips)
+	  ascertainmentBiasSequence(tip, numStates, dataType, rNumber, ascMissingVector);
+	else
+	  ascertainmentBiasSequence(tip, numStates, dataType, qNumber, ascMissingVector);
 
-	  for(k = 0; k < numStates; k++)
-	    sum[k] = left[k] * right[k];	 
-	}
+	for(i = 0; i < n; i++)
+	  {
+	    left = &(tipVector[numStates * tip[i]]);
+	    
+	    
+	    right = &(x2[i * numStates]);
+	    sum = &sumtable[i * numStates];
+	    
+	    for(k = 0; k < numStates; k++)
+	      sum[k] = left[k] * right[k];	 
+	  }
+      }
       break;
     case INNER_INNER:
       for(i = 0; i < n; i++)
@@ -2638,35 +2651,49 @@ static void sumCatAsc(int tipCase, double *sumtable, double *x1, double *x2, dou
 }
 
 static void sumGammaAsc(int tipCase, double *sumtable, double *x1, double *x2, double *tipVector,
-			int n, const int numStates, int dataType)
+			int n, const int numStates, int dataType, int qNumber, int rNumber, int *ascMissingVector, int maxtips)
 {
   int i, l, k;
   double *left, *right, *sum;
 
-  const int gammaStates = numStates * 4;
-
-  unsigned char 
-    tip[32];
-
-  ascertainmentBiasSequence(tip, numStates, dataType);
+  const int 
+    gammaStates = numStates * 4;
 
   switch(tipCase)
     {
     case TIP_TIP:
-      for(i = 0; i < n; i++)
-	{
-	  left  = &(tipVector[numStates * tip[i]]);
-	  right = &(tipVector[numStates * tip[i]]);
+      {
+	unsigned char 
+	  tip1[32],
+	  tip2[32];
 
-	  for(l = 0; l < 4; l++)
-	    {
-	      sum = &sumtable[i * gammaStates + l * numStates];
-	      for(k = 0; k < numStates; k++)
-		sum[k] = left[k] * right[k];
-	    }
-	}
+	ascertainmentBiasSequence(tip1, numStates, dataType, qNumber, ascMissingVector);
+	ascertainmentBiasSequence(tip2, numStates, dataType, rNumber, ascMissingVector);
+
+	for(i = 0; i < n; i++)
+	  {
+	    left  = &(tipVector[numStates * tip1[i]]);
+	    right = &(tipVector[numStates * tip2[i]]);
+	    
+	    for(l = 0; l < 4; l++)
+	      {
+		sum = &sumtable[i * gammaStates + l * numStates];
+		for(k = 0; k < numStates; k++)
+		  sum[k] = left[k] * right[k];
+	      }
+	  }
+      }
       break;
     case TIP_INNER:
+      {
+	unsigned char 
+	  tip[32];
+
+	if(rNumber < maxtips)
+	  ascertainmentBiasSequence(tip, numStates, dataType, rNumber, ascMissingVector);
+	else
+	  ascertainmentBiasSequence(tip, numStates, dataType, qNumber, ascMissingVector);
+
       for(i = 0; i < n; i++)
 	{
 	  left = &(tipVector[numStates * tip[i]]);
@@ -2680,6 +2707,7 @@ static void sumGammaAsc(int tipCase, double *sumtable, double *x1, double *x2, d
 		sum[k] = left[k] * right[k];
 	    }
 	}
+      }
       break;
     case INNER_INNER:
       for(i = 0; i < n; i++)
@@ -3818,6 +3846,7 @@ void makenewzIterative(tree *tr)
       if(tr->executeModel[model])
 	{
 	  int 
+	    
 	    width = tr->partitionData[model].width,
 	    states = tr->partitionData[model].states;
 
@@ -4034,11 +4063,11 @@ void makenewzIterative(tree *tr)
 	      	{
 		case CAT:
 		  sumCatAsc(tipCase, tr->partitionData[model].ascSumBuffer, x1_start_asc, x2_start_asc, tr->partitionData[model].tipVector,
-			    states, states, tr->partitionData[model].dataType);
+			    states, states, tr->partitionData[model].dataType, pNumber, qNumber, tr->partitionData[model].ascMissingVector, tr->mxtips);
 		  break;
 		case GAMMA:
 		  sumGammaAsc(tipCase, tr->partitionData[model].ascSumBuffer, x1_start_asc, x2_start_asc, tr->partitionData[model].tipVector,
-			      states, states, tr->partitionData[model].dataType);
+			      states, states, tr->partitionData[model].dataType, pNumber, qNumber, tr->partitionData[model].ascMissingVector, tr->mxtips);
 		  break;
 		default:
 		  assert(0);
