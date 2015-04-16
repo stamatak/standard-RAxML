@@ -8634,7 +8634,7 @@ static void allocNodex(tree *tr, int tid, int n)
 	  tr->partitionData[model].ascExpVector = (int *)rax_calloc(((size_t)tr->innerNodes) * ((size_t)tr->partitionData[model].states),
 								 sizeof(int));
 
-	  tr->partitionData[model].ascMissingVector = (int *)rax_calloc(((size_t)(tr->mxtips + 1), sizeof(int));
+	  tr->partitionData[model].ascMissingVector = (int *)rax_calloc((size_t)(tr->mxtips + 1), sizeof(int));
 	  
 	  tr->partitionData[model].ascSumBuffer = (double *)rax_malloc(((size_t)tr->partitionData[model].ascOffset) *
 								       sizeof(double));	  
