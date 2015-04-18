@@ -2337,7 +2337,7 @@ static void sitesort(rawdata *rdta, cruncheddata *cdta, tree *tr, analdef *adef)
 }
 
 
-static void sitecombcrunch (rawdata *rdta, cruncheddata *cdta, tree *tr, analdef *adef)
+static void sitecombcrunch (rawdata *rdta, cruncheddata *cdta, tree *tr, analdef *adef, int countAscBias)
 {
   boolean  
     tied;
@@ -2378,9 +2378,8 @@ static void sitecombcrunch (rawdata *rdta, cruncheddata *cdta, tree *tr, analdef
       }
   }
 
-  
-
   i = 0;
+
   for (j = 1; j <= rdta->sites; j++)
     {
       int 
@@ -2405,8 +2404,6 @@ static void sitecombcrunch (rawdata *rdta, cruncheddata *cdta, tree *tr, analdef
 
       if(allGap)      
 	undeterminedSites++;
-
-      
       
       if(!adef->compressPatterns)
 	tied = 0;
@@ -2427,16 +2424,11 @@ static void sitecombcrunch (rawdata *rdta, cruncheddata *cdta, tree *tr, analdef
 
       assert(!(tied && allGap));
       
-      if (tied && !allGap)
-	{
-	  //if(adef->mode == PER_SITE_LL || adef->mode == ANCESTRAL_STATES)
-	  {
-	    tr->patternPosition[j - 1] = i;
-	    tr->columnPosition[j - 1] = sitej;
-	    /* printf("Pattern %d from column %d also at site %d\n", i, sitei, sitej); */
-	  }
-
-
+      if(tied && !allGap)
+	{	  
+	  tr->patternPosition[j - 1] = i;
+	  tr->columnPosition[j - 1] = sitej;
+	  
 	  cdta->aliaswgt[i] += rdta->wgt[sitej];
 
 	  if(adef->useMultipleModel)
@@ -2451,51 +2443,52 @@ static void sitecombcrunch (rawdata *rdta, cruncheddata *cdta, tree *tr, analdef
 	    {
 	      if(cdta->aliaswgt[i] > 0) 
 		i++;
-	      
-	      //if(adef->mode == PER_SITE_LL || adef->mode == ANCESTRAL_STATES)
-	      {
-		tr->patternPosition[j - 1] = i;
-		tr->columnPosition[j - 1] = sitej;
-		/*printf("Pattern %d is from cloumn %d\n", i, sitej);*/
-	      }
-
+	      	      
+	      tr->patternPosition[j - 1] = i;
+	      tr->columnPosition[j - 1] = sitej;
+	
 	      cdta->aliaswgt[i] = rdta->wgt[sitej];
 	      cdta->alias[i] = sitej;
+	      
 	      if(adef->useMultipleModel)
 		{
 		  aliasModel[i]      = tr->model[sitej];
 		  aliasSuperModel[i] = tr->dataVector[sitej];
 		}
-	    }
+	    }	
 	}
     }
 
   cdta->endsite = i;
+
   if (cdta->aliaswgt[i] > 0) 
     cdta->endsite++;
 
-  if(adef->mode == PER_SITE_LL || adef->mode == ANCESTRAL_STATES)
+  if(adef->mode == PER_SITE_LL || adef->mode == ANCESTRAL_STATES || (countAscBias > 0))
     {
       if(undeterminedSites > 0)
 	{
-	  printBothOpen("You are trying to infer per site likelihoods or ancestral states\n");
+	  printBothOpen("You are trying to infer per site likelihoods or ancestral states or\n");
+	  printBothOpen("do calculations with an ascertainment bias correction\n");
 	  printBothOpen("on an alignment containing %d sites consisting only of undetermined\n", undeterminedSites);
 	  printBothOpen("characters. Please remove them first and then re-run RAxML!\n");
 
 	  errorExit(-1);
 	}
+
+      for(i = 0; i < rdta->sites; i++)
+	{
+	  int 
+	    p  = tr->patternPosition[i],
+	    c  = tr->columnPosition[i];
+	  	  
+	  assert(p >= 0 && p < cdta->endsite);
+	  assert(c >= 1 && c <= rdta->sites);
+	}
     }
 
  
-  for(i = 0; i < rdta->sites; i++)
-    {
-      int 
-	p  = tr->patternPosition[i],
-	c  = tr->columnPosition[i];
-      
-      assert(p >= 0 && p < cdta->endsite);
-      assert(c >= 1 && c <= rdta->sites);
-    }
+ 
 
   if(adef->useMultipleModel)
     {
@@ -2519,7 +2512,7 @@ static void sitecombcrunch (rawdata *rdta, cruncheddata *cdta, tree *tr, analdef
 }
 
 
-static boolean makeweights (analdef *adef, rawdata *rdta, cruncheddata *cdta, tree *tr)
+static boolean makeweights (analdef *adef, rawdata *rdta, cruncheddata *cdta, tree *tr, int countAscBias)
 {
   int  i;
 
@@ -2527,7 +2520,7 @@ static boolean makeweights (analdef *adef, rawdata *rdta, cruncheddata *cdta, tr
     cdta->alias[i] = i;
 
   sitesort(rdta, cdta, tr, adef);
-  sitecombcrunch(rdta, cdta, tr, adef);
+  sitecombcrunch(rdta, cdta, tr, adef, countAscBias);
 
   return TRUE;
 }
@@ -7318,10 +7311,30 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
 	      switch(tr->partitionData[model].dataType)
 		{
 		case DNA_DATA:
-		  printBoth(infoFile, "DataType: DNA\n");		  
-		  printBoth(infoFile, "Substitution Matrix: GTR\n");
-		  if(tr->partitionData[model].optimizeBaseFrequencies)
-		    printBoth(infoFile, "Base frequencies: ML estimate\n");
+		  {
+		    char 
+		      *matrices[3] = {"GTR", "JC69", "K80"};
+		    
+		    int 
+		      index = -1;
+
+		    printBoth(infoFile, "DataType: DNA\n");
+		    
+		    if(tr->useJC69)
+		      index = 1;
+		    else
+		      {
+			if(tr->useK80)
+			  index = 2;
+			else
+			  index = 0;
+		      }
+		    
+		    printBoth(infoFile, "Substitution Matrix: %s\n", matrices[index]);
+		    
+		    if(tr->partitionData[model].optimizeBaseFrequencies)
+		      printBoth(infoFile, "Base frequencies: ML estimate\n");
+		  }
 		  break;
 		case AA_DATA:
 		  assert(tr->partitionData[model].protModels >= 0 && tr->partitionData[model].protModels < NUM_PROT_MODELS);
@@ -12954,14 +12967,17 @@ int main (int argc, char *argv[])
 	  countNonSev = 0,
 	  countLG4 =0;
 	
-	makeweights(adef, rdta, cdta, tr);
+	assert(countAscBias == 0);
+
+	for(i = 0; i < tr->NumberOfModels; i++)	  
+	  if(tr->partitionData[i].ascBias)
+	    countAscBias++;
+
+	makeweights(adef, rdta, cdta, tr, countAscBias);
 	makevalues(rdta, cdta, tr, adef);      
 	
 	for(i = 0; i < tr->NumberOfModels; i++)
-	  {
-	    if(tr->partitionData[i].ascBias)
-	      countAscBias++;
-	    
+	  {	    
 	    if(!(tr->partitionData[i].dataType == AA_DATA || tr->partitionData[i].dataType == DNA_DATA))
 	      countNonSev++;
 	    

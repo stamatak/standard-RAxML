@@ -166,9 +166,9 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "RAxML"
-#define programVersion     "8.1.19"
-#define programVersionInt   8119
-#define programDate        "April 15 2015"
+#define programVersion     "8.1.20"
+#define programVersionInt   8120
+#define programDate        "April 18 2015"
 
 
 #define  TREE_EVALUATION                 0
