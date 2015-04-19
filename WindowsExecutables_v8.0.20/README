@@ -1,8 +1,0 @@
-Windows executables kindly compiled by Ingo Michalak (using a MinGW cross compiler in 
-Cygwin). This is for RAxML version 8.0.14
-
-The .dll file contained in the zip folder is necessary to run the PTHREADS 
-version, so put it into the same folder as the RAxML windows executabke. 
-
-Ingo took the dll from the cygwin package so we assume it is GPL and thus ok to distribute.
-
