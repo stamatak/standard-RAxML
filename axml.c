@@ -6566,6 +6566,16 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
       assert(adef->constraintSeed > 0);
     }
 
+  if(tr->searchConvergenceCriterion && ((adef->rapidBoot > 0) || (adef->allInOne)))
+    {
+      if(processID == 0)
+	{
+	  printf("\nError: the tree search convergence criterion \"-D\" has no effect in conjunction with the: \n");
+	  printf("\"-x\" or \"-f a\" options.\n\n");
+	  errorExit(-1);
+	}
+    }
+
   if(adef->mode == SH_LIKE_SUPPORTS)
     {
       if(processID == 0)
