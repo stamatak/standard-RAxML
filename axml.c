@@ -3526,6 +3526,7 @@ static void initAdef(analdef *adef)
   adef->silent = FALSE;
   adef->noSequenceCheck = FALSE;
   adef->useBFGS = TRUE;
+  adef->setThreadAffinity = FALSE;
 }
 
 static int modelExists(char *model, analdef *adef)
@@ -4796,6 +4797,9 @@ static void printREADME(void)
   printf("      [--epa-keep-placements=number][--epa-accumulated-threshold=threshold]\n");
   printf("      [--epa-prob-threshold=threshold]\n");
   printf("      [--JC69][--K80][--asc-miss=fraction]\n");
+#if (defined(_WAYNE_MPI) && defined(_USE_PTHREADS))
+  printf("      [--set-thread-affinity]\n");
+#endif
   printf("\n");
   printf("      -a      Specify a column weight file name to assign individual weights to each column of \n");
   printf("              the alignment. Those weights must be integers separated by any type and number \n");
@@ -5221,6 +5225,13 @@ static void printREADME(void)
   printf("\n");
   printf("      --asc-miss=fraction specify the fraction of missing data in the variable sites of the alignment you are trying to correct for \n");
   printf("                  ascertainment bias. Experimental option, needs to be tested!\n");
+#if (defined(_WAYNE_MPI) && defined(_USE_PTHREADS))
+  printf("\n");
+  printf("      --set-thread-affinity specify that thread-to-core affinity shall be set by RAxML for the hybrid MPI-PThreads version\n");
+  printf("\n");
+  printf("                  DEFAULT: Off\n");  
+  printf("\n");
+#endif
   printf("\n\n\n\n");
 
 }
@@ -5373,7 +5384,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
   while(1)
     {      
       static struct 
-	option long_options[14] =
+	option long_options[15] =
 	{	 
 	  {"mesquite",                  no_argument,       &flag, 1},
 	  {"silent",                    no_argument,       &flag, 1},
@@ -5388,6 +5399,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	  {"JC69",                      no_argument,       &flag, 1},
 	  {"K80",                       no_argument,       &flag,  1},
 	  {"asc-miss",                  required_argument, &flag, 1},	 	 
+	  {"set-thread-affinity",       no_argument,       &flag, 1},
 	  {0, 0, 0, 0}
 	};
       
@@ -5573,6 +5585,13 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	       errorExit(-1);
 #endif
 	       tr->useAscMissing = TRUE;
+	      break;
+	    case 13:
+#if (defined(_WAYNE_MPI) && defined(_USE_PTHREADS))
+	      adef->setThreadAffinity = TRUE;
+#else
+	      printf("Warning: flag --set-thread-affinity has no effect if you don't use the hybrid MPI-PThreads version\n");
+#endif
 	      break;
 	    default:
 	      if(flagCheck)
@@ -9935,7 +9954,7 @@ static int setPthreadAffinity(void)
 
 #endif
 
-static void startPthreads(tree *tr)
+static void startPthreads(tree *tr, analdef *adef)
 {
   pthread_t *threads;
   pthread_attr_t attr;
@@ -9971,10 +9990,13 @@ static void startPthreads(tree *tr)
    * their parent thread.
    */
   
-  if(setPthreadAffinity() != 0) 
+  if(adef->setThreadAffinity)
     {
-      printf("Warning: Error setting thread processor affinity.\n");
-      printf("         This may adversely impact multi-core performance.\n");
+      if(setPthreadAffinity() != 0) 
+	{
+	  printf("Warning: Error setting thread processor affinity.\n");
+	  printf("         This may adversely impact multi-core performance.\n");
+	}
     }
 #endif
 
@@ -13120,7 +13142,7 @@ int main (int argc, char *argv[])
       }
 
 #ifdef _USE_PTHREADS
-    startPthreads(tr);
+    startPthreads(tr, adef);
     masterBarrier(THREAD_INIT_PARTITION, tr);
     if(!adef->readTaxaOnly)  
       masterBarrier(THREAD_ALLOC_LIKELIHOOD, tr);
