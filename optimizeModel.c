@@ -3488,12 +3488,14 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
   scalerList = initLinkageList(unlinked, tr);
   freqList = initLinkageList(unlinked, tr);
     
+#ifndef __BLACKRIM
   if(!(adef->mode == CLASSIFY_ML))
     {
       if(tr->start != tr->nodep[1])
 	changedRoot = TRUE;      
       tr->start = tr->nodep[1];
     }
+#endif
   
   if(resetModel)
     {

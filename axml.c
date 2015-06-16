@@ -11370,7 +11370,7 @@ static void groupingParser(char *quartetGroupFileName, int *groups[4], int group
 }
 
 
-static double quartetLikelihood(tree *tr, nodeptr p1, nodeptr p2, nodeptr p3, nodeptr p4, nodeptr q1, nodeptr q2)
+static double quartetLikelihood(tree *tr, nodeptr p1, nodeptr p2, nodeptr p3, nodeptr p4, nodeptr q1, nodeptr q2, analdef *adef, boolean firstQuartet)
 {
   /* 
      build a quartet tree, where q1 and q2 are the inner nodes and p1, p2, p3, p4
@@ -11398,6 +11398,16 @@ static double quartetLikelihood(tree *tr, nodeptr p1, nodeptr p2, nodeptr p3, no
 
   newviewGeneric(tr, q1);
   newviewGeneric(tr, q2);
+
+  
+#ifdef __BLACKRIM 
+  if(firstQuartet)
+    {
+      tr->start = q1->next->back;
+  
+      modOpt(tr, adef, TRUE, adef->likelihoodEpsilon);
+    }
+#endif
   
   /* call a function that is also used for NNIs that iteratively optimizes all 
      5 branch lengths in the tree.
@@ -11507,7 +11517,7 @@ static void startQuartetMaster(tree *tr, FILE *f)
 
 #endif
 
-static void computeAllThreeQuartets(tree *tr, nodeptr q1, nodeptr q2, int t1, int t2, int t3, int t4, FILE *f)
+static void computeAllThreeQuartets(tree *tr, nodeptr q1, nodeptr q2, int t1, int t2, int t3, int t4, FILE *f, analdef *adef)
 {
   /* set the tip nodes to different sequences 
      with the tip indices t1, t2, t3, t4 */
@@ -11530,7 +11540,7 @@ static void computeAllThreeQuartets(tree *tr, nodeptr q1, nodeptr q2, int t1, in
   
   /* compute the likelihood of tree ((p1, p2), (p3, p4)) */
   
-  l = quartetLikelihood(tr, p1, p2, p3, p4, q1, q2);
+  l = quartetLikelihood(tr, p1, p2, p3, p4, q1, q2, adef, TRUE);
  
 #ifndef _QUARTET_MPI
   fprintf(f, "%d %d | %d %d: %f\n", p1->number, p2->number, p3->number, p4->number, l);
@@ -11545,7 +11555,7 @@ static void computeAllThreeQuartets(tree *tr, nodeptr q1, nodeptr q2, int t1, in
   
   /* compute the likelihood of tree ((p1, p3), (p2, p4)) */
   
-  l = quartetLikelihood(tr, p1, p3, p2, p4, q1, q2);
+  l = quartetLikelihood(tr, p1, p3, p2, p4, q1, q2, adef, FALSE);
 
 #ifndef _QUARTET_MPI  
   fprintf(f, "%d %d | %d %d: %f\n", p1->number, p3->number, p2->number, p4->number, l);
@@ -11560,7 +11570,7 @@ static void computeAllThreeQuartets(tree *tr, nodeptr q1, nodeptr q2, int t1, in
   
   /* compute the likelihood of tree ((p1, p4), (p2, p3)) */
   
-  l = quartetLikelihood(tr, p1, p4, p2, p3, q1, q2);
+  l = quartetLikelihood(tr, p1, p4, p2, p3, q1, q2, adef, FALSE);
   
 #ifndef _QUARTET_MPI
   fprintf(f, "%d %d | %d %d: %f\n", p1->number, p4->number, p2->number, p3->number, l);	    	   
@@ -11654,8 +11664,9 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
       getStartingTree(tr, adef);
    
       /* optimize model parameters on that comprehensive tree that can subsequently be used for qyartet building */
-
+#ifndef __BLACKRIM 
       modOpt(tr, adef, TRUE, adef->likelihoodEpsilon);
+#endif
 
       printBothOpen("Time for parsing input tree or building parsimony tree and optimizing model parameters: %f\n\n", gettime() - masterTime); 
     }
@@ -11673,6 +11684,17 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
     {
       flavor = GROUPED_QUARTETS;
       groupingParser(quartetGroupingFileName, groups, groupSize, tr);
+
+#ifdef __BLACKRIM     
+      numberOfQuartets =  (uint64_t)groupSize[0] * (uint64_t)groupSize[1] * (uint64_t)groupSize[2] * (uint64_t)groupSize[3];
+
+      if(randomQuartets > numberOfQuartets)
+	randomQuartets = 1;
+
+      fraction = (double)randomQuartets / (double)numberOfQuartets;     
+
+      //printf("%d %d %f\n", numberOfQuartets, randomQuartets, fraction);
+#endif
     }
   else
     {
@@ -11699,8 +11721,15 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
       printBothOpen("There are %" PRIu64 " quartet sets for which RAxML will randomly sub-sambple %" PRIu64 " sets (%f per cent), i.e., compute %" PRIu64 " quartet trees\n", 
 		    numberOfQuartets, randomQuartets, 100 * fraction, randomQuartets * 3);
       break;
-    case GROUPED_QUARTETS:           
-      printBothOpen("There are 4 quartet groups from which RAxML will evaluate all %u quartet trees\n", (unsigned int)groupSize[0] * (unsigned int)groupSize[1] * (unsigned int)groupSize[2] * (unsigned int)groupSize[3] * 3);
+    case GROUPED_QUARTETS:  
+#ifdef __BLACKRIM          
+      printBothOpen("There are 4 quartet groups from which RAxML will evaluate the three alternatives for %u out of all possible %u quartet trees\n", 
+		    (unsigned int)randomQuartets, 
+		    (unsigned int)groupSize[0] * (unsigned int)groupSize[1] * (unsigned int)groupSize[2] * (unsigned int)groupSize[3]);
+#else
+      printBothOpen("There are 4 quartet groups from which RAxML will evaluate all %u quartet trees\n", 
+		    (unsigned int)groupSize[0] * (unsigned int)groupSize[1] * (unsigned int)groupSize[2] * (unsigned int)groupSize[3] * 3);
+#endif
       break;
     default:
       assert(0);
@@ -11752,7 +11781,7 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
 #ifdef _QUARTET_MPI
 		      if((quartetCounter % (uint64_t)(processes - 1)) == (uint64_t)(processID - 1))
 #endif
-			computeAllThreeQuartets(tr, q1, q2, t1, t2, t3, t4, f);
+			computeAllThreeQuartets(tr, q1, q2, t1, t2, t3, t4, f, adef);
 		      quartetCounter++;
 		    }
 	    
@@ -11776,7 +11805,7 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
 #ifdef _QUARTET_MPI
 			  if((quartetCounter % (uint64_t)(processes - 1)) == (uint64_t)(processID - 1))
 #endif
-			    computeAllThreeQuartets(tr, q1, q2, t1, t2, t3, t4, f);
+			    computeAllThreeQuartets(tr, q1, q2, t1, t2, t3, t4, f, adef);
 			  quartetCounter++;
 			}
 		      
@@ -11803,14 +11832,33 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
 			i3 = groups[2][t3],
 			i4 = groups[3][t4];
 		      
-#ifdef _QUARTET_MPI
-		      if((quartetCounter % (uint64_t)(processes - 1)) == (uint64_t)(processID - 1))
+#ifdef __BLACKRIM
+		      double
+			r = randum(&adef->parsimonySeed);
+		      
+		      if(r < fraction)
+			{
 #endif
-			computeAllThreeQuartets(tr, q1, q2, i1, i2, i3, i4, f);
-		      quartetCounter++;
+			  
+#ifdef _QUARTET_MPI
+			  if((quartetCounter % (uint64_t)(processes - 1)) == (uint64_t)(processID - 1))
+#endif
+			    computeAllThreeQuartets(tr, q1, q2, i1, i2, i3, i4, f, adef);
+			  quartetCounter++;
+#ifdef __BLACKRIM
+			}
+		      if(quartetCounter == randomQuartets)
+			goto DONE_GROUPED;
+#endif
 		    }
-	    
+#ifdef __BLACKRIM   
+	  DONE_GROUPED:
+	    printBothOpen("\nComputed %" PRIu64 " random quartets for grouping\n", quartetCounter);
+	    assert(quartetCounter == randomQuartets);
+#else
 	    printBothOpen("\nComputed all %" PRIu64 " possible grouped quartets\n", quartetCounter);
+#endif	    
+	    
 	  }
 	  break;
 	default:
