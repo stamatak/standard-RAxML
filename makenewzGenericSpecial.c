@@ -4410,8 +4410,7 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 	    else
 	      {
 		_dlnLdlz[branchIndex]   = _dlnLdlz[branchIndex]   + dlnLdlz;
-		_d2lnLdlz2[branchIndex] = _d2lnLdlz2[branchIndex] + d2lnLdlz2;
-		//printf("lh: %f branch %f\n", like, -lz * tr->fracchange);
+		_d2lnLdlz2[branchIndex] = _d2lnLdlz2[branchIndex] + d2lnLdlz2;	      
 	      }
 	}
     }

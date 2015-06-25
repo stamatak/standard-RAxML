@@ -166,9 +166,9 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "RAxML"
-#define programVersion     "8.1.22"
-#define programVersionInt   8122
-#define programDate        "June 15 2015"
+#define programVersion     "8.1.23"
+#define programVersionInt   8123
+#define programDate        "June 25 2015"
 
 
 #define  TREE_EVALUATION                 0
@@ -638,6 +638,7 @@ typedef struct {
   /* LG4 */
 
   double *EIGN_LG4[4];
+  double *rawEIGN_LG4[4];
   double *EV_LG4[4];
   double *EI_LG4[4];  
 
@@ -872,14 +873,9 @@ typedef  struct  {
      not change depending on datatype */
 
   double           *invariants;
-  double           *fracchanges;
  
-  double           *rawFracchanges;
 
-#ifdef _HET
-  double *fracchanges_TIP;
-  double *rawFracchanges_TIP;
-#endif
+
 
   /* model stuff end */
 
@@ -894,11 +890,7 @@ typedef  struct  {
   int              *secondaryStructurePairs;
 
 
-  double            *partitionContributions;
-  
-
-  double            fracchange;
-  double            rawFracchange;
+  double            *partitionContributions; 
 
   int               ascertainmentCorrectionType;
   int               autoProteinSelectionType;
@@ -913,10 +905,7 @@ typedef  struct  {
   boolean          doBastienStuff;
 #endif
 
-#ifdef _HET
-  double            fracchange_TIP;
-  double            rawFracchange_TIP;
-#endif
+
 
   double            lhCutoff;
   double            lhAVG;
@@ -1264,7 +1253,7 @@ extern double LnGamma ( double alpha );
 extern double IncompleteGamma ( double x, double alpha, double ln_gamma_alpha );
 extern double PointNormal ( double prob );
 extern double PointChi2 ( double prob, double v );
-extern void makeGammaCats (double alpha, double *gammaRates, int K,  boolean useMedian);
+extern void makeGammaCats (int rateHetModel, double alpha, double *gammaRates, int K,  boolean useMedian, double propInvariant);
 extern void initModel ( tree *tr, rawdata *rdta, cruncheddata *cdta, analdef *adef );
 extern void doAllInOne ( tree *tr, analdef *adef );
 
@@ -1502,7 +1491,7 @@ extern void newviewGenericAncestral(tree *tr, nodeptr p, boolean atRoot);
 extern void computeAncestralStates(tree *tr, double referenceLikelihood);
 extern void makeP_Flex(double z1, double z2, double *rptr, double *EI,  double *EIGN, int numberOfCategories, double *left, double *right, const int numStates);
 extern void makeP_FlexLG4(double z1, double z2, double *rptr, double *EI[4],  double *EIGN[4], int numberOfCategories, double *left, double *right, const int numStates);
-
+extern void scaleLG4X_EIGN(tree *tr, int model);
 extern void *rax_malloc( size_t size );
 extern void *rax_realloc(void *p, size_t size, boolean needsMemoryAlignment);
 extern void rax_free(void *p);
@@ -1586,6 +1575,7 @@ extern void testInsertThoroughIterative(tree *tr, int branchNumber);
 #define THREAD_OPT_LG4X_RATES               45
 #define THREAD_FREE_VECTORS                 46
 #define THREAD_SETUP_PRESENCE_MAP           47
+#define THREAD_COPY_LG4X_EIGN               48
 
 
 /*

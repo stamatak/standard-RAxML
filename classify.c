@@ -62,15 +62,14 @@ static double getBranch(tree *tr, double *b, double *bb)
   double z = 0.0;
 
   if(!tr->multiBranch)
-    {
-      assert(tr->fracchange != -1.0);
+    {     
       assert(b[0] == bb[0]);
       z = b[0];
       if (z < zmin) 
 	z = zmin;      	 
       if(z > zmax)
 	z = zmax;
-      z = -log(z) * tr->fracchange;
+      z = -log(z);
       return z;	
     }
   else
@@ -81,14 +80,13 @@ static double getBranch(tree *tr, double *b, double *bb)
       for(i = 0; i < tr->numBranches; i++)
 	{
 	  assert(b[i] == bb[i]);
-	  assert(tr->partitionContributions[i] != -1.0);
-	  assert(tr->fracchanges[i] != -1.0);
+	  assert(tr->partitionContributions[i] != -1.0);	
 	  x = b[i];
 	  if (x < zmin) 
 	    x = zmin;      	 
 	  if(x > zmax)
 	    x = zmax;
-	  x = -log(x) * tr->fracchanges[i];
+	  x = -log(x);
 	  
 	  z += x * tr->partitionContributions[i];
 	}	
@@ -103,15 +101,14 @@ static double getBranchPerPartition(tree *tr, double *b, double *bb, int j)
   double z = 0.0;
 
   if(!tr->multiBranch)
-    {
-      assert(tr->fracchange != -1.0);
+    {    
       assert(b[0] == bb[0]);
       z = b[0];
       if (z < zmin) 
 	z = zmin;      	 
       if(z > zmax)
 	z = zmax;
-      z = -log(z) * tr->fracchange;
+      z = -log(z);
       return z;	
     }
   else
@@ -119,14 +116,13 @@ static double getBranchPerPartition(tree *tr, double *b, double *bb, int j)
       int 
 	i = tr->readPartition[j];
     
-      assert(b[i] == bb[i]);
-      assert(tr->fracchanges[i] != -1.0);
+      assert(b[i] == bb[i]);    
       z = b[i];
       if (z < zmin) 
 	z = zmin;      	 
       if(z > zmax)
 	z = zmax;
-      z = -log(z) * tr->fracchanges[i];          	
+      z = -log(z);
       
       return z;
     } 

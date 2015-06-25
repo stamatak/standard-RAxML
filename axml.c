@@ -891,17 +891,7 @@ static boolean setupTree (tree *tr, analdef *adef)
 
   if(!adef->readTaxaOnly)
     {
-      tr->yVector      = (unsigned char **)  rax_malloc((tr->mxtips + 1) * sizeof(unsigned char *));
-
-      tr->fracchanges  = (double *)rax_malloc(tr->NumberOfModels * sizeof(double));    
-
-      tr->rawFracchanges = (double *)rax_malloc(tr->NumberOfModels * sizeof(double));  
-
-#ifdef _HET
-      tr->fracchanges_TIP  = (double *)rax_malloc(tr->NumberOfModels * sizeof(double));    
-
-      tr->rawFracchanges_TIP = (double *)rax_malloc(tr->NumberOfModels * sizeof(double)); 
-#endif
+      tr->yVector      = (unsigned char **)  rax_malloc((tr->mxtips + 1) * sizeof(unsigned char *));     
 
       tr->likelihoods  = (double *)rax_malloc(adef->multipleRuns * sizeof(double));
     }
@@ -927,25 +917,7 @@ static boolean setupTree (tree *tr, analdef *adef)
       tr->td[0].count = 0;
       tr->td[0].ti    = (traversalInfo *)rax_malloc(sizeof(traversalInfo) * tr->mxtips);	
 
-      for(i = 0; i < tr->NumberOfModels; i++)
-	{
-	  tr->fracchanges[i] = -1.0;             
-	  tr->rawFracchanges[i] = -1.0; 
-#ifdef _HET
-	  tr->fracchanges_TIP[i] = -1.0;             
-	  tr->rawFracchanges_TIP[i] = -1.0;
-#endif
-
-	}
-
-      tr->fracchange = -1.0;
-      tr->rawFracchange = -1.0;
-
-#ifdef _HET
-      tr->fracchange_TIP = -1.0;
-      tr->rawFracchange_TIP = -1.0;
-#endif
-
+     
       tr->constraintVector = (int *)rax_malloc((2 * tr->mxtips) * sizeof(int));
 
       tr->nameList = (char **)rax_malloc(sizeof(char *) * (tips + 1));
@@ -3298,6 +3270,7 @@ static void allocPartitions(tree *tr)
 	  for(k = 0; k < 4; k++)
 	    {	    
 	      tr->partitionData[i].EIGN_LG4[k]              = (double*)rax_malloc(pl->eignLength * sizeof(double));
+	      tr->partitionData[i].rawEIGN_LG4[k]              = (double*)rax_malloc(pl->eignLength * sizeof(double));	      
 	      tr->partitionData[i].EV_LG4[k]                = (double*)rax_malloc(pl->evLength * sizeof(double));
 	      tr->partitionData[i].EI_LG4[k]                = (double*)rax_malloc(pl->eiLength * sizeof(double));
 	      tr->partitionData[i].substRates_LG4[k]        = (double *)rax_malloc(pl->substRatesLength * sizeof(double));
@@ -8583,8 +8556,7 @@ static void initPartition(tree *tr, tree *localTree, int tid)
       localTree->perPartitionLH          = (double*)rax_malloc(sizeof(double)   * localTree->NumberOfModels);
       localTree->storedPerPartitionLH    = (double*)rax_malloc(sizeof(double)   * localTree->NumberOfModels);
 
-      localTree->fracchanges = (double*)rax_malloc(sizeof(double)   * localTree->NumberOfModels);
-      localTree->rawFracchanges = (double*)rax_malloc(sizeof(double)   * localTree->NumberOfModels);
+     
 
       localTree->partitionContributions = (double*)rax_malloc(sizeof(double)   * localTree->NumberOfModels);
 
@@ -8759,6 +8731,7 @@ static void copyLG4(tree *localTree, tree *tr, int model, const partitionLengths
       for(k = 0; k < 4; k++)
 	{
 	   memcpy(localTree->partitionData[model].EIGN_LG4[k],        tr->partitionData[model].EIGN_LG4[k],        pl->eignLength * sizeof(double));
+	   memcpy(localTree->partitionData[model].rawEIGN_LG4[k],        tr->partitionData[model].rawEIGN_LG4[k],        pl->eignLength * sizeof(double));
 	   memcpy(localTree->partitionData[model].EV_LG4[k],          tr->partitionData[model].EV_LG4[k],          pl->evLength * sizeof(double));
 	   memcpy(localTree->partitionData[model].EI_LG4[k],          tr->partitionData[model].EI_LG4[k],          pl->eiLength * sizeof(double));
 	   memcpy(localTree->partitionData[model].substRates_LG4[k],  tr->partitionData[model].substRates_LG4[k],  pl->substRatesLength * sizeof(double));
@@ -8903,7 +8876,7 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 	    {	      
 	      const partitionLengths *pl = getPartitionLengths(&(tr->partitionData[model]));
 	      
-	      memcpy(localTree->partitionData[model].EIGN,        tr->partitionData[model].EIGN,        pl->eignLength * sizeof(double));
+	      memcpy(localTree->partitionData[model].EIGN,        tr->partitionData[model].EIGN,        pl->eignLength * sizeof(double));	    
 	      memcpy(localTree->partitionData[model].EV,          tr->partitionData[model].EV,          pl->evLength * sizeof(double));		  
 	      memcpy(localTree->partitionData[model].EI,          tr->partitionData[model].EI,          pl->eiLength * sizeof(double));
 	      memcpy(localTree->partitionData[model].tipVector,   tr->partitionData[model].tipVector,   pl->tipVectorLength * sizeof(double));
@@ -8952,7 +8925,10 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
       if(tid > 0)
 	{
 	  for(model = 0; model < localTree->NumberOfModels; model++)
-	    localTree->partitionData[model].propInvariant = tr->partitionData[model].propInvariant;
+	    {
+	      localTree->partitionData[model].propInvariant = tr->partitionData[model].propInvariant;
+	      memcpy(localTree->partitionData[model].gammaRates, tr->partitionData[model].gammaRates, sizeof(double) * 4);
+	    }
 	}
       break;
     case THREAD_OPT_INVAR:
@@ -8960,7 +8936,10 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 	{
 	  memcpy(localTree->executeModel, tr->executeModel, localTree->NumberOfModels * sizeof(boolean));
 	  for(model = 0; model < localTree->NumberOfModels; model++)
-	    localTree->partitionData[model].propInvariant = tr->partitionData[model].propInvariant;
+	    {
+	      localTree->partitionData[model].propInvariant = tr->partitionData[model].propInvariant;
+	      memcpy(localTree->partitionData[model].gammaRates, tr->partitionData[model].gammaRates, sizeof(double) * 4);
+	    }
 	}
 
       result = evaluateIterative(localTree, FALSE);
@@ -9187,14 +9166,11 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 	  localTree->contiguousScalingLength  = tr->contiguousScalingLength;
 	  localTree->inserts                  = tr->inserts;
 	  localTree->numberOfTipsForInsertion = tr->numberOfTipsForInsertion;	
-	  localTree->fracchange = tr->fracchange;
-	  localTree->rawFracchange = tr->rawFracchange;
+	 
 	  
 	  memcpy(localTree->partitionContributions, tr->partitionContributions, sizeof(double) * localTree->NumberOfModels);
 	  
-	  memcpy(localTree->fracchanges, tr->fracchanges, sizeof(double) * localTree->NumberOfModels);	 
 	  
-	  memcpy(localTree->rawFracchanges, tr->rawFracchanges, sizeof(double) * localTree->NumberOfModels);
 
 
 	  if(localTree->perPartitionEPA)
@@ -9774,6 +9750,18 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 	  for(model = 0; model < localTree->NumberOfModels; model++)
 	    localTree->executeModel[model] = TRUE;
 	}	
+      break;
+    case THREAD_COPY_LG4X_EIGN:
+      if(tid > 0)
+	{
+	  for(model = 0; model < localTree->NumberOfModels; model++)
+	    {
+	      memcpy(localTree->partitionData[model].EIGN_LG4[0],    tr->partitionData[model].EIGN_LG4[0],    sizeof(double) * 19);
+	      memcpy(localTree->partitionData[model].EIGN_LG4[1],    tr->partitionData[model].EIGN_LG4[1],    sizeof(double) * 19);
+	      memcpy(localTree->partitionData[model].EIGN_LG4[2],    tr->partitionData[model].EIGN_LG4[2],    sizeof(double) * 19);
+	      memcpy(localTree->partitionData[model].EIGN_LG4[3],    tr->partitionData[model].EIGN_LG4[3],    sizeof(double) * 19);
+	    }
+	}
       break;
     case THREAD_SETUP_PRESENCE_MAP:
       setupPresenceMask(localTree);
@@ -10687,11 +10675,12 @@ static void computeDistances(tree *tr, analdef *adef)
 	    for(k = 0, x = 0.0; k < tr->numBranches; k++)
 	      {
 		assert(tr->partitionContributions[k] != -1.0);
-		assert(tr->fracchanges[k] != -1.0);
+
 		z = result[k];
+
 		if (z < zmin)
 		  z = zmin;
-		x += (-log(z) * tr->fracchanges[k]) * tr->partitionContributions[k];
+		x += -log(z) * tr->partitionContributions[k];
 	      }
 	  }
 	else
@@ -10699,7 +10688,7 @@ static void computeDistances(tree *tr, analdef *adef)
 	    z = result[0];
 	    if (z < zmin)
 	      z = zmin;
-	    x = -log(z) * tr->fracchange;
+	    x = -log(z);
 	  }
 
 	/*printf("%s-%s \t %f\n", tr->nameList[i], tr->nameList[j], x);*/
@@ -10937,6 +10926,7 @@ static void writeLG4(tree *tr, int model, int dataType, FILE *f, partitionLength
       for(k = 0; k < 4; k++)
 	{
 	  myfwrite(tr->partitionData[model].EIGN_LG4[k], sizeof(double), pLengths[dataType].eignLength, f);
+	  myfwrite(tr->partitionData[model].rawEIGN_LG4[k], sizeof(double), pLengths[dataType].eignLength, f);
 	  myfwrite(tr->partitionData[model].EV_LG4[k], sizeof(double),  pLengths[dataType].evLength, f);
 	  myfwrite(tr->partitionData[model].EI_LG4[k], sizeof(double),  pLengths[dataType].eiLength, f);    
 	  myfwrite(tr->partitionData[model].frequencies_LG4[k], sizeof(double),  pLengths[dataType].frequenciesLength, f);
@@ -10978,17 +10968,11 @@ void writeBinaryModel(tree *tr, analdef *adef)
   myfwrite(tr->cdta->patrat, sizeof(double), tr->rdta->sites + 1, f);
   myfwrite(tr->cdta->patratStored, sizeof(double), tr->rdta->sites + 1, f);
 
-  /* partition contributions for fracchange */
+  /* partition contributions */
 
   myfwrite(tr->partitionContributions, sizeof(double), tr->NumberOfModels, f);
 
-  /* fracchange */
-
-  myfwrite(&tr->fracchange, sizeof(double), 1, f);
-  myfwrite(tr->fracchanges, sizeof(double), (size_t)tr->NumberOfModels, f);
-
-  myfwrite(&tr->rawFracchange, sizeof(double), 1, f);
-  myfwrite(tr->rawFracchanges, sizeof(double), (size_t)tr->NumberOfModels, f);
+  
     
   /* pInfo */
    
@@ -11051,6 +11035,7 @@ static void readLG4(tree *tr, int model, int dataType, FILE *f, partitionLengths
       for(k = 0; k < 4; k++)
 	{
 	  myfread(tr->partitionData[model].EIGN_LG4[k], sizeof(double), pLengths[dataType].eignLength, f);
+	  myfread(tr->partitionData[model].rawEIGN_LG4[k], sizeof(double), pLengths[dataType].eignLength, f);
 	  myfread(tr->partitionData[model].EV_LG4[k], sizeof(double),  pLengths[dataType].evLength, f);
 	  myfread(tr->partitionData[model].EI_LG4[k], sizeof(double),  pLengths[dataType].eiLength, f);    
 	  myfread(tr->partitionData[model].frequencies_LG4[k], sizeof(double),  pLengths[dataType].frequenciesLength, f);
@@ -11131,17 +11116,11 @@ void readBinaryModel(tree *tr, analdef *adef)
   myfread(tr->cdta->patrat,       sizeof(double), (size_t)(tr->rdta->sites + 1), f);
   myfread(tr->cdta->patratStored, sizeof(double), (size_t)(tr->rdta->sites + 1), f);
 
-  /* partition contributions for fracchange */
+  /* partition contributions */
 
   myfread(tr->partitionContributions, sizeof(double), tr->NumberOfModels, f);
   
-  /* fracchange */
-
-  myfread(&tr->fracchange, sizeof(double), 1, f);
-  myfread(tr->fracchanges, sizeof(double), (size_t)tr->NumberOfModels, f);
-
-  myfread(&tr->rawFracchange, sizeof(double), 1, f);
-  myfread(tr->rawFracchanges, sizeof(double), (size_t)tr->NumberOfModels, f);
+ 
   
   /* pInfo */
    
@@ -12728,7 +12707,7 @@ static void adaptBranchLengths(tree *tr, nodeptr p, int *count)
 	  if(z < zmin)
 	    z = zmin;
 	  
-	  z = -log(z) * tr->fracchanges[model];
+	  z = -log(z);
 	  
 	  branchLength += z * factor;
 
@@ -12743,7 +12722,7 @@ static void adaptBranchLengths(tree *tr, nodeptr p, int *count)
       if(missingData[model] == 1)
 	{
 	  double
-	    targetBranch = exp(-(branchLength) / tr->fracchanges[model]);
+	    targetBranch = exp(-(branchLength));
 
 	  //printf("adapted one branch in part %d %1.40f -> %1.40f\n", model, p->z[model], targetBranch);
 

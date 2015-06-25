@@ -180,38 +180,17 @@ static double getBranchLength(tree *tr, int perGene, nodeptr p)
 {
   double 
     z = 0.0,
-    x = 0.0,
-    f,
-    *fs;
+    x = 0.0;
 
   assert(perGene != NO_BRANCHES);
-	   
-#ifdef _HET     
-  if(isTip(p->number, tr->mxtips) || isTip(p->back->number, tr->mxtips))
-    {
-      //printf("tip model \n");
-      f = tr->fracchange_TIP;
-      fs = tr->fracchanges_TIP;
-    }
-  else
-    {
-      //printf("inner model\n");
-      f = tr->fracchange;
-      fs = tr->fracchanges;
-    }
-#else
-  f = tr->fracchange;
-  fs = tr->fracchanges;
-#endif
-   
+	      
   if(!tr->multiBranch)
-    {
-      assert(f != -1.0);
+    {   
       z = p->z[0];
       if (z < zmin) 
 	z = zmin;      	 
       
-      x = -log(z) * f;           
+      x = -log(z);           
     }
   else
     {
@@ -226,11 +205,11 @@ static double getBranchLength(tree *tr, int perGene, nodeptr p)
 	  for(i = 0; i < tr->numBranches; i++)
 	    {
 	      assert(tr->partitionContributions[i] != -1.0);
-	      assert(fs[i] != -1.0);
+	      //assert(fs[i] != -1.0);
 	      z = p->z[i];
 	      if(z < zmin) 
 		z = zmin;      	 
-	      x = -log(z) * fs[i];
+	      x = -log(z);// * fs[i];
 	      avgX += x * tr->partitionContributions[i];
 	    }
 
@@ -238,7 +217,7 @@ static double getBranchLength(tree *tr, int perGene, nodeptr p)
 	}
       else
 	{	
-	  assert(fs[perGene] != -1.0);
+	  //assert(fs[perGene] != -1.0);
 	  assert(perGene >= 0 && perGene < tr->numBranches);
 	  
 	  z = p->z[perGene];
@@ -246,7 +225,7 @@ static double getBranchLength(tree *tr, int perGene, nodeptr p)
 	  if(z < zmin) 
 	    z = zmin;      	 
 	  
-	  x = -log(z) * fs[perGene];	  
+	  x = -log(z);// * fs[perGene];	  
 	}
     }
 
@@ -500,10 +479,9 @@ static char *rootedTree(char *treestr, tree *tr, nodeptr p, boolean printBranchL
 	  assert(perGene != NO_BRANCHES);
 
 	  if(!tr->multiBranch)
-	    {
-	      assert(tr->fracchange != -1.0);
-	      z = -log(p->z[0]) * tr->fracchange;
-	      rz = exp(-(z * 0.5)/ tr->fracchange);
+	    {	    
+	      z = -log(p->z[0]);
+	      rz = exp(-(z * 0.5));
 	      p->z[0] = p->back->z[0] = rz;
 	    }
 	  else
@@ -513,19 +491,17 @@ static char *rootedTree(char *treestr, tree *tr, nodeptr p, boolean printBranchL
 		  int i;	      
 		  
 		  for(i = 0; i < tr->numBranches; i++)
-		    {	
-		      assert(tr->fracchanges[i] != -1.0);
-		      z    = -log(p->z[i]) * tr->fracchanges[i];	    	      
-		      rz   = exp(-(z * 0.5)/ tr->fracchanges[i]);
+		    {			    
+		      z    = -log(p->z[i]);
+		      rz   = exp(-(z * 0.5));
 		      p->z[i] = p->back->z[i] = rz;		    
 		    }		 
 		}	     	     
 	      else
-		{		
-		  assert(tr->fracchanges[perGene] != -1.0);
+		{				
 		  assert(perGene >= 0 && perGene < tr->numBranches);
-		  z = -log(p->z[perGene]) * tr->fracchanges[perGene];
-		  rz = exp(-(z * 0.5)/ tr->fracchanges[perGene]);
+		  z = -log(p->z[perGene]);
+		  rz = exp(-(z * 0.5));
 		  p->z[perGene] = p->back->z[perGene] = rz;	       	      	      
 		}
 	    }
@@ -1155,7 +1131,7 @@ static boolean addElementLen (FILE *fp, tree *tr, nodeptr p, boolean readBranchL
 	  assert(adef->useBinaryModelFile);
 	  assert(tr->numBranches == 1);
 
-	  x[0] = exp(-branch / tr->fracchange);	 	  
+	  x[0] = exp(-branch);
 
 	  hookup(p, q, x, tr->numBranches);
 	}

@@ -3488,113 +3488,18 @@ static void initProtMat(double f[20], int proteinMatrix, double *ext_initialRate
     }             
 }
 
-#ifdef _HET
-static void updateFracChange(tree *tr, double *s, double *r, double *fracchanges, double *raw)
-{   
-  if(tr->NumberOfModels == 1)    
-    {   
-      assert(fracchanges[0] != -1.0);
-      *s = fracchanges[0];            
-      fracchanges[0] = -1.0;
-      
-      if(tr->useBrLenScaler)
-	scaleBranches(tr, FALSE);
-    }      
-  else
-    {
-      int 
-	model, 
-	i;
-      
-      double 
-	*modelWeights = (double *)rax_calloc(tr->NumberOfModels, sizeof(double)),
-	wgtsum = 0.0;  
-     
-      assert(tr->NumberOfModels > 1);
 
-      *s = 0.0;	         
-      
-      for(i = 0; i < tr->cdta->endsite; i++)
-	{
-	  modelWeights[tr->model[i]]  += (double)tr->cdta->aliaswgt[i];
-	  wgtsum                      += (double)tr->cdta->aliaswgt[i];
-	}  
- 	        
-      for(model = 0; model < tr->NumberOfModels; model++)      
-	{	      	  	 
-	  tr->partitionContributions[model] = modelWeights[model] / wgtsum;             
-	  *s +=  tr->partitionContributions[model] * fracchanges[model];
-	}	      
-    
-      if(tr->useBrLenScaler)
-	scaleBranches(tr, FALSE);	  	
 
-      rax_free(modelWeights);
-    }
-
-  *r = *s;
-  memcpy(raw, fracchanges, sizeof(double) * tr->NumberOfModels);
-}
-#else
-static void updateFracChange(tree *tr)
-{   
-  if(tr->NumberOfModels == 1)    
-    {   
-      assert(tr->fracchanges[0] != -1.0);
-      tr->fracchange = tr->fracchanges[0];            
-      tr->fracchanges[0] = -1.0;
-      
-      if(tr->useBrLenScaler)
-	scaleBranches(tr, FALSE);
-    }      
-  else
-    {
-      int 
-	model, 
-	i;
-      
-      double 
-	*modelWeights = (double *)rax_calloc(tr->NumberOfModels, sizeof(double)),
-	wgtsum = 0.0;  
-     
-      assert(tr->NumberOfModels > 1);
-
-      tr->fracchange = 0.0;	         
-      
-      for(i = 0; i < tr->cdta->endsite; i++)
-	{
-	  modelWeights[tr->model[i]]  += (double)tr->cdta->aliaswgt[i];
-	  wgtsum                      += (double)tr->cdta->aliaswgt[i];
-	}  
- 	        
-      for(model = 0; model < tr->NumberOfModels; model++)      
-	{	      	  	 
-	  tr->partitionContributions[model] = modelWeights[model] / wgtsum;             
-	  tr->fracchange +=  tr->partitionContributions[model] * tr->fracchanges[model];
-	}	      
-    
-      if(tr->useBrLenScaler)
-	scaleBranches(tr, FALSE);	  	
-
-      rax_free(modelWeights);
-    }
-
-  tr->rawFracchange = tr->fracchange;
-  memcpy(tr->rawFracchanges, tr->fracchanges, sizeof(double) * tr->NumberOfModels);
-}
-#endif
-
-static void initGeneric(const int n, const unsigned int *valueVector, int valueVectorLength,
-			double *fracchanges,
+static void initGeneric(const int n, const unsigned int *valueVector, int valueVectorLength,		       
 			double *ext_EIGN,
 			double *EV,
 			double *EI,
 			double *frequencies,
 			double *ext_initialRates,
-			double *tipVector,
-			int model)
+			double *tipVector)
 {
-  double 
+  double
+    fracchange = 0.0,
     **r, 
     **a, 
     **EIGV,
@@ -3652,11 +3557,9 @@ static void initGeneric(const int n, const unsigned int *valueVector, int valueV
 	r[j][k] = r[k][j];
     }                         
   
-  fracchanges[model] = 0.0;         
-  
   for (j = 0; j< n; j++)
     for (k = 0; k< n; k++)
-      fracchanges[model] += f[j] * r[j][k] * f[k];             
+      fracchange += f[j] * r[j][k] * f[k];             
   
   m = 0;
   
@@ -3715,7 +3618,7 @@ static void initGeneric(const int n, const unsigned int *valueVector, int valueV
   
   for(l = 1; l < n; l++)
     {
-      ext_EIGN[(l - 1)] = EIGN[l]; 
+      ext_EIGN[(l - 1)] = EIGN[l] * (1.0 / fracchange); 
       assert( ext_EIGN[(l - 1)] > 0.0);
     }
   
@@ -3786,14 +3689,13 @@ static void initGeneric(const int n, const unsigned int *valueVector, int valueV
 
 void initReversibleGTR(tree *tr, int model)
 { 
- double   
-   *fracchanges      = tr->fracchanges,    
-   *ext_EIGN         = tr->partitionData[model].EIGN,
-   *EV               = tr->partitionData[model].EV,
-   *EI               = tr->partitionData[model].EI,
-   *frequencies      = tr->partitionData[model].frequencies,
-   *ext_initialRates = tr->partitionData[model].substRates,
-   *tipVector        = tr->partitionData[model].tipVector;
+  double    
+    *ext_EIGN         = tr->partitionData[model].EIGN,
+    *EV               = tr->partitionData[model].EV,
+    *EI               = tr->partitionData[model].EI,
+    *frequencies      = tr->partitionData[model].frequencies,
+    *ext_initialRates = tr->partitionData[model].substRates,
+    *tipVector        = tr->partitionData[model].tipVector;
   
  int 
    states = tr->partitionData[model].states;
@@ -3809,29 +3711,25 @@ void initReversibleGTR(tree *tr, int model)
    case BINARY_DATA:
      initGeneric(states, 
 		 getBitVector(tr->partitionData[model].dataType), 
-		 getUndetermined(tr->partitionData[model].dataType) + 1, 
-		 fracchanges,
+		 getUndetermined(tr->partitionData[model].dataType) + 1, 	       
 		 ext_EIGN, 
 		 EV, 
 		 EI, 
 		 frequencies, 
 		 ext_initialRates,
-		 tipVector, 
-		 model);
+		 tipVector);
 #ifdef _HET
      assert(tr->partitionData[model].dataType == DNA_DATA);
 
       initGeneric(states, 
 		  getBitVector(tr->partitionData[model].dataType), 
-		  getUndetermined(tr->partitionData[model].dataType) + 1, 
-		  tr->fracchanges_TIP,
+		  getUndetermined(tr->partitionData[model].dataType) + 1, 	       
 		  tr->partitionData[model].EIGN_TIP, 
 		  tr->partitionData[model].EV_TIP, 
 		  tr->partitionData[model].EI_TIP, 
 		  frequencies, 
 		  tr->partitionData[model].substRates_TIP,
-		  tr->partitionData[model].tipVector_TIP, 
-		  model);
+		  tr->partitionData[model].tipVector_TIP);
 #endif
      break;   
    case AA_DATA: 
@@ -3935,48 +3833,24 @@ void initReversibleGTR(tree *tr, int model)
      if(tr->partitionData[model].protModels == LG4 || tr->partitionData[model].protModels == LG4X)
        {
 	 int 
-	   i;
-
-	 double 
-	   *fracchanges_LG4[4],
-	   acc = 0.0;
+	   i;     
 	
-	 for(i = 0; i < 4; i++)
-	   {
-	     fracchanges_LG4[i]  = (double *)rax_malloc(tr->NumberOfModels * sizeof(double));
-	     initGeneric(states, bitVectorAA, 23, fracchanges_LG4[i],
-			 tr->partitionData[model].EIGN_LG4[i],  tr->partitionData[model].EV_LG4[i],  tr->partitionData[model].EI_LG4[i], tr->partitionData[model].frequencies_LG4[i], 
-			 tr->partitionData[model].substRates_LG4[i],
-			 tr->partitionData[model].tipVector_LG4[i], 
-			 model);   
-	   }
-
-	 for(i = 0; i < 4; i++)
-	   {	    
-	     acc += fracchanges_LG4[i][model];
-	     rax_free(fracchanges_LG4[i]);
-	   }
-
-	 tr->fracchanges[model] = acc / 4;
+	 for(i = 0; i < 4; i++)	   
+	   initGeneric(states, bitVectorAA, 23,
+		       tr->partitionData[model].rawEIGN_LG4[i],  tr->partitionData[model].EV_LG4[i],  tr->partitionData[model].EI_LG4[i], tr->partitionData[model].frequencies_LG4[i], 
+		       tr->partitionData[model].substRates_LG4[i],
+		       tr->partitionData[model].tipVector_LG4[i]);   	    	    	  
+	 
+	 scaleLG4X_EIGN(tr, model);	 
        }
      else
-       initGeneric(states, bitVectorAA, 23, fracchanges,
+       initGeneric(states, bitVectorAA, 23, 
 		   ext_EIGN, EV, EI, frequencies, ext_initialRates,
-		   tipVector, 
-		   model);                   
+		   tipVector);                   
      break;  
    default:
      assert(0);
-   } 
- 
- 
-   
-#ifdef _HET
- updateFracChange(tr, &(tr->fracchange), &(tr->rawFracchange), tr->fracchanges, tr->rawFracchanges); 
- updateFracChange(tr, &(tr->fracchange_TIP), &(tr->rawFracchange_TIP), tr->fracchanges_TIP, tr->rawFracchanges_TIP);    
-#else
- updateFracChange(tr);  
-#endif
+   }  
 }
 
 
@@ -4185,7 +4059,7 @@ l4:
 
 
 
-void makeGammaCats(double alpha, double *gammaRates, int K, boolean useMedian)
+void makeGammaCats(int rateHetModel, double alpha, double *gammaRates, int K, boolean useMedian, double propInvariant)
 {
   int 
     i;
@@ -4235,6 +4109,16 @@ void makeGammaCats(double alpha, double *gammaRates, int K, boolean useMedian)
 	gammaRates[i] = (gammaProbs[i] - gammaProbs[i - 1]) * factor;      
     }
   /* assert(gammaRates[0] >= 0.00000000000000000000000000000044136090435925743185910935350715027016962154188875); */
+
+  if(rateHetModel == GAMMA_I)
+    {
+      double 
+	scaler = 1.0 / (1.0 - propInvariant);
+
+      for (i = 0; i < K; i++)
+        gammaRates[i] *= scaler;
+    }
+   
 
   rax_free(gammaProbs);
 
@@ -4699,9 +4583,9 @@ void initModel(tree *tr, rawdata *rdta, cruncheddata *cdta, analdef *adef)
       if(tr->partitionData[model].protModels == AUTO)
 	tr->partitionData[model].autoProtModels = WAG; /* initialize by WAG per default */
 
-      initReversibleGTR(tr, model);               
-      makeGammaCats(tr->partitionData[model].alpha, tr->partitionData[model].gammaRates, 4, tr->useGammaMedian); 
-
+                     
+      makeGammaCats(tr->rateHetModel, tr->partitionData[model].alpha, tr->partitionData[model].gammaRates, 4, tr->useGammaMedian, tr->partitionData[model].propInvariant);       
+      
       for(k = 0; k < tr->partitionData[model].states; k++)
 	tr->partitionData[model].freqExponents[k] = 0.0;
 
@@ -4710,29 +4594,9 @@ void initModel(tree *tr, rawdata *rdta, cruncheddata *cdta, analdef *adef)
 	  tr->partitionData[model].weights[j] = 0.25;
 	  tr->partitionData[model].weightExponents[j] = 0.0;
 	}
-    }   
-                
- 
-                       
-  if(tr->NumberOfModels > 1)
-    {
-      tr->fracchange = 0;
-      for(model = 0; model < tr->NumberOfModels; model++)	
-	tr->fracchange += tr->fracchanges[model];
-      
-      tr->fracchange /= ((double)tr->NumberOfModels);
-    }
 
-#ifdef _HET
-  if(tr->NumberOfModels > 1)
-    {
-      tr->fracchange_TIP = 0;
-      for(model = 0; model < tr->NumberOfModels; model++)	
-	tr->fracchange_TIP += tr->fracchanges_TIP[model];
-      
-      tr->fracchange_TIP /= ((double)tr->NumberOfModels);
-    }
-#endif
+      initReversibleGTR(tr, model);
+    }                                         
 
 #ifdef _USE_PTHREADS
   masterBarrier(THREAD_COPY_INIT_MODEL, tr);   
