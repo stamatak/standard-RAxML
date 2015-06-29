@@ -4498,6 +4498,32 @@ static void setupSecondaryStructureSymmetries(tree *tr)
 
 }
 
+
+static void calculatePartitionWeights(tree *tr)
+{
+  if(tr->NumberOfModels > 1)    
+    {
+      int 
+	model, 
+	i;
+      
+      double 
+	*modelWeights = (double *)rax_calloc(tr->NumberOfModels, sizeof(double)),
+	wgtsum = 0.0;  
+      
+      for(i = 0; i < tr->cdta->endsite; i++)
+	{
+	  modelWeights[tr->model[i]]  += (double)tr->cdta->aliaswgt[i];
+	  wgtsum                      += (double)tr->cdta->aliaswgt[i];
+	}  
+ 	        
+      for(model = 0; model < tr->NumberOfModels; model++)      		      	  	        
+	tr->partitionContributions[model] = modelWeights[model] / wgtsum;             	 	    
+
+      rax_free(modelWeights);
+    }
+}
+
 void initModel(tree *tr, rawdata *rdta, cruncheddata *cdta, analdef *adef)
 {  
   int 
@@ -4571,6 +4597,8 @@ void initModel(tree *tr, rawdata *rdta, cruncheddata *cdta, analdef *adef)
   initRateMatrix(tr); 
 
   baseFrequenciesGTR(rdta, cdta, tr);  
+
+  calculatePartitionWeights(tr);
 
   for(model = 0; model < tr->NumberOfModels; model++)
     {
