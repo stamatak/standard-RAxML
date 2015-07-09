@@ -1157,10 +1157,23 @@ static void coreGammaFlex(double *gammaRates, double *EIGN, double *sumtable, in
   *ext_d2lnLdlz2 = d2lnLdlz2;
 }
 
+static double pow2(double x)
+{
+  return (x * x);
+}
+
+static double pow3(double x)
+{
+  return (x * x *x);
+}
+
 static double coreCatAsc(double *EIGN, double *sumtable, int upper,
 			 volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double lz, const int numStates, 
 			 volatile double *standard_ext_dlnLdlz,  volatile double *standard_ext_d2lnLdlz2, 
 			 volatile double *felsenstein_ext_dlnLdlz,  volatile double *felsenstein_ext_d2lnLdlz2,
+			 volatile double *goldman1_d1, volatile double *goldman1_d2,
+			 volatile double *goldman2_d1, volatile double *goldman2_d2,
+			 volatile double *goldman3_d1, volatile double *goldman3_d2,
 			 double *weightVector, double *ascScaler)
 {
   double  
@@ -1170,6 +1183,10 @@ static double coreCatAsc(double *EIGN, double *sumtable, int upper,
     d2lnLdlz2 = 0.0,
     standard_dlnLdlz = 0.0,
     standard_d2lnLdlz2 = 0.0,
+    extended_lh = 0.0,
+    extended_dlnLdlz = 0.0,
+    extended_d2lnLdlz2 = 0.0,
+    loglh = 0.0,
     ki, 
     kisqr;
 
@@ -1225,10 +1242,23 @@ static double coreCatAsc(double *EIGN, double *sumtable, int upper,
       
       inv_Li = FABS(inv_Li);             
        
+      //TODO scaler ???
+      //g(x) := derivatives of f(x) * log(f(x)) goldman corrections 2 and 3 where f(x) is the likelihood function 
+      extended_lh        += inv_Li * log(inv_Li); // Li * log(Li)
+      extended_dlnLdlz   += (dlnLidlz * (log(inv_Li) + 1.0)); //Li' * (log(Li) + 1)			   
+      extended_d2lnLdlz2 += ((d2lnLidlz2 * (log(inv_Li) + 1.0)) + (pow2(dlnLidlz) / inv_Li)); // (Li'' * (log(Li) + 1)) + (Li')^2 / Li
+
+      //sum over likelihood and 1st and 2nd derivative
+      //ascScaler is the numerical scaling for preventing underflow 
       lh        += inv_Li * ascScaler[i];	  	 
       dlnLdlz   += dlnLidlz * ascScaler[i];
       d2lnLdlz2 += d2lnLidlz2 * ascScaler[i];            
     } 
+
+  //calculate the log likelihood 
+  loglh = log(lh);
+
+  //printf("loglh %f\n", loglh);
 
   *ext_dlnLdlz   = (dlnLdlz / (lh - 1.0));
   *ext_d2lnLdlz2 = (((lh - 1.0) * (d2lnLdlz2) - (dlnLdlz * dlnLdlz)) / ((lh - 1.0) * (lh - 1.0)));  
@@ -1239,23 +1269,70 @@ static double coreCatAsc(double *EIGN, double *sumtable, int upper,
   *standard_ext_dlnLdlz   = standard_dlnLdlz;
   *standard_ext_d2lnLdlz2 = standard_d2lnLdlz2;
 
+   //derivatives of (f(x) * log(f(x))) / (1 - f(x)) 
+  //goldman 1 correction
+  //here f(x) := L(A) + L(C) + L(G) + L(T) 
+  *goldman1_d1 = 
+    (dlnLdlz * (-lh + loglh + 1.0)) / 
+    pow2(1.0 - lh);
+  
+  *goldman1_d2 = 
+    ((pow2(dlnLdlz) * (pow2(lh) - (2.0 * lh * loglh) - 1.0)) - ((lh - 1.0) * lh * d2lnLdlz2 * (lh - loglh - 1.0))) / 
+    (lh * pow3(lh - 1.0));
+
+  //derivatives of g(x) / (1 - f(x)), where the derivatives of g(x) were computed above in extended_*, i.e.,
+  // g() denotes the derivatives of the sum of per-site L * log(L) over all character states
+  //goldman 2 correction
+  //here f(x) := L(A) + L(C) + L(G) + L(T) 
+  *goldman2_d1 = 
+    (extended_lh * dlnLdlz - ((lh - 1.0) * extended_dlnLdlz)) 
+    / pow2(1.0 - lh);
+  
+  *goldman2_d2 = 
+    ((2.0 * dlnLdlz * extended_dlnLdlz) / pow2(1.0 - lh)) 
+    + (extended_lh * ((d2lnLdlz2 / pow2(1.0 - lh))) + (2.0 * pow2(dlnLdlz) / (pow3(1.0 - lh))))
+    + (extended_d2lnLdlz2 / (1.0 - lh));
+  
+  //derivatives of g(x) / f(x), where the derivatives of g(x) were computed above in extended_*
+  //goldman 3 correction 
+  //here f(x) := L(A) + L(C) + L(G) + L(T) 
+  *goldman3_d1 = 
+    ((lh * extended_dlnLdlz) - (extended_lh * dlnLdlz)) / 
+    pow2(lh);
+
+  *goldman3_d2 = 
+    ((-lh * extended_lh * d2lnLdlz2) - (2.0 * lh * dlnLdlz * extended_dlnLdlz) + (2.0 * extended_lh * pow2(dlnLdlz)) + (pow2(lh) * extended_d2lnLdlz2)) /
+    pow3(lh);
+
+
+
   return lh;
 }
+
+
+
 
 
 static double coreGammaAsc(double *gammaRates, double *EIGN, double *sumtable, int upper,
 			   volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double lz, const int numStates, 
 			   volatile double *standard_ext_dlnLdlz,  volatile double *standard_ext_d2lnLdlz2, 
 			   volatile double *felsenstein_ext_dlnLdlz,  volatile double *felsenstein_ext_d2lnLdlz2,
+			   volatile double *goldman1_d1, volatile double *goldman1_d2,
+			   volatile double *goldman2_d1, volatile double *goldman2_d2,
+			   volatile double *goldman3_d1, volatile double *goldman3_d2,
 			   double *weightVector, double *ascScaler)
 {
   double  
     diagptable[1024], 
     lh = 0.0,
+    loglh = 0.0,
     dlnLdlz = 0.0,
     d2lnLdlz2 = 0.0,
     standard_dlnLdlz = 0.0,
-    standard_d2lnLdlz2 = 0.0,    
+    standard_d2lnLdlz2 = 0.0,  
+    extended_lh = 0.0,
+    extended_dlnLdlz = 0.0,
+    extended_d2lnLdlz2 = 0.0,
     ki, 
     kisqr;
 
@@ -1266,6 +1343,8 @@ static double coreGammaAsc(double *gammaRates, double *EIGN, double *sumtable, i
 
   const int 
     gammaStates = 4 * numStates;
+
+  //claculate derivatives of P(lz) = exp(EIGN * ki * lz)
 
   for(i = 0; i < 4; i++)
     {
@@ -1280,15 +1359,19 @@ static double coreGammaAsc(double *gammaRates, double *EIGN, double *sumtable, i
 	}
     }
 
+  //loop over sites 
+
   for (i = 0; i < upper; i++)
     {
       double
 	*sum = &sumtable[i * gammaStates],
 	tmp,
-	inv_Li   = 0.0,
-	dlnLidlz = 0.0,
-	d2lnLidlz2 = 0.0;
+	inv_Li   = 0.0, //likelihood at site i
+	dlnLidlz = 0.0, //1st derivative of likelihood at site i
+	d2lnLidlz2 = 0.0; //2nd derivative of likelihood at site i 
 
+
+      //calc derviavtives 
       for(j = 0; j < 4; j++)
 	{
 	  inv_Li += sum[j * numStates];
@@ -1301,6 +1384,7 @@ static double coreGammaAsc(double *gammaRates, double *EIGN, double *sumtable, i
 	    }	  
 	}    
             
+      //this is for the stamatakis correction, i.e. just the derivative of log(f(x)), where f(x) is the likelihood function
       if(weightVector)
 	{
 	  double
@@ -1317,21 +1401,81 @@ static double coreGammaAsc(double *gammaRates, double *EIGN, double *sumtable, i
 	  standard_d2lnLdlz2 += weightVector[i] * (standard_d2lnLidlz2 - standard_dlnLidlz * standard_dlnLidlz);	  	  
 	}
 
-      inv_Li = 0.25 * FABS(inv_Li);         
-      dlnLidlz *= 0.25;
-      d2lnLidlz2 *= 0.25;
-       
+     
+      //multiply with 1/4 because of GAMMA 
+      inv_Li = 0.25 * FABS(inv_Li);  //site likelihood       
+      dlnLidlz *= 0.25;             //1st derivative 
+      d2lnLidlz2 *= 0.25;           //2nd derivative
+
+      //g(x) := derivatives of f(x) * log(f(x)) goldman corrections 2 and 3 where f(x) is the likelihood function 
+      extended_lh        += inv_Li * log(inv_Li); // Li * log(Li)
+      extended_dlnLdlz   += (dlnLidlz * (log(inv_Li) + 1.0)); //Li' * (log(Li) + 1)			   
+      extended_d2lnLdlz2 += ((d2lnLidlz2 * (log(inv_Li) + 1.0)) + (pow2(dlnLidlz) / inv_Li)); // (Li'' * (log(Li) + 1)) + (Li')^2 / Li
+
+      
+      //sum over likelihood and 1st and 2nd derivative
+      //ascScaler is the numerical scaling for preventing underflow 
       lh        += inv_Li * ascScaler[i];	  	 
       dlnLdlz   += dlnLidlz * ascScaler[i];
       d2lnLdlz2 += d2lnLidlz2 * ascScaler[i];       
+
+      //printf("SCALE: %f\n", ascScaler[i]);
     } 
 
-  *ext_dlnLdlz   = (dlnLdlz / (lh - 1.0));
-  *ext_d2lnLdlz2 = (((lh - 1.0) * (d2lnLdlz2) - (dlnLdlz * dlnLdlz)) / ((lh - 1.0) * (lh - 1.0)));  
-  
-  *felsenstein_ext_dlnLdlz    = dlnLdlz / lh;
-  *felsenstein_ext_d2lnLdlz2 = ((d2lnLdlz2 * lh) - (dlnLdlz * dlnLdlz)) / (lh * lh);
+  //calculate the log likelihood 
+  loglh = log(lh);
 
+  //printf("loglh %f\n", loglh);
+
+  //1st and 2nd derivative for the Lewis correction i.e., derivatives of log(1.0 - f(x))
+  //here f(x) := L(A) + L(C) + L(G) + L(T) 
+  *ext_dlnLdlz   = (dlnLdlz / (lh - 1.0));
+  *ext_d2lnLdlz2 = ((lh - 1.0) * (d2lnLdlz2) - pow2(dlnLdlz)) / pow2(lh - 1.0);  
+  
+  //1st and 2nd derivative for the Felsenstein correction, i.e., derivative of log(f(x))
+  //here f(x) := L(A) + L(C) + L(G) + L(T) 
+  *felsenstein_ext_dlnLdlz    = dlnLdlz / lh;
+  *felsenstein_ext_d2lnLdlz2 = ((d2lnLdlz2 * lh) - pow2(dlnLdlz)) / pow2(lh);
+  
+
+  //derivatives of (f(x) * log(f(x))) / (1 - f(x)) 
+  //goldman 1 correction
+  //here f(x) := L(A) + L(C) + L(G) + L(T) 
+  *goldman1_d1 = 
+    (dlnLdlz * (-lh + loglh + 1.0)) / 
+    pow2(1.0 - lh);
+  
+  *goldman1_d2 = 
+    ((pow2(dlnLdlz) * (pow2(lh) - (2.0 * lh * loglh) - 1.0)) - ((lh - 1.0) * lh * d2lnLdlz2 * (lh - loglh - 1.0))) / 
+    (lh * pow3(lh - 1.0));
+
+  //derivatives of g(x) / (1 - f(x)), where the derivatives of g(x) were computed above in extended_*, i.e.,
+  // g() denotes the derivatives of the sum of per-site L * log(L) over all four character states
+  //goldman 2 correction
+  //here f(x) := L(A) + L(C) + L(G) + L(T) 
+  *goldman2_d1 = 
+    (extended_lh * dlnLdlz - ((lh - 1.0) * extended_dlnLdlz)) 
+    / pow2(1.0 - lh);
+  
+  *goldman2_d2 = 
+    ((2.0 * dlnLdlz * extended_dlnLdlz) / pow2(1.0 - lh)) 
+    + (extended_lh * ((d2lnLdlz2 / pow2(1.0 - lh))) + (2.0 * pow2(dlnLdlz) / (pow3(1.0 - lh))))
+    + (extended_d2lnLdlz2 / (1.0 - lh));
+  
+  //derivatives of g(x) / f(x), where the derivatives of g(x) were computed above in extended_*
+  //goldman 3 correction 
+  //here f(x) := L(A) + L(C) + L(G) + L(T) 
+  *goldman3_d1 = 
+    ((lh * extended_dlnLdlz) - (extended_lh * dlnLdlz)) / 
+    pow2(lh);
+
+  *goldman3_d2 = 
+    ((-lh * extended_lh * d2lnLdlz2) - (2.0 * lh * dlnLdlz * extended_dlnLdlz) + (2.0 * extended_lh * pow2(dlnLdlz)) + (pow2(lh) * extended_d2lnLdlz2)) /
+    pow3(lh);
+
+
+  //normal derivatives of the log likelihood, i.e., log(f(x))
+  //here f(x) := L(site_i) 
   *standard_ext_dlnLdlz   = standard_dlnLdlz;
   *standard_ext_d2lnLdlz2 = standard_d2lnLdlz2;
 
@@ -4362,7 +4506,13 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 		standard_d1 = 0.0,
 		standard_d2 = 0.0,
 		felsenstein_d1 = 0.0,
-		felsenstein_d2 = 0.0;
+		felsenstein_d2 = 0.0,
+		goldman1_d1 = 0.0,
+		goldman1_d2 = 0.0,
+		goldman2_d1 = 0.0,
+		goldman2_d2 = 0.0,
+		goldman3_d1 = 0.0,
+		goldman3_d2 = 0.0;
 	      
 	      if(tr->ascertainmentCorrectionType == STAMATAKIS_CORRECTION)		
 		weightVector = tr->partitionData[model].invariableFrequencies;		    
@@ -4371,37 +4521,59 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 		 {
 		 case CAT:
 		   coreCatAsc(tr->partitionData[model].EIGN, tr->partitionData[model].ascSumBuffer, states,
-			      &d1,  &d2, lz, states, &standard_d1, &standard_d2, 
-					   &felsenstein_d1, &felsenstein_d2,
-					   weightVector, tr->partitionData[model].ascScaler);	  
+			      &d1,  &d2, lz, states, 
+			      &standard_d1, &standard_d2, 
+			      &felsenstein_d1, &felsenstein_d2,
+			      &goldman1_d1, &goldman1_d2,
+			      &goldman2_d1, &goldman2_d2,
+			      &goldman3_d1, &goldman3_d2,
+			      weightVector, tr->partitionData[model].ascScaler);	  
 		   break;
 		 case GAMMA:
 		   coreGammaAsc(tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, tr->partitionData[model].ascSumBuffer, states,
-				&d1,  &d2, lz, states, &standard_d1, &standard_d2, 
+				&d1,  &d2, lz, states, 
+				&standard_d1, &standard_d2, 
 				&felsenstein_d1, &felsenstein_d2,
+				&goldman1_d1, &goldman1_d2,
+				&goldman2_d1, &goldman2_d2,
+				&goldman3_d1, &goldman3_d2,
 				weightVector, tr->partitionData[model].ascScaler);	  
 		   break;
 		 default:
 		   assert(0);
-		 }	  
+		 }
 	  
+	       for(i = tr->partitionData[model].lower; i < tr->partitionData[model].upper; i++)
+		 w += tr->cdta->aliaswgt[i];
+	       
 	       switch(tr->ascertainmentCorrectionType)
 		 {
-		 case LEWIS_CORRECTION:
-		   for(i = tr->partitionData[model].lower; i < tr->partitionData[model].upper; i++)
-		     w += tr->cdta->aliaswgt[i];
-		   
-		   _dlnLdlz[branchIndex]   =  _dlnLdlz[branchIndex] + dlnLdlz - (double)w * d1;
-		   _d2lnLdlz2[branchIndex] =  _d2lnLdlz2[branchIndex] + d2lnLdlz2-  (double)w * d2;
+		 case LEWIS_CORRECTION:		   		   
+		   _dlnLdlz[branchIndex]   +=  dlnLdlz - (double)w * d1;
+		   _d2lnLdlz2[branchIndex] +=  d2lnLdlz2-  (double)w * d2;
 		   break;
 		 case STAMATAKIS_CORRECTION:
 		   _dlnLdlz[branchIndex]   += dlnLdlz + standard_d1;
 		   _d2lnLdlz2[branchIndex] += d2lnLdlz2 + standard_d2;
 		   break;
 		 case FELSENSTEIN_CORRECTION:
-		   _dlnLdlz[branchIndex]   += dlnLdlz +   tr->partitionData[model].invariableWeight * felsenstein_d1;
+		   _dlnLdlz[branchIndex]   += dlnLdlz   + tr->partitionData[model].invariableWeight * felsenstein_d1;
 		   _d2lnLdlz2[branchIndex] += d2lnLdlz2 + tr->partitionData[model].invariableWeight * felsenstein_d2;
 		   break;
+		 case GOLDMAN_CORRECTION_1:		  		 
+		   _dlnLdlz[branchIndex]   += dlnLdlz   + (double)w * goldman1_d1;
+		   _d2lnLdlz2[branchIndex] += d2lnLdlz2 + (double)w * goldman1_d2;
+		   break;
+		 case GOLDMAN_CORRECTION_2:
+		   //printf("%f %f\n", goldman2_d1, goldman2_d2);
+		   //exit(0);
+		   _dlnLdlz[branchIndex]   += dlnLdlz   + (double)w * goldman2_d1;
+		   _d2lnLdlz2[branchIndex] += d2lnLdlz2 + (double)w * goldman2_d2;
+		   break;
+		 case GOLDMAN_CORRECTION_3:
+		   _dlnLdlz[branchIndex]   += dlnLdlz   + tr->partitionData[model].invariableWeight * goldman3_d1;
+		   _d2lnLdlz2[branchIndex] += d2lnLdlz2 + tr->partitionData[model].invariableWeight * goldman3_d2;
+		   break;		  
 		 default:
 		   assert(0);
 		 }

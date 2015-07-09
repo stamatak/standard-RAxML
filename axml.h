@@ -51,6 +51,8 @@
 
 #define NUM_RELL_BOOTSTRAPS 1000
 
+#define NUM_ASC_CORRECTIONS 6
+
 #define MAX_TIP_EV     0.999999999 /* max tip vector value, sum of EVs needs to be smaller than 1.0, otherwise the numerics break down */
 #define smoothings     32          /* maximum smoothing passes through tree */
 #define iterations     10          /* maximum iterations of iterations per insert */
@@ -83,7 +85,7 @@
 
 #define NUM_BRANCHES   128
 
-#define TRUE             1
+#define TRUE            1
 #define FALSE            0
 
 
@@ -166,9 +168,9 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "RAxML"
-#define programVersion     "8.1.24"
-#define programVersionInt   8124
-#define programDate        "June 29 2015"
+#define programVersion     "8.2.0"
+#define programVersionInt   8200
+#define programDate        "July 9 2015"
 
 
 #define  TREE_EVALUATION                 0
@@ -364,8 +366,12 @@ struct ent
   
   //added by Kassian for TC/IC correction on partial gene trees
   unsigned int *taxonMask;
-  boolean wasFound;
-  unsigned int bLink;
+  unsigned int   bLink;
+  double         adjustedSupport;
+  double         tempSupport;
+  int            tempSupportFrom;
+  unsigned int   coveredNumber;
+  boolean        covered;
   //Kassian modif end 
 
   struct ent *next;
@@ -787,7 +793,9 @@ typedef  struct
 #define LEWIS_CORRECTION         1
 #define FELSENSTEIN_CORRECTION   2
 #define STAMATAKIS_CORRECTION    3
-
+#define GOLDMAN_CORRECTION_1     4
+#define GOLDMAN_CORRECTION_2     5
+#define GOLDMAN_CORRECTION_3     6
 
 /**************************************************************/
 
@@ -988,6 +996,7 @@ typedef  struct  {
   boolean corrected_IC_Score;
 
   boolean useK80;
+  boolean useHKY85;
   boolean useJC69;
 
 #ifdef _USE_PTHREADS

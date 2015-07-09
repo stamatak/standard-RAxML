@@ -4209,7 +4209,7 @@ void initRateMatrix(tree *tr)
 	states = tr->partitionData[model].states,
 	rates  = (states * states - states) / 2;
       
-      if(tr->partitionData[model].dataType == DNA_DATA && (tr->useJC69 || tr->useK80))
+      if(tr->partitionData[model].dataType == DNA_DATA && (tr->useJC69 || tr->useK80 || tr->useHKY85))
 	JC69 = TRUE;
       
       switch(tr->partitionData[model].dataType)
@@ -4298,7 +4298,7 @@ static void setupK80Symmetries(tree *tr)
 {
   int model;
 
-  assert(tr->useK80);
+  assert(tr->useK80 || tr->useHKY85);
 
   for(model = 0; model < tr->NumberOfModels; model++)
     {
@@ -4557,7 +4557,7 @@ void initModel(tree *tr, rawdata *rdta, cruncheddata *cdta, analdef *adef)
   updatePerSiteRates(tr, FALSE);
  
 
-  if(tr->useK80)
+  if(tr->useK80 || tr->useHKY85)
     setupK80Symmetries(tr);
 
   setupSecondaryStructureSymmetries(tr);

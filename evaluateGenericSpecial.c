@@ -293,7 +293,8 @@ static double evaluateCatAsc(int *ex1, int *ex2,
 			     double *x1, double *x2,  
 			     double *tipVector, 
 			     unsigned char *tipX1, int n, double *diagptable, const int numStates, 
-			     double *accumulator, double *weightVector, int dataType, int nodeNumber, int *ascMissingVector)
+			     double *accumulator, double *weightVector, int dataType, int nodeNumber, int *ascMissingVector, 
+			     double *goldmanAccumulator)
 {
   double
     exponent,
@@ -348,6 +349,8 @@ static double evaluateCatAsc(int *ex1, int *ex2,
 	  if(weightVector)
 	    *accumulator += weightVector[i] * (LOG(FABS(term)) + (ex2[i] * LOG(minlikelihood)));
 
+	  *goldmanAccumulator += ((LOG(FABS(term)) + (ex2[i] * LOG(minlikelihood))) * FABS(term) * exponent);
+	  
 	  sum += unobserved;
 	}              
     }      
@@ -383,6 +386,8 @@ static double evaluateCatAsc(int *ex1, int *ex2,
 	  
 	  if(weightVector)
 	    *accumulator += weightVector[i] * (LOG(FABS(term)) + ((ex1[i] + ex2[i]) * LOG(minlikelihood)));
+
+	  *goldmanAccumulator += ((LOG(FABS(term)) + ((ex1[i] + ex2[i]) * LOG(minlikelihood))) * FABS(term) * exponent);
 	  
 	  sum += unobserved;
 	}          
@@ -396,7 +401,8 @@ static double evaluateGammaAsc(int *ex1, int *ex2,
 			       double *x1, double *x2,  
 			       double *tipVector, 
 			       unsigned char *tipX1, int n, double *diagptable, const int numStates, 
-			       double *accumulator, double *weightVector, int dataType, int nodeNumber, int *ascMissingVector)
+			       double *accumulator, double *weightVector, int dataType, int nodeNumber, int *ascMissingVector, 
+			       double *goldmanAccumulator)
 {
   double
     exponent,
@@ -456,6 +462,9 @@ static double evaluateGammaAsc(int *ex1, int *ex2,
 	  if(weightVector)
 	    *accumulator += weightVector[i] * (LOG(0.25 * FABS(term)) + (ex2[i] * LOG(minlikelihood)));
 	  
+
+	  *goldmanAccumulator += ((LOG(0.25 * FABS(term)) + (ex2[i] * LOG(minlikelihood))) * 0.25 * FABS(term) * exponent);
+
 	  sum += unobserved;
 	}              
     }              
@@ -494,6 +503,8 @@ static double evaluateGammaAsc(int *ex1, int *ex2,
 	   if(weightVector)
 	     *accumulator += weightVector[i] * (LOG(0.25 * FABS(term)) + ((ex1[i] + ex2[i]) * LOG(minlikelihood)));
 
+	   *goldmanAccumulator += ((LOG(0.25 * FABS(term)) + ((ex1[i] + ex2[i]) * LOG(minlikelihood))) * 0.25 * FABS(term) * exponent);
+	   
 	  sum += unobserved;
 	}             
     }        
@@ -3538,11 +3549,15 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 		    double 	
 		      *weightVector = (double*)NULL,
 		      accumulator = 0.0,
+		      goldmanAccumulator = 0.0,
 		      correction;
 
 		    if(tr->ascertainmentCorrectionType == STAMATAKIS_CORRECTION)		     
 		      weightVector = tr->partitionData[model].invariableFrequencies;		      
 		    //		      invariableWeight;
+
+		    for(i = tr->partitionData[model].lower; i < tr->partitionData[model].upper; i++)
+		      w += tr->cdta->aliaswgt[i];	
 
 		    switch(tr->rateHetModel)
 		      {
@@ -3557,40 +3572,47 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 			  
 			  correction = evaluateCatAsc(ex1_asc, ex2_asc, x1_start_asc, x2_start_asc, tr->partitionData[model].tipVector,
 						      tip, ascWidth, diagptable, ascWidth, &accumulator, weightVector, tr->partitionData[model].dataType, 
-						      tipNodeNumber, tr->partitionData[model].ascMissingVector);     		  	 	       
+						      tipNodeNumber, tr->partitionData[model].ascMissingVector, &goldmanAccumulator);     		  	 	       
 			}
 			break;
 		      case GAMMA:			
 			correction = evaluateGammaAsc(ex1_asc, ex2_asc, x1_start_asc, x2_start_asc, tr->partitionData[model].tipVector,
 						      tip, ascWidth, diagptable, ascWidth, &accumulator, weightVector, tr->partitionData[model].dataType,
-						      tipNodeNumber, tr->partitionData[model].ascMissingVector);			
+						      tipNodeNumber, tr->partitionData[model].ascMissingVector, &goldmanAccumulator);			
 			break;
 		      default:
 			assert(0);
 		      }
 		    
+		   
 		    switch(tr->ascertainmentCorrectionType)
 		      {
-		      case LEWIS_CORRECTION:		    
-			for(i = tr->partitionData[model].lower; i < tr->partitionData[model].upper; i++)
-			  w += tr->cdta->aliaswgt[i];		  		  	      	     	     		   
-			partitionLikelihood = partitionLikelihood - (double)w * LOG(1.0 - correction);		    
+		      case LEWIS_CORRECTION:		    			  		  	      	     	     		   
+			partitionLikelihood = partitionLikelihood - (double)w * LOG(1.0 - correction);			
 			break;
-		      case STAMATAKIS_CORRECTION:
-			//printf("accumulator %f\n", accumulator);
-			//exit(1);
+		      case STAMATAKIS_CORRECTION:		       
 			partitionLikelihood += accumulator;
 			break;
 		      case FELSENSTEIN_CORRECTION:
-			partitionLikelihood += tr->partitionData[model].invariableWeight * LOG(correction);
-			//	printf("correction %f %f\n", partitionLikelihood, tr->partitionData[model].invariableWeight * LOG(correction));
+			partitionLikelihood += tr->partitionData[model].invariableWeight * LOG(correction);		       
+			break;
+		      case GOLDMAN_CORRECTION_1:			
+			partitionLikelihood += ((correction * (double)w * LOG(correction)) / (1.0 - correction));					       	  
+			break;
+		      case GOLDMAN_CORRECTION_2:
+			//printf("Goldman acc: %f\n", goldmanAccumulator);
+			partitionLikelihood += (((double)w / (1.0 - correction)) * goldmanAccumulator);
+			break;
+		      case GOLDMAN_CORRECTION_3:
+			partitionLikelihood += ((tr->partitionData[model].invariableWeight / correction) * goldmanAccumulator);
 			break;
 		      default:
 			assert(0);
 		      }
 	      
 #ifdef _DEBUG_ASC 	      
-		    printf("E w: %f %f ARG %f ragu %f\n", partitionLikelihood, (double)w, 1.0 - correction, (double)w * LOG(1.0 - correction));
+		    printf("E w: %f %f ARG %f ragu %f\n", partitionLikelihood, (double)w, 1.0 - correction, (((double)w / (1.0 - correction)) * goldmanAccumulator));	
+		    
 #endif	      		    
 		  }
 	      

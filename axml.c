@@ -2215,7 +2215,7 @@ static void adaptRdataToSecondary(tree *tr, rawdata *rdta)
       assert(alias[i] != -1);
       tr->model[i+1]    = tr->model[alias[i]+1];
       tr->dataVector[i+1] = tr->dataVector[alias[i]+1];
-      rdta->wgt[i+1] =  rdta->wgt[alias[i]+1];      
+      rdta->wgt[i+1] =  rdta->wgt[alias[i]+1];
 
       for(j = 1; j <= rdta->numsp; j++)
 	rdta->y[j][i+1] = rdta->y[j][alias[i]+1];
@@ -4765,11 +4765,15 @@ static void printREADME(void)
 #else
   printf("      [--mesquite][--silent][--no-seq-check][--no-bfgs]\n");
 #endif
+#ifdef _NICK
+  printf("      [--asc-corr=stamatakis|felsenstein|lewis|goldman1|goldman2|goldman3]\n");
+#else
   printf("      [--asc-corr=stamatakis|felsenstein|lewis]\n");
+#endif
   printf("      [--flag-check][--auto-prot=ml|bic|aic|aicc]\n");
   printf("      [--epa-keep-placements=number][--epa-accumulated-threshold=threshold]\n");
   printf("      [--epa-prob-threshold=threshold]\n");
-  printf("      [--JC69][--K80][--asc-miss=fraction]\n");
+  printf("      [--JC69][--K80][--HKY85][--asc-miss=fraction]\n");
 #if (defined(_WAYNE_MPI) && defined(_USE_PTHREADS))
   printf("      [--set-thread-affinity]\n");
 #endif
@@ -5155,14 +5159,23 @@ static void printREADME(void)
   printf("\n");
   printf("              DEFAULT: BFGS on\n");
   printf("\n");
-  printf("      --asc-corr Allows to specify the type of ascertainment bias correction you wish to use. There are three\n");
+#ifdef _NICK
+  printf("      --asc-corr Allows to specify the type of ascertainment bias correction you wish to use. There are %d\n", NUM_ASC_CORRECTIONS);
+#else
+  printf("      --asc-corr Allows to specify the type of ascertainment bias correction you wish to use. There are %d\n", 3);
+#endif
   printf("                 types available:\n");
   printf("                 --asc-corr=lewis: the standard correction by Paul Lewis\n");
   printf("                 --asc-corr=felsenstein: a correction introduced by Joe Felsenstein that allows to explicitely specify\n");
   printf("                                         the number of invariable sites (if known) one wants to correct for.\n");
   printf("                 --asc-corr=stamatakis: a correction introduced by myself that allows to explicitely specify\n");
   printf("                                        the number of invariable sites for each character (if known) one wants to correct for.\n");
-  printf("                 For further details please refer to the manual!\n");
+#ifdef _NICK
+  printf("                 --asc-corr=goldman1: 1st correction proposed by Nick Goldman\n");
+  printf("                 --asc-corr=goldman2: 2nd correction proposed by Nick Goldman\n");
+  printf("                 --asc-corr=goldman3: 3rd correction proposed by Nick Goldman\n");
+  printf("                 For further details about the Goldman corrections please refer to the manual!\n");
+#endif
   printf("\n");
   printf("      --flag-check When using this option, RAxML will only check if all command line flags specifed are available and then exit\n");
   printf("                   with a message listing all invalid command line flags or with a message stating that all flags are valid.\n");
@@ -5193,6 +5206,10 @@ static void printREADME(void)
   printf("                  DEFAULT: Off\n");
   printf("\n");
   printf("      --K80 specify that all DNA partitions will evolve under the K80 model, this overrides all other model specifications for DNA partitions.\n");
+  printf("\n");
+  printf("                  DEFAULT: Off\n");
+  printf("\n");
+   printf("      --HKY85 specify that all DNA partitions will evolve under the HKY85 model, this overrides all other model specifications for DNA partitions.\n");
   printf("\n");
   printf("                  DEFAULT: Off\n");
   printf("\n");
@@ -5327,10 +5344,11 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
   tr->useAccumulatedEPACutoff = FALSE;
   tr->probThresholdEPA = 0.01;
 
-  //JC and K80 
+  //JC and K80 and HKY85
 
   tr->useK80 = FALSE;
   tr->useJC69 = FALSE;
+  tr->useHKY85 = FALSE;
 
   //asecryainment bias correction missing data 
 
@@ -5357,7 +5375,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
   while(1)
     {      
       static struct 
-	option long_options[15] =
+	option long_options[16] =
 	{	 
 	  {"mesquite",                  no_argument,       &flag, 1},
 	  {"silent",                    no_argument,       &flag, 1},
@@ -5370,7 +5388,8 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	  {"epa-accumulated-threshold", required_argument, &flag, 1},
 	  {"epa-prob-threshold",        required_argument, &flag, 1}, 
 	  {"JC69",                      no_argument,       &flag, 1},
-	  {"K80",                       no_argument,       &flag,  1},
+	  {"K80",                       no_argument,       &flag, 1},
+	  {"HKY85",                     no_argument,       &flag, 1},
 	  {"asc-miss",                  required_argument, &flag, 1},	 	 
 	  {"set-thread-affinity",       no_argument,       &flag, 1},
 	  {0, 0, 0, 0}
@@ -5410,21 +5429,21 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	      adef->useBFGS = FALSE;
 	      break;
 	    case 4:
-	      {
+	      {		
 		char 
-		  *ascModels[3] = {"lewis", "felsenstein", "stamatakis"};
+		  *ascModels[NUM_ASC_CORRECTIONS] = {"lewis", "felsenstein", "stamatakis", "goldman1", "goldman2", "goldman3"};
 
 		int 
 		  k;
 
-		for(k = 0; k < 3; k++)		  
+		for(k = 0; k < NUM_ASC_CORRECTIONS; k++)		  
 		  if(strcmp(optarg, ascModels[k]) == 0)
 		    break;
 
-		if(k == 3)
+		if(k == NUM_ASC_CORRECTIONS)
 		  {
 		    printf("\nError, unknown ascertainment correction type, you can specify one of the following corrections:\n\n");
-		    for(k = 0; k < 3; k++)
+		    for(k = 0; k < NUM_ASC_CORRECTIONS; k++)
 		      printf("--asc-corr=%s\n", ascModels[k]);
 		    printf("\n");
 		    errorExit(-1);
@@ -5441,6 +5460,15 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 			break;
 		      case 2:
 			tr->ascertainmentCorrectionType = STAMATAKIS_CORRECTION;
+			break;
+		      case 3:
+			tr->ascertainmentCorrectionType = GOLDMAN_CORRECTION_1;
+			break;
+		      case 4:
+			tr->ascertainmentCorrectionType = GOLDMAN_CORRECTION_2;
+			break;
+		      case 5:
+			tr->ascertainmentCorrectionType = GOLDMAN_CORRECTION_3;
 			break;
 		      default:
 			assert(0);
@@ -5543,6 +5571,10 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	      tr->useK80 = TRUE;
 	      break;
 	    case 12:
+	       tr->useHKY85 = TRUE;
+	      break;
+	      break;
+	    case 13:
 	       if(sscanf(optarg, "%lf", &(tr->ascMissing)) != 1)
 		{
 		  printf("\nError parsing ascertainment bias missing data fraction correction, RAxML expects a floating point value > 0.0 and < 1.0\n\n");
@@ -5559,7 +5591,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 #endif
 	       tr->useAscMissing = TRUE;
 	      break;
-	    case 13:
+	    case 14:
 #if (defined(_WAYNE_MPI) && defined(_USE_PTHREADS))
 	      adef->setThreadAffinity = TRUE;
 #else
@@ -5577,10 +5609,10 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 		assert(0);
 	    }
 
-	  if(tr->useK80 && tr->useJC69)
+	  if((tr->useK80 + tr->useJC69 + tr->useHKY85) > 1)
 	    {
-	      printf("\nYou can't use \"--JC69\" and \"--K80\" options simultaneously!\n");
-	      printf("You can either use  \"--JC69\" or \"--K80\" !\n");
+	      printf("\nYou can't use \"--JC69\" and \"--K80\" and \"--HKY85\" options simultaneously!\n");
+	      printf("You can either use  \"--JC69\" or \"--K80\" or \"--HKY85\"!\n");
 	      printf("exiting .....\n\n");
 	      errorExit(-1);
 	    }
@@ -6976,8 +7008,8 @@ static void makeFileNames(void)
   strcat(bipartitionsFileName,              "RAxML_bipartitions.");
   strcat(bipartitionsFileNameBranchLabels,  "RAxML_bipartitionsBranchLabels.");
   strcat(icFileNameBranchLabels,            "RAxML_IC_Score_BranchLabels.");
-  strcat(icFileNameBranchLabelsStochastic,  "RAxML_Corrected_Stochastic_IC_Score_BranchLabels.");
-  strcat(icFileNameBranchLabelsUniform,     "RAxML_Corrected_Uniform_IC_Score_BranchLabels.");
+  strcat(icFileNameBranchLabelsStochastic,  "RAxML_Corrected_Probabilistic_IC_Score_BranchLabels.");
+  strcat(icFileNameBranchLabelsUniform,     "RAxML_Corrected_Lossless_IC_Score_BranchLabels.");
   strcat(ratesFileName,                     "RAxML_perSiteRates.");
   strcat(lengthFileName,                    "RAxML_treeLength.");
   strcat(lengthFileNameModel,               "RAxML_treeLengthModel.");
@@ -7315,7 +7347,7 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
 		case DNA_DATA:
 		  {
 		    char 
-		      *matrices[3] = {"GTR", "JC69", "K80"};
+		      *matrices[4] = {"GTR", "JC69", "K80", "HKY85"};
 		    
 		    int 
 		      index = -1;
@@ -7329,7 +7361,12 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
 			if(tr->useK80)
 			  index = 2;
 			else
-			  index = 0;
+			  {
+			    if(tr->useHKY85)
+			      index = 3;
+			    else
+			      index = 0;
+			  }
 		      }
 		    
 		    printBoth(infoFile, "Substitution Matrix: %s\n", matrices[index]);
@@ -8331,7 +8368,7 @@ static void finalizeInfoFile(tree *tr, analdef *adef)
 	  printBothOpen("Execution information file written to :  %s\n",infoFileName);
 	  break;
 	case CALC_BIPARTITIONS_IC:
-	  printBothOpen("\n\nTime for Computation of TC and IC scores %f\n", t);
+	  printBothOpen("\n\nTime for Computation of TC and IC scores %f\n\n", t);
 	  
 	  if(tr->corrected_IC_Score)
 	    {
@@ -8342,7 +8379,7 @@ static void finalizeInfoFile(tree *tr, analdef *adef)
 	  else
 	    printBothOpen("Tree with IC scores as branch labels written to file:  %s\n", icFileNameBranchLabels);	  
 	  
-	  printBothOpen("Execution information file written to :  %s\n",infoFileName);
+	  printBothOpen("Execution information file written to :  %s\n\n",infoFileName);
 	  break; 
 	case PER_SITE_LL:
 	  printBothOpen("\n\nTime for Optimization of per-site log likelihoods %f\n", t);
@@ -10821,15 +10858,18 @@ static void extractTaxaFromTopology(tree *tr, rawdata *rdta, cruncheddata *cdta,
 
   while((c = fgetc(f)) != ';')
     {
+      
       if(c == '(' || c == ',')
 	{
 	  c = fgetc(f);
 	  if(c ==  '(' || c == ',')
-	    ungetc(c, f);
+	    {
+	      ungetc(c, f);
+	    }
 	  else
 	    {	      
 	      i = 0;	      	     
-	      
+	     
 	      do
 		{
 		  buffer[i++] = c;
@@ -10901,7 +10941,10 @@ static void extractTaxaFromTopology(tree *tr, rawdata *rdta, cruncheddata *cdta,
 
   tr->nameHash = initStringHashTable(10 * taxaCount);
   for(i = 1; i <= taxaCount; i++)   
-    addword(tr->nameList[i], tr->nameHash, i);
+    {
+      printf("add [%s]\n", tr->nameList[i]);
+      addword(tr->nameList[i], tr->nameHash, i);
+    }
 
   fclose(f);
 }
@@ -12526,7 +12569,7 @@ static void checkAscBias(tree *tr)
 
 static void readAscFiles(tree *tr)
  {     
-   if(tr->ascertainmentCorrectionType == STAMATAKIS_CORRECTION || tr->ascertainmentCorrectionType == FELSENSTEIN_CORRECTION)
+   if(tr->ascertainmentCorrectionType == STAMATAKIS_CORRECTION || tr->ascertainmentCorrectionType == FELSENSTEIN_CORRECTION || tr->ascertainmentCorrectionType == GOLDMAN_CORRECTION_3)
      {
        int 
 	 model;
@@ -12574,6 +12617,7 @@ static void readAscFiles(tree *tr)
 		       }
 		       break;
 		     case FELSENSTEIN_CORRECTION:
+		     case GOLDMAN_CORRECTION_3:
 		       {
 			 unsigned int 
 			   length;

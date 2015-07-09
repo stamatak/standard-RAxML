@@ -435,7 +435,7 @@ static void analyzeIdentifier(char **ch, int modelNumber, tree *tr)
 	  if(!found)
 	    {		  	  
 	      if(strcasecmp(model, "DNA") == 0 || strcasecmp(model, "DNAX") == 0 || strcasecmp(model, "ASC_DNA") == 0 || strcasecmp(model, "ASC_DNAX") == 0)
-		{	     	      
+		{ 
 		  tr->initialPartitionData[modelNumber].protModels = -1;		  
 		  tr->initialPartitionData[modelNumber].usePredefinedProtFreqs  = FALSE;
 		  tr->initialPartitionData[modelNumber].dataType   = DNA_DATA;
@@ -450,6 +450,7 @@ static void analyzeIdentifier(char **ch, int modelNumber, tree *tr)
 		    }
 		  else
 		    {
+		     
 		      if(strcasecmp(model, "ASC_DNA") == 0)
 			tr->initialPartitionData[modelNumber].ascBias = TRUE;
 		      else
