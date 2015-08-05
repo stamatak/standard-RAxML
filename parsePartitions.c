@@ -210,6 +210,7 @@ static void analyzeIdentifier(char **ch, int modelNumber, tree *tr)
 	  
 	  while(model[index] != '~')
 	    {
+	      assert(index <= upper);
 	      designator[pos] = model[index];
 	      pos++;
 	      index++;
