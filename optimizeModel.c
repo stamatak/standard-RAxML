@@ -80,6 +80,8 @@ extern volatile double          *reductionBuffer;
 #define RATE_F_HET 7
 #endif
 
+static void optimizeRatesBFGS(tree *tr);
+static void setRateModel(tree *tr, int model, double rate, int position);
 
 static void brentGeneric(double *ax, double *bx, double *cx, double *fb, double tol, double *xmin, double *result, int numberOfModels, 
 			 int whichFunction, int rateNumber, tree *tr, linkageList *ll, double *lim_inf, double *lim_sup);
@@ -101,7 +103,7 @@ static void updateWeights(tree *tr, int model, int rate, double value);
 #ifdef _HET
 static void setRateModel(tree *tr, int model, double rate, int position, boolean isHet)
 #else
-void setRateModel(tree *tr, int model, double rate, int position)
+static void setRateModel(tree *tr, int model, double rate, int position)
 #endif
 {
   int
@@ -4230,7 +4232,7 @@ static double derivativeFunk(double *x, double *dfx, int n, tree *tr)
 
 
 
-void optimizeRatesBFGS(tree *tr)
+static void optimizeRatesBFGS(tree *tr)
 {
   int 
     model,

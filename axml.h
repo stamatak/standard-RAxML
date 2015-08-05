@@ -168,9 +168,9 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "RAxML"
-#define programVersion     "8.2.0"
-#define programVersionInt   8200
-#define programDate        "July 9 2015"
+#define programVersion     "8.2.1"
+#define programVersionInt   8210
+#define programDate        "August 5 2015"
 
 
 #define  TREE_EVALUATION                 0
@@ -1210,8 +1210,7 @@ typedef struct
 
 /****************************** FUNCTIONS ****************************************************/
 
-extern void optimizeRatesBFGS(tree *tr);
-extern void setRateModel(tree *tr, int model, double rate, int position);
+
 
 extern void ascertainmentBiasSequence(unsigned char tip[32], int numStates, int dataType, int nodeNumber, int *ascMissingVector);
 

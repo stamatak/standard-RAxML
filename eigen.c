@@ -31,9 +31,7 @@
 
 #include <math.h>
 #include <assert.h>
-#include "axml.h"
-#include <string.h>
-#include <stdlib.h>
+
 
 static void mytred2(double **a, const int n, double *d, double *e)
 {
