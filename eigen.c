@@ -31,7 +31,9 @@
 
 #include <math.h>
 #include <assert.h>
-
+#include "axml.h"
+#include <string.h>
+#include <stdlib.h>
 
 static void mytred2(double **a, const int n, double *d, double *e)
 {
@@ -198,3 +200,5 @@ void makeEigen(double **_a, const int n, double *d, double *e)
   mytred2(_a, n, d, e);
   mytqli(d, e, n, _a);
 }
+
+

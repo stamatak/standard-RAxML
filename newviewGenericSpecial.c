@@ -3414,7 +3414,7 @@ static void newviewGTRGAMMA(int tipCase,
 		 if(useFastScaling)
 		   addScale += wgt[i];
 		 else
-		   ex3[i]  += 1;
+		   ex3[i]  += 1;	     
 	       }
 	     else
 	       {
@@ -3594,7 +3594,7 @@ static void newviewGTRGAMMA(int tipCase,
 	     if(useFastScaling)
 	       addScale += wgt[i];
 	     else
-	       ex3[i]  += 1;
+	       ex3[i]  += 1;	     
 	   }
 	 else
 	   {

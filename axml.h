@@ -1210,6 +1210,9 @@ typedef struct
 
 /****************************** FUNCTIONS ****************************************************/
 
+extern void optimizeRatesBFGS(tree *tr);
+extern void setRateModel(tree *tr, int model, double rate, int position);
+
 extern void ascertainmentBiasSequence(unsigned char tip[32], int numStates, int dataType, int nodeNumber, int *ascMissingVector);
 
 extern void computePlacementBias(tree *tr, analdef *adef);

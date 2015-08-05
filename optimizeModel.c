@@ -101,7 +101,7 @@ static void updateWeights(tree *tr, int model, int rate, double value);
 #ifdef _HET
 static void setRateModel(tree *tr, int model, double rate, int position, boolean isHet)
 #else
-static void setRateModel(tree *tr, int model, double rate, int position)
+void setRateModel(tree *tr, int model, double rate, int position)
 #endif
 {
   int
@@ -3402,7 +3402,8 @@ static void checkTolerance(double l1, double l2)
     }
 }
 
-static void optimizeRatesBFGS(tree *tr);
+
+//#define  _DEBUG_MOD_OPT
 
 void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilon)
 { 
@@ -3520,7 +3521,7 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
 
       if(tr->NumberOfModels == 1 && tr->partitionData[0].dataType == DNA_DATA && adef->useBFGS && !(tr->useJC69 || tr->useK80 || tr->useHKY85))
 	{	  	 
-	    optimizeRatesBFGS(tr);
+	    optimizeRatesBFGS(tr);	   
 	}
       else
 	optRatesGeneric(tr, modelEpsilon, rateList);         
@@ -3741,38 +3742,34 @@ static double targetFunk(double *x, int n, tree *tr)
 {
   int
     model,
-    i = 1;
-
- 
+    i = 1;  
+  
   for(model = 0; model < tr->NumberOfModels; model++)
     {
       int 
 	k;
       
-      for(k = 0; k < 5; k++, i++)
-	{
-	  //printf("model %d rate %d i %d value %f\n", model, k, i, x[i]);
-	  setRateModel(tr, model, x[i], k);  
-	}
+      for(k = 0; k < 5; k++, i++)       
+	setRateModel(tr, model, x[i], k);         
       
       initReversibleGTR(tr, model); 
-#ifdef _USE_PTHREADS
-      masterBarrier(THREAD_COPY_RATES, tr);	
-#endif
     }
 
   assert(i == n + 1);
   
+#ifdef _USE_PTHREADS
+  masterBarrier(THREAD_COPY_RATES, tr);	
+#endif
   
+     
   //TODO when optimizing some quantities we actually need to 
   //only evaluate at the root without re-traversing the entire tree 
   
-  evaluateGenericInitrav(tr, tr->start);
+  evaluateGenericInitrav(tr, tr->start);    
   
   //minh confirm that we are actually really trying to minimize, hence 
   //reverting the sign of the lnl is correct below?
-  ////MINH: Yes correct, this is minization, returning negative logl does the job
-  
+  ////MINH: Yes correct, this is minization, returning negative logl does the job 
 
   return (-1.0 * tr->likelihood);
 }
@@ -3787,7 +3784,7 @@ static void fixBound(double *x, double *lower, double *upper, int n)
 {
   int 
     i;
-  
+
   for (i = 1; i <= n; i++) 
     {
       if(x[i] < lower[i])
@@ -3813,8 +3810,8 @@ static void lnsrch(int n, double *xold, double fold, double *g, double *p, doubl
   boolean 
     first_time = TRUE;
   
-  *check=0;
-  
+  *check=0;   
+
   for (sum=0.0,i=1;i<=n;i++) 
     sum += p[i]*p[i];
   
@@ -3853,16 +3850,17 @@ static void lnsrch(int n, double *xold, double fold, double *g, double *p, doubl
  
   
   for (;;) 
-    {
-      for(i = 1;i <= n; i++) 
-	x[i] = xold[i] + alam * p[i];
+    {      
+      for(i = 1;i <= n; i++) 		 
+	x[i] = xold[i] + alam * p[i]; 	         
       
       fixBound(x, lower, upper, n);
 
       //minh is the commented code below needed?
       ////MINH: this is indeed not needed
       //checkRange(x);
-            
+      
+      
       *f=targetFunk(x, n, tr);
       
       if(alam < alamin) 
@@ -3923,7 +3921,8 @@ static void dfpmin(double *p, int n, double *lower, double *upper, double gtol, 
 static double derivativeFunk(double *x, double *dfx, int n, tree *tr);
 
 //minh is guess over-written by this function?
-////MINH: yes, guess will be overwritten by the optimized values. IMPORTANT: all arrays guess,lower,upper,bound_check are indexed from 1 to ndim (not starting from 0!). I don't know why, ask Numerical Recipes guys ;-)
+////MINH: yes, guess will be overwritten by the optimized values. IMPORTANT: all arrays guess,lower,upper,bound_check are indexed from 1 to ndim (not starting from 0!). 
+// I don't know why, ask Numerical Recipes guys ;-)
 //minh what is the exact meaining of gtol, does it refer to x or f(x)?
 ////MINH: gtol is the tolerance for the first derivative f'(x). It stops when |f'(x)| < gtol, because optimization means to find the root of f'(x)
 
@@ -4083,9 +4082,9 @@ static void dfpmin(double *p, int n, double *lower, double *upper, double gtol, 
   for(its = 1; its <= ITMAX_BFGS; its++) 
     {
       *iter = its;
-      
+     
       lnsrch(n, p, fp, g, xi, pnew, fret, stpmax, &check, lower, upper, tr);
-      
+        
       fp = *fret;
       
       for (i=1;i<=n;i++) 
@@ -4093,7 +4092,7 @@ static void dfpmin(double *p, int n, double *lower, double *upper, double gtol, 
 	  xi[i]=pnew[i]-p[i];
 	  p[i]=pnew[i];
 	}
-      
+     
       test=0.0;
       
       for (i=1;i<=n;i++) 
@@ -4111,7 +4110,8 @@ static void dfpmin(double *p, int n, double *lower, double *upper, double gtol, 
       for (i=1;i<=n;i++) 
 	dg[i]=g[i];
       
-      derivativeFunk(p, g, n, tr);
+      derivativeFunk(p, g, n, tr);            
+
       test=0.0;
       
       den = FMAX(fabs(*fret),1.0);
@@ -4142,8 +4142,8 @@ static void dfpmin(double *p, int n, double *lower, double *upper, double gtol, 
 	  for (j=1;j<=n;j++) 
 	    hdg[i] += hessin[i][j]*dg[j];
 	}
-      
-      fac=fae=sumdg=sumxi=0.0;
+     
+      fac=fae=sumdg=sumxi=0.0;      
       
       for (i=1;i<=n;i++) 
 	{
@@ -4151,8 +4151,8 @@ static void dfpmin(double *p, int n, double *lower, double *upper, double gtol, 
 	  fae += dg[i]*hdg[i];
 	  sumdg += SQR(dg[i]);
 	  sumxi += SQR(xi[i]);
-	}
-      
+	}      
+
       if(fac*fac > EPS*sumdg*sumxi)
 	{
 	  fac=1.0/fac;
@@ -4174,9 +4174,7 @@ static void dfpmin(double *p, int n, double *lower, double *upper, double gtol, 
 	{
 	  xi[i]=0.0;
 	  for (j=1;j<=n;j++) xi[i] -= hessin[i][j]*g[j];
-	}
-      
-      
+	}           
     }
   printf("too many iterations in dfpmin\n");
   assert(0);
@@ -4191,7 +4189,7 @@ static void dfpmin(double *p, int n, double *lower, double *upper, double gtol, 
 #undef STPMX
 #undef FREEALL
 #undef FMAX
-
+#define ERROR_X 1.0e-4
 
 /**
 	the approximated derivative function
@@ -4200,29 +4198,27 @@ static void dfpmin(double *p, int n, double *lower, double *upper, double gtol, 
 	@return the function value at x
 */
 static double derivativeFunk(double *x, double *dfx, int n, tree *tr) 
-{
-  
-  
+{ 
   double  
     h, 
     temp,
     fx = targetFunk(x, n, tr);
 
-  const double 
-    ERROR_X = 1.0e-4;
-
   int 
-    dim;
-   
+    dim;   
+
   for(dim = 1; dim <= n; dim++)
     {
       temp = x[dim];
+      
       h = ERROR_X * fabs(temp);
       if (h == 0.0) 
 	h = ERROR_X;
-      x[dim] = temp + h;
+      x[dim] = temp + h;      
       h = x[dim] - temp;
-      dfx[dim] = (targetFunk(x, n, tr) - fx) / h;
+      double t = targetFunk(x, n, tr);
+      dfx[dim] = (t - fx) / h;
+           	           
       x[dim] = temp;
     }
   
@@ -4234,7 +4230,7 @@ static double derivativeFunk(double *x, double *dfx, int n, tree *tr)
 
 
 
-static void optimizeRatesBFGS(tree *tr)
+void optimizeRatesBFGS(tree *tr)
 {
   int 
     model,
@@ -4259,8 +4255,6 @@ static void optimizeRatesBFGS(tree *tr)
 
   evaluateGenericInitrav(tr, tr->start);
   startLH = tr->likelihood;
-  
-  //printf("Enter Rates %f\n", tr->likelihood);
 
   for(model = 0, i = 1; model < tr->NumberOfModels; model++)
     {
@@ -4271,7 +4265,9 @@ static void optimizeRatesBFGS(tree *tr)
 	{
 	  guessGTR[i] = tr->partitionData[model].substRates[k];	
 	  bound_check_GTR[i] = FALSE;
-	  lowerGTR[i] = RATE_MIN;
+	  //added this max here to prevent num problems when the boundary value is set lower than 
+	  //the error margin!
+	  lowerGTR[i] = MAX(RATE_MIN, ERROR_X);
 	  upperGTR[i] = RATE_MAX;
 	}
     }
@@ -4279,26 +4275,20 @@ static void optimizeRatesBFGS(tree *tr)
   assert(i == nGTR + 1);
  
   minimizeMultiDimen(guessGTR, nGTR, lowerGTR, upperGTR, bound_check_GTR, 0.0001, tr);  
-
   
-
-  memcpy(tr->partitionData[0].substRates, &guessGTR[1], sizeof(double) * 5); 
-
-  //for(i = 0; i < 6; i++)
-  //printf("%f ", tr->partitionData[0].substRates[i]);
-  //printf("\n");
- 
+  memcpy(tr->partitionData[0].substRates, &guessGTR[1], sizeof(double) * 5);   
+  
   initReversibleGTR(tr, 0);
   
 #ifdef _USE_PTHREADS
   masterBarrier(THREAD_COPY_RATES, tr);	
+
+  
 #endif
 
   evaluateGenericInitrav(tr, tr->start);
-  endLH = tr->likelihood;
-
-  //printf("Exit: %f\n", tr->likelihood);
-
+  endLH = tr->likelihood; 
+  
   if(endLH < startLH)
     {
       printBothOpen("Reverting BFGS ... \n");
@@ -4310,8 +4300,6 @@ static void optimizeRatesBFGS(tree *tr)
       evaluateGenericInitrav(tr, tr->start);
       assert(startLH == tr->likelihood);
     }
-
-  //assert(endLH >= startLH);
 
   rax_free(guessGTR);
   rax_free(lowerGTR);

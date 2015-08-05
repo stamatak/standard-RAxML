@@ -7991,6 +7991,16 @@ void printModelParams(tree *tr, analdef *adef)
 		int 
 		  k;
 		
+		printBothOpen("\nLG4X rates: ");
+		for(k = 0; k < 4; k++)
+		  printBothOpen("%f ", tr->partitionData[model].gammaRates[k]);		 
+
+		printBothOpen("\n\nLG4X weights: ");
+		for(k = 0; k < 4; k++)
+		  printBothOpen("%f ", tr->partitionData[model].weights[k]);	
+
+		printBothOpen("\n\n");
+
 		for(k = 0; k < 4; k++)
 		  {
 		    printBothOpen("LGM %d\n", k);
@@ -8764,7 +8774,7 @@ static void copyLG4(tree *localTree, tree *tr, int model, const partitionLengths
     {
       int 
 	k;
-
+          
       for(k = 0; k < 4; k++)
 	{
 	   memcpy(localTree->partitionData[model].EIGN_LG4[k],        tr->partitionData[model].EIGN_LG4[k],        pl->eignLength * sizeof(double));
@@ -8881,8 +8891,11 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 	  dlnLdlz[NUM_BRANCHES],
 	  d2lnLdlz2[NUM_BRANCHES];
 
-	memcpy(localTree->coreLZ,   tr->coreLZ,   sizeof(double) *  localTree->numBranches);
-	memcpy(localTree->executeModel, tr->executeModel, sizeof(boolean) * localTree->NumberOfModels);
+	if(tid > 0)
+	  {
+	    memcpy(localTree->coreLZ,   tr->coreLZ,   sizeof(double) *  localTree->numBranches);
+	    memcpy(localTree->executeModel, tr->executeModel, sizeof(boolean) * localTree->NumberOfModels);
+	  }
 	
 	execCore(localTree, dlnLdlz, d2lnLdlz2);
 
