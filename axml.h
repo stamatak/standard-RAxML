@@ -662,8 +662,6 @@ typedef struct {
   double weightsBuffer[4];
   double weightExponentsBuffer[4];
 
-  double weightLikelihood;
-
   /* LG4 */
 
   double *frequencies;
