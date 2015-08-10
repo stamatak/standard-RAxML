@@ -12,7 +12,7 @@ RM = rm -f
 
 objs    = axml.o  optimizeModel.o multiple.o searchAlgo.o topologies.o parsePartitions.o treeIO.o models.o bipartitionList.o rapidBootstrap.o evaluatePartialGenericSpecial.o evaluateGenericSpecial.o newviewGenericSpecial.o makenewzGenericSpecial.o   classify.o fastDNAparsimony.o fastSearch.o leaveDropping.o rmqs.o rogueEPA.o ancestralStates.o  mem_alloc.o eigen.o 
 
-all : raxmlHPC-HYBRID
+all : clean raxmlHPC-HYBRID
 
 GLOBAL_DEPS = axml.h globalVariables.h rmq.h rmqs.h #mem_alloc.h compiler.h  gcc.h  ll_asm.h  ll_list.h
 
@@ -47,3 +47,5 @@ eigen.o : eigen.c $(GLOBAL_DEPS)
 	$(CC) -c -o eigen.o eigen.c 
 clean : 
 	$(RM) *.o raxmlHPC-HYBRID
+
+dev : raxmlHPC-HYBRID
