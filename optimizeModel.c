@@ -80,7 +80,7 @@ extern volatile double          *reductionBuffer;
 #define RATE_F_HET 7
 #endif
 
-static void optimizeRatesBFGS(tree *tr);
+static boolean optimizeRatesBFGS(tree *tr);
 static void setRateModel(tree *tr, int model, double rate, int position);
 
 static void brentGeneric(double *ax, double *bx, double *cx, double *fb, double tol, double *xmin, double *result, int numberOfModels, 
@@ -3461,7 +3461,11 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
 
       if(tr->NumberOfModels == 1 && tr->partitionData[0].dataType == DNA_DATA && adef->useBFGS && !(tr->useJC69 || tr->useK80 || tr->useHKY85))
 	{	  	 
-	    optimizeRatesBFGS(tr);	   
+	  if(optimizeRatesBFGS(tr) == FALSE)
+	    {
+	      adef->useBFGS = FALSE;
+	      optRatesGeneric(tr, modelEpsilon, rateList);
+	    }
 	}
       else
 	optRatesGeneric(tr, modelEpsilon, rateList);         
@@ -3857,7 +3861,7 @@ static void lnsrch(int n, double *xold, double fold, double *g, double *p, doubl
 
 const int MAX_ITER = 3;
 
-static void dfpmin(double *p, int n, double *lower, double *upper, double gtol, int *iter, double *fret, tree *tr);
+static void dfpmin(double *p, int n, double *lower, double *upper, double gtol, int *iter, double *fret, tree *tr,  boolean *bfgsConverged);
 static double derivativeFunk(double *x, double *dfx, int n, tree *tr);
 
 //minh is guess over-written by this function?
@@ -3866,7 +3870,7 @@ static double derivativeFunk(double *x, double *dfx, int n, tree *tr);
 //minh what is the exact meaining of gtol, does it refer to x or f(x)?
 ////MINH: gtol is the tolerance for the first derivative f'(x). It stops when |f'(x)| < gtol, because optimization means to find the root of f'(x)
 
-static double minimizeMultiDimen(double *guess, int ndim, double *lower, double *upper, boolean *bound_check, double gtol, tree *tr) 
+static double minimizeMultiDimen(double *guess, int ndim, double *lower, double *upper, boolean *bound_check, double gtol, tree *tr, boolean *bfgsConverged) 
 {
   int 
     i, 
@@ -3889,7 +3893,7 @@ static double minimizeMultiDimen(double *guess, int ndim, double *lower, double 
   
   do 
     {
-      dfpmin(guess, ndim, lower, upper, gtol, &iter, &fret, tr);
+      dfpmin(guess, ndim, lower, upper, gtol, &iter, &fret, tr, bfgsConverged);
       
       if (fret < minf) 
 	{
@@ -3974,7 +3978,7 @@ static void freeAll(double *xi, double *pnew, double **hessin, double *hdg, doub
 
 
 
-static void dfpmin(double *p, int n, double *lower, double *upper, double gtol, int *iter, double *fret, tree *tr) 
+static void dfpmin(double *p, int n, double *lower, double *upper, double gtol, int *iter, double *fret, tree *tr, boolean *bfgsConverged) 
 {
   int 
     check,
@@ -4020,7 +4024,7 @@ static void dfpmin(double *p, int n, double *lower, double *upper, double gtol, 
   stpmax = STPMX * FMAX(sqrt(sum),(double)n);
   
   for(its = 1; its <= ITMAX_BFGS; its++) 
-    {
+    {     
       *iter = its;
      
       lnsrch(n, p, fp, g, xi, pnew, fret, stpmax, &check, lower, upper, tr);
@@ -4116,8 +4120,12 @@ static void dfpmin(double *p, int n, double *lower, double *upper, double gtol, 
 	  for (j=1;j<=n;j++) xi[i] -= hessin[i][j]*g[j];
 	}           
     }
-  printf("too many iterations in dfpmin\n");
-  assert(0);
+
+  //printf("too many iterations in dfpmin\n");
+  //assert(0);
+  
+  printBothOpen("\n\n BFGS required too many iterations, reverting to Brent-based optimizer\n\n");
+  *bfgsConverged = FALSE;
   
   freeAll(xi, pnew, hessin, hdg, g, dg, n);
 }
@@ -4170,12 +4178,14 @@ static double derivativeFunk(double *x, double *dfx, int n, tree *tr)
 
 
 
-static void optimizeRatesBFGS(tree *tr)
+static boolean optimizeRatesBFGS(tree *tr)
 {
   int 
     model,
     i = 0,
     nGTR = 5 * tr->NumberOfModels;
+
+
 
   double  
     startLH,
@@ -4186,6 +4196,7 @@ static void optimizeRatesBFGS(tree *tr)
     *rateBuffer = (double*)rax_malloc(sizeof(double) * 6);
 
   boolean
+    bfgsConverged = TRUE,
     *bound_check_GTR = (boolean*)rax_malloc(sizeof(boolean) * (nGTR + 1));
   
   assert(tr->NumberOfModels == 1);
@@ -4214,7 +4225,7 @@ static void optimizeRatesBFGS(tree *tr)
 
   assert(i == nGTR + 1);
  
-  minimizeMultiDimen(guessGTR, nGTR, lowerGTR, upperGTR, bound_check_GTR, 0.0001, tr);  
+  minimizeMultiDimen(guessGTR, nGTR, lowerGTR, upperGTR, bound_check_GTR, 0.0001, tr,  &bfgsConverged);  
   
   memcpy(tr->partitionData[0].substRates, &guessGTR[1], sizeof(double) * 5);   
   
@@ -4246,4 +4257,6 @@ static void optimizeRatesBFGS(tree *tr)
   rax_free(upperGTR);
   rax_free(bound_check_GTR);
   rax_free(rateBuffer);
+
+  return bfgsConverged;
 }

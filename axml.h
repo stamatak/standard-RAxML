@@ -118,7 +118,7 @@
 #define ALPHA_MIN    0.02
 #define ALPHA_MAX    1000.0
 
-#define RATE_MIN     0.0000001
+#define RATE_MIN     0.0001
 #define RATE_MAX     1000000.0
 
 #define INVAR_MIN    0.0001
@@ -168,9 +168,9 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "RAxML"
-#define programVersion     "8.2.2"
-#define programVersionInt   8220
-#define programDate        "August 6 2015"
+#define programVersion     "8.2.3"
+#define programVersionInt   8230
+#define programDate        "August 12 2015"
 
 
 #define  TREE_EVALUATION                 0
