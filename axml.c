@@ -4772,7 +4772,7 @@ static void printREADME(void)
   printf("      [--flag-check][--auto-prot=ml|bic|aic|aicc]\n");
   printf("      [--epa-keep-placements=number][--epa-accumulated-threshold=threshold]\n");
   printf("      [--epa-prob-threshold=threshold]\n");
-  printf("      [--JC69][--K80][--HKY85][--asc-miss=fraction]\n");
+  printf("      [--JC69][--K80][--HKY85]\n");
 #if (defined(_WAYNE_MPI) && defined(_USE_PTHREADS))
   printf("      [--set-thread-affinity]\n");
 #endif
@@ -5211,9 +5211,7 @@ static void printREADME(void)
    printf("      --HKY85 specify that all DNA partitions will evolve under the HKY85 model, this overrides all other model specifications for DNA partitions.\n");
   printf("\n");
   printf("                  DEFAULT: Off\n");
-  printf("\n");
-  printf("      --asc-miss=fraction specify the fraction of missing data in the variable sites of the alignment you are trying to correct for \n");
-  printf("                  ascertainment bias. Experimental option, needs to be tested!\n");
+  printf("\n");  
 #if (defined(_WAYNE_MPI) && defined(_USE_PTHREADS))
   printf("\n");
   printf("      --set-thread-affinity specify that thread-to-core affinity shall be set by RAxML for the hybrid MPI-PThreads version\n");
