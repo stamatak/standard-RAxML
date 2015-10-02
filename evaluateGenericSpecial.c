@@ -58,7 +58,7 @@ extern const unsigned int mask32[32];
 
 
 
-void ascertainmentBiasSequence(unsigned char tip[32], int numStates, int dataType, int nodeNumber, int *ascMissingVector)
+void ascertainmentBiasSequence(unsigned char tip[32], int numStates, int dataType, int nodeNumber)
 { 
   assert(numStates <= 32 && numStates > 1);
 
@@ -66,59 +66,33 @@ void ascertainmentBiasSequence(unsigned char tip[32], int numStates, int dataTyp
   
   switch(dataType)
     {
-    case BINARY_DATA:     
-      if(ascMissingVector[nodeNumber] == 1)
-	{
-	  tip[0] = 3;
-	  tip[1] = 3;
-	}
-      else
-	{
-	  tip[0] = 1;
-	  tip[1] = 2;
-	}
+    case BINARY_DATA:          
+      tip[0] = 1;
+      tip[1] = 2;	
       break;
-    case DNA_DATA:
-      if(ascMissingVector[nodeNumber] == 1)
-	{
-	  //printf("M %d\n", nodeNumber);
-	  tip[0] = 15;
-	  tip[1] = 15;
-	  tip[2] = 15;
-	  tip[3] = 15;
-	}
-      else
-	{
-	  //printf("D %d\n", nodeNumber);
-	  tip[0] = 1;
-	  tip[1] = 2;
-	  tip[2] = 4;
-	  tip[3] = 8;
-	}
+    case DNA_DATA:      
+      tip[0] = 1;
+      tip[1] = 2;
+      tip[2] = 4;
+      tip[3] = 8;	
       break;
-    case AA_DATA:
-      if(ascMissingVector[nodeNumber] == 1)
-	assert(0);
-      else
-	{
-	  int 
-	    i;
-	  
-	  for(i = 0; i < numStates; i++)	  
-	    tip[i] = i;	  
-	}    
+    case AA_DATA:     
+      {
+	int 
+	  i;
+	
+	for(i = 0; i < numStates; i++)	  
+	  tip[i] = i;	  
+      }    
       break;
-    case GENERIC_32:
-       if(ascMissingVector[nodeNumber] == 1)
-	assert(0);
-      else	
-	{
-	  int 
-	    i;
-	  
-	  for(i = 0; i < numStates; i++)	  
-	    tip[i] = i;
-	}
+    case GENERIC_32:      	
+      {
+	int 
+	  i;
+	
+	for(i = 0; i < numStates; i++)	  
+	  tip[i] = i;
+      }
       break;
     default:
       assert(0);
@@ -293,7 +267,7 @@ static double evaluateCatAsc(int *ex1, int *ex2,
 			     double *x1, double *x2,  
 			     double *tipVector, 
 			     unsigned char *tipX1, int n, double *diagptable, const int numStates, 
-			     double *accumulator, double *weightVector, int dataType, int nodeNumber, int *ascMissingVector, 
+			     double *accumulator, double *weightVector, int dataType, int nodeNumber, 
 			     double *goldmanAccumulator)
 {
   double
@@ -315,7 +289,7 @@ static double evaluateCatAsc(int *ex1, int *ex2,
       unsigned char 
 	tip[32];
 
-      ascertainmentBiasSequence(tip, numStates, dataType, nodeNumber, ascMissingVector);  
+      ascertainmentBiasSequence(tip, numStates, dataType, nodeNumber);  
       
       for (i = 0; i < n; i++) 
 	{
@@ -401,7 +375,7 @@ static double evaluateGammaAsc(int *ex1, int *ex2,
 			       double *x1, double *x2,  
 			       double *tipVector, 
 			       unsigned char *tipX1, int n, double *diagptable, const int numStates, 
-			       double *accumulator, double *weightVector, int dataType, int nodeNumber, int *ascMissingVector, 
+			       double *accumulator, double *weightVector, int dataType, int nodeNumber,
 			       double *goldmanAccumulator)
 {
   double
@@ -427,7 +401,7 @@ static double evaluateGammaAsc(int *ex1, int *ex2,
       unsigned char 
 	tip[32];
 
-      ascertainmentBiasSequence(tip, numStates, dataType, nodeNumber, ascMissingVector);            
+      ascertainmentBiasSequence(tip, numStates, dataType, nodeNumber);            
 
       for (i = 0; i < n; i++) 
 	{
@@ -3304,7 +3278,9 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 #endif
 		      break; 
 		    case GAMMA_I:
-		      {
+		      { 
+			assert(!tr->saveMemory);
+			
 			calcDiagptable(z, DNA_DATA, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable);
 			
 			partitionLikelihood = evaluateGTRGAMMAINVAR(ex1, ex2, tr->partitionData[model].wgt, tr->partitionData[model].invariant,
@@ -3366,6 +3342,8 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 		      break;
 		    case GAMMA_I:		  	    
 		      {
+			assert(!tr->saveMemory);
+
 			calcDiagptable(z, AA_DATA, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable);
 			
 			partitionLikelihood = evaluateGTRGAMMAPROTINVAR(ex1, ex2, tr->partitionData[model].wgt, tr->partitionData[model].invariant,
@@ -3572,13 +3550,13 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 			  
 			  correction = evaluateCatAsc(ex1_asc, ex2_asc, x1_start_asc, x2_start_asc, tr->partitionData[model].tipVector,
 						      tip, ascWidth, diagptable, ascWidth, &accumulator, weightVector, tr->partitionData[model].dataType, 
-						      tipNodeNumber, tr->partitionData[model].ascMissingVector, &goldmanAccumulator);     		  	 	       
+						      tipNodeNumber, &goldmanAccumulator);     		  	 	       
 			}
 			break;
 		      case GAMMA:			
 			correction = evaluateGammaAsc(ex1_asc, ex2_asc, x1_start_asc, x2_start_asc, tr->partitionData[model].tipVector,
 						      tip, ascWidth, diagptable, ascWidth, &accumulator, weightVector, tr->partitionData[model].dataType,
-						      tipNodeNumber, tr->partitionData[model].ascMissingVector, &goldmanAccumulator);			
+						      tipNodeNumber, &goldmanAccumulator);			
 			break;
 		      default:
 			assert(0);

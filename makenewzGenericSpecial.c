@@ -2727,7 +2727,7 @@ static void sumGAMMAPROT_GAPPED_SAVE(int tipCase, double *sumtable, double *x1, 
 #endif
 
 static void sumCatAsc(int tipCase, double *sumtable, double *x1, double *x2, double *tipVector,
-		      int n, const int numStates, int dataType, int qNumber, int rNumber, int *ascMissingVector, int maxtips)
+		      int n, const int numStates, int dataType, int qNumber, int rNumber, int maxtips)
 {
   int i, k;
   double *left, *right, *sum;
@@ -2740,8 +2740,8 @@ static void sumCatAsc(int tipCase, double *sumtable, double *x1, double *x2, dou
 	  tip1[32],
 	  tip2[32];
 
-	ascertainmentBiasSequence(tip1, numStates, dataType, qNumber, ascMissingVector);
-	ascertainmentBiasSequence(tip2, numStates, dataType, rNumber, ascMissingVector);
+	ascertainmentBiasSequence(tip1, numStates, dataType, qNumber);
+	ascertainmentBiasSequence(tip2, numStates, dataType, rNumber);
 	
 	for(i = 0; i < n; i++)
 	  {
@@ -2761,9 +2761,9 @@ static void sumCatAsc(int tipCase, double *sumtable, double *x1, double *x2, dou
 	  tip[32];
 
 	if(rNumber <= maxtips)
-	  ascertainmentBiasSequence(tip, numStates, dataType, rNumber, ascMissingVector);
+	  ascertainmentBiasSequence(tip, numStates, dataType, rNumber);
 	else
-	  ascertainmentBiasSequence(tip, numStates, dataType, qNumber, ascMissingVector);
+	  ascertainmentBiasSequence(tip, numStates, dataType, qNumber);
 
 	for(i = 0; i < n; i++)
 	  {
@@ -2795,7 +2795,7 @@ static void sumCatAsc(int tipCase, double *sumtable, double *x1, double *x2, dou
 }
 
 static void sumGammaAsc(int tipCase, double *sumtable, double *x1, double *x2, double *tipVector,
-			int n, const int numStates, int dataType, int qNumber, int rNumber, int *ascMissingVector, int maxtips)
+			int n, const int numStates, int dataType, int qNumber, int rNumber, int maxtips)
 {
   int i, l, k;
   double *left, *right, *sum;
@@ -2811,8 +2811,8 @@ static void sumGammaAsc(int tipCase, double *sumtable, double *x1, double *x2, d
 	  tip1[32],
 	  tip2[32];
 
-	ascertainmentBiasSequence(tip1, numStates, dataType, qNumber, ascMissingVector);
-	ascertainmentBiasSequence(tip2, numStates, dataType, rNumber, ascMissingVector);
+	ascertainmentBiasSequence(tip1, numStates, dataType, qNumber);
+	ascertainmentBiasSequence(tip2, numStates, dataType, rNumber);
 
 	for(i = 0; i < n; i++)
 	  {
@@ -2834,9 +2834,9 @@ static void sumGammaAsc(int tipCase, double *sumtable, double *x1, double *x2, d
 	  tip[32];
 
 	if(rNumber < maxtips)
-	  ascertainmentBiasSequence(tip, numStates, dataType, rNumber, ascMissingVector);
+	  ascertainmentBiasSequence(tip, numStates, dataType, rNumber);
 	else
-	  ascertainmentBiasSequence(tip, numStates, dataType, qNumber, ascMissingVector);
+	  ascertainmentBiasSequence(tip, numStates, dataType, qNumber);
 
       for(i = 0; i < n; i++)
 	{
@@ -4207,11 +4207,11 @@ void makenewzIterative(tree *tr)
 	      	{
 		case CAT:
 		  sumCatAsc(tipCase, tr->partitionData[model].ascSumBuffer, x1_start_asc, x2_start_asc, tr->partitionData[model].tipVector,
-			    states, states, tr->partitionData[model].dataType, pNumber, qNumber, tr->partitionData[model].ascMissingVector, tr->mxtips);
+			    states, states, tr->partitionData[model].dataType, pNumber, qNumber, tr->mxtips);
 		  break;
 		case GAMMA:
 		  sumGammaAsc(tipCase, tr->partitionData[model].ascSumBuffer, x1_start_asc, x2_start_asc, tr->partitionData[model].tipVector,
-			      states, states, tr->partitionData[model].dataType, pNumber, qNumber, tr->partitionData[model].ascMissingVector, tr->mxtips);
+			      states, states, tr->partitionData[model].dataType, pNumber, qNumber, tr->mxtips);
 		  break;
 		default:
 		  assert(0);

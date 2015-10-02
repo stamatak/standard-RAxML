@@ -528,7 +528,7 @@ static void newviewAscCat(int tipCase,
 			  double *x1, double *x2, double *x3, double *extEV, double *tipVector,
 			  int *ex3, 
 			  const int n, double *left, double *right, 			    
-			  const int numStates, int dataType, const int qNumber, const int rNumber, int *ascMissingVector, int maxtips)
+			  const int numStates, int dataType, const int qNumber, const int rNumber, int maxtips)
 {
   double
     *le, *ri, *v, *vl, *vr,
@@ -545,8 +545,8 @@ static void newviewAscCat(int tipCase,
 	  tip1[32],
 	  tip2[32];
 	
-	ascertainmentBiasSequence(tip1, numStates, dataType, qNumber, ascMissingVector);
-	ascertainmentBiasSequence(tip2, numStates, dataType, rNumber, ascMissingVector);
+	ascertainmentBiasSequence(tip1, numStates, dataType, qNumber);
+	ascertainmentBiasSequence(tip2, numStates, dataType, rNumber);
 	
 	assert(qNumber <= maxtips && rNumber <= maxtips);
 
@@ -587,9 +587,9 @@ static void newviewAscCat(int tipCase,
 	  tip[32];
 
 	if(rNumber <= maxtips)
-	  ascertainmentBiasSequence(tip, numStates, dataType, rNumber, ascMissingVector);
+	  ascertainmentBiasSequence(tip, numStates, dataType, rNumber);
 	else
-	  ascertainmentBiasSequence(tip, numStates, dataType, qNumber, ascMissingVector);
+	  ascertainmentBiasSequence(tip, numStates, dataType, qNumber);
 	
 	for (i = 0; i < n; i++)
 	  {
@@ -690,7 +690,7 @@ static void newviewAscGamma(int tipCase,
 			    double *x1, double *x2, double *x3, double *extEV, double *tipVector,
 			    int *ex3, 
 			    const int n, double *left, double *right, 			    
-			    const int numStates, int dataType, const int qNumber, const int rNumber, int *ascMissingVector, int maxtips)
+			    const int numStates, int dataType, const int qNumber, const int rNumber, int maxtips)
 {
   
   int  
@@ -713,8 +713,8 @@ static void newviewAscGamma(int tipCase,
 	  tip1[32],
 	  tip2[32];
 		
-	ascertainmentBiasSequence(tip1, numStates, dataType, qNumber, ascMissingVector);
-	ascertainmentBiasSequence(tip2, numStates, dataType, rNumber, ascMissingVector);
+	ascertainmentBiasSequence(tip1, numStates, dataType, qNumber);
+	ascertainmentBiasSequence(tip2, numStates, dataType, rNumber);
 
 	assert(qNumber <= maxtips && rNumber <= maxtips);
 
@@ -753,9 +753,9 @@ static void newviewAscGamma(int tipCase,
 	  tip[32];
 
 	if(rNumber <= maxtips)
-	  ascertainmentBiasSequence(tip, numStates, dataType, rNumber, ascMissingVector);
+	  ascertainmentBiasSequence(tip, numStates, dataType, rNumber);
 	else
-	  ascertainmentBiasSequence(tip, numStates, dataType, qNumber, ascMissingVector);
+	  ascertainmentBiasSequence(tip, numStates, dataType, qNumber);
 
 	for (i = 0; i < n; i++)
 	  {
@@ -8622,7 +8622,7 @@ void newviewIterative (tree *tr)
 				      tr->partitionData[model].EV,
 				      tr->partitionData[model].tipVector,				      ex3_asc,
 				      states, left, right, states, tr->partitionData[model].dataType, 
-				      tInfo->qNumber, tInfo->rNumber, tr->partitionData[model].ascMissingVector, tr->mxtips);
+				      tInfo->qNumber, tInfo->rNumber, tr->mxtips);
 		      }
 		      break;
 		    case GAMMA:
@@ -8632,7 +8632,7 @@ void newviewIterative (tree *tr)
 				      tr->partitionData[model].tipVector,
 				      ex3_asc,
 				      states, left, right, states, tr->partitionData[model].dataType, 
-				      tInfo->qNumber, tInfo->rNumber, tr->partitionData[model].ascMissingVector, tr->mxtips);			   
+				      tInfo->qNumber, tInfo->rNumber, tr->mxtips);			   
 		      break;
 		    default:
 		      assert(0);

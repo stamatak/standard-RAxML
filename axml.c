@@ -3360,8 +3360,7 @@ static void allocNodex (tree *tr)
 	  	 
 	  tr->partitionData[model].ascExpVector = (int *)rax_calloc(((size_t)tr->innerNodes) * ((size_t)tr->partitionData[model].states),
 								 sizeof(int));
-
-	  tr->partitionData[model].ascMissingVector = (int *)rax_calloc((size_t)(tr->mxtips + 1), sizeof(int));
+	 
 	  
 	  tr->partitionData[model].ascSumBuffer = (double *)rax_malloc(((size_t)tr->partitionData[model].ascOffset) *
 								       sizeof(double));
@@ -5350,10 +5349,6 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
   tr->useJC69 = FALSE;
   tr->useHKY85 = FALSE;
 
-  //asecryainment bias correction missing data 
-
-  tr->useAscMissing = FALSE;
-
 #ifdef _BASTIEN
   tr->doBastienStuff = FALSE;
 #endif
@@ -5375,7 +5370,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
   while(1)
     {      
       static struct 
-	option long_options[16] =
+	option long_options[15] =
 	{	 
 	  {"mesquite",                  no_argument,       &flag, 1},
 	  {"silent",                    no_argument,       &flag, 1},
@@ -5389,8 +5384,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	  {"epa-prob-threshold",        required_argument, &flag, 1}, 
 	  {"JC69",                      no_argument,       &flag, 1},
 	  {"K80",                       no_argument,       &flag, 1},
-	  {"HKY85",                     no_argument,       &flag, 1},
-	  {"asc-miss",                  required_argument, &flag, 1},	 	 
+	  {"HKY85",                     no_argument,       &flag, 1},	 	 	 
 	  {"set-thread-affinity",       no_argument,       &flag, 1},
 	  {0, 0, 0, 0}
 	};
@@ -5573,25 +5567,8 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	    case 12:
 	       tr->useHKY85 = TRUE;
 	      break;
-	      break;
+	      break;	   
 	    case 13:
-	       if(sscanf(optarg, "%lf", &(tr->ascMissing)) != 1)
-		{
-		  printf("\nError parsing ascertainment bias missing data fraction correction, RAxML expects a floating point value > 0.0 and < 1.0\n\n");
-		  errorExit(-1);
-		}
-	       if(tr->ascMissing <= 0.0 || tr->ascMissing >= 1.0)
-		{
-		  printf("\nError parsing ascertainment missing data fraction correction, RAxML expects a floating point value >= 0.0 and <= 1.0\n\n");
-		  errorExit(-1);
-		}
-#ifdef _USE_PTHREADS
-	       printf("\nError: ascertainment missing data fraction correction not implemented for PThreads version yet, exiting!\n\n");
-	       errorExit(-1);
-#endif
-	       tr->useAscMissing = TRUE;
-	      break;
-	    case 14:
 #if (defined(_WAYNE_MPI) && defined(_USE_PTHREADS))
 	      adef->setThreadAffinity = TRUE;
 #else
@@ -8693,9 +8670,7 @@ static void allocNodex(tree *tr, int tid, int n)
 								    sizeof(double));
 
 	  tr->partitionData[model].ascExpVector = (int *)rax_calloc(((size_t)tr->innerNodes) * ((size_t)tr->partitionData[model].states),
-								 sizeof(int));
-
-	  tr->partitionData[model].ascMissingVector = (int *)rax_calloc((size_t)(tr->mxtips + 1), sizeof(int));
+								 sizeof(int));	  
 	  
 	  tr->partitionData[model].ascSumBuffer = (double *)rax_malloc(((size_t)tr->partitionData[model].ascOffset) *
 								       sizeof(double));	  
@@ -12902,32 +12877,7 @@ static void stealBranchLengths(tree *tr, analdef *adef)
 }
 
 
-static void setupAscMissing(tree *tr, analdef *adef)
- {
-   int     
-     model,    
-     *perm = (int*)rax_malloc(sizeof(int) * (size_t)(tr->mxtips + 1));  
-  
-   for(model = 0; model < tr->NumberOfModels; model++)
-     {
-       if(tr->partitionData[model].ascBias && tr->useAscMissing)
-	 {
-	   int
-	     cutoff = (int)(tr->ascMissing * (double)(tr->mxtips) + 0.5),
-	     i;
 
-	   makePermutation(perm, 1, tr->mxtips, adef);	    
-	    
-	   for(i = 1; i <= cutoff; i++)	     	      
-	     tr->partitionData[model].ascMissingVector[perm[i]] = 1;	    	   
-	 }
-     }
-	
-   //TODO need to add barrier for copying ascMissingVector to all threads 
-   //and we also need to copy the flag value!
- 
-   rax_free(perm);
- }
 
 
 
@@ -13080,7 +13030,7 @@ int main (int argc, char *argv[])
     if(!adef->readTaxaOnly)
       {
 	int        
-	  countNonSev = 0,
+	  countNonSev = 0,	 
 	  countLG4 =0;
 	
 	assert(countAscBias == 0);
@@ -13095,7 +13045,8 @@ int main (int argc, char *argv[])
 	for(i = 0; i < tr->NumberOfModels; i++)
 	  {	    
 	    if(!(tr->partitionData[i].dataType == AA_DATA || tr->partitionData[i].dataType == DNA_DATA))
-	      countNonSev++;
+	      countNonSev++;	    
+	       
 	    
 	    if(tr->partitionData[i].protModels == LG4 || tr->partitionData[i].protModels == LG4X)
 	      {
@@ -13213,6 +13164,13 @@ int main (int argc, char *argv[])
   
     setRateHetAndDataIncrement(tr, adef);
 
+    if(tr->rateHetModel == GAMMA_I && tr->saveMemory)
+      {
+	 printf("\nError: Memory saving option \"-U\" not implemented for models with proportion\n");
+	 printf("of variable site estimates, reomve \"-U\" from your command line and re-run, exiting now.\n\n");
+	 errorExit(-1);
+      }
+
     if(countAscBias > 0 && !adef->readTaxaOnly)
       {
 	if(tr->ascertainmentCorrectionType == NOT_DEFINED)
@@ -13237,8 +13195,6 @@ int main (int argc, char *argv[])
     
     
     readAscFiles(tr);
-
-    setupAscMissing(tr, adef);
 
     if(!adef->readTaxaOnly) 
       {
