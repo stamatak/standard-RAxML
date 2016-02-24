@@ -3050,7 +3050,181 @@ static void checkSequences(tree *tr, rawdata *rdta, analdef *adef)
 
 
 
+static void printPartitionFile(tree *tr, analdef *adef, char* newPartitionFile)
+{
+  if(adef->useMultipleModel && !filexists(newPartitionFile))
+    {
+      FILE 
+	*newFile = myfopen(newPartitionFile, "wb");
+     
+      int 	
+	i,
+	l = 1,
+	partitions = 0;
 
+      printBothOpen("\n\nA partitioned model file with model assignments for bootstrap alignments \n");
+      printBothOpen("is printed to file %s\n",newPartitionFile);
+      printBothOpen("IMPORTANT: You MUST use this new model file and NOT the original one when running RAxML and ExaML on these bootstrapped alignments!\n\n");
+
+
+      for(i = 1; i < tr->cdta->endsite; i++)
+	assert(tr->model[i] >= tr->model[i-1]);	
+	       
+      for(i = 0; i < tr->NumberOfModels; i++)
+	{
+	  int 	   
+	    lower, 
+	    upper;
+
+	    switch(tr->partitionData[i].dataType)
+	      {
+	      case AA_DATA:
+		{
+		  char
+		    AAmodel[1024];
+
+		  if(tr->partitionData[i].protModels != PROT_FILE)
+		    {
+		      if(tr->partitionData[i].ascBias)
+			{
+			  strcpy(AAmodel, "ASC_");
+			  strcat(AAmodel, protModels[tr->partitionData[i].protModels]);
+			}
+		      else
+			strcpy(AAmodel, protModels[tr->partitionData[i].protModels]);
+		      if(tr->partitionData[i].usePredefinedProtFreqs == FALSE)
+			strcat(AAmodel, "F");
+
+		      if(tr->partitionData[i].optimizeBaseFrequencies == TRUE)
+			strcat(AAmodel, "X");
+
+		      assert(!(tr->partitionData[i].optimizeBaseFrequencies && tr->partitionData[i].usePredefinedProtFreqs));
+
+		      fprintf(newFile, "%s, ", AAmodel);
+		    }
+		  else
+		    fprintf(newFile, "[%s], ", tr->partitionData[i].proteinSubstitutionFileName);
+		}
+		break;
+	      case DNA_DATA:
+		if(tr->partitionData[i].ascBias)
+		  {
+		    if(tr->partitionData[i].optimizeBaseFrequencies == TRUE)
+		      fprintf(newFile, "ASC_DNAX, ");
+		    else
+		      fprintf(newFile, "ASC_DNA, ");
+		  }
+		else
+		  {
+		    if(tr->partitionData[i].optimizeBaseFrequencies == TRUE)
+		      fprintf(newFile, "DNAX, ");
+		    else
+		      fprintf(newFile, "DNA, ");
+		  }
+		break;
+	      case BINARY_DATA:
+		 if(tr->partitionData[i].ascBias)
+		   {
+		     if(tr->partitionData[i].optimizeBaseFrequencies == TRUE)
+		       fprintf(newFile, "ASC_BINX, ");
+		     else
+		       fprintf(newFile, "ASC_BIN, ");
+		   }
+		 else
+		   {
+		     if(tr->partitionData[i].optimizeBaseFrequencies == TRUE)
+		       fprintf(newFile, "BINX, ");
+		     else
+		       fprintf(newFile, "BIN, ");
+		   }
+		break;
+	      case GENERIC_32:
+		if(tr->partitionData[i].ascBias)
+		  {
+		    if(tr->partitionData[i].optimizeBaseFrequencies == TRUE)
+		      fprintf(newFile, "ASC_MULTIX, ");
+		    else
+		      fprintf(newFile, "ASC_MULTI, ");
+		  }
+		else
+		  {
+		     if(tr->partitionData[i].optimizeBaseFrequencies == TRUE)
+		      fprintf(newFile, "MULTIX, ");
+		     else
+		      fprintf(newFile, "MULTI, ");
+		  }
+		break;
+	      case GENERIC_64:
+		if(tr->partitionData[i].ascBias)
+		  {
+		    if(tr->partitionData[i].optimizeBaseFrequencies == TRUE)
+		      fprintf(newFile, "ASC_CODONX, ");
+		    else
+		      fprintf(newFile, "ASC_CODON, ");
+		  }
+		else
+		  {
+		     if(tr->partitionData[i].optimizeBaseFrequencies == TRUE)
+		      fprintf(newFile, "CODONX, ");
+		    else
+		      fprintf(newFile, "CODON, ");
+		  }
+		break;
+	      default:
+		assert(0);
+	      }
+
+	    fprintf(newFile, "%s = ", tr->partitionData[i].partitionName);
+
+	    int 
+	      k = 0;
+	    
+	    while(k < tr->cdta->endsite)
+	      {
+		if(tr->model[k] == i)
+		  {
+		    lower = l;
+		    
+		    do
+		      {
+			l += tr->cdta->aliaswgt[k];
+		      }
+		    while((++k < tr->cdta->endsite) && (tr->model[k] == i) );
+		    
+		    upper = l-1;
+
+		    if(lower == upper)		      		       
+		      fprintf(newFile, "%d", lower);		 
+		    else
+		      {
+			assert(lower < upper);			
+			fprintf(newFile, "%d-%d", lower, upper);		  
+		      }		   
+		    partitions++;
+		  }
+		else
+		  k++;
+	      }
+            //printf("k: %d, cdta: %d\n", k, tr->cdta->endsite);
+            assert(k == tr->cdta->endsite);	    
+	    fprintf(newFile, "\n");
+	}
+      
+      assert(partitions == tr->NumberOfModels);
+      //printf("l:%d, rdta: %d\n", l, tr->rdta->sites);
+      assert(l == tr->rdta->sites + 1);
+      //assert(parts == tr->NumberOfModels);
+      fclose(newFile);      
+    }
+  else
+    {
+      if(adef->useMultipleModel)
+	{
+	  printBothOpen("\nA partitioned model file with model assignments for bootstrap alignments\n");
+	  printBothOpen("has already been printed to  file %s\n",newPartitionFile);
+	}
+    }
+}
 
 static void generateBS(tree *tr, analdef *adef)
 {
@@ -3060,7 +3234,7 @@ static void generateBS(tree *tr, analdef *adef)
     k, 
     w;
   
-  char outName[1024], buf[16];
+  char outName[1024], partName[1024], buf[16];
   FILE *of;
 
   assert(adef->boot != 0);
@@ -3078,12 +3252,24 @@ static void generateBS(tree *tr, analdef *adef)
 
       assert(count == tr->fullSites);
 
+      /* generate model file name */
+      strcpy(partName, workdir);
+      strcat(partName, modelFileName);
+      strcat(partName, ".BS");
+      sprintf(buf, "%d", i);
+      strcat(partName, buf);
+      
+      printPartitionFile(tr, adef, partName);
+      /*******/
+       
+
       strcpy(outName, workdir);
       strcat(outName, seq_file);
       strcat(outName, ".BS");
       sprintf(buf, "%d", i);
       strcat(outName, buf);
       printf("Printing replicate %d to %s\n", i, outName);
+
 
       of = myfopen(outName, "wb");
 
