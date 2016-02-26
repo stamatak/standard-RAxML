@@ -432,7 +432,7 @@ static void optimizeWeights(tree *tr, double modelEpsilon, linkageList *ll, int 
     initialLH = 0.0,
     finalLH   = 0.0;
 
-  evaluateGeneric(tr, tr->start);
+  evaluateGenericInitrav(tr, tr->start);
  
   initialLH = tr->likelihood;
   //printf("W: %f %f [%f] ->", tr->perPartitionLH[0], tr->perPartitionLH[1], initialLH);

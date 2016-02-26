@@ -3239,6 +3239,23 @@ static void generateBS(tree *tr, analdef *adef)
 
   assert(adef->boot != 0);
 
+  {
+    int 
+      i,
+      w = 0;
+
+    for(i = 0; i < tr->cdta->endsite; i++)
+      w += tr->cdta->aliaswgt[i];        
+
+    if(w < tr->rdta->sites)
+      {
+	printBothOpen("Error in BS replicate generation. Apparently your input alignment contains %d completely undetermined sites.\n", tr->rdta->sites - w);
+	printBothOpen("RAxML cowardly refuses to generate BS replicate MSAs on original MSAs containing entirely undetermined sites.\n\n");
+	errorExit(-1);
+      }
+  }
+  
+
   for(i = 0; i < adef->multipleRuns; i++)
     {
       int 
