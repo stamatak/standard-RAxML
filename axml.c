@@ -29,6 +29,8 @@
  */
 
 #ifdef WIN32
+#define WIN32_LEAN_AND_MEAN // skips unwanted headers like socket etc.
+#include <windows.h>
 #include <direct.h>
 #endif
 
@@ -396,13 +398,17 @@ static void setRateHetAndDataIncrement(tree *tr, analdef *adef)
 
 double gettime(void)
 {
-#ifdef WIN32
-  time_t tp;
-  struct tm localtm;
-  tp = time(NULL);
-  localtm = *localtime(&tp);
-  return 60.0*localtm.tm_min + localtm.tm_sec;
-#else
+#ifdef WIN32 // WINDOWS build
+	FILETIME tm;
+	ULONGLONG t;
+#if defined(NTDDI_WIN8) && NTDDI_VERSION >= NTDDI_WIN8 // >= WIN8
+	GetSystemTimePreciseAsFileTime( &tm );
+#else // < WIN8
+	GetSystemTimeAsFileTime( &tm );
+#endif
+	t = ((ULONGLONG)tm.dwHighDateTime << 32) | (ULONGLONG)tm.dwLowDateTime;
+	return (double)t / 10000000.0;
+#else // Unixoid build
   struct timeval ttime;
   gettimeofday(&ttime , NULL);
   return ttime.tv_sec + ttime.tv_usec * 0.000001;
