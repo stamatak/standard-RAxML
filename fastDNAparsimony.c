@@ -253,13 +253,13 @@ void newviewParsimonyIterativeFast(tree *tr)
 		parsimonyNumber
 		  *left[2],
 		  *right[2],
-		  *this[2];
+		  *thisNumber[2];
 
 		for(k = 0; k < 2; k++)
 		  {
 		    left[k]  = &(tr->partitionData[model].parsVect[(width * 2 * qNumber) + width * k]);
 		    right[k] = &(tr->partitionData[model].parsVect[(width * 2 * rNumber) + width * k]);
-		    this[k]  = &(tr->partitionData[model].parsVect[(width * 2 * pNumber) + width * k]);
+		    thisNumber[k]  = &(tr->partitionData[model].parsVect[(width * 2 * pNumber) + width * k]);
 		  }
 
 		for(i = 0; i < width; i += INTS_PER_VECTOR)
@@ -281,8 +281,8 @@ void newviewParsimonyIterativeFast(tree *tr)
 		    
 		    v_N = VECTOR_BIT_OR(l_A, l_C);
 		    
-		    VECTOR_STORE((CAST)(&this[0][i]), VECTOR_BIT_OR(l_A, VECTOR_AND_NOT(v_N, v_A)));
-		    VECTOR_STORE((CAST)(&this[1][i]), VECTOR_BIT_OR(l_C, VECTOR_AND_NOT(v_N, v_C)));		 	  	 	 	  	  	  	
+		    VECTOR_STORE((CAST)(&thisNumber[0][i]), VECTOR_BIT_OR(l_A, VECTOR_AND_NOT(v_N, v_A)));
+		    VECTOR_STORE((CAST)(&thisNumber[1][i]), VECTOR_BIT_OR(l_C, VECTOR_AND_NOT(v_N, v_C)));
 		    
 		    v_N = VECTOR_AND_NOT(v_N, allOne);
 		    
@@ -295,13 +295,13 @@ void newviewParsimonyIterativeFast(tree *tr)
 		parsimonyNumber
 		  *left[4],
 		  *right[4],
-		  *this[4];
+		  *thisNumber[4];
 
 		for(k = 0; k < 4; k++)
 		  {
 		    left[k]  = &(tr->partitionData[model].parsVect[(width * 4 * qNumber) + width * k]);
 		    right[k] = &(tr->partitionData[model].parsVect[(width * 4 * rNumber) + width * k]);
-		    this[k]  = &(tr->partitionData[model].parsVect[(width * 4 * pNumber) + width * k]);
+		    thisNumber[k]  = &(tr->partitionData[model].parsVect[(width * 4 * pNumber) + width * k]);
 		  }
 
 		for(i = 0; i < width; i += INTS_PER_VECTOR)
@@ -333,10 +333,10 @@ void newviewParsimonyIterativeFast(tree *tr)
 		    
 		    v_N = VECTOR_BIT_OR(VECTOR_BIT_OR(l_A, l_C), VECTOR_BIT_OR(l_G, l_T));	  	 	    	  
 		    
-		    VECTOR_STORE((CAST)(&this[0][i]), VECTOR_BIT_OR(l_A, VECTOR_AND_NOT(v_N, v_A)));
-		    VECTOR_STORE((CAST)(&this[1][i]), VECTOR_BIT_OR(l_C, VECTOR_AND_NOT(v_N, v_C)));
-		    VECTOR_STORE((CAST)(&this[2][i]), VECTOR_BIT_OR(l_G, VECTOR_AND_NOT(v_N, v_G)));
-		    VECTOR_STORE((CAST)(&this[3][i]), VECTOR_BIT_OR(l_T, VECTOR_AND_NOT(v_N, v_T)));	  	 	 	  	  	  	
+		    VECTOR_STORE((CAST)(&thisNumber[0][i]), VECTOR_BIT_OR(l_A, VECTOR_AND_NOT(v_N, v_A)));
+		    VECTOR_STORE((CAST)(&thisNumber[1][i]), VECTOR_BIT_OR(l_C, VECTOR_AND_NOT(v_N, v_C)));
+		    VECTOR_STORE((CAST)(&thisNumber[2][i]), VECTOR_BIT_OR(l_G, VECTOR_AND_NOT(v_N, v_G)));
+		    VECTOR_STORE((CAST)(&thisNumber[3][i]), VECTOR_BIT_OR(l_T, VECTOR_AND_NOT(v_N, v_T)));
 		    
 		    v_N = VECTOR_AND_NOT(v_N, allOne);
 		    
@@ -349,13 +349,13 @@ void newviewParsimonyIterativeFast(tree *tr)
 		parsimonyNumber
 		  *left[20],
 		  *right[20],
-		  *this[20];
+		  *thisNumber[20];
 
 		for(k = 0; k < 20; k++)
 		  {
 		    left[k]  = &(tr->partitionData[model].parsVect[(width * 20 * qNumber) + width * k]);
 		    right[k] = &(tr->partitionData[model].parsVect[(width * 20 * rNumber) + width * k]);
-		    this[k]  = &(tr->partitionData[model].parsVect[(width * 20 * pNumber) + width * k]);
+		    thisNumber[k]  = &(tr->partitionData[model].parsVect[(width * 20 * pNumber) + width * k]);
 		  }
 
 		for(i = 0; i < width; i += INTS_PER_VECTOR)
@@ -379,7 +379,7 @@ void newviewParsimonyIterativeFast(tree *tr)
 		      }
 		    
 		    for(j = 0; j < 20; j++)		    
-		      VECTOR_STORE((CAST)(&this[j][i]), VECTOR_BIT_OR(l_A[j], VECTOR_AND_NOT(v_N, v_A[j])));		 	  	 	 	  	  	  	
+		      VECTOR_STORE((CAST)(&thisNumber[j][i]), VECTOR_BIT_OR(l_A[j], VECTOR_AND_NOT(v_N, v_A[j])));
 		    
 		    v_N = VECTOR_AND_NOT(v_N, allOne);
 		    
@@ -392,7 +392,7 @@ void newviewParsimonyIterativeFast(tree *tr)
 		parsimonyNumber
 		  *left[32], 
 		  *right[32],
-		  *this[32];
+		  *thisNumber[32];
 
 		assert(states <= 32);
 		
@@ -400,7 +400,7 @@ void newviewParsimonyIterativeFast(tree *tr)
 		  {
 		    left[k]  = &(tr->partitionData[model].parsVect[(width * states * qNumber) + width * k]);
 		    right[k] = &(tr->partitionData[model].parsVect[(width * states * rNumber) + width * k]);
-		    this[k]  = &(tr->partitionData[model].parsVect[(width * states * pNumber) + width * k]);
+		    thisNumber[k]  = &(tr->partitionData[model].parsVect[(width * states * pNumber) + width * k]);
 		  }
 
 		for(i = 0; i < width; i += INTS_PER_VECTOR)
@@ -424,7 +424,7 @@ void newviewParsimonyIterativeFast(tree *tr)
 		      }
 		    
 		    for(j = 0; j < states; j++)		    
-		      VECTOR_STORE((CAST)(&this[j][i]), VECTOR_BIT_OR(l_A[j], VECTOR_AND_NOT(v_N, v_A[j])));		 	  	 	 	  	  	  	
+		      VECTOR_STORE((CAST)(&thisNumber[j][i]), VECTOR_BIT_OR(l_A[j], VECTOR_AND_NOT(v_N, v_A[j])));
 		    
 		    v_N = VECTOR_AND_NOT(v_N, allOne);
 		    
@@ -495,7 +495,7 @@ unsigned int evaluateParsimonyIterativeFast(tree *tr)
 		 sum += populationCount(v_N);
 		 
 		 if(sum >= bestScore)
-		   return sum;		   	       
+		   return sum;
 	       }
 	   }
 	   break;
@@ -646,7 +646,7 @@ void newviewParsimonyIterativeFast(tree *tr)
 		parsimonyNumber
 		  *left[2],
 		  *right[2],
-		  *this[2];
+		  *thisNumber[2];
 		
 		parsimonyNumber
 		   o_A,
@@ -659,21 +659,21 @@ void newviewParsimonyIterativeFast(tree *tr)
 		  {
 		    left[k]  = &(tr->partitionData[model].parsVect[(width * 2 * qNumber) + width * k]);
 		    right[k] = &(tr->partitionData[model].parsVect[(width * 2 * rNumber) + width * k]);
-		    this[k]  = &(tr->partitionData[model].parsVect[(width * 2 * pNumber) + width * k]);
+		    thisNumber[k]  = &(tr->partitionData[model].parsVect[(width * 2 * pNumber) + width * k]);
 		  }
 
 		for(i = 0; i < width; i++)
 		  {	 	  
 		    t_A = left[0][i] & right[0][i];
-		    t_C = left[1][i] & right[1][i];		   
+		    t_C = left[1][i] & right[1][i];
 
 		    o_A = left[0][i] | right[0][i];
 		    o_C = left[1][i] | right[1][i];
 		  
 		    t_N = ~(t_A | t_C);	  
 
-		    this[0][i] = t_A | (t_N & o_A);
-		    this[1][i] = t_C | (t_N & o_C);		   
+		    thisNumber[0][i] = t_A | (t_N & o_A);
+		    thisNumber[1][i] = t_C | (t_N & o_C);
 		    
 		    totalScore += populationCount(t_N);   
 		  }
@@ -684,13 +684,13 @@ void newviewParsimonyIterativeFast(tree *tr)
 		parsimonyNumber
 		  *left[4],
 		  *right[4],
-		  *this[4];
+		  *thisNumber[4];
 
 		for(k = 0; k < 4; k++)
 		  {
 		    left[k]  = &(tr->partitionData[model].parsVect[(width * 4 * qNumber) + width * k]);
 		    right[k] = &(tr->partitionData[model].parsVect[(width * 4 * rNumber) + width * k]);
-		    this[k]  = &(tr->partitionData[model].parsVect[(width * 4 * pNumber) + width * k]);
+		    thisNumber[k]  = &(tr->partitionData[model].parsVect[(width * 4 * pNumber) + width * k]);
 		  }
 
 		parsimonyNumber
@@ -718,10 +718,10 @@ void newviewParsimonyIterativeFast(tree *tr)
 
 		    t_N = ~(t_A | t_C | t_G | t_T);	  
 
-		    this[0][i] = t_A | (t_N & o_A);
-		    this[1][i] = t_C | (t_N & o_C);
-		    this[2][i] = t_G | (t_N & o_G);
-		    this[3][i] = t_T | (t_N & o_T); 
+		    thisNumber[0][i] = t_A | (t_N & o_A);
+		    thisNumber[1][i] = t_C | (t_N & o_C);
+		    thisNumber[2][i] = t_G | (t_N & o_G);
+		    thisNumber[3][i] = t_T | (t_N & o_T);
 		    
 		    totalScore += populationCount(t_N);   
 		  }
@@ -732,7 +732,7 @@ void newviewParsimonyIterativeFast(tree *tr)
 		parsimonyNumber
 		  *left[20],
 		  *right[20],
-		  *this[20];
+		  *thisNumber[20];
 
 		parsimonyNumber
 		  o_A[20],
@@ -743,7 +743,7 @@ void newviewParsimonyIterativeFast(tree *tr)
 		  {
 		    left[k]  = &(tr->partitionData[model].parsVect[(width * 20 * qNumber) + width * k]);
 		    right[k] = &(tr->partitionData[model].parsVect[(width * 20 * rNumber) + width * k]);
-		    this[k]  = &(tr->partitionData[model].parsVect[(width * 20 * pNumber) + width * k]);
+		    thisNumber[k]  = &(tr->partitionData[model].parsVect[(width * 20 * pNumber) + width * k]);
 		  }
 
 		for(i = 0; i < width; i++)
@@ -761,8 +761,8 @@ void newviewParsimonyIterativeFast(tree *tr)
 		    
 		    t_N = ~t_N;
 
-		    for(k = 0; k < 20; k++)		      
-		      this[k][i] = t_A[k] | (t_N & o_A[k]);		   
+		    for(k = 0; k < 20; k++)
+		      thisNumber[k][i] = t_A[k] | (t_N & o_A[k]);
 		    
 		    totalScore += populationCount(t_N); 
 		  }
@@ -773,7 +773,7 @@ void newviewParsimonyIterativeFast(tree *tr)
 		parsimonyNumber
 		  *left[32],
 		  *right[32],
-		  *this[32];
+		  *thisNumber[32];
 		
 		parsimonyNumber
 		  o_A[32],
@@ -786,7 +786,7 @@ void newviewParsimonyIterativeFast(tree *tr)
 		  {
 		    left[k]  = &(tr->partitionData[model].parsVect[(width * states * qNumber) + width * k]);
 		    right[k] = &(tr->partitionData[model].parsVect[(width * states * rNumber) + width * k]);
-		    this[k]  = &(tr->partitionData[model].parsVect[(width * states * pNumber) + width * k]);
+		    thisNumber[k]  = &(tr->partitionData[model].parsVect[(width * states * pNumber) + width * k]);
 		  }
 		
 		for(i = 0; i < width; i++)
@@ -802,12 +802,12 @@ void newviewParsimonyIterativeFast(tree *tr)
 		    
 		    t_N = ~t_N;
 		    
-		    for(k = 0; k < states; k++)		      
-		      this[k][i] = t_A[k] | (t_N & o_A[k]);		   
+		    for(k = 0; k < states; k++)
+		      thisNumber[k][i] = t_A[k] | (t_N & o_A[k]);
 		    
 		    totalScore += populationCount(t_N); 
 		  }
-	      }			      
+	      }
 	    } 
 	}
 
@@ -870,7 +870,7 @@ unsigned int evaluateParsimonyIterativeFast(tree *tr)
 		  sum += populationCount(t_N);    
 		 
 		 if(sum >= bestScore)
-		   return sum;		   	       
+		   return sum;
 	       }
 	   }
 	   break;
@@ -936,7 +936,7 @@ unsigned int evaluateParsimonyIterativeFast(tree *tr)
 		  sum += populationCount(t_N);      
 		  
 		  if(sum >= bestScore)	    
-		    return sum;		    	       
+		    return sum;
 		}
 	   }
 	   break;
