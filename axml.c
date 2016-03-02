@@ -8331,7 +8331,7 @@ static void finalizeInfoFile(tree *tr, analdef *adef)
 			default:
 			  assert(0);
 			}
-		    break;
+		    } break;
 		  case GENERIC_64:
 		    assert(0);
 		    break;
@@ -8424,7 +8424,6 @@ static void finalizeInfoFile(tree *tr, analdef *adef)
 		    default:
 		      assert(0);
 		    }
-		  }
 		
 		if(adef->useInvariant)
 		  params += 2;
