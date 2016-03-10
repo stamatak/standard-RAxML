@@ -1975,14 +1975,14 @@ static void getinput(analdef *adef, rawdata *rdta, cruncheddata *cdta, tree *tr)
 
 static unsigned char buildStates(int secModel, unsigned char v1, unsigned char v2)
 {
-  unsigned char new = 0;
+  unsigned char newChar = 0;
 
   switch(secModel)
     {
     case SECONDARY_DATA:
-      new = v1;
-      new = new << 4;
-      new = new | v2;
+      newChar = v1;
+      newChar = newChar << 4;
+      newChar = newChar | v2;
       break;
     case SECONDARY_DATA_6:
       {
@@ -2030,38 +2030,38 @@ static unsigned char buildStates(int secModel, unsigned char v1, unsigned char v
 	    unsigned char n1 = meaningDNA[allowedStates[i][0]];
 	    unsigned char n2 = meaningDNA[allowedStates[i][1]];
 
-	    new = n1;
-	    new = new << 4;
-	    new = new | n2;
+	    newChar = n1;
+	    newChar = newChar << 4;
+	    newChar = newChar | n2;
 
-	    intermediateBinaryStates[i] = new;
+	    intermediateBinaryStates[i] = newChar;
 	  }
 
-	new = v1;
-	new = new << 4;
-	new = new | v2;
+	newChar = v1;
+	newChar = newChar << 4;
+	newChar = newChar | v2;
 
 	for(i = 0; i < length; i++)
 	  {
-	    if(new == intermediateBinaryStates[i])
+	    if(newChar == intermediateBinaryStates[i])
 	      break;
 	  }
 	if(i < length)
-	  new = finalBinaryStates[i];
+	  newChar = finalBinaryStates[i];
 	else
 	  {
-	    new = 0;
+	    newChar = 0;
 	    for(i = 0; i < length; i++)
 	      {
 		if(v1 & meaningDNA[allowedStates[i][0]])
 		  {
 		    /*printf("Adding %c%c\n", allowedStates[i][0], allowedStates[i][1]);*/
-		    new |= finalBinaryStates[i];
+		    newChar |= finalBinaryStates[i];
 		  }
 		if(v2 & meaningDNA[allowedStates[i][1]])
 		  {
 		    /*printf("Adding %c%c\n", allowedStates[i][0], allowedStates[i][1]);*/
-		    new |= finalBinaryStates[i];
+		    newChar |= finalBinaryStates[i];
 		  }
 	      }
 	  }	
@@ -2112,25 +2112,25 @@ static unsigned char buildStates(int secModel, unsigned char v1, unsigned char v
 	    unsigned char n1 = meaningDNA[allowedStates[i][0]];
 	    unsigned char n2 = meaningDNA[allowedStates[i][1]];
 
-	    new = n1;
-	    new = new << 4;
-	    new = new | n2;
+	    newChar = n1;
+	    newChar = newChar << 4;
+	    newChar = newChar | n2;
 
-	    intermediateBinaryStates[i] = new;
+	    intermediateBinaryStates[i] = newChar;
 	  }
 
-	new = v1;
-	new = new << 4;
-	new = new | v2;
+	newChar = v1;
+	newChar = newChar << 4;
+	newChar = newChar | v2;
 
 	for(i = 0; i < 6; i++)
 	  {
 	    /* exact match */
-	    if(new == intermediateBinaryStates[i])
+	    if(newChar == intermediateBinaryStates[i])
 	      break;
 	  }
 	if(i < 6)
-	  new = finalBinaryStates[i];
+	  newChar = finalBinaryStates[i];
 	else
 	  {
 	    /* distinguish between exact mismatches and partial mismatches */
@@ -2142,20 +2142,20 @@ static unsigned char buildStates(int secModel, unsigned char v1, unsigned char v
 	      {
 		/* printf("partial mismatch\n"); */
 
-		new = 0;
+		newChar = 0;
 		for(i = 0; i < 6; i++)
 		  {
 		    if((v1 & meaningDNA[allowedStates[i][0]]) && (v2 & meaningDNA[allowedStates[i][1]]))
 		      {
 			/*printf("Adding %c%c\n", allowedStates[i][0], allowedStates[i][1]);*/
-			new |= finalBinaryStates[i];
+			newChar |= finalBinaryStates[i];
 		      }
 		    else
-		      new |=  finalBinaryStates[6];
+		      newChar |=  finalBinaryStates[6];
 		  }
 	      }
 	    else
-	      new = finalBinaryStates[6];
+	      newChar = finalBinaryStates[6];
 	  }	
       }
       break;
@@ -2163,7 +2163,7 @@ static unsigned char buildStates(int secModel, unsigned char v1, unsigned char v
       assert(0);
     }
 
-  return new;
+  return newChar;
 
 }
 
@@ -8355,6 +8355,7 @@ static void finalizeInfoFile(tree *tr, analdef *adef)
 			default:
 			  assert(0);
 			}
+		    }
 		    break;
 		  case GENERIC_64:
 		    assert(0);
@@ -8442,13 +8443,12 @@ static void finalizeInfoFile(tree *tr, analdef *adef)
 			}	 
 		    }
 		    break;
-		    case BINARY_DATA:
-		      params += 1;
-		      break;
-		    default:
-		      assert(0);
-		    }
-		  }
+		  case BINARY_DATA:
+		    params += 1;
+		    break;
+		  default:
+		    assert(0);
+		  }	      
 		
 		if(adef->useInvariant)
 		  params += 2;
