@@ -3702,6 +3702,8 @@ static void initAdef(analdef *adef)
   adef->noSequenceCheck = FALSE;
   adef->useBFGS = TRUE;
   adef->setThreadAffinity = FALSE;
+  adef->bootstopPermutations = 100;
+  adef->fcThreshold = 99;
 }
 
 static int modelExists(char *model, analdef *adef)
@@ -4979,6 +4981,7 @@ static void printREADME(void)
 #if (defined(_WAYNE_MPI) && defined(_USE_PTHREADS))
   printf("      [--set-thread-affinity]\n");
 #endif
+  printf("      [--bootstop-perms=number]\n");
   printf("\n");
   printf("      -a      Specify a column weight file name to assign individual weights to each column of \n");
   printf("              the alignment. Those weights must be integers separated by any type and number \n");
@@ -5422,6 +5425,11 @@ static void printREADME(void)
   printf("                  DEFAULT: Off\n");  
   printf("\n");
 #endif
+  printf("\n");
+  printf("      --bootstop-perms=number specify the number of permutations to be conducted for the bootstopping/bootstrap convergence test.\n");
+  printf("                  The allowed minimum number is 100!\n");
+  printf("\n");
+  printf("                  DEFAULT: 100\n"); 
   printf("\n\n\n\n");
 
 }
@@ -5571,7 +5579,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
   while(1)
     {      
       static struct 
-	option long_options[15] =
+	option long_options[16] =
 	{	 
 	  {"mesquite",                  no_argument,       &flag, 1},
 	  {"silent",                    no_argument,       &flag, 1},
@@ -5587,6 +5595,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	  {"K80",                       no_argument,       &flag, 1},
 	  {"HKY85",                     no_argument,       &flag, 1},	 	 	 
 	  {"set-thread-affinity",       no_argument,       &flag, 1},
+	  {"bootstop-perms",            required_argument, &flag, 1},
 	  {0, 0, 0, 0}
 	};
       
@@ -5775,6 +5784,21 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 #else
 	      printf("Warning: flag --set-thread-affinity has no effect if you don't use the hybrid MPI-PThreads version\n");
 #endif
+	      break;
+	    case 14:
+	      {
+		int 
+		  perms = -1;
+		
+		if(sscanf(optarg,"%d", &perms) != 1 || (perms < 100))
+		  {
+		    printf("\nError parsing number of bootstop permutations to execute, RAxML expects a positive integer value larger or equal to 100\n\n");
+		    errorExit(-1);
+		  }
+		
+		adef->bootstopPermutations = perms;
+		adef->fcThreshold = perms - round((double)perms / 100.0);		
+	      }
 	      break;
 	    default:
 	      if(flagCheck)
@@ -9982,10 +10006,13 @@ static void execFunction(tree *tr, tree *localTree, int tid, int n)
 	{
 	  for(model = 0; model < localTree->NumberOfModels; model++)
 	    {
-	      memcpy(localTree->partitionData[model].EIGN_LG4[0],    tr->partitionData[model].EIGN_LG4[0],    sizeof(double) * 19);
-	      memcpy(localTree->partitionData[model].EIGN_LG4[1],    tr->partitionData[model].EIGN_LG4[1],    sizeof(double) * 19);
-	      memcpy(localTree->partitionData[model].EIGN_LG4[2],    tr->partitionData[model].EIGN_LG4[2],    sizeof(double) * 19);
-	      memcpy(localTree->partitionData[model].EIGN_LG4[3],    tr->partitionData[model].EIGN_LG4[3],    sizeof(double) * 19);
+	      if(tr->partitionData[model].protModels == LG4 || tr->partitionData[model].protModels == LG4X)
+		{
+		  memcpy(localTree->partitionData[model].EIGN_LG4[0],    tr->partitionData[model].EIGN_LG4[0],    sizeof(double) * 19);
+		  memcpy(localTree->partitionData[model].EIGN_LG4[1],    tr->partitionData[model].EIGN_LG4[1],    sizeof(double) * 19);
+		  memcpy(localTree->partitionData[model].EIGN_LG4[2],    tr->partitionData[model].EIGN_LG4[2],    sizeof(double) * 19);
+		  memcpy(localTree->partitionData[model].EIGN_LG4[3],    tr->partitionData[model].EIGN_LG4[3],    sizeof(double) * 19);
+		}
 	    }
 	}
       break;

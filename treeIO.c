@@ -755,7 +755,7 @@ static boolean treeLabelEnd (int ch)
   return FALSE;
 } 
 
-static void treeEchoContext (FILE *fp1, FILE *fp2, int n);
+static int treeEchoContext (FILE *fp1, FILE *fp2, int n);
 
 static boolean  treeGetLabel (FILE *fp, char *lblPtr, int maxlen, boolean taxonLabel)
 {
@@ -861,10 +861,11 @@ int treeFindTipName(FILE *fp, tree *tr, boolean check)
 
 
 
-static void treeEchoContext (FILE *fp1, FILE *fp2, int n)
+static int treeEchoContext (FILE *fp1, FILE *fp2, int n)
 { /* treeEchoContext */
   
-  int      
+  int 
+    offset = 0,
     ch;
 
   int64_t 
@@ -878,8 +879,10 @@ static void treeEchoContext (FILE *fp1, FILE *fp2, int n)
 
   fgetpos(fp1, &pos);
 
-  fseek(fp1, MAX(current - n / 2, 0), SEEK_SET);
+  fseek(fp1, MAX(current - (int64_t)n / 2, 0), SEEK_SET);
        
+  if((current - (int64_t)n / 2) < 0)
+    offset = (int)(current - (int64_t)n / 2);
   
   while (n > 0 && ((ch = getc(fp1)) != EOF)) 
     {
@@ -901,6 +904,8 @@ static void treeEchoContext (FILE *fp1, FILE *fp2, int n)
     }
 
   fsetpos(fp1, &pos);
+
+  return offset;
 
   /*boolean  
     waswhite = TRUE;
@@ -1538,6 +1543,12 @@ static boolean  addElementLenMULT (FILE *fp, tree *tr, nodeptr p, int partitionC
   int      n, ch, fres;
   double randomResolution;
   int old;
+  
+  fpos_t start_pos;
+
+  fgetpos(fp, &start_pos);
+     
+
     
   tr->constraintVector[p->number] = partitionCounter; 
 
@@ -1563,7 +1574,42 @@ static boolean  addElementLenMULT (FILE *fp, tree *tr, nodeptr p, int partitionC
       q = tr->nodep[n];
       tr->constraintVector[q->number] = *partCount;
       if (! addElementLenMULT(fp, tr, q->next, old, adef, partCount))        return FALSE;
-      if (! treeNeedCh(fp, ',', "in"))             return FALSE;
+    
+      if (! treeNeedCh(fp, ',', "in")) 
+	{ 
+	  int 
+	    c2 = treeGetCh(fp);
+	  
+	  if(c2 == ')')
+	    {
+	      int 
+		offset; 
+	      
+	      printf("Could it be that you are using excess parenthesis starting here:\n\n");
+	      fsetpos(fp, &start_pos);	 
+	      offset = treeEchoContext(fp, stdout, 40);
+	      printf("\n");
+	      if(offset == 0)
+		printf("                    ^\n\n");
+	      else
+		{
+		  int 
+		    spaces = 20 + offset,
+		    k;
+
+		  assert(offset < 0);
+		  
+		  for(k = 0; k < spaces; k++)
+		    printf(" ");
+		  printf("^\n\n");		  
+		}
+	    }
+	  
+	  ungetc(c2, fp);
+	  
+	  errorExit(-1);	 
+	}
+      
       if (! addElementLenMULT(fp, tr, q->next->next, old, adef, partCount))  return FALSE;
                  
       hookupDefault(p, q, tr->numBranches);

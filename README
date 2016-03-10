@@ -1,6 +1,15 @@
-Standard RAxML version 8.2.6
+Standard RAxML version 8.2.7
 
-Compiling under Linux:
+============================================================================================================
+
+When using RAxML please cite the following paper:
+
+A. Stamatakis: "RAxML Version 8: A tool for Phylogenetic Analysis and Post-Analysis of Large Phylogenies". 
+Bioinformatics (2014) 30 (9): 1312-1313.
+
+============================================================================================================
+
+Quick start under Linux:
 
 standard, SSE3 or AVX version?
 

@@ -3685,7 +3685,7 @@ void computeBootStopOnly(tree *tr, char *bootStrapFileName, analdef *adef)
 
   checkTreeNumber(tr->numberOfTrees, bootStrapFileName);
 
-  assert((FC_SPACING % 2 == 0) && (FC_THRESHOLD < BOOTSTOP_PERMUTATIONS));
+  assert((FC_SPACING % 2 == 0) && (adef->fcThreshold < adef->bootstopPermutations));
    
   numberOfTrees = tr->numberOfTrees;
  
@@ -3738,10 +3738,10 @@ void computeBootStopOnly(tree *tr, char *bootStrapFileName, analdef *adef)
 	  switch(tr->bootStopCriterion)
 	    {
 	    case FREQUENCY_STOP:
-	      avg = frequencyCriterion(i, h, &countBetter, BOOTSTOP_PERMUTATIONS, adef);	  	  	  
+	      avg = frequencyCriterion(i, h, &countBetter, adef->bootstopPermutations, adef);	  	  	  
 	      printBothOpen("%d \t\t\t %f \t\t\t\t %d\n", i, avg, countBetter);
 	  	  
-	      stop = (countBetter >= FC_THRESHOLD && avg >= FC_LOWER);	  	 
+	      stop = (countBetter >= adef->fcThreshold && avg >= FC_LOWER);	  	 
 	      break;
 	    case MR_STOP:
 	    case MRE_STOP:
@@ -3750,10 +3750,10 @@ void computeBootStopOnly(tree *tr, char *bootStrapFileName, analdef *adef)
 		double 
 		  wrf_thresh_avg = 0.0,
 		  wrf_avg = 0.0;
-		avg = wcCriterion(i, h, &countBetter, &wrf_thresh_avg, &wrf_avg, tr, vectorLength, BOOTSTOP_PERMUTATIONS, adef);
+		avg = wcCriterion(i, h, &countBetter, &wrf_thresh_avg, &wrf_avg, tr, vectorLength, adef->bootstopPermutations, adef);
 		printBothOpen("%d \t\t %1.2f \t\t\t %d\n", i, avg, countBetter);	       
 		
-		stop = (countBetter >= FC_THRESHOLD && wrf_avg <= wrf_thresh_avg);
+		stop = (countBetter >= adef->fcThreshold && wrf_avg <= wrf_thresh_avg);
 	      }
 	      break;
 	    default:
@@ -3825,10 +3825,10 @@ boolean computeBootStopMPI(tree *tr, char *bootStrapFileName, analdef *adef, dou
   assert(sizeof(unsigned char) == 1);
   
 
-  if(BOOTSTOP_PERMUTATIONS % processes == 0)
-    bootStopPermutations = BOOTSTOP_PERMUTATIONS / processes;
+  if(adef->bootstopPermutations % processes == 0)
+    bootStopPermutations = adef->bootstopPermutations / processes;
   else
-    bootStopPermutations = 1 + (BOOTSTOP_PERMUTATIONS / processes);
+    bootStopPermutations = 1 + (adef->bootstopPermutations / processes);
   
   /*printf("Perms %d\n",  bootStopPermutations);*/
 
@@ -3869,7 +3869,7 @@ boolean computeBootStopMPI(tree *tr, char *bootStrapFileName, analdef *adef, dou
 	
 	/*printf("%d %f %f\n", processID, allIn[0], allIn[1]);*/
 
-	stop = (((int)allIn[0]) >= FC_THRESHOLD && (allIn[1] / ((double)processes)) >= FC_LOWER);
+	stop = (((int)allIn[0]) >= adef->fcThreshold && (allIn[1] / ((double)processes)) >= FC_LOWER);
 
 	*pearsonAverage = (allIn[1] / ((double)processes));
       }
@@ -3899,7 +3899,7 @@ boolean computeBootStopMPI(tree *tr, char *bootStrapFileName, analdef *adef, dou
 	
 	/*printf("%d %f %f %f\n", processID, allIn[0], allIn[1], allIn[2]);*/
 	
-	stop = (((int)allIn[0]) >= FC_THRESHOLD && (allIn[2] / ((double)processes)) <= (allIn[1] / ((double)processes)));
+	stop = (((int)allIn[0]) >= adef->fcThreshold && (allIn[2] / ((double)processes)) <= (allIn[1] / ((double)processes)));
 
 	*pearsonAverage = (allIn[3] / ((double)processes));
       }
@@ -3926,7 +3926,7 @@ boolean bootStop(tree *tr, hashtable *h, int numberOfTrees, double *pearsonAvera
     n = numberOfTrees + 1,
     bCount = 0;
 
-  assert((FC_SPACING % 2 == 0) && (FC_THRESHOLD < BOOTSTOP_PERMUTATIONS));
+  assert((FC_SPACING % 2 == 0) && (adef->fcThreshold < adef->bootstopPermutations));
   assert(tr->mxtips == tr->rdta->numsp);
 
   bitVectorInitravSpecial(bitVectors, tr->nodep[1]->back, tr->mxtips, vectorLength, h, numberOfTrees, BIPARTITIONS_BOOTSTOP, (branchInfo *)NULL,
@@ -3940,9 +3940,9 @@ boolean bootStop(tree *tr, hashtable *h, int numberOfTrees, double *pearsonAvera
       switch(tr->bootStopCriterion)
 	{
 	case FREQUENCY_STOP:
-	  *pearsonAverage = frequencyCriterion(n, h, &countBetter, BOOTSTOP_PERMUTATIONS, adef);	  	        	       
+	  *pearsonAverage = frequencyCriterion(n, h, &countBetter, adef->bootstopPermutations, adef);	  	        	       
 
-	  if(countBetter >= FC_THRESHOLD && *pearsonAverage >= FC_LOWER)
+	  if(countBetter >= adef->fcThreshold && *pearsonAverage >= FC_LOWER)
 	    return TRUE;
 	  else
 	    return FALSE;
@@ -3955,9 +3955,9 @@ boolean bootStop(tree *tr, hashtable *h, int numberOfTrees, double *pearsonAvera
 	     wrf_thresh_avg = 0.0,
 	     wrf_avg = 0.0;
 	   
-	   *pearsonAverage = wcCriterion(n, h, &countBetter, &wrf_thresh_avg, &wrf_avg, tr, vectorLength, BOOTSTOP_PERMUTATIONS, adef);
+	   *pearsonAverage = wcCriterion(n, h, &countBetter, &wrf_thresh_avg, &wrf_avg, tr, vectorLength, adef->bootstopPermutations, adef);
 	  
-	   if(countBetter >= FC_THRESHOLD && wrf_avg <= wrf_thresh_avg)
+	   if(countBetter >= adef->fcThreshold && wrf_avg <= wrf_thresh_avg)
 	     return TRUE;
 	   else
 	     return FALSE;

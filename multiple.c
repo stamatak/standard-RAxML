@@ -827,19 +827,19 @@ void doAllInOne(tree *tr, analdef *adef)
 	      {
 	      case FREQUENCY_STOP:
 		printBothOpenMPI("Stopped Rapid BS search after %d replicates with FC Bootstopping criterion\n", bootstrapsPerformed);
-		printBothOpenMPI("Pearson Average of %d random splits: %f\n",BOOTSTOP_PERMUTATIONS , pearsonAverage);	      
+		printBothOpenMPI("Pearson Average of %d random splits: %f\n",adef->bootstopPermutations , pearsonAverage);	      
 		break;
 	      case MR_STOP:
 		printBothOpenMPI("Stopped Rapid BS search after %d replicates with MR-based Bootstopping criterion\n", bootstrapsPerformed);
-		printBothOpenMPI("WRF Average of %d random splits: %f\n", BOOTSTOP_PERMUTATIONS, pearsonAverage);	     
+		printBothOpenMPI("WRF Average of %d random splits: %f\n", adef->bootstopPermutations, pearsonAverage);	     
 		break;
 	      case MRE_STOP:
 		printBothOpenMPI("Stopped Rapid BS search after %d replicates with MRE-based Bootstopping criterion\n", bootstrapsPerformed);
-		printBothOpenMPI("WRF Average of %d random splits: %f\n", BOOTSTOP_PERMUTATIONS, pearsonAverage);	     
+		printBothOpenMPI("WRF Average of %d random splits: %f\n", adef->bootstopPermutations, pearsonAverage);	     
 		break;
 	      case MRE_IGN_STOP:
 		printBothOpenMPI("Stopped Rapid BS search after %d replicates with MRE_IGN-based Bootstopping criterion\n", bootstrapsPerformed);
-		printBothOpenMPI("WRF Average of %d random splits: %f\n", BOOTSTOP_PERMUTATIONS, pearsonAverage);	     
+		printBothOpenMPI("WRF Average of %d random splits: %f\n", adef->bootstopPermutations, pearsonAverage);	     
 		break;
 	      default:
 		assert(0);
@@ -851,19 +851,19 @@ void doAllInOne(tree *tr, analdef *adef)
 	      {
 	      case FREQUENCY_STOP:
 		printBothOpenMPI("Rapid BS search did not converge after %d replicates with FC Bootstopping criterion\n", bootstrapsPerformed);
-		printBothOpenMPI("Pearson Average of %d random splits: %f\n",BOOTSTOP_PERMUTATIONS , pearsonAverage);
+		printBothOpenMPI("Pearson Average of %d random splits: %f\n",adef->bootstopPermutations , pearsonAverage);
 		break;
 	      case MR_STOP:
 		printBothOpenMPI("Rapid BS search did not converge after %d replicates with MR-based Bootstopping criterion\n", bootstrapsPerformed);
-		printBothOpenMPI("WRF Average of %d random splits: %f\n", BOOTSTOP_PERMUTATIONS, pearsonAverage);
+		printBothOpenMPI("WRF Average of %d random splits: %f\n", adef->bootstopPermutations, pearsonAverage);
 		break;
 	      case MRE_STOP:
 		printBothOpenMPI("Rapid BS search did not converge after %d replicates with MRE-based Bootstopping criterion\n", bootstrapsPerformed);
-		printBothOpenMPI("WRF Average of %d random splits: %f\n", BOOTSTOP_PERMUTATIONS, pearsonAverage);
+		printBothOpenMPI("WRF Average of %d random splits: %f\n", adef->bootstopPermutations, pearsonAverage);
 		break;
 	      case MRE_IGN_STOP:
 		printBothOpenMPI("Rapid BS search did not converge after %d replicates with MR_IGN-based Bootstopping criterion\n", bootstrapsPerformed);
-		printBothOpenMPI("WRF Average of %d random splits: %f\n", BOOTSTOP_PERMUTATIONS, pearsonAverage);
+		printBothOpenMPI("WRF Average of %d random splits: %f\n", adef->bootstopPermutations, pearsonAverage);
 		break;
 	      default:
 		assert(0);
@@ -1344,19 +1344,19 @@ void doBootstrap(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
 	    {
 	    case FREQUENCY_STOP:
 	      printBothOpenMPI("Stopped Standard BS search after %d replicates with FC Bootstopping criterion\n", bootstrapsPerformed);
-	      printBothOpenMPI("Pearson Average of %d random splits: %f\n",BOOTSTOP_PERMUTATIONS , pearsonAverage);	      
+	      printBothOpenMPI("Pearson Average of %d random splits: %f\n",adef->bootstopPermutations , pearsonAverage);	      
 	      break;
 	    case MR_STOP:
 	      printBothOpenMPI("Stopped Standard BS search after %d replicates with MR-based Bootstopping criterion\n", bootstrapsPerformed);
-	      printBothOpenMPI("WRF Average of %d random splits: %f\n", BOOTSTOP_PERMUTATIONS, pearsonAverage);	     
+	      printBothOpenMPI("WRF Average of %d random splits: %f\n", adef->bootstopPermutations, pearsonAverage);	     
 	      break;
 	    case MRE_STOP:
 	      printBothOpenMPI("Stopped Standard BS search after %d replicates with MRE-based Bootstopping criterion\n", bootstrapsPerformed);
-	      printBothOpenMPI("WRF Average of %d random splits: %f\n", BOOTSTOP_PERMUTATIONS, pearsonAverage);	     
+	      printBothOpenMPI("WRF Average of %d random splits: %f\n", adef->bootstopPermutations, pearsonAverage);	     
 	      break;
 	    case MRE_IGN_STOP:
 	      printBothOpenMPI("Stopped Standard BS search after %d replicates with MRE_IGN-based Bootstopping criterion\n", bootstrapsPerformed);
-	      printBothOpenMPI("WRF Average of %d random splits: %f\n", BOOTSTOP_PERMUTATIONS, pearsonAverage);	     
+	      printBothOpenMPI("WRF Average of %d random splits: %f\n", adef->bootstopPermutations, pearsonAverage);	     
 	      break;
 	    default:
 	      assert(0);
@@ -1368,19 +1368,19 @@ void doBootstrap(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
 	    {
 	    case FREQUENCY_STOP:
 	      printBothOpenMPI("Standard BS search did not converge after %d replicates with FC Bootstopping criterion\n", bootstrapsPerformed);
-	      printBothOpenMPI("Pearson Average of %d random splits: %f\n",BOOTSTOP_PERMUTATIONS , pearsonAverage);
+	      printBothOpenMPI("Pearson Average of %d random splits: %f\n",adef->bootstopPermutations , pearsonAverage);
 	      break;
 	    case MR_STOP:
 	      printBothOpenMPI("Standard BS search did not converge after %d replicates with MR-based Bootstopping criterion\n", bootstrapsPerformed);
-	      printBothOpenMPI("WRF Average of %d random splits: %f\n", BOOTSTOP_PERMUTATIONS, pearsonAverage);
+	      printBothOpenMPI("WRF Average of %d random splits: %f\n", adef->bootstopPermutations, pearsonAverage);
 	      break;
 	    case MRE_STOP:
 	      printBothOpenMPI("Standard BS search did not converge after %d replicates with MRE-based Bootstopping criterion\n", bootstrapsPerformed);
-	      printBothOpenMPI("WRF Average of %d random splits: %f\n", BOOTSTOP_PERMUTATIONS, pearsonAverage);
+	      printBothOpenMPI("WRF Average of %d random splits: %f\n", adef->bootstopPermutations, pearsonAverage);
 	      break;
 	    case MRE_IGN_STOP:
 	      printBothOpenMPI("Standard BS search did not converge after %d replicates with MR_IGN-based Bootstopping criterion\n", bootstrapsPerformed);
-	      printBothOpenMPI("WRF Average of %d random splits: %f\n", BOOTSTOP_PERMUTATIONS, pearsonAverage);
+	      printBothOpenMPI("WRF Average of %d random splits: %f\n", adef->bootstopPermutations, pearsonAverage);
 	      break;
 	    default:
 	      assert(0);
