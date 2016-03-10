@@ -1120,9 +1120,16 @@ static boolean addElementLen (FILE *fp, tree *tr, nodeptr p, boolean readBranchL
 	endCounter,
 	branchLabel = -1;
       
-      if (! treeNeedCh(fp, ':', "in"))                 return FALSE;
-      if (! treeProcessLength(fp, &branch, &branchLabel, storeBranchLabels, tr))            
-	return FALSE;
+      if (! treeNeedCh(fp, ':', "in"))                 
+	{
+	  printf("ERROR: problem reading branch length ... RAxML will abort with a failing assertion\n\n");
+	  return FALSE;
+	}
+      if (! treeProcessLength(fp, &branch, &branchLabel, storeBranchLabels, tr)) 
+	{
+	  printf("ERROR: problem reading branch length ... RAxML will abort with a failing assertion\n\n");
+	  return FALSE;
+	}
 
       endCounter = tr->branchLabelCounter;
       
