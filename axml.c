@@ -52,6 +52,7 @@
 #include <inttypes.h>
 #include <getopt.h>
 
+
 #if (defined(_WAYNE_MPI) || defined (_QUARTET_MPI))
 #include <mpi.h>
 #endif
@@ -11839,6 +11840,141 @@ static void computeAllThreeQuartets(tree *tr, nodeptr q1, nodeptr q2, int t1, in
 #define RANDOM_QUARTETS 1
 #define GROUPED_QUARTETS 2
 
+/*struct qent
+{
+  uint64_t value;
+  struct qent *next;
+};
+
+typedef struct qent quartetEntry;
+
+  
+
+typedef struct
+{
+  uint64_t tableSize;
+  quartetEntry **table;
+  uint64_t entryCount;
+}
+  QuartetHashtable;
+
+static QuartetHashtable *initQuartetHashTable(uint64_t n)
+{
+
+  static const  uint64_t initTable[] = {64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384,
+					32768, 65536, 131072, 262144, 524288, 1048576, 2097152,
+					4194304, 8388608, 16777216, 33554432, 67108864, 134217728,
+					268435456, 536870912, 1073741824, 2147483648U};
+  
+  QuartetHashtable *h = (QuartetHashtable*)rax_malloc(sizeof(hashtable));
+  
+  uint64_t
+    tableSize,
+    i,
+    primeTableLength = sizeof(initTable)/sizeof(initTable[0]),
+    maxSize = (hashNumberType)-1;    
+
+  assert(n <= maxSize);
+
+  i = 0;
+
+  while(initTable[i] < n && i < primeTableLength)
+    i++;
+
+  assert(i < primeTableLength);
+
+  tableSize = initTable[i];
+
+ 
+
+  h->table = (quartetEntry**)rax_calloc(tableSize, sizeof(quartetEntry*));
+  h->tableSize = tableSize;  
+  h->entryCount = 0;  
+
+  return h;
+}
+
+static void freeQuartetHashTable(QuartetHashtable *h)
+{
+  uint64_t
+    i,
+    entryCount = 0;
+   
+
+  for(i = 0; i < h->tableSize; i++)
+    {
+      if(h->table[i] != NULL)
+	{
+	  quartetEntry *e = h->table[i];
+	  quartetEntry *previous;	 
+
+	  do
+	    {
+	      previous = e;
+	      e = e->next;	      
+	      
+	      rax_free(previous);	      
+	      entryCount++;
+	    }
+	  while(e != NULL);	  
+	}
+
+    }
+
+  assert(entryCount == h->entryCount);
+ 
+  rax_free(h->table);
+}
+
+static void insertQuartetHash(uint64_t quartet, QuartetHashtable *h)
+{
+  uint64_t
+    position = quartet % h->tableSize;
+
+  quartetEntry 
+    *e = (quartetEntry*)rax_malloc(sizeof(quartetEntry));
+
+  e->value = quartet;
+  e->next = (quartetEntry*)NULL;
+  
+  if(h->table[position] != NULL)
+    {
+      assert(e->value != h->table[position]->value);
+      e->next = h->table[position];
+      h->table[position] = e;           
+    }
+  else
+    h->table[position] = e;
+
+  h->entryCount =  h->entryCount + 1;
+}
+
+static int findQuartetHash(uint64_t quartet, QuartetHashtable *h)
+{
+  uint64_t
+    position = quartet % h->tableSize;
+
+  if(h->table[position] == NULL)         
+    return 0;
+  
+  {
+    quartetEntry 
+      *e = h->table[position]; 
+    
+    do
+      {	              
+	if(quartet != e->value)
+	  e = e->next;
+	else
+	  return 1;	    
+      }
+    while(e != (quartetEntry*)NULL); 
+  }
+  
+  return 0;   
+    
+}
+*/
 
 
 static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
@@ -11876,6 +12012,9 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
   FILE 
     *f;
        
+  /***********************************/
+ 
+
   /* build output file name */
     
   strcpy(quartetFileName,         workdir);
@@ -12036,26 +12175,31 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
 	  {
 	    /* randomly sub-sample a fraction of all quartets */
 	    
-	    for(t1 = 1; t1 <= tr->mxtips; t1++)
-	      for(t2 = t1 + 1; t2 <= tr->mxtips; t2++)
-		for(t3 = t2 + 1; t3 <= tr->mxtips; t3++)
-		  for(t4 = t3 + 1; t4 <= tr->mxtips; t4++)
-		    {
-		      double
-			r = randum(&adef->parsimonySeed);
-		      
-		      if(r < fraction)
+	    
+	    do
+	      {	      
+		for(t1 = 1; t1 <= tr->mxtips; t1++)
+		  for(t2 = t1 + 1; t2 <= tr->mxtips; t2++)
+		    for(t3 = t2 + 1; t3 <= tr->mxtips; t3++)
+		      for(t4 = t3 + 1; t4 <= tr->mxtips; t4++)
 			{
+			  double
+			    r = randum(&adef->parsimonySeed);
+			  
+			  if(r < fraction)
+			    {
 #ifdef _QUARTET_MPI
-			  if((quartetCounter % (uint64_t)(processes - 1)) == (uint64_t)(processID - 1))
+			      if((quartetCounter % (uint64_t)(processes - 1)) == (uint64_t)(processID - 1))
 #endif
-			    computeAllThreeQuartets(tr, q1, q2, t1, t2, t3, t4, f, adef);
-			  quartetCounter++;
-			}
+				computeAllThreeQuartets(tr, q1, q2, t1, t2, t3, t4, f, adef);
+			      quartetCounter++;
+			    }
 		      
-		      if(quartetCounter == randomQuartets)
-			goto DONE;
-		    }
+			  if(quartetCounter == randomQuartets)
+			    goto DONE;
+			}
+	      }
+	    while(1);
 	    	  
 	  DONE:
 	    assert(quartetCounter == randomQuartets);
