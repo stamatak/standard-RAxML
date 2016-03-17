@@ -11916,6 +11916,10 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
 #endif
 
       printBothOpen("Time for parsing input tree or building parsimony tree and optimizing model parameters: %f\n\n", gettime() - masterTime); 
+
+#ifndef __BLACKRIM
+      printBothOpen("Tree likelihood: %f\n\n", tr->likelihood);
+#endif
     }
   else
     {
