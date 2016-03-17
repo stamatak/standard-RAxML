@@ -11840,167 +11840,31 @@ static void computeAllThreeQuartets(tree *tr, nodeptr q1, nodeptr q2, int t1, in
 #define RANDOM_QUARTETS 1
 #define GROUPED_QUARTETS 2
 
-/*struct qent
-{
-  uint64_t value;
-  struct qent *next;
-};
-
-typedef struct qent quartetEntry;
-
-  
-
-typedef struct
-{
-  uint64_t tableSize;
-  quartetEntry **table;
-  uint64_t entryCount;
-}
-  QuartetHashtable;
-
-static QuartetHashtable *initQuartetHashTable(uint64_t n)
-{
-
-  static const  uint64_t initTable[] = {64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384,
-					32768, 65536, 131072, 262144, 524288, 1048576, 2097152,
-					4194304, 8388608, 16777216, 33554432, 67108864, 134217728,
-					268435456, 536870912, 1073741824, 2147483648U};
-  
-  QuartetHashtable *h = (QuartetHashtable*)rax_malloc(sizeof(hashtable));
-  
-  uint64_t
-    tableSize,
-    i,
-    primeTableLength = sizeof(initTable)/sizeof(initTable[0]),
-    maxSize = (hashNumberType)-1;    
-
-  assert(n <= maxSize);
-
-  i = 0;
-
-  while(initTable[i] < n && i < primeTableLength)
-    i++;
-
-  assert(i < primeTableLength);
-
-  tableSize = initTable[i];
-
- 
-
-  h->table = (quartetEntry**)rax_calloc(tableSize, sizeof(quartetEntry*));
-  h->tableSize = tableSize;  
-  h->entryCount = 0;  
-
-  return h;
-}
-
-static void freeQuartetHashTable(QuartetHashtable *h)
-{
-  uint64_t
-    i,
-    entryCount = 0;
-   
-
-  for(i = 0; i < h->tableSize; i++)
-    {
-      if(h->table[i] != NULL)
-	{
-	  quartetEntry *e = h->table[i];
-	  quartetEntry *previous;	 
-
-	  do
-	    {
-	      previous = e;
-	      e = e->next;	      
-	      
-	      rax_free(previous);	      
-	      entryCount++;
-	    }
-	  while(e != NULL);	  
-	}
-
-    }
-
-  assert(entryCount == h->entryCount);
- 
-  rax_free(h->table);
-}
-
-static void insertQuartetHash(uint64_t quartet, QuartetHashtable *h)
-{
-  uint64_t
-    position = quartet % h->tableSize;
-
-  quartetEntry 
-    *e = (quartetEntry*)rax_malloc(sizeof(quartetEntry));
-
-  e->value = quartet;
-  e->next = (quartetEntry*)NULL;
-  
-  if(h->table[position] != NULL)
-    {
-      assert(e->value != h->table[position]->value);
-      e->next = h->table[position];
-      h->table[position] = e;           
-    }
-  else
-    h->table[position] = e;
-
-  h->entryCount =  h->entryCount + 1;
-}
-
-static int findQuartetHash(uint64_t quartet, QuartetHashtable *h)
-{
-  uint64_t
-    position = quartet % h->tableSize;
-
-  if(h->table[position] == NULL)         
-    return 0;
-  
-  {
-    quartetEntry 
-      *e = h->table[position]; 
-    
-    do
-      {	              
-	if(quartet != e->value)
-	  e = e->next;
-	else
-	  return 1;	    
-      }
-    while(e != (quartetEntry*)NULL); 
-  }
-  
-  return 0;   
-    
-}
-*/
-
-
 static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
 {
   /* some indices for generating quartets in an arbitrary way */
 
   int
-    flavor = ALL_QUARTETS,
-    i,
+    flavor = ALL_QUARTETS, //type of quartet calculation 
+    i, 
     t1, 
     t2, 
     t3, 
     t4, 
     *groups[4],
-    groupSize[4];
-  
+    groupSize[4];    
+
   double
-    fraction = 0.0,
+    fraction = 0.0, //fraction of random quartets to compute
     t;
 
   uint64_t
-    randomQuartets = (uint64_t)(adef->multipleRuns),
-    quartetCounter = 0,
-    numberOfQuartets = ((uint64_t)tr->mxtips * ((uint64_t)tr->mxtips - 1) * ((uint64_t)tr->mxtips - 2) * ((uint64_t)tr->mxtips - 3)) / 24;
-
-  /* use two inner nodes for building quartet trees */
+    randomQuartets = (uint64_t)(adef->multipleRuns), //number of random quartets to compute 
+    quartetCounter = 0, 
+    //total number of possible quartets, note that we count the following ((A,B),(C,D)), ((A,C),(B,D)), ((A,D),(B,C)) as one quartet here 
+    numberOfQuartets = ((uint64_t)tr->mxtips * ((uint64_t)tr->mxtips - 1) * ((uint64_t)tr->mxtips - 2) * ((uint64_t)tr->mxtips - 3)) / 24; 
+  
+  /* use two inner tree nodes for building quartet trees */
 
   nodeptr 	
     q1 = tr->nodep[tr->mxtips + 1],
@@ -12023,8 +11887,6 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
   
   /* open output file */
 
- 
-
 #ifdef _QUARTET_MPI
   if(processID == 0)
 #endif
@@ -12039,15 +11901,17 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
   if(!adef->useBinaryModelFile)
     {
 #ifdef _QUARTET_MPI
+      //the parallel version requires a pre-computed model parameter file as input!
       assert(0);
 #endif
 
-      /* get a starting tree: either reads in a tree or computes a randomized stepwise addition parsimony tree */
+      /* get a starting tree on which we optimize the likelihood model parameters: either reads in a tree or computes a randomized stepwise addition parsimony tree */
 
       getStartingTree(tr, adef);
    
-      /* optimize model parameters on that comprehensive tree that can subsequently be used for qyartet building */
-#ifndef __BLACKRIM 
+      /* optimize model parameters on that comprehensive tree that can subsequently be used for evaluation of quartet likelihoods */
+
+#ifndef __BLACKRIM //if BLACKRIM is defined, the model parameters will be optimized for each quartet individually
       modOpt(tr, adef, TRUE, adef->likelihoodEpsilon);
 #endif
 
@@ -12055,6 +11919,7 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
     }
   else
     {
+      //if a binary model parameter file has been specified, we just read the model parameters from there 
       readBinaryModel(tr, adef);
 
       printBothOpen("Time for reading model parameters: %f\n\n", gettime() - masterTime); 
@@ -12065,10 +11930,17 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
 
   if(adef->useQuartetGrouping)
     {
+      //quartet grouping evaluates all possible quartets from four disjoint 
+      //sets of user-specified taxon names 
+
       flavor = GROUPED_QUARTETS;
+      
+      //parse the four disjoint sets of taxon names specified by the user from file      
       groupingParser(quartetGroupingFileName, groups, groupSize, tr);
 
 #ifdef __BLACKRIM     
+      //special implementation where we only sub-sample randomly from the quartets 
+      //defined by the four user-specified taxon sets 
       numberOfQuartets =  (uint64_t)groupSize[0] * (uint64_t)groupSize[1] * (uint64_t)groupSize[2] * (uint64_t)groupSize[3];
 
       if(randomQuartets > numberOfQuartets)
@@ -12081,13 +11953,18 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
     }
   else
     {
+      //if the user specified more random quartets to sample than there actually 
+      //exist for the number of taxa, then fix this.
       if(randomQuartets > numberOfQuartets)
 	randomQuartets = 1;
   
       if(randomQuartets == 1)   
+	//change flavor if randomQuartets > possibleQuartets
 	flavor = ALL_QUARTETS;
       else
 	{      
+	  //compute the fraction of random quartets to sample 
+	  //there may be an issue here with the unit64_t <-> double cast
 	  fraction = (double)randomQuartets / (double)numberOfQuartets;      
 	  flavor = RANDOM_QUARTETS;
 	}
@@ -12144,6 +12021,9 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
      tr->mxtips is the maximum number of tips in the alignment/tree
   */
 
+
+  //now do the respective quartet evaluations by switching over the three distinct flavors 
+
 #ifdef _QUARTET_MPI
   if(processID > 0)   
 #endif
@@ -12172,29 +12052,46 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
 	  }
 	  break;
 	case RANDOM_QUARTETS:
-	  {
-	    /* randomly sub-sample a fraction of all quartets */
-	    
-	    
+	  {	 
+
+	    //endless loop ta make sure we randomly sub-sample exactly as many quartets as the user specified
+
+	    //This is not very elegant, but it works, note however, that especially when the number of 
+	    //random quartets to be sampled is large, that is, close to the total number of quartets 
+	    //some quartets may be sampled twice by pure chance. To randomly sample unique quartets 
+	    //using hashes or bitmaps to store which quartets have already been sampled is not memory efficient.
+	    //Insetad, we need to use a random number generator that can generate a unique series of random numbers 
+	    //and then have a function f() that maps those random numbers to the corresponding index quartet (t1, t2, t3, t4).
+
 	    do
 	      {	      
+		//loop over all quartets 
 		for(t1 = 1; t1 <= tr->mxtips; t1++)
 		  for(t2 = t1 + 1; t2 <= tr->mxtips; t2++)
 		    for(t3 = t2 + 1; t3 <= tr->mxtips; t3++)
 		      for(t4 = t3 + 1; t4 <= tr->mxtips; t4++)
 			{
+			  //chose a random number
 			  double
 			    r = randum(&adef->parsimonySeed);
-			  
+			  			  
+			  //if the random number is smaller than the fraction of quartets to subsample
+			  //evaluate the likelihood of the current quartet
 			  if(r < fraction)
 			    {
 #ifdef _QUARTET_MPI
+			      //MPI version very simple and naive way to determine which processor 
+			      //is goingt to do the likelihood calculations for this quartet
 			      if((quartetCounter % (uint64_t)(processes - 1)) == (uint64_t)(processID - 1))
 #endif
+				//function that computes the likelihood for all three possible unrooted trees 
+				//defined by the given quartet of taxa 
 				computeAllThreeQuartets(tr, q1, q2, t1, t2, t3, t4, f, adef);
+			      //increment quartet counter that counts how many quartets we have evaluated
 			      quartetCounter++;
 			    }
-		      
+			  
+			  //exit endless loop if we have randomly sub-sampled as many quartets as the user specified
 			  if(quartetCounter == randomQuartets)
 			    goto DONE;
 			}
@@ -12202,7 +12099,7 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
 	    while(1);
 	    	  
 	  DONE:
-	    assert(quartetCounter == randomQuartets);
+	    assert(quartetCounter == randomQuartets);	  
 	  }
 	  break;
 	case GROUPED_QUARTETS:
