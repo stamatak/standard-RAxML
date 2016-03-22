@@ -11497,6 +11497,127 @@ unsigned int precomputed16_bitcount (unsigned int n)
 /* functions to compute likelihoods on quartets */
 
 
+/*** functions by Sarah for drawing quartets without replacement ***/
+
+static int f2(int n, int a) 
+{
+  return ((n - a) * (n - 1 - a) * (n - 2 - a ) / 6);
+};
+
+static int f3(int n, int b) 
+{
+  return ((n - b) * (n - 1 - b) / 2);
+};
+
+static int f4(int n, int c) 
+{
+  return (n-c);
+};
+
+static void preprocessQuartetPrefix(int numberOfTaxa, uint64_t *prefixSumF2, uint64_t *prefixSumF3, uint64_t *prefixSumF4)
+{
+  int 
+    i,
+    n = numberOfTaxa;
+  
+  
+
+  prefixSumF2[0] = 1;
+  prefixSumF3[0] = 1;
+  prefixSumF4[0] = 1;
+  
+  for (i = 1; i < n - 3; ++i) 
+    {
+      prefixSumF2[i] = prefixSumF2[i - 1] + f2(n, i);
+      prefixSumF3[i] = prefixSumF3[i - 1] + f3(n, i+1);
+      prefixSumF4[i] = prefixSumF4[i - 1] + f4(n, i+2);
+  }
+}
+
+static int binarySearch(uint64_t* array, uint64_t z, int n)
+{
+  int 
+    first = 0,
+    last = n-3,
+    middle = (first + last) / 2, 
+    lastSmaller = 0;
+  
+  while(first <= last)
+    {
+      if(array[middle] < z)
+	{
+	  first = middle + 1;
+	  lastSmaller = middle;
+	}
+      else 
+	{
+	  if (array[middle] > z)	  
+	    last = middle-1;	 
+	  else 
+	    { 
+	      // array[middle] == z
+	      lastSmaller = middle;
+	      break;
+	    }
+	}
+      
+      middle = (first + last)/2;
+    }
+
+  return lastSmaller;
+}
+
+static void mapNumberToQuartet(int numberOfTaxa, uint64_t z, int *t1, int *t2, int *t3, int *t4, uint64_t *prefixSumF2, uint64_t *prefixSumF3, uint64_t *prefixSumF4)
+{
+  int    
+    wantedT1 = z;
+
+  *t1 = binarySearch(prefixSumF2, z, numberOfTaxa) + 1;
+
+  int 
+    foundT1 = prefixSumF2[*t1 - 1];
+  
+  if(wantedT1 == foundT1) 
+    {
+      *t2 = *t1+1;
+      *t3 = *t1+2;
+      *t4 = *t1+3;
+      return;
+    }
+  
+  int 
+    wantedT2 = (prefixSumF3[*t1 - 1]) + (wantedT1 - foundT1);
+  
+  *t2 = binarySearch(prefixSumF3, wantedT2, numberOfTaxa) + 2;
+
+  int 
+    foundT2 = prefixSumF3[*t2 - 2];
+  
+  if(wantedT2 == foundT2) 
+    {
+      *t3 = *t2 + 1;
+      *t4 = *t2 + 2;
+      return;
+    }
+  
+  int 
+    wantedT3 = (prefixSumF4[*t2 - 2]) + (wantedT2 - foundT2);
+  
+  *t3 = binarySearch(prefixSumF4, wantedT3, numberOfTaxa) + 3;
+
+  int 
+    foundT3 = prefixSumF4[*t3 - 3];
+  
+  if (wantedT3 == foundT3) 
+    {
+      *t4 = *t3 + 1;
+      return;
+    }
+
+  *t4 = wantedT3 - foundT3 + *t3 + 1;
+}
+
+
 /* a parser error function */
 
 static void parseError(int c)
@@ -11762,6 +11883,8 @@ static void startQuartetMaster(tree *tr, FILE *f)
 
 #endif
 
+
+
 static void computeAllThreeQuartets(tree *tr, nodeptr q1, nodeptr q2, int t1, int t2, int t3, int t4, FILE *f, analdef *adef)
 {
   /* set the tip nodes to different sequences 
@@ -11774,7 +11897,7 @@ static void computeAllThreeQuartets(tree *tr, nodeptr q1, nodeptr q2, int t1, in
     p4 = tr->nodep[t4];
   
   double 
-    l;
+    l; 
 
 #ifdef _QUARTET_MPI
   quartetResult 
@@ -11840,6 +11963,67 @@ static void computeAllThreeQuartets(tree *tr, nodeptr q1, nodeptr q2, int t1, in
 #define RANDOM_QUARTETS 1
 #define GROUPED_QUARTETS 2
 
+
+static void sampleQuartetsWithoutReplacement(tree *tr, int numberOfTaxa, int64_t seed, uint64_t numberOfQuartets, uint64_t randomQuartets, nodeptr q1, nodeptr q2,
+					     uint64_t *prefixSumF2, uint64_t *prefixSumF3, uint64_t *prefixSumF4, FILE *f, analdef *adef)
+{
+  int64_t 
+    myseed = seed;
+
+  uint64_t    
+    sampleSize = randomQuartets,
+    quartetCounter = 0,
+    top = numberOfQuartets - sampleSize,
+    s, 
+    actVal = 0;
+  
+  int 
+    t1,
+    t2,
+    t3,
+    t4;
+
+  double 
+    NReal = (double)numberOfQuartets, 
+    v, 
+    quot; 
+  
+  while(sampleSize >= 2)
+    {
+      v = randum(&myseed);
+      s = 0;
+      quot = top / NReal;
+    
+      while (quot > v)
+	{
+	  s++; 
+	  top--; 
+	  NReal--;
+	  quot = (quot * top) / NReal;
+	}
+    // Skip over the next s records and select the following one for the sample
+      actVal += s+1;
+      mapNumberToQuartet(numberOfTaxa, actVal, &t1, &t2, &t3, &t4, prefixSumF2, prefixSumF3, prefixSumF4);
+      computeAllThreeQuartets(tr, q1, q2, t1, t2, t3, t4, f, adef);
+      quartetCounter++;
+      
+      NReal--;
+      sampleSize--;
+    }
+  
+  // Special case sampleSize == 1
+  s = trunc(round(NReal) * randum(&myseed));
+  // Skip over the next s records and select the following one for the sample
+  actVal += s+1;
+  
+  mapNumberToQuartet(numberOfTaxa, actVal, &t1, &t2, &t3, &t4, prefixSumF2, prefixSumF3, prefixSumF4);
+  computeAllThreeQuartets(tr, q1, q2, t1, t2, t3, t4, f, adef);
+  quartetCounter++;
+
+  assert(quartetCounter == randomQuartets);
+}
+
+
 static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
 {
   /* some indices for generating quartets in an arbitrary way */
@@ -11878,6 +12062,8 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
        
   /***********************************/
  
+  
+
 
   /* build output file name */
     
@@ -12066,44 +12252,60 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
 	    //using hashes or bitmaps to store which quartets have already been sampled is not memory efficient.
 	    //Insetad, we need to use a random number generator that can generate a unique series of random numbers 
 	    //and then have a function f() that maps those random numbers to the corresponding index quartet (t1, t2, t3, t4).
+	    if(0)//adef->sampleQuartetsWithoutReplacement)
+	      {
+		uint64_t
+		  *prefixSumF2 = (uint64_t*)rax_malloc(sizeof(uint64_t) * (size_t)(tr->mxtips - 2)),
+		  *prefixSumF3 = (uint64_t*)rax_malloc(sizeof(uint64_t) * (size_t)(tr->mxtips - 2)),
+		  *prefixSumF4 = (uint64_t*)rax_malloc(sizeof(uint64_t) * (size_t)(tr->mxtips - 2));
 
-	    do
-	      {	      
-		//loop over all quartets 
-		for(t1 = 1; t1 <= tr->mxtips; t1++)
-		  for(t2 = t1 + 1; t2 <= tr->mxtips; t2++)
-		    for(t3 = t2 + 1; t3 <= tr->mxtips; t3++)
-		      for(t4 = t3 + 1; t4 <= tr->mxtips; t4++)
-			{
-			  //chose a random number
-			  double
-			    r = randum(&adef->parsimonySeed);
-			  			  
-			  //if the random number is smaller than the fraction of quartets to subsample
-			  //evaluate the likelihood of the current quartet
-			  if(r < fraction)
-			    {
-#ifdef _QUARTET_MPI
-			      //MPI version very simple and naive way to determine which processor 
-			      //is goingt to do the likelihood calculations for this quartet
-			      if((quartetCounter % (uint64_t)(processes - 1)) == (uint64_t)(processID - 1))
-#endif
-				//function that computes the likelihood for all three possible unrooted trees 
-				//defined by the given quartet of taxa 
-				computeAllThreeQuartets(tr, q1, q2, t1, t2, t3, t4, f, adef);
-			      //increment quartet counter that counts how many quartets we have evaluated
-			      quartetCounter++;
-			    }
-			  
-			  //exit endless loop if we have randomly sub-sampled as many quartets as the user specified
-			  if(quartetCounter == randomQuartets)
-			    goto DONE;
-			}
+		preprocessQuartetPrefix(tr->mxtips, prefixSumF2, prefixSumF3, prefixSumF4);
+		sampleQuartetsWithoutReplacement(tr, tr->mxtips, adef->parsimonySeed, numberOfQuartets, randomQuartets, q1, q2, prefixSumF2, prefixSumF3, prefixSumF4, f, adef);
+
+		rax_free(prefixSumF2);
+		rax_free(prefixSumF3);
+		rax_free(prefixSumF4);
 	      }
-	    while(1);
-	    	  
-	  DONE:
-	    assert(quartetCounter == randomQuartets);	  
+	    else
+	      {
+		do
+		  {	      
+		    //loop over all quartets 
+		    for(t1 = 1; t1 <= tr->mxtips; t1++)
+		      for(t2 = t1 + 1; t2 <= tr->mxtips; t2++)
+			for(t3 = t2 + 1; t3 <= tr->mxtips; t3++)
+			  for(t4 = t3 + 1; t4 <= tr->mxtips; t4++)
+			    {
+			      //chose a random number
+			      double
+				r = randum(&adef->parsimonySeed);
+			      
+			      //if the random number is smaller than the fraction of quartets to subsample
+			      //evaluate the likelihood of the current quartet
+			      if(r < fraction)
+				{
+#ifdef _QUARTET_MPI
+				  //MPI version very simple and naive way to determine which processor 
+				  //is goingt to do the likelihood calculations for this quartet
+				  if((quartetCounter % (uint64_t)(processes - 1)) == (uint64_t)(processID - 1))
+#endif
+				    //function that computes the likelihood for all three possible unrooted trees 
+				    //defined by the given quartet of taxa 
+				    computeAllThreeQuartets(tr, q1, q2, t1, t2, t3, t4, f, adef);
+				  //increment quartet counter that counts how many quartets we have evaluated
+				  quartetCounter++;
+				}
+			      
+			      //exit endless loop if we have randomly sub-sampled as many quartets as the user specified
+			      if(quartetCounter == randomQuartets)
+				goto DONE;
+			    }
+		  }
+		while(1);
+		
+	      DONE:
+		assert(quartetCounter == randomQuartets);	  
+	      }
 	  }
 	  break;
 	case GROUPED_QUARTETS:
@@ -12166,6 +12368,8 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
     }
 #endif
   
+ 
+
   t = gettime() - t;
 
   printBothOpen("\nPure quartet computation time: %f secs\n", t);
