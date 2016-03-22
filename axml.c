@@ -4780,7 +4780,7 @@ static void parseOutgroups(char *outgr, tree *tr)
 static void printVersionInfo(boolean terminal, FILE *infoFile)
 {
   char 
-    text[11][1024];
+    text[12][1024];
 
   int 
     i;
@@ -4792,13 +4792,14 @@ static void printVersionInfo(boolean terminal, FILE *infoFile)
   sprintf(text[4], "Alexey Kozlov     (HITS)\n"); 
   sprintf(text[5], "Kassian Kobert    (HITS)\n"); 
   sprintf(text[6], "David Dao         (KIT and HITS)\n");
-  sprintf(text[7], "Nick Pattengale   (Sandia)\n"); 
-  sprintf(text[8], "Wayne Pfeiffer    (SDSC)\n");
-  sprintf(text[9], "Akifumi S. Tanabe (NRIFS)\n");  
-  sprintf(text[10], "Charlie Taylor    (UF)\n\n");
+  sprintf(text[7], "Sarah Lutteropp   (KIT and HITS)\n");
+  sprintf(text[8], "Nick Pattengale   (Sandia)\n"); 
+  sprintf(text[9], "Wayne Pfeiffer    (SDSC)\n");
+  sprintf(text[10], "Akifumi S. Tanabe (NRIFS)\n");  
+  sprintf(text[11], "Charlie Taylor    (UF)\n\n");
   
 
-  for(i = 0; i < 10; i++)
+  for(i = 0; i < 12; i++)
     {
       if(terminal)    
 	printf("%s", text[i]);
