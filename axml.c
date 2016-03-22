@@ -51,6 +51,7 @@
 #include <limits.h>
 #include <inttypes.h>
 #include <getopt.h>
+#include <stdbool.h>
 
 
 #if (defined(_WAYNE_MPI) || defined (_QUARTET_MPI))
@@ -11500,17 +11501,17 @@ unsigned int precomputed16_bitcount (unsigned int n)
 
 /*** functions by Sarah for drawing quartets without replacement ***/
 
-static int f2(int n, int a) 
+static uint64_t f2(int n, int a) 
 {
   return ((n - a) * (n - 1 - a) * (n - 2 - a ) / 6);
 };
 
-static int f3(int n, int b) 
+static uint64_t f3(int n, int b) 
 {
   return ((n - b) * (n - 1 - b) / 2);
 };
 
-static int f4(int n, int c) 
+static uint64_t f4(int n, int c) 
 {
   return (n-c);
 };
@@ -11535,9 +11536,9 @@ static void preprocessQuartetPrefix(int numberOfTaxa, uint64_t *prefixSumF2, uin
   }
 }
 
-static int binarySearch(uint64_t* array, uint64_t z, int n)
+static unsigned int binarySearch(uint64_t* array, uint64_t z, int n)
 {
-  int 
+  unsigned int 
     first = 0,
     last = n-3,
     middle = (first + last) / 2, 
@@ -11570,12 +11571,12 @@ static int binarySearch(uint64_t* array, uint64_t z, int n)
 
 static void mapNumberToQuartet(int numberOfTaxa, uint64_t z, int *t1, int *t2, int *t3, int *t4, uint64_t *prefixSumF2, uint64_t *prefixSumF3, uint64_t *prefixSumF4)
 {
-  int    
+  uint64_t    
     wantedT1 = z;
 
   *t1 = binarySearch(prefixSumF2, z, numberOfTaxa) + 1;
 
-  int 
+  uint64_t 
     foundT1 = prefixSumF2[*t1 - 1];
   
   if(wantedT1 == foundT1) 
@@ -11586,12 +11587,12 @@ static void mapNumberToQuartet(int numberOfTaxa, uint64_t z, int *t1, int *t2, i
       return;
     }
   
-  int 
+  uint64_t 
     wantedT2 = (prefixSumF3[*t1 - 1]) + (wantedT1 - foundT1);
   
   *t2 = binarySearch(prefixSumF3, wantedT2, numberOfTaxa) + 2;
 
-  int 
+  uint64_t 
     foundT2 = prefixSumF3[*t2 - 2];
   
   if(wantedT2 == foundT2) 
@@ -11601,12 +11602,12 @@ static void mapNumberToQuartet(int numberOfTaxa, uint64_t z, int *t1, int *t2, i
       return;
     }
   
-  int 
+  uint64_t 
     wantedT3 = (prefixSumF4[*t2 - 2]) + (wantedT2 - foundT2);
   
   *t3 = binarySearch(prefixSumF4, wantedT3, numberOfTaxa) + 3;
 
-  int 
+  uint64_t 
     foundT3 = prefixSumF4[*t3 - 3];
   
   if (wantedT3 == foundT3) 
@@ -11964,9 +11965,7 @@ static void computeAllThreeQuartets(tree *tr, nodeptr q1, nodeptr q2, int t1, in
 #define RANDOM_QUARTETS 1
 #define GROUPED_QUARTETS 2
 
-
-static void sampleQuartetsWithoutReplacement(tree *tr, int numberOfTaxa, int64_t seed, uint64_t numberOfQuartets, uint64_t randomQuartets, nodeptr q1, nodeptr q2,
-					     uint64_t *prefixSumF2, uint64_t *prefixSumF3, uint64_t *prefixSumF4, FILE *f, analdef *adef)
+static void sampleQuartetsWithoutReplacementA(tree *tr, int numberOfTaxa, int64_t seed, uint64_t numberOfQuartets, uint64_t randomQuartets, nodeptr q1, nodeptr q2, uint64_t *prefixSumF2, uint64_t *prefixSumF3, uint64_t *prefixSumF4, FILE *f, analdef *adef, uint64_t actVal)
 {
   int64_t 
     myseed = seed;
@@ -11975,8 +11974,7 @@ static void sampleQuartetsWithoutReplacement(tree *tr, int numberOfTaxa, int64_t
     sampleSize = randomQuartets,
     quartetCounter = 0,
     top = numberOfQuartets - sampleSize,
-    s, 
-    actVal = 0;
+    s;
   
   int 
     t1,
@@ -12024,6 +12022,125 @@ static void sampleQuartetsWithoutReplacement(tree *tr, int numberOfTaxa, int64_t
   assert(quartetCounter == randomQuartets);
 }
 
+static void sampleQuartetsWithoutReplacementD(tree *tr, int numberOfTaxa, int64_t seed, uint64_t numberOfQuartets, uint64_t randomQuartets, nodeptr q1, nodeptr q2, uint64_t *prefixSumF2, uint64_t *prefixSumF3, uint64_t *prefixSumF4, FILE *f, analdef *adef, uint64_t actVal)
+{
+  int64_t 
+    myseed = seed;
+    
+  uint64_t    
+    sampleSize = randomQuartets,
+    quartetCounter = 0,
+    s,
+    qu1,
+    threshold,
+    t,
+    limit;
+    
+  int 
+    t1,
+    t2,
+    t3,
+    t4;
+    
+  double
+    negalphainv = -1.0/13,
+    nreal = sampleSize,
+    ninv = 1.0 / nreal,
+    Nreal = numberOfQuartets,
+    vprime = exp(log(randum(&myseed)) * ninv),
+    qu1real,
+    nmin1inv,
+    x,
+    u, 
+    negSreal,
+    y1,
+    y2,
+    top,
+    bottom;
+    
+  qu1 = -sampleSize + 1 + numberOfQuartets;
+  qu1real = -nreal + 1.0 + Nreal;
+  threshold = -negalphainv * sampleSize;
+
+  while ((sampleSize > 1) && (threshold < numberOfQuartets))
+  {
+    nmin1inv = 1.0/(-1.0 + nreal);
+    while (true)
+    {
+      while (true)
+      // step D2: Generate U and X
+      {
+        x = Nreal * (-vprime + 1.0);
+        s = trunc(x);
+        if (s < qu1) break;
+        vprime = exp(log(randum(&myseed)) * ninv);
+      }
+      u = randDouble();
+      negSreal = (double) s * (-1);
+      // step D3: Accept?
+      y1 = exp(log(u * Nreal/qu1real) * nmin1inv);
+      vprime = y1 * (-x/Nreal + 1.0) * (qu1real/(negSreal + qu1real));
+      if (vprime <= 1.0) break; // Accept! test (2.8) is true
+      // step D4: Accept?
+      y2 = 1.0;
+      top = -1.0 + Nreal;
+      if (-1 + sampleSize > s)
+      {
+        bottom = -nreal + Nreal;
+        limit = -s + numberOfQuartets;
+      }
+      else
+      {
+        bottom = -1.0 + negSreal + Nreal;
+        limit = qu1;
+      }
+      for (t = -1 + numberOfQuartets; t >= limit; t--)
+      {
+        y2 = (y2 * top)/bottom;
+        top = -1.0 + top;
+        bottom = -1.0 + bottom;
+      }
+      if (Nreal/(-x+Nreal) >= y1 * exp(log(y2)*nmin1inv))
+      {
+        // Accept!
+        vprime = exp(log(randum(&myseed)) * nmin1inv);
+        break;
+      }
+      vprime = exp(log(randum(&myseed)) * ninv);
+    }
+    // Step D5: Select the (s+1)st record
+    // Skip over the next s records and select the following one for the sample
+    actVal += s+1;
+    mapNumberToQuartet(numberOfTaxa, actVal, &t1, &t2, &t3, &t4, prefixSumF2, prefixSumF3, prefixSumF4);
+    computeAllThreeQuartets(tr, q1, q2, t1, t2, t3, t4, f, adef);
+    quartetCounter++;
+    
+    numberOfQuartets = -s + (-1 + numberOfQuartets);
+    Nreal = negSreal + (-1.0 + Nreal);
+    sampleSize--;
+    nreal = nreal - 1.0;
+    ninv = nmin1inv;
+    qu1 = qu1 - s;
+    qu1real += negSreal;
+    threshold += negalphainv;
+  }
+  if (sampleSize > 1)
+  {
+    // Use Method A to finish the sampling
+    assert(quartetCounter == randomQuartets - sampleSize);
+    sampleQuartetsWithoutReplacementA(tr, numberOfTaxa, seed, numberOfQuartets, sampleSize, q1, q2, prefixSumF2, prefixSumF3, prefixSumF4, f, adef, actVal);
+  }
+  else // Special case sampleSize == 1
+  {
+    s = trunc(numberOfQuartets * vprime);
+    // Skip over the next s records and select the following one for the sample
+    actVal += s+1;
+    mapNumberToQuartet(numberOfTaxa, actVal, &t1, &t2, &t3, &t4, prefixSumF2, prefixSumF3, prefixSumF4);
+    computeAllThreeQuartets(tr, q1, q2, t1, t2, t3, t4, f, adef);
+    quartetCounter++;
+    assert(quartetCounter == randomQuartets);
+  }
+}
 
 static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
 {
@@ -12261,7 +12378,14 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
 		  *prefixSumF4 = (uint64_t*)rax_malloc(sizeof(uint64_t) * (size_t)(tr->mxtips - 2));
 
 		preprocessQuartetPrefix(tr->mxtips, prefixSumF2, prefixSumF3, prefixSumF4);
-		sampleQuartetsWithoutReplacement(tr, tr->mxtips, adef->parsimonySeed, numberOfQuartets, randomQuartets, q1, q2, prefixSumF2, prefixSumF3, prefixSumF4, f, adef);
+		if (randomQuartets >= numberOfQuartets/13)
+		{
+		  sampleQuartetsWithoutReplacementA(tr, tr->mxtips, adef->parsimonySeed, numberOfQuartets, randomQuartets, q1, q2, prefixSumF2, prefixSumF3, prefixSumF4, f, adef, 0);
+		}
+		else
+		{
+		  sampleQuartetsWithoutReplacementD(tr, tr->mxtips, adef->parsimonySeed, numberOfQuartets, randomQuartets, q1, q2, prefixSumF2, prefixSumF3, prefixSumF4, f, adef, 0);
+		}
 
 		rax_free(prefixSumF2);
 		rax_free(prefixSumF3);
