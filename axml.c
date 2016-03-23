@@ -4993,6 +4993,8 @@ static void printREADME(void)
 #endif
   printf("      [--bootstop-perms=number]\n");
   printf("\n");
+  printf("      [--quartets-without-replacement]\n");
+  printf("\n");
   printf("      -a      Specify a column weight file name to assign individual weights to each column of \n");
   printf("              the alignment. Those weights must be integers separated by any type and number \n");
   printf("              of whitespaces whithin a separate file, see file \"example_weights\" for an example.\n");
