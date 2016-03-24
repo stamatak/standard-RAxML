@@ -12098,7 +12098,7 @@ static void sampleQuartetsWithoutReplacementA(tree *tr, int numberOfTaxa, int64_
 }
 
 /**
-Sample random quartets in ascending order using the methodD algorithm from J. S. Vitter, "An efficient algorithm for sequential random sampling". The runtime of this algorithm is O(randomQuartets).
+Sample random quartets in ascending order using the methodD algorithm from J. S. Vitter, "An efficient algorithm for sequential random sampling". The runtime of this algorithm is O(randomQuartets). The main idea of the algorithm is to decide ho many quartets to skip instead of testing for each quartet whether to take it or not.
 
 @param tr The tree.
 @param numberOfTaxa The number of taxa in the tree.
@@ -12453,15 +12453,10 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
 	  break;
 	case RANDOM_QUARTETS:
 	  {	 
-
-	    //endless loop ta make sure we randomly sub-sample exactly as many quartets as the user specified
-
-	    //This is not very elegant, but it works, note however, that especially when the number of 
-	    //random quartets to be sampled is large, that is, close to the total number of quartets 
-	    //some quartets may be sampled twice by pure chance. To randomly sample unique quartets 
-	    //using hashes or bitmaps to store which quartets have already been sampled is not memory efficient.
-	    //Insetad, we need to use a random number generator that can generate a unique series of random numbers 
-	    //and then have a function f() that maps those random numbers to the corresponding index quartet (t1, t2, t3, t4).
+      // Sample random quartets without replacement in O(randomQuartets * log(tr->mxtips)) time and O(tr->mxtips) space.
+      // This is achieved by drawing random numbers in ascending order and using prefix sums to map a number to a
+      // quartet (t1,t2,t3,t4) using the lexicographical ordering of the quartets. For each quartet, it is required
+      // that 1 <= t1 < t2 < t3 < t4 <= tr->mxtips. 
 	    if(0)//adef->sampleQuartetsWithoutReplacement)
 	      {
 		uint64_t
@@ -12470,11 +12465,11 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
 		  *prefixSumF4 = (uint64_t*)rax_malloc(sizeof(uint64_t) * (size_t)(tr->mxtips - 2));
 
 		preprocessQuartetPrefix(tr->mxtips, prefixSumF2, prefixSumF3, prefixSumF4);
-		if (randomQuartets >= numberOfQuartets/13)
+		if (randomQuartets >= numberOfQuartets/13) // decide for each quartet whether to take it or not
 		{
 		  sampleQuartetsWithoutReplacementA(tr, tr->mxtips, adef->parsimonySeed, numberOfQuartets, randomQuartets, q1, q2, prefixSumF2, prefixSumF3, prefixSumF4, f, adef, 0);
 		}
-		else
+		else // decide how many quartets to skip before taking the next one
 		{
 		  sampleQuartetsWithoutReplacementD(tr, tr->mxtips, adef->parsimonySeed, numberOfQuartets, randomQuartets, q1, q2, prefixSumF2, prefixSumF3, prefixSumF4, f, adef, 0);
 		}
