@@ -11501,6 +11501,13 @@ unsigned int precomputed16_bitcount (unsigned int n)
 
 /*** functions by Sarah for drawing quartets without replacement ***/
 
+/*
+Given the following nested for-loops:
+for b = a+1 to n-2
+  for c = b+1 to n-1
+    for d = c+1 to n
+How many iterations do we have for a given a?
+*/
 static uint64_t f2(int n, int a) 
 {
   long double nDouble = n;
@@ -11509,6 +11516,12 @@ static uint64_t f2(int n, int a)
   return round(res);
 };
 
+/*
+Given the following nested for-loops:
+for c = b+1 to n-1
+  for d = c+1 to n
+How many iterations do we have for a given b?
+*/
 static uint64_t f3(int n, int b) 
 {
   long double nDouble = n;
@@ -11517,6 +11530,11 @@ static uint64_t f3(int n, int b)
   return round(res);
 };
 
+/*
+Given the following for-loop:
+for d = c+1 to n
+How many iterations do we have for a given c?
+*/
 static uint64_t f4(int n, int c) 
 {
   return (n-c);
@@ -11528,8 +11546,18 @@ static void preprocessQuartetPrefix(int numberOfTaxa, uint64_t *prefixSumF2, uin
     i,
     n = numberOfTaxa;
   
-  
-
+  /*
+  Given the following nested for-loops:
+  it = 0;
+  for a = 1 to n-3
+    for b = a+1 to n-2
+      for c = b+1 to n-1
+        for d = c+1 to n
+          it++;
+  prefixSumF2[i]: first value of it that belongs to a = i+1 
+  prefixSumF3[i]: first value of it that belongs to b = i+2
+  prefixSumF4[i]: first value of it that belongs to c = i+3
+  */
   prefixSumF2[0] = 1;
   prefixSumF3[0] = 1;
   prefixSumF4[0] = 1;
@@ -11542,20 +11570,23 @@ static void preprocessQuartetPrefix(int numberOfTaxa, uint64_t *prefixSumF2, uin
   }
 }
 
+/*
+Binary search in sorted array of size n-2. Returns the index of the greatest value in array that is <= z.
+*/
 static unsigned int binarySearch(uint64_t* array, uint64_t z, int n)
 {
   unsigned int 
     first = 0,
     last = n-3,
     middle = (first + last) / 2, 
-    lastSmaller = 0;
+    lastSmallerOrEqual = 0;
   
   while(first <= last)
     {
       if(array[middle] < z)
 	{
 	  first = middle + 1;
-	  lastSmaller = middle;
+	  lastSmallerOrEqual = middle;
 	}
       else 
 	{
@@ -11564,7 +11595,7 @@ static unsigned int binarySearch(uint64_t* array, uint64_t z, int n)
 	  else 
 	    { 
 	      // array[middle] == z
-	      lastSmaller = middle;
+	      lastSmallerOrEqual = middle;
 	      break;
 	    }
 	}
@@ -11572,14 +11603,32 @@ static unsigned int binarySearch(uint64_t* array, uint64_t z, int n)
       middle = (first + last)/2;
     }
 
-  return lastSmaller;
+  return lastSmallerOrEqual;
 }
 
+/**
+Map an integer value z to a quartet (t1,t2,t3,t4).
+
+@param numberOfTaxa The number of taxa in the tree.
+@param z A value encoding a quartet (t1,t2,t3,t4). 
+*/
 static void mapNumberToQuartet(int numberOfTaxa, uint64_t z, int *t1, int *t2, int *t3, int *t4, uint64_t *prefixSumF2, uint64_t *prefixSumF3, uint64_t *prefixSumF4)
 {
+  /*
+  Given the following nested for-loops:
+  z = 0;
+  for t1 = 1 to numberOfTaxa-3
+    for t2 = t1+1 to numberOfTaxa-2
+      for t3 = t2+1 to numberOfTaxa-1
+        for t4 = t3+1 to numberOfTaxa
+          z++;
+  Find the quartet (t1,t2,t3,t4) that belongs to the given value of z.
+  */
+  
   uint64_t    
     wantedT1 = z;
 
+  // find the first value of z that belongs to t1
   *t1 = binarySearch(prefixSumF2, z, numberOfTaxa) + 1;
 
   uint64_t 
@@ -11596,6 +11645,7 @@ static void mapNumberToQuartet(int numberOfTaxa, uint64_t z, int *t1, int *t2, i
   uint64_t 
     wantedT2 = (prefixSumF3[*t1 - 1]) + (wantedT1 - foundT1);
   
+  // find the first value of z that belongs to t2
   *t2 = binarySearch(prefixSumF3, wantedT2, numberOfTaxa) + 2;
 
   uint64_t 
@@ -11611,6 +11661,7 @@ static void mapNumberToQuartet(int numberOfTaxa, uint64_t z, int *t1, int *t2, i
   uint64_t 
     wantedT3 = (prefixSumF4[*t2 - 2]) + (wantedT2 - foundT2);
   
+  // find the first value of z that belongs to t3
   *t3 = binarySearch(prefixSumF4, wantedT3, numberOfTaxa) + 3;
 
   uint64_t 
@@ -11622,6 +11673,7 @@ static void mapNumberToQuartet(int numberOfTaxa, uint64_t z, int *t1, int *t2, i
       return;
     }
 
+  // find the value of z that belongs to t4
   *t4 = wantedT3 - foundT3 + *t3 + 1;
 }
 
@@ -11971,6 +12023,23 @@ static void computeAllThreeQuartets(tree *tr, nodeptr q1, nodeptr q2, int t1, in
 #define RANDOM_QUARTETS 1
 #define GROUPED_QUARTETS 2
 
+/**
+Sample random quartets in ascending order using the methodA algorithm from J. S. Vitter, "An efficient algorithm for sequential random sampling". The runtime of this algorithm is O(numberOfQuartets).
+
+@param tr The tree.
+@param numberOfTaxa The number of taxa in the tree.
+@param seed
+@param numberOfQuartets The total number of different quartets that exist for numberOfTaxa taxa.
+@param randomQuartets The number of quartets to sample.
+@param q1
+@param q2
+@param prefixSumF2
+@param prefixSumF3
+@param prefixSumF4
+@param f
+@param adef
+@param actVal The value of the last drawn random number representing a quartet.
+*/
 static void sampleQuartetsWithoutReplacementA(tree *tr, int numberOfTaxa, int64_t seed, uint64_t numberOfQuartets, uint64_t randomQuartets, nodeptr q1, nodeptr q2, uint64_t *prefixSumF2, uint64_t *prefixSumF3, uint64_t *prefixSumF4, FILE *f, analdef *adef, uint64_t actVal)
 {
   int64_t 
@@ -12028,6 +12097,23 @@ static void sampleQuartetsWithoutReplacementA(tree *tr, int numberOfTaxa, int64_
   assert(quartetCounter == randomQuartets);
 }
 
+/**
+Sample random quartets in ascending order using the methodD algorithm from J. S. Vitter, "An efficient algorithm for sequential random sampling". The runtime of this algorithm is O(randomQuartets).
+
+@param tr The tree.
+@param numberOfTaxa The number of taxa in the tree.
+@param seed
+@param numberOfQuartets The total number of different quartets that exist for numberOfTaxa taxa.
+@param randomQuartets The number of quartets to sample.
+@param q1
+@param q2
+@param prefixSumF2
+@param prefixSumF3
+@param prefixSumF4
+@param f
+@param adef
+@param actVal The value of the last drawn random number representing a quartet.
+*/
 static void sampleQuartetsWithoutReplacementD(tree *tr, int numberOfTaxa, int64_t seed, uint64_t numberOfQuartets, uint64_t randomQuartets, nodeptr q1, nodeptr q2, uint64_t *prefixSumF2, uint64_t *prefixSumF3, uint64_t *prefixSumF4, FILE *f, analdef *adef, uint64_t actVal)
 {
   int64_t 
