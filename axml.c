@@ -11503,12 +11503,18 @@ unsigned int precomputed16_bitcount (unsigned int n)
 
 static uint64_t f2(int n, int a) 
 {
-  return ((n - a) * (n - 1 - a) * (n - 2 - a ) / 6);
+  long double nDouble = n;
+  long double aDouble = a;
+  long double res = (nDouble - aDouble) * (nDouble - 1 - aDouble) * (nDouble - 2 - aDouble) / 6;
+  return round(res);
 };
 
 static uint64_t f3(int n, int b) 
 {
-  return ((n - b) * (n - 1 - b) / 2);
+  long double nDouble = n;
+  long double bDouble = b;
+  long double res = (nDouble - bDouble) * (nDouble - 1 - bDouble) / 2;
+  return round(res);
 };
 
 static uint64_t f4(int n, int c) 
