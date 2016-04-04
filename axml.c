@@ -12103,6 +12103,11 @@ static void sampleQuartetsWithoutReplacementA(tree *tr, int numberOfTaxa, int64_
   actVal += s+1;
   
   mapNumberToQuartet(numberOfTaxa, actVal, &t1, &t2, &t3, &t4, prefixSumF2, prefixSumF3, prefixSumF4);
+  #ifdef _QUARTET_MPI
+				  //MPI version very simple and naive way to determine which processor 
+				  //is going to do the likelihood calculations for this quartet
+				  if((quartetCounter % (uint64_t)(processes - 1)) == (uint64_t)(processID - 1))
+#endif
   computeAllThreeQuartets(tr, q1, q2, t1, t2, t3, t4, f, adef);
   quartetCounter++;
 
@@ -12241,6 +12246,11 @@ static void sampleQuartetsWithoutReplacementD(tree *tr, int numberOfTaxa, int64_
       // Skip over the next s records and select the following one for the sample
       actVal += s+1;
       mapNumberToQuartet(numberOfTaxa, actVal, &t1, &t2, &t3, &t4, prefixSumF2, prefixSumF3, prefixSumF4);
+      #ifdef _QUARTET_MPI
+				  //MPI version very simple and naive way to determine which processor 
+				  //is going to do the likelihood calculations for this quartet
+				  if((quartetCounter % (uint64_t)(processes - 1)) == (uint64_t)(processID - 1))
+#endif
       computeAllThreeQuartets(tr, q1, q2, t1, t2, t3, t4, f, adef);
       quartetCounter++;
       assert(quartetCounter == randomQuartets);
@@ -12520,7 +12530,7 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
 				{
 #ifdef _QUARTET_MPI
 				  //MPI version very simple and naive way to determine which processor 
-				  //is goingt to do the likelihood calculations for this quartet
+				  //is going to do the likelihood calculations for this quartet
 				  if((quartetCounter % (uint64_t)(processes - 1)) == (uint64_t)(processID - 1))
 #endif
 				    //function that computes the likelihood for all three possible unrooted trees 
