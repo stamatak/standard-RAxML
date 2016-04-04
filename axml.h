@@ -168,9 +168,9 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "RAxML"
-#define programVersion     "8.2.7"
-#define programVersionInt   8270
-#define programDate        "March 10 2016"
+#define programVersion     "8.2.8"
+#define programVersionInt   8280
+#define programDate        "March 23 2016"
 
 
 #define  TREE_EVALUATION                 0
@@ -1175,6 +1175,7 @@ typedef  struct {
   boolean       setThreadAffinity;
   int           bootstopPermutations;
   int           fcThreshold; 
+  boolean       sampleQuartetsWithoutReplacement;
 } analdef;
 
 
