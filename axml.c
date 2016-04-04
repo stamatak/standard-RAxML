@@ -51,7 +51,7 @@
 #include <limits.h>
 #include <inttypes.h>
 #include <getopt.h>
-//#include <stdbool.h>
+#include <stdbool.h>
 
 
 #if (defined(_WAYNE_MPI) || defined (_QUARTET_MPI))
@@ -3712,7 +3712,6 @@ static void initAdef(analdef *adef)
   adef->setThreadAffinity = FALSE;
   adef->bootstopPermutations = 100;
   adef->fcThreshold = 99;
-  adef->sampleQuartetsWithoutReplacement = FALSE;
 }
 
 static int modelExists(char *model, analdef *adef)
@@ -4993,8 +4992,6 @@ static void printREADME(void)
 #endif
   printf("      [--bootstop-perms=number]\n");
   printf("\n");
-  printf("      [--quartets-without-replacement]\n");
-  printf("\n");
   printf("      -a      Specify a column weight file name to assign individual weights to each column of \n");
   printf("              the alignment. Those weights must be integers separated by any type and number \n");
   printf("              of whitespaces whithin a separate file, see file \"example_weights\" for an example.\n");
@@ -5442,11 +5439,6 @@ static void printREADME(void)
   printf("                  The allowed minimum number is 100!\n");
   printf("\n");
   printf("                  DEFAULT: 100\n"); 
-  printf("\n");
-  printf("      --quartets-without-replacement specify that quartets are randomly subsampled, but without replacement.\n");
-   printf("\n");
-  printf("                  DEFAULT: random sampling with replacements\n"); 
-  printf("\n");
   printf("\n\n\n\n");
 
 }
@@ -5596,7 +5588,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
   while(1)
     {      
       static struct 
-	option long_options[17] =
+	option long_options[16] =
 	{	 
 	  {"mesquite",                  no_argument,       &flag, 1},
 	  {"silent",                    no_argument,       &flag, 1},
@@ -5613,7 +5605,6 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	  {"HKY85",                     no_argument,       &flag, 1},	 	 	 
 	  {"set-thread-affinity",       no_argument,       &flag, 1},
 	  {"bootstop-perms",            required_argument, &flag, 1},
-	  {"quartets-without-replacement", no_argument,    &flag, 1},
 	  {0, 0, 0, 0}
 	};
       
@@ -5817,9 +5808,6 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 		adef->bootstopPermutations = perms;
 		adef->fcThreshold = perms - round((double)perms / 100.0);		
 	      }
-	      break;
-	    case 15:
-	      adef->sampleQuartetsWithoutReplacement = TRUE;
 	      break;
 	    default:
 	      if(flagCheck)
@@ -12109,10 +12097,6 @@ static void sampleQuartetsWithoutReplacementA(tree *tr, int numberOfTaxa, int64_
   assert(quartetCounter == randomQuartets);
 }
 
-<<<<<<< HEAD
-static void sampleQuartetsWithoutReplacementD(tree *tr, int numberOfTaxa, int64_t seed, uint64_t numberOfQuartets, uint64_t randomQuartets, nodeptr q1, nodeptr q2, 
-					      uint64_t *prefixSumF2, uint64_t *prefixSumF3, uint64_t *prefixSumF4, FILE *f, analdef *adef, uint64_t actVal)
-=======
 /**
 Sample random quartets in ascending order using the methodD algorithm from J. S. Vitter, "An efficient algorithm for sequential random sampling". The runtime of this algorithm is O(randomQuartets). The main idea of the algorithm is to decide ho many quartets to skip instead of testing for each quartet whether to take it or not.
 
@@ -12131,12 +12115,11 @@ Sample random quartets in ascending order using the methodD algorithm from J. S.
 @param actVal The value of the last drawn random number representing a quartet.
 */
 static void sampleQuartetsWithoutReplacementD(tree *tr, int numberOfTaxa, int64_t seed, uint64_t numberOfQuartets, uint64_t randomQuartets, nodeptr q1, nodeptr q2, uint64_t *prefixSumF2, uint64_t *prefixSumF3, uint64_t *prefixSumF4, FILE *f, analdef *adef, uint64_t actVal)
->>>>>>> 63375cdcdfb8965445b10e24914b97f087b00edf
 {
-  int64_t       
+  int64_t 
     myseed = seed;
-  
-  uint64_t
+    
+  uint64_t    
     sampleSize = randomQuartets,
     quartetCounter = 0,
     s,
@@ -12171,53 +12154,52 @@ static void sampleQuartetsWithoutReplacementD(tree *tr, int numberOfTaxa, int64_
   qu1real = -nreal + 1.0 + Nreal;
   threshold = -negalphainv * sampleSize;
 
-  while((sampleSize > 1) && (threshold < numberOfQuartets))
+  while ((sampleSize > 1) && (threshold < numberOfQuartets))
   {
-    nmin1inv = 1.0 / (-1.0 + nreal);
-    while(TRUE)
+    nmin1inv = 1.0/(-1.0 + nreal);
+    while (true)
+    {
+      while (true)
+      // step D2: Generate U and X
       {
-	while (TRUE)
-	  // step D2: Generate U and X
-	  {
-	    x = Nreal * (-vprime + 1.0);
-	    s = trunc(x);
-	    if (s < qu1) break;
-	    vprime = exp(log(randum(&myseed)) * ninv);
-	  }
-	u = randum(&myseed);
-	negSreal = (double) s * (-1);
-	// step D3: Accept?
-	y1 = exp(log(u * Nreal / qu1real) * nmin1inv);
-	vprime = y1 * (-x / Nreal + 1.0) * (qu1real / (negSreal + qu1real));
-	if (vprime <= 1.0) break; // Accept! test (2.8) is true
-	// step D4: Accept?
-	y2 = 1.0;
-	top = -1.0 + Nreal;
-	if(-1 + sampleSize > s)
-	  {
-	    bottom = -nreal + Nreal;
-	    limit = -s + numberOfQuartets;
-	  }
-	else
-	  {
-	    bottom = -1.0 + negSreal + Nreal;
-	    limit = qu1;
-	  }
-	for (t = -1 + numberOfQuartets; t >= limit; t--)
-	  {
-	    y2 = (y2 * top)/bottom;
-	    top = -1.0 + top;
-	    bottom = -1.0 + bottom;
-	  }
-	
-	if(Nreal / (-x + Nreal) >= y1 * exp(log(y2) * nmin1inv))
-	  {
-	    // Accept!
-	    vprime = exp(log(randum(&myseed)) * nmin1inv);
-	    break;
-	  }
-	vprime = exp(log(randum(&myseed)) * ninv);
+        x = Nreal * (-vprime + 1.0);
+        s = trunc(x);
+        if (s < qu1) break;
+        vprime = exp(log(randum(&myseed)) * ninv);
       }
+      u = randDouble();
+      negSreal = (double) s * (-1);
+      // step D3: Accept?
+      y1 = exp(log(u * Nreal/qu1real) * nmin1inv);
+      vprime = y1 * (-x/Nreal + 1.0) * (qu1real/(negSreal + qu1real));
+      if (vprime <= 1.0) break; // Accept! test (2.8) is true
+      // step D4: Accept?
+      y2 = 1.0;
+      top = -1.0 + Nreal;
+      if (-1 + sampleSize > s)
+      {
+        bottom = -nreal + Nreal;
+        limit = -s + numberOfQuartets;
+      }
+      else
+      {
+        bottom = -1.0 + negSreal + Nreal;
+        limit = qu1;
+      }
+      for (t = -1 + numberOfQuartets; t >= limit; t--)
+      {
+        y2 = (y2 * top)/bottom;
+        top = -1.0 + top;
+        bottom = -1.0 + bottom;
+      }
+      if (Nreal/(-x+Nreal) >= y1 * exp(log(y2)*nmin1inv))
+      {
+        // Accept!
+        vprime = exp(log(randum(&myseed)) * nmin1inv);
+        break;
+      }
+      vprime = exp(log(randum(&myseed)) * ninv);
+    }
     // Step D5: Select the (s+1)st record
     // Skip over the next s records and select the following one for the sample
     actVal += s+1;
@@ -12235,21 +12217,21 @@ static void sampleQuartetsWithoutReplacementD(tree *tr, int numberOfTaxa, int64_
     threshold += negalphainv;
   }
   if (sampleSize > 1)
-    {
-      // Use Method A to finish the sampling
-      assert(quartetCounter == randomQuartets - sampleSize);
-      sampleQuartetsWithoutReplacementA(tr, numberOfTaxa, seed, numberOfQuartets, sampleSize, q1, q2, prefixSumF2, prefixSumF3, prefixSumF4, f, adef, actVal);
-    }
+  {
+    // Use Method A to finish the sampling
+    assert(quartetCounter == randomQuartets - sampleSize);
+    sampleQuartetsWithoutReplacementA(tr, numberOfTaxa, seed, numberOfQuartets, sampleSize, q1, q2, prefixSumF2, prefixSumF3, prefixSumF4, f, adef, actVal);
+  }
   else // Special case sampleSize == 1
-    {
-      s = trunc(numberOfQuartets * vprime);
-      // Skip over the next s records and select the following one for the sample
-      actVal += s+1;
-      mapNumberToQuartet(numberOfTaxa, actVal, &t1, &t2, &t3, &t4, prefixSumF2, prefixSumF3, prefixSumF4);
-      computeAllThreeQuartets(tr, q1, q2, t1, t2, t3, t4, f, adef);
-      quartetCounter++;
-      assert(quartetCounter == randomQuartets);
-    }
+  {
+    s = trunc(numberOfQuartets * vprime);
+    // Skip over the next s records and select the following one for the sample
+    actVal += s+1;
+    mapNumberToQuartet(numberOfTaxa, actVal, &t1, &t2, &t3, &t4, prefixSumF2, prefixSumF3, prefixSumF4);
+    computeAllThreeQuartets(tr, q1, q2, t1, t2, t3, t4, f, adef);
+    quartetCounter++;
+    assert(quartetCounter == randomQuartets);
+  }
 }
 
 static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
@@ -12471,17 +12453,11 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
 	  break;
 	case RANDOM_QUARTETS:
 	  {	 
-<<<<<<< HEAD
-	    //code contributed by Sarah for drawing quartets without replacement :-) 
-	    
-	    if(adef->sampleQuartetsWithoutReplacement)
-=======
       // Sample random quartets without replacement in O(randomQuartets * log(tr->mxtips)) time and O(tr->mxtips) space.
       // This is achieved by drawing random numbers in ascending order and using prefix sums to map a number to a
       // quartet (t1,t2,t3,t4) using the lexicographical ordering of the quartets. For each quartet, it is required
       // that 1 <= t1 < t2 < t3 < t4 <= tr->mxtips. 
 	    if(0)//adef->sampleQuartetsWithoutReplacement)
->>>>>>> 63375cdcdfb8965445b10e24914b97f087b00edf
 	      {
 		uint64_t
 		  *prefixSumF2 = (uint64_t*)rax_malloc(sizeof(uint64_t) * (size_t)(tr->mxtips - 2)),
@@ -12489,13 +12465,6 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
 		  *prefixSumF4 = (uint64_t*)rax_malloc(sizeof(uint64_t) * (size_t)(tr->mxtips - 2));
 
 		preprocessQuartetPrefix(tr->mxtips, prefixSumF2, prefixSumF3, prefixSumF4);
-<<<<<<< HEAD
-		
-		if(randomQuartets >= numberOfQuartets / 13)		
-		  sampleQuartetsWithoutReplacementA(tr, tr->mxtips, adef->parsimonySeed, numberOfQuartets, randomQuartets, q1, q2, prefixSumF2, prefixSumF3, prefixSumF4, f, adef, 0);		
-		else		
-		  sampleQuartetsWithoutReplacementD(tr, tr->mxtips, adef->parsimonySeed, numberOfQuartets, randomQuartets, q1, q2, prefixSumF2, prefixSumF3, prefixSumF4, f, adef, 0);	       
-=======
 		if (randomQuartets >= numberOfQuartets/13) // decide for each quartet whether to take it or not
 		{
 		  sampleQuartetsWithoutReplacementA(tr, tr->mxtips, adef->parsimonySeed, numberOfQuartets, randomQuartets, q1, q2, prefixSumF2, prefixSumF3, prefixSumF4, f, adef, 0);
@@ -12504,7 +12473,6 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
 		{
 		  sampleQuartetsWithoutReplacementD(tr, tr->mxtips, adef->parsimonySeed, numberOfQuartets, randomQuartets, q1, q2, prefixSumF2, prefixSumF3, prefixSumF4, f, adef, 0);
 		}
->>>>>>> 63375cdcdfb8965445b10e24914b97f087b00edf
 
 		rax_free(prefixSumF2);
 		rax_free(prefixSumF3);
@@ -12512,16 +12480,6 @@ static void computeQuartets(tree *tr, analdef *adef, rawdata *rdta, cruncheddata
 	      }
 	    else
 	      {
-		//endless loop ta make sure we randomly sub-sample exactly as many quartets as the user specified
-
-		//This is not very elegant, but it works, note however, that especially when the number of 
-		//random quartets to be sampled is large, that is, close to the total number of quartets 
-		//some quartets may be sampled twice by pure chance. To randomly sample unique quartets 
-		//using hashes or bitmaps to store which quartets have already been sampled is not memory efficient.
-		//Insetad, we need to use a random number generator that can generate a unique series of random numbers 
-		//and then have a function f() that maps those random numbers to the corresponding index quartet (t1, t2, t3, t4),
-		//see above 
-		
 		do
 		  {	      
 		    //loop over all quartets 
