@@ -5256,7 +5256,7 @@ static void printREADME(void)
   printf("\n");
   printf("      -n      Specifies the name of the output file.\n");
   printf("\n");
-  printf("      -o      Specify the name of a single outgrpoup or a comma-separated list of outgroups, eg \"-o Rat\" \n");
+  printf("      -o      Specify the name of a single outgroup or a comma-separated list of outgroups, eg \"-o Rat\" \n");
   printf("              or \"-o Rat,Mouse\", in case that multiple outgroups are not monophyletic the first name \n");
   printf("              in the list will be selected as outgroup, don't leave spaces between taxon names!\n"); 
   printf("\n");
