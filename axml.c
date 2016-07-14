@@ -13176,6 +13176,7 @@ static void rootTree(tree *tr, analdef *adef)
   distancesNewview(tr->start->back, distances, tr, &rootBranch, &minimum);
 
   printTree(rootBranch, tr, distances, f, printBranchLabels);
+  fprintf(f, "\n");
   
   fclose(f);
 
