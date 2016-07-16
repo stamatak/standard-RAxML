@@ -134,7 +134,7 @@ static void checkStdoutFlush(void)
    (e.g., via tail, or a pipe) do not receive any standard output until
    stdio gets around to flushing the file, which may be a long time.
    To provide more continuous feeding of RAxML output to these processes,
-   we force a flush of the stdio stream once per second.
+   we force a flush of the stdout stream once per second.
    (Dave Swofford 16july2016)
 */
   static clock_t lastFlush;
