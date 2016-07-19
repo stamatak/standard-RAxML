@@ -41,6 +41,7 @@
 #include <unistd.h>
 #endif
 
+#include <time.h>
 #include <math.h>
 #include <time.h>
 #include <stdlib.h>
@@ -130,19 +131,24 @@ FILE *getNumberOfTrees(tree *tr, char *fileName, analdef *adef)
 
 static void checkStdoutFlush(void)
 {
-/* If stdout is redirected, other processes monitoring RAxML's output
-   (e.g., via tail, or a pipe) do not receive any standard output until
-   stdio gets around to flushing the file, which may be a long time.
-   To provide more continuous feeding of RAxML output to these processes,
-   we force a flush of the stdout stream once per second.
-   (Dave Swofford 16july2016)
-*/
-  static clock_t lastFlush;
-  clock_t now = clock();
-  if (now - lastFlush > CLOCKS_PER_SEC)
+  /* If stdout is redirected, other processes monitoring RAxML's output
+     (e.g., via tail, or a pipe) do not receive any standard output until
+     stdio gets around to flushing the file, which may be a long time.
+     To provide more continuous feeding of RAxML output to these processes,
+     we force a flush of the stdout stream once per second.
+     (Dave Swofford 16july2016)
+  */
+  
+  static clock_t 
+    lastFlush;
+  
+  clock_t
+    now = clock();
+  
+  if(now - lastFlush > CLOCKS_PER_SEC)
     {
-    fflush(stdout);
-    lastFlush = now;
+      fflush(stdout);
+      lastFlush = now;
     }
 }
 
