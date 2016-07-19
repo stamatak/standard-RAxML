@@ -128,6 +128,24 @@ FILE *getNumberOfTrees(tree *tr, char *fileName, analdef *adef)
   return f;
 }
 
+static void checkStdoutFlush(void)
+{
+/* If stdout is redirected, other processes monitoring RAxML's output
+   (e.g., via tail, or a pipe) do not receive any standard output until
+   stdio gets around to flushing the file, which may be a long time.
+   To provide more continuous feeding of RAxML output to these processes,
+   we force a flush of the stdout stream once per second.
+   (Dave Swofford 16july2016)
+*/
+  static clock_t lastFlush;
+  clock_t now = clock();
+  if (now - lastFlush > CLOCKS_PER_SEC)
+    {
+    fflush(stdout);
+    lastFlush = now;
+    }
+}
+
 static void printBoth(FILE *f, const char* format, ... )
 {
   va_list args;
@@ -138,6 +156,7 @@ static void printBoth(FILE *f, const char* format, ... )
   va_start(args, format);
   vprintf(format, args );
   va_end(args);
+  checkStdoutFlush();
 }
 
 void printBothOpen(const char* format, ... )
@@ -156,6 +175,7 @@ void printBothOpen(const char* format, ... )
       va_start(args, format);
       vprintf(format, args );
       va_end(args);
+      checkStdoutFlush();
       
       fclose(f);
     }     
@@ -177,6 +197,7 @@ void printBothOpenMPI(const char* format, ... )
       va_start(args, format);
       vprintf(format, args );
       va_end(args);
+      checkStdoutFlush();
       
       fclose(f);
     }
