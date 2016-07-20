@@ -3022,6 +3022,11 @@ static void checkSequences(tree *tr, rawdata *rdta, analdef *adef)
 	    }
 
 
+	  if(adef->printIdenticalSequences == TRUE)
+	    {
+	      count = 0;
+	    }
+
 	  if(!filexists(noDupFile))
 	    {
 	      FILE 
@@ -3030,37 +3035,44 @@ static void checkSequences(tree *tr, rawdata *rdta, analdef *adef)
 	      if(adef->silent && (count || countUndeterminedColumns))
 		printBothOpen("\nIMPORTANT WARNING: Alignment validation warnings have been suppressed. Found %d duplicate %s and %d undetermined %s\n\n", 
 			      count, count > 1 ? "sequences" : "sequence", countUndeterminedColumns, countUndeterminedColumns > 1 ? "columns" : "column");
+	      
+	      //if(adef->printIdenticalSequences)
+	      //	count = 0;
  	      
-	      printBothOpen("Just in case you might need it, an alignment file with \n");
-	      if(count && !countUndeterminedColumns)
-		printBothOpen("sequence duplicates removed is printed to file %s\n", noDupFile);
-	      if(!count && countUndeterminedColumns)
-		printBothOpen("undetermined columns removed is printed to file %s\n", noDupFile);
-	      if(count && countUndeterminedColumns)
-		printBothOpen("sequence duplicates and undetermined columns removed is printed to file %s\n", noDupFile);
-
-	      newFile = myfopen(noDupFile, "wb");
-
-	      fprintf(newFile, "%d %d\n", tr->mxtips - count, rdta->sites - countUndeterminedColumns);
-
-	      for(i = 1; i < n; i++)
+	      if(count > 0 || countUndeterminedColumns > 0)
 		{
-		  if(!omissionList[i])
+		  printBothOpen("Just in case you might need it, an alignment file with \n");	     
+		
+		  if(count && !countUndeterminedColumns)
+		    printBothOpen("sequence duplicates removed is printed to file %s\n", noDupFile);
+		  if(!count && countUndeterminedColumns)
+		    printBothOpen("undetermined columns removed is printed to file %s\n", noDupFile);
+		  if(count && countUndeterminedColumns)
+		    printBothOpen("sequence duplicates and undetermined columns removed is printed to file %s\n", noDupFile);
+
+		  newFile = myfopen(noDupFile, "wb");
+
+		  fprintf(newFile, "%d %d\n", tr->mxtips - count, rdta->sites - countUndeterminedColumns);
+
+		  for(i = 1; i < n; i++)
 		    {
-		      fprintf(newFile, "%s ", tr->nameList[i]);
-		      tipI =  &(rdta->y[i][1]);
-
-		      for(j = 0; j < rdta->sites; j++)
+		      if(!omissionList[i] || count == 0)
 			{
-			  if(undeterminedList[j + 1] == 0)			    
-			    fprintf(newFile, "%c", getInverseMeaning(tr->dataVector[j + 1], tipI[j]));			      			     			 
+			  fprintf(newFile, "%s ", tr->nameList[i]);
+			  tipI =  &(rdta->y[i][1]);
+			  
+			  for(j = 0; j < rdta->sites; j++)
+			    {
+			      if(undeterminedList[j + 1] == 0)			    
+				fprintf(newFile, "%c", getInverseMeaning(tr->dataVector[j + 1], tipI[j]));			      			     			 
+			    }
+			  
+			  fprintf(newFile, "\n");
 			}
-
-		      fprintf(newFile, "\n");
 		    }
-		}
 
-	      fclose(newFile);
+		  fclose(newFile);
+		}
 	    }
 	  else
 	    {
@@ -3740,6 +3752,7 @@ static void initAdef(analdef *adef)
   adef->bootstopPermutations = 100;
   adef->fcThreshold = 99;
   adef->sampleQuartetsWithoutReplacement = FALSE;
+  adef->printIdenticalSequences = FALSE; 
 }
 
 static int modelExists(char *model, analdef *adef)
@@ -5022,6 +5035,10 @@ static void printREADME(void)
   printf("\n");
   printf("      [--quartets-without-replacement]\n");
   printf("\n");
+  printf("      [---without-replacement]\n");
+  printf("\n");
+  printf("      [--print-identical-sequences]\n");
+  printf("\n");      
   printf("      -a      Specify a column weight file name to assign individual weights to each column of \n");
   printf("              the alignment. Those weights must be integers separated by any type and number \n");
   printf("              of whitespaces whithin a separate file, see file \"example_weights\" for an example.\n");
@@ -5474,6 +5491,11 @@ static void printREADME(void)
    printf("\n");
   printf("                  DEFAULT: random sampling with replacements\n"); 
   printf("\n");
+  printf("      --print-identical-sequences specify that RAxML shall automatically generate a .reduced alignment with all\n");
+  printf("                  undetermined columns removed, but without removing exactly identical sequences\n");
+  printf("\n");
+  printf("                  DEFAULT: identical sequences will also be removed in the .reduced file\n"); 
+  printf("\n");
   printf("\n\n\n\n");
 
 }
@@ -5623,7 +5645,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
   while(1)
     {      
       static struct 
-	option long_options[17] =
+	option long_options[18] =
 	{	 
 	  {"mesquite",                  no_argument,       &flag, 1},
 	  {"silent",                    no_argument,       &flag, 1},
@@ -5641,6 +5663,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	  {"set-thread-affinity",       no_argument,       &flag, 1},
 	  {"bootstop-perms",            required_argument, &flag, 1},
 	  {"quartets-without-replacement", no_argument,    &flag, 1},
+	  {"print-identical-sequences", no_argument,       &flag, 1},
 	  {0, 0, 0, 0}
 	};
       
@@ -5847,6 +5870,9 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	      break;
 	    case 15:
 	      adef->sampleQuartetsWithoutReplacement = TRUE;
+	      break;
+	    case 16:
+	      adef->printIdenticalSequences = TRUE;
 	      break;
 	    default:
 	      if(flagCheck)
