@@ -4882,11 +4882,11 @@ static void printMinusFUsage(void)
 
   printf("              \"-f F\": execute fast experimental tree search, at present only for testing\n");
 
-  printf("              \"-f g\": compute per site log Likelihoods for one ore more trees passed via\n");
+  printf("              \"-f g\": compute per site log Likelihoods for one or more trees passed via\n");
   printf("                      \"-z\" and write them to a file that can be read by CONSEL\n");
   printf("                      The model parameters will be estimated on the first tree only!\n");
   
-  printf("              \"-f G\": compute per site log Likelihoods for one ore more trees passed via\n");
+  printf("              \"-f G\": compute per site log Likelihoods for one or more trees passed via\n");
   printf("                      \"-z\" and write them to a file that can be read by CONSEL.\n");
   printf("                      The model parameters will be re-estimated for each tree\n");
  
