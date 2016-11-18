@@ -7599,7 +7599,7 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
 
 	  
 	  if(tr->rateHetModel == GAMMA || tr->rateHetModel == GAMMA_I)
-	    printBoth(infoFile, "%s model of rate heteorgeneity, ML estimate of alpha-parameter\n\n", modelType);
+	    printBoth(infoFile, "%s model of rate heterogeneity, ML estimate of alpha-parameter\n\n", modelType);
 	  else
 	    {
 	      printBoth(infoFile, "ML estimate of %d per site rate categories\n\n", adef->categories);
@@ -13330,7 +13330,7 @@ static void checkAscBias(tree *tr)
 	  {
 	    printBothOpen("\nWARNING: you specified that you want to use an ascertainment bias correction for partition %d\n", model);
 	    printBothOpen("for the CAT model of rate heterogeneity. Are you sure that you don't want to use a model without any rate \n");
-	    printBothOpen("heteorgeneity modeling via the \"-V\" command line switch?\n");
+	    printBothOpen("heterogeneity modeling via the \"-V\" command line switch?\n");
 	  }
       }
 }
