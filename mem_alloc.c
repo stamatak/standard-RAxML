@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if !defined(__APPLE__)
+#ifdef WIN32
 #include <malloc.h>
 #endif
 
