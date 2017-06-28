@@ -1103,8 +1103,8 @@ static boolean addElementLen (FILE *fp, tree *tr, nodeptr p, boolean readBranchL
     }
   else 
     {   
-      ungetc(ch, fp);
-      if ((n = treeFindTipName(fp, tr, TRUE)) <= 0)          return FALSE;
+      ungetc(ch, fp);    
+      if ((n = treeFindTipName(fp, tr, TRUE)) <= 0)          return FALSE;     
       q = tr->nodep[n];
       if (tr->start->number > n)  tr->start = q;
       (tr->ntips)++;

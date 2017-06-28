@@ -4118,7 +4118,7 @@ void makeGammaCats(int rateHetModel, double alpha, double *gammaRates, int K, bo
       for (i = 0; i < K; i++)
         gammaRates[i] *= scaler;
     }
-   
+     
 
   rax_free(gammaProbs);
 

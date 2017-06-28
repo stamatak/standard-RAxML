@@ -1833,7 +1833,7 @@ void calcBipartitions_IC_Global(tree *tr, analdef *adef, char *bestTreeFileName,
 {
   int    
     numberOfTrees,
-    numberOfTaxa = readSingleTree(tr, bestTreeFileName, adef, FALSE, FALSE, TRUE);
+    numberOfTaxa = readSingleTree(tr, bestTreeFileName, adef, TRUE, FALSE, TRUE);
 
   FILE 
     *treeFile; 

@@ -7887,7 +7887,8 @@ void printBipartitionResult(tree *tr, analdef *adef, boolean finalPrint, boolean
 	  fprintf(logFile, "%s", tr->tree_string);
 	  fclose(logFile);
 	}
-
+      
+     
       Tree2String(tr->tree_string, tr, tr->start->back, FALSE, TRUE, FALSE, FALSE, finalPrint, adef, NO_BRANCHES, TRUE, FALSE, printIC, FALSE);
       
       
