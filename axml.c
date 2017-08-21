@@ -6601,10 +6601,15 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	{
 	  printf("All options supported\n");
 	  fprintf(flagCheckFile, "All options supported\n");
+	  fclose(flagCheckFile);
+	  exit(0);
+	}
+      else
+	{
+	  fclose(flagCheckFile);
+	  exit(-1);
 	}
      
-      fclose(flagCheckFile);
-      exit(0);
     }
   
   if(tr->useAccumulatedEPACutoff && epaSet)
