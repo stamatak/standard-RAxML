@@ -3185,7 +3185,7 @@ void plausibilityChecker(tree *tr, analdef *adef)
 	  if(numberOfTreesAnalyzed % 100 == 0)
 	    printBothOpen("Relative RF tree %d: %f\n\n", i, rec_rf);
 	  
-	  fprintf(rfFile, "%d %f\n", i, rec_rf);
+	  fprintf(rfFile, "%d %f %d\n", i, rec_rf, smallTree->ntips);
 	  
 	  /* free masks and hast table for this iteration */
 	  rec_freeBitVector(smallTree, bitVectors);

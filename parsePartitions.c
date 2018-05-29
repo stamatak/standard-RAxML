@@ -642,7 +642,16 @@ static int myGetline(char **lineptr, int *n, FILE *stream)
   return p - *lineptr;
 }
 
-
+static void nonContiguousError(analdef *adef)
+{
+  if(adef->compressPatterns == FALSE)
+    {
+      printf("\nError: You are not allowed to use interleaved partitions, that is, assign non-contiguous sites\n");
+      printf("to the same partition model, when pattern compression is disabled via the -H flag,\n");
+      printf("or when pattern compression is disabled implicitely by some other option that requires it!\n\n");
+      exit(-1);
+    }
+}
 
 void parsePartitions(analdef *adef, rawdata *rdta, tree *tr)
 {
@@ -775,6 +784,7 @@ void parsePartitions(analdef *adef, rawdata *rdta, tree *tr)
       if(*ch == ',')
 	{	     
 	  upper = lower;
+	  nonContiguousError(adef);
 	  goto SINGLE_NUMBER;
 	}
       
@@ -818,6 +828,7 @@ void parsePartitions(analdef *adef, rawdata *rdta, tree *tr)
       if(*ch == ',')
 	{	 
 	  ch++;
+	  nonContiguousError(adef);
 	  goto numberPairs;
 	}
       
@@ -831,15 +842,9 @@ void parsePartitions(analdef *adef, rawdata *rdta, tree *tr)
 	      printf("%c Number expected in %s\n", *ch, p_names[i]);
 	      exit(-1);
 	    }     
-	  
-	   if(adef->compressPatterns == FALSE)
-	    {
-	      printf("\nError: You are not allowed to use interleaved partitions, that is, assign non-contiguous sites\n");
-	      printf("to the same partition model, when pattern compression is disabled via the -H flag,\n");
-	      printf("or when pattern compression is disabled implicitely by some other option that requires it!\n\n");
-	      exit(-1);
-	    }
 
+	  nonContiguousError(adef);
+	  
 	  l = 0;
 	  while(isNum(*ch))
 	    {
@@ -856,9 +861,11 @@ void parsePartitions(analdef *adef, rawdata *rdta, tree *tr)
 	    {	     
 	      goto parsed;
 	    }
+
 	  if(*ch == ',')
 	    {	       
 	      ch++;
+	      nonContiguousError(adef);
 	      goto numberPairs;
 	    }
 	}  
