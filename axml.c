@@ -66,17 +66,8 @@
 
 #endif
 
-#if ! (defined(__ppc) || defined(__powerpc__) || defined(PPC))
-#include <xmmintrin.h>
-/*
-  special bug fix, enforces denormalized numbers to be flushed to zero,
-  without this program is a tiny bit faster though.
-  #include <emmintrin.h> 
-  #define MM_DAZ_MASK    0x0040
-  #define MM_DAZ_ON    0x0040
-  #define MM_DAZ_OFF    0x0000
-*/
-#endif
+#define SIMDE_ENABLE_NATIVE_ALIASES
+#include <simde/x86/sse.h>
 
 #include "axml.h"
 #include "globalVariables.h"
@@ -5931,12 +5922,6 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	    break;
 	  case 'U':
 	    tr->saveMemory = TRUE;
-#if (!defined(__SIM_SSE3) && !defined(__AVX))	
-	    printf("\nmemory saving option -U does only work with the AVX and SSE3 vectorized versions of the code\n");
-	    printf("please remove this option and execute the program again\n");
-	    printf("exiting ....\n\n");
-	    errorExit(0);
-#endif
 	    break;
 	  case 'R':
 	    adef->useBinaryModelFile = TRUE;
@@ -13707,7 +13692,7 @@ int main (int argc, char *argv[])
     
     
     
-#if ! (defined(__ppc) || defined(__powerpc__) || defined(PPC))
+#if defined(_SSE_NATIVE)
     
     /* 
        David Defour's command  

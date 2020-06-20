@@ -46,33 +46,8 @@
 #include <string.h>
 #include <stdint.h>
 
-#ifdef __AVX
-
-#ifdef __SIM_SSE3
-
-#define _SSE3_WAS_DEFINED
-
-#undef __SIM_SSE3
-
-#endif
-
-#endif
-
-
-#ifdef __SIM_SSE3
-
-#include <xmmintrin.h>
-#include <pmmintrin.h>
-  
-#endif
-
-#ifdef __AVX
-
-#include <xmmintrin.h>
-#include <immintrin.h>
-
-#endif
-
+#define SIMDE_ENABLE_NATIVE_ALIASES
+#include <simde/x86/avx.h>
 
 #include "axml.h"
 
@@ -82,35 +57,16 @@ extern const unsigned int mask32[32];
 extern char **globalArgv;
 extern int globalArgc;
 
-#ifdef __SIM_SSE3
-
-#define INTS_PER_VECTOR 4
-#define INT_TYPE __m128i
-#define CAST __m128i*
-#define SET_ALL_BITS_ONE _mm_set_epi32(0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF)
-#define SET_ALL_BITS_ZERO _mm_set_epi32(0x00000000, 0x00000000, 0x00000000, 0x00000000)
-#define VECTOR_LOAD _mm_load_si128
-#define VECTOR_BIT_AND _mm_and_si128
-#define VECTOR_BIT_OR  _mm_or_si128
-#define VECTOR_STORE  _mm_store_si128
-#define VECTOR_AND_NOT _mm_andnot_si128
-
-#endif
-
-#ifdef __AVX
-
 #define INTS_PER_VECTOR 8
 #define INT_TYPE __m256d
 #define CAST double*
-#define SET_ALL_BITS_ONE (__m256d)_mm256_set_epi32(0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF)
-#define SET_ALL_BITS_ZERO (__m256d)_mm256_set_epi32(0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000)
+#define SET_ALL_BITS_ONE _mm256_set_pd(0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)
+#define SET_ALL_BITS_ZERO _mm256_setzero_pd()
 #define VECTOR_LOAD _mm256_load_pd
 #define VECTOR_BIT_AND _mm256_and_pd
 #define VECTOR_BIT_OR  _mm256_or_pd
 #define VECTOR_STORE  _mm256_store_pd
 #define VECTOR_AND_NOT _mm256_andnot_pd
-
-#endif
 
 extern double masterTime;
 extern char  workdir[1024];
@@ -185,7 +141,6 @@ static void computeTraversalInfoParsimony(nodeptr p, int *ti, int *counter, int 
 
 
 
-#if (defined(__SIM_SSE3) || defined(__AVX))
 
 static inline unsigned int populationCount(INT_TYPE v_N)
 {
@@ -203,17 +158,6 @@ static inline unsigned int populationCount(INT_TYPE v_N)
     
   return a;	   
 }
-
-#else
-
-static inline unsigned int populationCount(unsigned int n)
-{
-  return BIT_COUNT(n);
-}
-
-#endif
-
-#if (defined(__SIM_SSE3) || defined(__AVX))
 
 void newviewParsimonyIterativeFast(tree *tr)
 {    
@@ -607,383 +551,6 @@ unsigned int evaluateParsimonyIterativeFast(tree *tr)
   
   return sum;
 }
-
-
-#else
-
-void newviewParsimonyIterativeFast(tree *tr)
-{    
-  int 
-    model,
-    *ti = tr->ti,
-    count = ti[0],
-    index; 
-
-  for(index = 4; index < count; index += 4)
-    {      
-      unsigned int
-	totalScore = 0;
-
-      size_t
-	pNumber = (size_t)ti[index],
-	qNumber = (size_t)ti[index + 1],
-	rNumber = (size_t)ti[index + 2];
-      
-      for(model = 0; model < tr->NumberOfModels; model++)
-	{
-	  size_t
-	    k,
-	    states = tr->partitionData[model].states,
-	    width = tr->partitionData[model].parsimonyLength;	 
-            
-	  unsigned int	
-	    i;      
-                 
-	  switch(states)
-	    {
-	    case 2:       
-	      {
-		parsimonyNumber
-		  *left[2],
-		  *right[2],
-		  *thisOne[2];
-		
-		parsimonyNumber
-		   o_A,
-		   o_C,
-		   t_A,
-		   t_C,	
-		   t_N;
-		
-		for(k = 0; k < 2; k++)
-		  {
-		    left[k]  = &(tr->partitionData[model].parsVect[(width * 2 * qNumber) + width * k]);
-		    right[k] = &(tr->partitionData[model].parsVect[(width * 2 * rNumber) + width * k]);
-		    thisOne[k]  = &(tr->partitionData[model].parsVect[(width * 2 * pNumber) + width * k]);
-		  }
-
-		for(i = 0; i < width; i++)
-		  {	 	  
-		    t_A = left[0][i] & right[0][i];
-		    t_C = left[1][i] & right[1][i];		   
-
-		    o_A = left[0][i] | right[0][i];
-		    o_C = left[1][i] | right[1][i];
-		  
-		    t_N = ~(t_A | t_C);	  
-
-		    thisOne[0][i] = t_A | (t_N & o_A);
-		    thisOne[1][i] = t_C | (t_N & o_C);		   
-		    
-		    totalScore += populationCount(t_N);   
-		  }
-	      }
-	      break;
-	    case 4:
-	      {
-		parsimonyNumber
-		  *left[4],
-		  *right[4],
-		  *thisOne[4];
-
-		for(k = 0; k < 4; k++)
-		  {
-		    left[k]  = &(tr->partitionData[model].parsVect[(width * 4 * qNumber) + width * k]);
-		    right[k] = &(tr->partitionData[model].parsVect[(width * 4 * rNumber) + width * k]);
-		    thisOne[k]  = &(tr->partitionData[model].parsVect[(width * 4 * pNumber) + width * k]);
-		  }
-
-		parsimonyNumber
-		   o_A,
-		   o_C,
-		   o_G,
-		   o_T,
-		   t_A,
-		   t_C,
-		   t_G,
-		   t_T,	
-		   t_N;
-
-		for(i = 0; i < width; i++)
-		  {	 	  
-		    t_A = left[0][i] & right[0][i];
-		    t_C = left[1][i] & right[1][i];
-		    t_G = left[2][i] & right[2][i];	  
-		    t_T = left[3][i] & right[3][i];
-
-		    o_A = left[0][i] | right[0][i];
-		    o_C = left[1][i] | right[1][i];
-		    o_G = left[2][i] | right[2][i];	  
-		    o_T = left[3][i] | right[3][i];
-
-		    t_N = ~(t_A | t_C | t_G | t_T);	  
-
-		    thisOne[0][i] = t_A | (t_N & o_A);
-		    thisOne[1][i] = t_C | (t_N & o_C);
-		    thisOne[2][i] = t_G | (t_N & o_G);
-		    thisOne[3][i] = t_T | (t_N & o_T); 
-		    
-		    totalScore += populationCount(t_N);   
-		  }
-	      }
-	      break;
-	    case 20:
-	      {
-		parsimonyNumber
-		  *left[20],
-		  *right[20],
-		  *thisOne[20];
-
-		parsimonyNumber
-		  o_A[20],
-		  t_A[20],	  
-		  t_N;
-
-		for(k = 0; k < 20; k++)
-		  {
-		    left[k]  = &(tr->partitionData[model].parsVect[(width * 20 * qNumber) + width * k]);
-		    right[k] = &(tr->partitionData[model].parsVect[(width * 20 * rNumber) + width * k]);
-		    thisOne[k]  = &(tr->partitionData[model].parsVect[(width * 20 * pNumber) + width * k]);
-		  }
-
-		for(i = 0; i < width; i++)
-		  {	 	  
-		    size_t k;
-		    
-		    t_N = 0;
-
-		    for(k = 0; k < 20; k++)
-		      {
-			t_A[k] = left[k][i] & right[k][i];
-			o_A[k] = left[k][i] | right[k][i];
-			t_N = t_N | t_A[k];
-		      }
-		    
-		    t_N = ~t_N;
-
-		    for(k = 0; k < 20; k++)		      
-		      thisOne[k][i] = t_A[k] | (t_N & o_A[k]);		   
-		    
-		    totalScore += populationCount(t_N); 
-		  }
-	      }
-	      break;
-	    default:
-	      {		
-		parsimonyNumber
-		  *left[32],
-		  *right[32],
-		  *thisOne[32];
-		
-		parsimonyNumber
-		  o_A[32],
-		  t_A[32],	  
-		  t_N;
-		
-		assert(states <= 32);
-		
-		for(k = 0; k < states; k++)
-		  {
-		    left[k]  = &(tr->partitionData[model].parsVect[(width * states * qNumber) + width * k]);
-		    right[k] = &(tr->partitionData[model].parsVect[(width * states * rNumber) + width * k]);
-		    thisOne[k]  = &(tr->partitionData[model].parsVect[(width * states * pNumber) + width * k]);
-		  }
-		
-		for(i = 0; i < width; i++)
-		  {	 	  
-		    t_N = 0;
-		    
-		    for(k = 0; k < states; k++)
-		      {
-			t_A[k] = left[k][i] & right[k][i];
-			o_A[k] = left[k][i] | right[k][i];
-			t_N = t_N | t_A[k];
-		      }
-		    
-		    t_N = ~t_N;
-		    
-		    for(k = 0; k < states; k++)		      
-		      thisOne[k][i] = t_A[k] | (t_N & o_A[k]);		   
-		    
-		    totalScore += populationCount(t_N); 
-		  }
-	      }			      
-	    } 
-	}
-
-      tr->parsimonyScore[pNumber] = totalScore + tr->parsimonyScore[rNumber] + tr->parsimonyScore[qNumber];      
-    }
-}
-
-
-
-unsigned int evaluateParsimonyIterativeFast(tree *tr)
-{
-  size_t 
-    pNumber = (size_t)tr->ti[1],
-    qNumber = (size_t)tr->ti[2];
-
-  int
-    model;
-
-  unsigned int 
-    bestScore = tr->bestParsimony,    
-    sum;
-
-  if(tr->ti[0] > 4)
-    newviewParsimonyIterativeFast(tr); 
-
-  sum = tr->parsimonyScore[pNumber] + tr->parsimonyScore[qNumber];
-
-  for(model = 0; model < tr->NumberOfModels; model++)
-    {
-      size_t
-	k,
-	states = tr->partitionData[model].states,
-	width = tr->partitionData[model].parsimonyLength, 
-	i;
-
-       switch(states)
-	 {
-	 case 2:
-	   {
-	     parsimonyNumber 
-	       t_A,
-	       t_C,	      
-	       t_N,
-	       *left[2],
-	       *right[2];
-	     
-	     for(k = 0; k < 2; k++)
-	       {
-		 left[k]  = &(tr->partitionData[model].parsVect[(width * 2 * qNumber) + width * k]);
-		 right[k] = &(tr->partitionData[model].parsVect[(width * 2 * pNumber) + width * k]);
-	       }     
-	     
-	     for(i = 0; i < width; i++)
-	       {                	                       
-		 t_A = left[0][i] & right[0][i];
-		 t_C = left[1][i] & right[1][i];
-		 
-		  t_N = ~(t_A | t_C);
-
-		  sum += populationCount(t_N);    
-		 
-		 if(sum >= bestScore)
-		   return sum;		   	       
-	       }
-	   }
-	   break;
-	 case 4:
-	   {
-	     parsimonyNumber
-	       t_A,
-	       t_C,
-	       t_G,
-	       t_T,
-	       t_N,
-	       *left[4],
-	       *right[4];
-      
-	     for(k = 0; k < 4; k++)
-	       {
-		 left[k]  = &(tr->partitionData[model].parsVect[(width * 4 * qNumber) + width * k]);
-		 right[k] = &(tr->partitionData[model].parsVect[(width * 4 * pNumber) + width * k]);
-	       }        
-
-	     for(i = 0; i < width; i++)
-	       {                	                        
-		  t_A = left[0][i] & right[0][i];
-		  t_C = left[1][i] & right[1][i];
-		  t_G = left[2][i] & right[2][i];	  
-		  t_T = left[3][i] & right[3][i];
-
-		  t_N = ~(t_A | t_C | t_G | t_T);
-
-		  sum += populationCount(t_N);     
-		 
-		 if(sum >= bestScore)		 
-		   return sum;	        
-	       }	   	 
-	   }
-	   break;
-	 case 20:
-	   {
-	     parsimonyNumber
-	       t_A,
-	       t_N,
-	       *left[20],
-	       *right[20];
-	     
-	      for(k = 0; k < 20; k++)
-		{
-		  left[k]  = &(tr->partitionData[model].parsVect[(width * 20 * qNumber) + width * k]);
-		  right[k] = &(tr->partitionData[model].parsVect[(width * 20 * pNumber) + width * k]);
-		}  
-	   
-	      for(i = 0; i < width; i++)
-		{ 
-		  t_N = 0;
-		  
-		  for(k = 0; k < 20; k++)
-		    {
-		      t_A = left[k][i] & right[k][i];
-		      t_N = t_N | t_A;
-		    }
-  	       
-		  t_N = ~t_N;
-
-		  sum += populationCount(t_N);      
-		  
-		  if(sum >= bestScore)	    
-		    return sum;		    	       
-		}
-	   }
-	   break;
-	 default:
-	   {
-	     parsimonyNumber
-	       t_A,
-	       t_N,
-	       *left[32], 
-	       *right[32];  
-
-	     assert(states <= 32);
-
-	     for(k = 0; k < states; k++)
-	       {
-		 left[k]  = &(tr->partitionData[model].parsVect[(width * states * qNumber) + width * k]);
-		 right[k] = &(tr->partitionData[model].parsVect[(width * states * pNumber) + width * k]);
-	       }  
-	   
-	     for(i = 0; i < width; i++)
-	       {                	       
-		 t_N = 0;
-		  
-		 for(k = 0; k < states; k++)
-		   {
-		     t_A = left[k][i] & right[k][i];
-		     t_N = t_N | t_A;
-		   }
-  	       
-		  t_N = ~t_N;
-
-		  sum += populationCount(t_N);      
-		  		  		 
-		 if(sum >= bestScore)			  
-		   return sum;			   
-	       }	     	     
-	   }
-	 }
-    }
-  
-  return sum;
-}
-
-#endif
-
-
-
 
 
 
@@ -1550,14 +1117,10 @@ static void compressDNA(tree *tr, int *informative, boolean saveMemory)
       if(entries % PCF != 0)
 	compressedEntries++;
 
-#if (defined(__SIM_SSE3) || defined(__AVX))
       if(compressedEntries % INTS_PER_VECTOR != 0)
 	compressedEntriesPadded = compressedEntries + (INTS_PER_VECTOR - (compressedEntries % INTS_PER_VECTOR));
       else
 	compressedEntriesPadded = compressedEntries;
-#else
-      compressedEntriesPadded = compressedEntries;
-#endif     
 
       
       tr->partitionData[model].parsVect = (parsimonyNumber *)rax_malloc((size_t)compressedEntriesPadded * states * totalNodes * sizeof(parsimonyNumber));
@@ -2594,15 +2157,3 @@ void classifyMP(tree *tr, analdef *adef)
   
   exit(0);
 }
-
-#ifdef __AVX
-
-#ifdef _SSE3_WAS_DEFINED
-
-#define __SIM_SSE3
-
-#undef _SSE3_WAS_DEFINED
-
-#endif
-
-#endif
