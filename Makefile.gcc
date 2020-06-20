@@ -3,21 +3,26 @@
 
 CC = gcc 
 
-
-CFLAGS = -D_GNU_SOURCE -fomit-frame-pointer -funroll-loops -O2 -msse #-Wall -Wunused-parameter -Wredundant-decls  -Wreturn-type  -Wswitch-default -Wunused-value -Wimplicit  -Wimplicit-function-declaration  -Wimplicit-int -Wimport  -Wunused  -Wunused-function  -Wunused-label -Wno-int-to-pointer-cast -Wbad-function-cast  -Wmissing-declarations -Wmissing-prototypes  -Wnested-externs  -Wold-style-definition -Wstrict-prototypes -Wpointer-sign -Wextra -Wredundant-decls -Wunused -Wunused-function -Wunused-parameter -Wunused-value  -Wunused-variable -Wformat  -Wformat-nonliteral -Wparentheses -Wsequence-point -Wuninitialized -Wundef -Wbad-function-cast
+CFLAGS = -I. -D_GNU_SOURCE -fomit-frame-pointer -funroll-loops -O2 -msse #-Wall -Wunused-parameter -Wredundant-decls  -Wreturn-type  -Wswitch-default -Wunused-value -Wimplicit  -Wimplicit-function-declaration  -Wimplicit-int -Wimport  -Wunused  -Wunused-function  -Wunused-label -Wno-int-to-pointer-cast -Wbad-function-cast  -Wmissing-declarations -Wmissing-prototypes  -Wnested-externs  -Wold-style-definition -Wstrict-prototypes -Wpointer-sign -Wextra -Wredundant-decls -Wunused -Wunused-function -Wunused-parameter -Wunused-value  -Wunused-variable -Wformat  -Wformat-nonliteral -Wparentheses -Wsequence-point -Wuninitialized -Wundef -Wbad-function-cast
 
 LIBRARIES = -lm
 
 RM = rm -f
 
-objs    = axml.o  optimizeModel.o multiple.o searchAlgo.o topologies.o parsePartitions.o treeIO.o models.o bipartitionList.o rapidBootstrap.o evaluatePartialGenericSpecial.o evaluateGenericSpecial.o newviewGenericSpecial.o makenewzGenericSpecial.o   classify.o fastDNAparsimony.o fastSearch.o leaveDropping.o rmqs.o rogueEPA.o ancestralStates.o  mem_alloc.o  eigen.o
+objs    = axml.o  optimizeModel.o multiple.o searchAlgo.o topologies.o parsePartitions.o treeIO.o models.o bipartitionList.o rapidBootstrap.o evaluatePartialGenericSpecial.o evaluateGenericSpecial.o newviewGenericSpecial.o makenewzGenericSpecial.o   classify.o fastDNAparsimony.o fastSearch.o leaveDropping.o rmqs.o rogueEPA.o ancestralStates.o avxLikelihood.o   mem_alloc.o eigen.o
 
 all : clean raxmlHPC
 
 GLOBAL_DEPS = axml.h globalVariables.h rmq.h rmqs.h #mem_alloc.h
 
 raxmlHPC : $(objs)
-	$(CC) -o raxmlHPC $(objs) $(LIBRARIES) $(LDFLAGS) 
+	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ $(objs) $(LIBRARIES) $(LDFLAGS)
+
+avxLikelihood.o : avxLikelihood.c $(GLOBAL_DEPS)
+		$(CC) $(CFLAGS) -c -o avxLikelihood.o avxLikelihood.c
+
+fastDNAparsimony.o : fastDNAparsimony.c $(GLOBAL_DEPS)
+		   $(CC) $(CFLAGS) -c -o fastDNAparsimony.o fastDNAparsimony.c
 
 rmqs.o : rmqs.c $(GLOBAL_DEPS)
 classify.o : classify.c $(GLOBAL_DEPS)
@@ -43,10 +48,8 @@ rogueEPA.o : rogueEPA.c $(GLOBAL_DEPS)
 ancestralStates.o : ancestralStates.c $(GLOBAL_DEPS)
 mem_alloc.o eigen.o  : mem_alloc.c  $(GLOBAL_DEPS)
 
-
-
 eigen.o : eigen.c $(GLOBAL_DEPS)
-	$(CC) -c -o eigen.o eigen.c 
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o eigen.o eigen.c 
 clean : 
 	$(RM) *.o raxmlHPC
 

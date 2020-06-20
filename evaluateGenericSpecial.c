@@ -39,12 +39,8 @@
 #include <string.h>
 #include "axml.h"
 
-
-#ifdef __SIM_SSE3
-#include <xmmintrin.h>
-#include <pmmintrin.h>
-/*#include <tmmintrin.h>*/
-#endif
+#define SIMDE_ENABLE_NATIVE_ALIASES
+#include <simde/x86/sse3.h>
 
 #ifdef _USE_PTHREADS
 extern volatile double *reductionBuffer;
@@ -989,7 +985,6 @@ void calcDiagptable(double z, int data, int numberOfCategories, double *rptr, do
 }
 
 
-#ifdef __SIM_SSE3
 
 
 
@@ -1214,7 +1209,6 @@ static double evaluateGTRCAT_SAVE (int *ex1, int *ex2, int *cptr, int *wptr,
   return  sum;         
 } 
 
-#endif
 
 
 
@@ -1235,7 +1229,6 @@ static double evaluateGTRCATPROT (int *ex1, int *ex2, int *cptr, int *wptr,
 	  right = &(x2[20 * i]);
 	  
 	  diagptable = &diagptable_start[20 * cptr[i]];	           	 
-#ifdef __SIM_SSE3
 	  __m128d tv = _mm_setzero_pd();	    
 	  
 	  for(l = 0; l < 20; l+=2)
@@ -1250,10 +1243,6 @@ static double evaluateGTRCATPROT (int *ex1, int *ex2, int *cptr, int *wptr,
 	  
 	  tv = _mm_hadd_pd(tv, tv);
 	  _mm_storel_pd(&term, tv);
-#else  
-	  for(l = 0, term = 0.0; l < 20; l++)
-	    term += left[l] * right[l] * diagptable[l];	 	  	  
-#endif	    
 	  if(fastScaling)
 	    term = LOG(FABS(term));
 	  else
@@ -1271,7 +1260,6 @@ static double evaluateGTRCATPROT (int *ex1, int *ex2, int *cptr, int *wptr,
 	  right = &x2[20 * i];
 	  
 	  diagptable = &diagptable_start[20 * cptr[i]];	  	
-#ifdef __SIM_SSE3
 	    __m128d tv = _mm_setzero_pd();	    
 	      	    
 	    for(l = 0; l < 20; l+=2)
@@ -1286,10 +1274,6 @@ static double evaluateGTRCATPROT (int *ex1, int *ex2, int *cptr, int *wptr,
 	      
 	      tv = _mm_hadd_pd(tv, tv);
 	      _mm_storel_pd(&term, tv);
-#else  
-	  for(l = 0, term = 0.0; l < 20; l++)
-	    term += left[l] * right[l] * diagptable[l];	
-#endif
 
 	  if(fastScaling)
 	    term = LOG(FABS(term));
@@ -1469,39 +1453,24 @@ static double evaluateGTRCAT_BINARY (int *ex1, int *ex2, int *cptr, int *wptr,
 {
   double  sum = 0.0, term;       
   int     i;
-#ifndef  __SIM_SSE3
-  int j;  
-#endif
   double  *diagptable, *x1, *x2;                      	    
  
   if(tipX1)
     {          
       for (i = 0; i < n; i++) 
 	{
-#ifdef __SIM_SSE3
 	  double t[2] __attribute__ ((aligned (BYTE_ALIGNMENT)));	    		   	  
-#endif
 	  x1 = &(tipVector[2 * tipX1[i]]);
 	  x2 = &(x2_start[2 * i]);
 	  
 	  diagptable = &(diagptable_start[2 * cptr[i]]);	    	    	  
 	
-#ifdef __SIM_SSE3	  
 	  _mm_store_pd(t, _mm_mul_pd(_mm_load_pd(x1), _mm_mul_pd(_mm_load_pd(x2), _mm_load_pd(diagptable))));
 	  
 	  if(fastScaling)
 	    term = LOG(FABS(t[0] + t[1]));
 	  else
 	    term = LOG(FABS(t[0] + t[1])) + (ex2[i] * LOG(minlikelihood));			     
-#else	 	    
-	  for(j = 0, term = 0.0; j < 2; j++)       	   	     
-	    term += x1[j] * x2[j] * diagptable[j];	      
-	  	 
-	  if(fastScaling)
-	    term = LOG(FABS(term));
-	  else
-	    term = LOG(FABS(term)) + (ex2[i] * LOG(minlikelihood));	   	    	   	 	  	  	 
-#endif	  
 
 	  sum += wptr[i] * term;
 	}	
@@ -1510,29 +1479,18 @@ static double evaluateGTRCAT_BINARY (int *ex1, int *ex2, int *cptr, int *wptr,
     {
       for (i = 0; i < n; i++) 
 	{	
-#ifdef __SIM_SSE3
 	  double t[2] __attribute__ ((aligned (BYTE_ALIGNMENT)));	    		   	  
-#endif	          	
+
 	  x1 = &x1_start[2 * i];
 	  x2 = &x2_start[2 * i];
 	  
 	  diagptable = &diagptable_start[2 * cptr[i]];		  
-#ifdef __SIM_SSE3	  
 	  _mm_store_pd(t, _mm_mul_pd(_mm_load_pd(x1), _mm_mul_pd(_mm_load_pd(x2), _mm_load_pd(diagptable))));
 	  
 	  if(fastScaling)
 	    term = LOG(FABS(t[0] + t[1]));
 	  else
 	    term = LOG(FABS(t[0] + t[1])) + ((ex1[i] + ex2[i]) * LOG(minlikelihood));			     
-#else	  
-	  for(j = 0, term = 0.0; j < 2; j++)
-	    term += x1[j] * x2[j] * diagptable[j];   
-	  
-	  if(fastScaling)
-	    term = LOG(FABS(term));
-	  else
-	    term = LOG(FABS(term)) + ((ex1[i] + ex2[i]) * LOG(minlikelihood));
-#endif
 	  
 	  sum += wptr[i] * term;
 	}	   
@@ -1549,22 +1507,16 @@ static double evaluateGTRGAMMA_BINARY(int *ex1, int *ex2, int *wptr,
 {
   double   sum = 0.0, term;    
   int     i, j;
-#ifndef __SIM_SSE3
-  int k;
-#endif 
   double  *x1, *x2;             
 
   if(tipX1)
     {          
       for (i = 0; i < n; i++)
 	{
-#ifdef __SIM_SSE3
 	  double t[2] __attribute__ ((aligned (BYTE_ALIGNMENT)));
 	  __m128d termv, x1v, x2v, dv;
-#endif
 	  x1 = &(tipVector[2 * tipX1[i]]);	 
 	  x2 = &x2_start[8 * i];	          	  	
-#ifdef __SIM_SSE3	
 	  termv = _mm_set1_pd(0.0);	    	   
 	  
 	  for(j = 0; j < 4; j++)
@@ -1585,16 +1537,6 @@ static double evaluateGTRGAMMA_BINARY(int *ex1, int *ex2, int *wptr,
 	    term = LOG(0.25 * (FABS(t[0] + t[1])));
 	  else
 	    term = LOG(0.25 * (FABS(t[0] + t[1]))) + (ex2[i] * LOG(minlikelihood));	  
-#else
-	  for(j = 0, term = 0.0; j < 4; j++)
-	    for(k = 0; k < 2; k++)
-	      term += x1[k] * x2[j * 2 + k] * diagptable[j * 2 + k];	          	  	  	    	    
-	  
-	  if(fastScaling)
-	    term = LOG(0.25 * FABS(term));
-	  else
-	    term = LOG(0.25 * FABS(term)) + ex2[i] * LOG(minlikelihood);
-#endif	 
 	  
 	  sum += wptr[i] * term;
 	}	  
@@ -1603,14 +1545,11 @@ static double evaluateGTRGAMMA_BINARY(int *ex1, int *ex2, int *wptr,
     {         
       for (i = 0; i < n; i++) 
 	{
-#ifdef __SIM_SSE3
 	  double t[2] __attribute__ ((aligned (BYTE_ALIGNMENT)));
 	  __m128d termv, x1v, x2v, dv;
-#endif	  	 	  	  
 	  x1 = &x1_start[8 * i];
 	  x2 = &x2_start[8 * i];
 	  	  
-#ifdef __SIM_SSE3	
 	  termv = _mm_set1_pd(0.0);	    	   
 	  
 	  for(j = 0; j < 4; j++)
@@ -1632,16 +1571,6 @@ static double evaluateGTRGAMMA_BINARY(int *ex1, int *ex2, int *wptr,
 	    term = LOG(0.25 * (FABS(t[0] + t[1])));
 	  else
 	    term = LOG(0.25 * (FABS(t[0] + t[1]))) + ((ex1[i] +ex2[i]) * LOG(minlikelihood));	  
-#else	  
-	  for(j = 0, term = 0.0; j < 4; j++)
-	    for(k = 0; k < 2; k++)
-	      term += x1[j * 2 + k] * x2[j * 2 + k] * diagptable[j * 2 + k];	          	  	  	      
-
-	  if(fastScaling)
-	    term = LOG(0.25 * FABS(term));
-	  else
-	    term = LOG(0.25 * FABS(term)) + (ex1[i] + ex2[i]) * LOG(minlikelihood);
-#endif
 
 	  sum += wptr[i] * term;
 	}                      	
@@ -1728,25 +1657,19 @@ static double evaluateGTRCAT (int *ex1, int *ex2, int *cptr, int *wptr,
 {
   double  sum = 0.0, term;       
   int     i;
-#ifndef __SIM_SSE3
-  int j;  
-#endif
   double  *diagptable, *x1, *x2;                      	    
  
   if(tipX1)
     {           
       for (i = 0; i < n; i++) 
 	{	
-#ifdef __SIM_SSE3
 	  double t[2] __attribute__ ((aligned (BYTE_ALIGNMENT)));
 	  __m128d x1v1, x1v2, x2v1, x2v2, dv1, dv2;
-#endif
 	  x1 = &(tipVector[4 * tipX1[i]]);
 	  x2 = &x2_start[4 * i];
 	  
 	  diagptable = &diagptable_start[4 * cptr[i]];
 	  
-#ifdef __SIM_SSE3	    	  
 	  x1v1 =  _mm_load_pd(&x1[0]);
 	  x1v2 =  _mm_load_pd(&x1[2]);
 	  x2v1 =  _mm_load_pd(&x2[0]);
@@ -1768,29 +1691,6 @@ static double evaluateGTRCAT (int *ex1, int *ex2, int *cptr, int *wptr,
 	    term = LOG(FABS(t[0] + t[1]));
 	  else
 	    term = LOG(FABS(t[0] + t[1])) + (ex2[i] * LOG(minlikelihood));
-#else
-	  for(j = 0, term = 0.0; j < 4; j++)
-	    term += x1[j] * x2[j] * diagptable[j];
-	  
-	  /*{
-	    double 
-	      term[4],
-	      sum = 0.0;
-	    
-	    for(j = 0; j < 4; j++)
-	      {
-		term[j] = ABS(x1[j] * x2[j] * diagptable[j]);
-		sum += term[j];
-	      }
-
-	    printf("RRRRRRR %1.80f %1.80f %1.80f %1.80f\n", term[0]/sum, term[1]/sum, term[2]/sum, term[3]/sum);
-	    }*/
-
-	  if(fastScaling)
-	    term = LOG(FABS(term));
-	  else
-	    term = LOG(FABS(term)) + (ex2[i] * LOG(minlikelihood));
-#endif	    
 	  sum += wptr[i] * term;
 	}	
     }               
@@ -1798,16 +1698,13 @@ static double evaluateGTRCAT (int *ex1, int *ex2, int *cptr, int *wptr,
     {
       for (i = 0; i < n; i++) 
 	{ 
-#ifdef __SIM_SSE3
 	  double t[2] __attribute__ ((aligned (BYTE_ALIGNMENT)));
 	   __m128d x1v1, x1v2, x2v1, x2v2, dv1, dv2;
-#endif
 	  x1 = &x1_start[4 * i];
 	  x2 = &x2_start[4 * i];
 	  
 	  diagptable = &diagptable_start[4 * cptr[i]];	
 	  
-#ifdef __SIM_SSE3	  
 	  x1v1 =  _mm_load_pd(&x1[0]);
 	  x1v2 =  _mm_load_pd(&x1[2]);
 	  x2v1 =  _mm_load_pd(&x2[0]);
@@ -1829,16 +1726,6 @@ static double evaluateGTRCAT (int *ex1, int *ex2, int *cptr, int *wptr,
 	    term = LOG(FABS(t[0] + t[1]));
 	  else
 	    term = LOG(FABS(t[0] + t[1])) + ((ex1[i] + ex2[i]) * LOG(minlikelihood));
-#else
-	  
-	  for(j = 0, term = 0.0; j < 4; j++)
-	    term += x1[j] * x2[j] * diagptable[j];     
-	  
-	  if(fastScaling)
-	    term = LOG(FABS(term));
-	  else
-	    term = LOG(FABS(term)) + ((ex1[i] + ex2[i]) * LOG(minlikelihood));	  
-#endif
 	  sum += wptr[i] * term;
 	}    
     }
@@ -1847,7 +1734,6 @@ static double evaluateGTRCAT (int *ex1, int *ex2, int *cptr, int *wptr,
 } 
 
 
-#ifdef __SIM_SSE3
 
 
 
@@ -1981,11 +1867,9 @@ static double evaluateGTRGAMMA_GAPPED_SAVE(int *ex1, int *ex2, int *wptr,
   return sum;
 } 
 
-#else
 
 
 
-#endif
 
 static double evaluateGTRGAMMA(int *ex1, int *ex2, int *wptr,
 			       double *x1_start, double *x2_start, 
@@ -1994,9 +1878,6 @@ static double evaluateGTRGAMMA(int *ex1, int *ex2, int *wptr,
 {
   double   sum = 0.0, term;    
   int     i, j;
-#ifndef __SIM_SSE3  
-  int k;
-#endif
   double  *x1, *x2;             
 
  
@@ -2005,14 +1886,11 @@ static double evaluateGTRGAMMA(int *ex1, int *ex2, int *wptr,
     {          	
       for (i = 0; i < n; i++)
 	{
-#ifdef __SIM_SSE3
 	  double t[2] __attribute__ ((aligned (BYTE_ALIGNMENT)));
 	  __m128d termv, x1v, x2v, dv;
-#endif
 	  x1 = &(tipVector[4 * tipX1[i]]);	 
 	  x2 = &x2_start[16 * i];	 
 	  
-#ifdef __SIM_SSE3	
 	  termv = _mm_set1_pd(0.0);	    	   
 	  
 	  for(j = 0; j < 4; j++)
@@ -2043,16 +1921,6 @@ static double evaluateGTRGAMMA(int *ex1, int *ex2, int *wptr,
 	    term = LOG(0.25 * FABS(t[0] + t[1]));
 	  else
 	    term = LOG(0.25 * FABS(t[0] + t[1])) + (ex2[i] * LOG(minlikelihood));	  
-#else
-	  for(j = 0, term = 0.0; j < 4; j++)
-	    for(k = 0; k < 4; k++)
-	      term += x1[k] * x2[j * 4 + k] * diagptable[j * 4 + k];	          	  	  	    	    	  
-	  
-	  if(fastScaling)
-	    term = LOG(0.25 * FABS(term));
-	  else
-	    term = LOG(0.25 * FABS(term)) + ex2[i] * LOG(minlikelihood);	 
-#endif
 	  
 	  sum += wptr[i] * term;
 	}     
@@ -2061,15 +1929,12 @@ static double evaluateGTRGAMMA(int *ex1, int *ex2, int *wptr,
     {        
       for (i = 0; i < n; i++) 
 	{
-#ifdef __SIM_SSE3
 	  double t[2] __attribute__ ((aligned (BYTE_ALIGNMENT)));
 	  __m128d termv, x1v, x2v, dv;
-#endif
 	  	 	  	  
 	  x1 = &x1_start[16 * i];
 	  x2 = &x2_start[16 * i];	  	  
 	
-#ifdef __SIM_SSE3	
 	  termv = _mm_set1_pd(0.0);	  	 
 	  
 	  for(j = 0; j < 4; j++)
@@ -2099,16 +1964,6 @@ static double evaluateGTRGAMMA(int *ex1, int *ex2, int *wptr,
 	    term = LOG(0.25 * FABS(t[0] + t[1]));
 	  else
 	    term = LOG(0.25 * FABS(t[0] + t[1])) + ((ex1[i] + ex2[i]) * LOG(minlikelihood));	  
-#else 
-	  for(j = 0, term = 0.0; j < 4; j++)
-	    for(k = 0; k < 4; k++)
-	      term += x1[j * 4 + k] * x2[j * 4 + k] * diagptable[j * 4 + k];
-	          	  	  	      
-	   if(fastScaling)
-	     term = LOG(0.25 * FABS(term));
-	    else
-	      term = LOG(0.25 * FABS(term)) + (ex1[i] + ex2[i]) * LOG(minlikelihood);
-#endif
 	  
 	  sum += wptr[i] * term;
 	}                      	
@@ -2214,7 +2069,6 @@ static double evaluateGTRGAMMAPROT (int *ex1, int *ex2, int *wptr,
     {               
       for (i = 0; i < n; i++) 
 	{
-#ifdef __SIM_SSE3
 	  __m128d tv = _mm_setzero_pd();
 	  left = &(tipVector[20 * tipX1[i]]);	  	  
 	  
@@ -2231,16 +2085,6 @@ static double evaluateGTRGAMMAPROT (int *ex1, int *ex2, int *wptr,
 	  tv = _mm_hadd_pd(tv, tv);
 	  _mm_storel_pd(&term, tv);
 	  
-#else
-	  left = &(tipVector[20 * tipX1[i]]);	  	  
-	  
-	  for(j = 0, term = 0.0; j < 4; j++)
-	    {
-	      right = &(x2[80 * i + 20 * j]);
-	      for(l = 0; l < 20; l++)
-		term += left[l] * right[l] * diagptable[j * 20 + l];	      
-	    }	  
-#endif
 	  
 	  if(fastScaling)
 	    term = LOG(0.25 * FABS(term));
@@ -2254,7 +2098,6 @@ static double evaluateGTRGAMMAPROT (int *ex1, int *ex2, int *wptr,
     {
       for (i = 0; i < n; i++) 
 	{	  	 	             
-#ifdef __SIM_SSE3
 	  __m128d tv = _mm_setzero_pd();	 	  	  
 	      
 	  for(j = 0, term = 0.0; j < 4; j++)
@@ -2271,16 +2114,6 @@ static double evaluateGTRGAMMAPROT (int *ex1, int *ex2, int *wptr,
 	    }
 	  tv = _mm_hadd_pd(tv, tv);
 	  _mm_storel_pd(&term, tv);	  
-#else
-	  for(j = 0, term = 0.0; j < 4; j++)
-	    {
-	      left  = &(x1[80 * i + 20 * j]);
-	      right = &(x2[80 * i + 20 * j]);	    
-	      
-	      for(l = 0; l < 20; l++)
-		term += left[l] * right[l] * diagptable[j * 20 + l];	
-	    }
-#endif
 	  
 	  if(fastScaling)
 	    term = LOG(0.25 * FABS(term));
@@ -2363,7 +2196,6 @@ static double evaluateGTRGAMMAPROT_LG4(int *ex1, int *ex2, int *wptr,
 
 
 
-#ifdef __SIM_SSE3
 
 static double evaluateGTRGAMMAPROT_GAPPED_SAVE (int *ex1, int *ex2, int *wptr,
     double *x1, double *x2,  
@@ -2469,7 +2301,6 @@ static double evaluateGTRGAMMAPROT_GAPPED_SAVE (int *ex1, int *ex2, int *wptr,
 }
 
 
-#endif
 
 
 
@@ -3227,7 +3058,6 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 		    case CAT:
 		     
 			  calcDiagptable(z, DNA_DATA, tr->partitionData[model].numberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
-#ifdef __SIM_SSE3
 			  if(tr->saveMemory)
 			    {			     			      
 			      partitionLikelihood = evaluateGTRCAT_SAVE(ex1, ex2, tr->partitionData[model].rateCategory, tr->partitionData[model].wgt,
@@ -3235,7 +3065,6 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 									    tip, width, diagptable, tr->useFastScaling,  x1_gapColumn, x2_gapColumn, x1_gap, x2_gap);
 			    }
 			  else
-#endif
 			    partitionLikelihood =  evaluateGTRCAT(ex1, ex2, tr->partitionData[model].rateCategory, tr->partitionData[model].wgt,
 								  x1_start, x2_start, tr->partitionData[model].tipVector, 
 								  tip, width, diagptable, tr->useFastScaling);			  		       
@@ -3263,14 +3092,12 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 #else
 		     			     	     		      
 		      calcDiagptable(z, DNA_DATA, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable);		    		    
-#ifdef __SIM_SSE3
 		      if(tr->saveMemory)						  			  
 			partitionLikelihood = evaluateGTRGAMMA_GAPPED_SAVE(ex1, ex2, tr->partitionData[model].wgt,
 									   x1_start, x2_start, tr->partitionData[model].tipVector,
 									   tip, width, diagptable, tr->useFastScaling,
 									   x1_gapColumn, x2_gapColumn, x1_gap, x2_gap);			
 		      else
-#endif
 		
 			partitionLikelihood = evaluateGTRGAMMA(ex1, ex2, tr->partitionData[model].wgt,
 							       x1_start, x2_start, tr->partitionData[model].tipVector,
@@ -3300,7 +3127,6 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 		    case CAT:	    
 		     	   
 		      calcDiagptable(z, AA_DATA, tr->partitionData[model].numberOfCategories, tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, diagptable);
-#ifdef __SIM_SSE3
 		      if(tr->saveMemory)
 			{			 
 			  partitionLikelihood = evaluateGTRCATPROT_SAVE(ex1, ex2, tr->partitionData[model].rateCategory, tr->partitionData[model].wgt,
@@ -3308,7 +3134,6 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 									tip, width, diagptable, tr->useFastScaling,  x1_gapColumn, x2_gapColumn, x1_gap, x2_gap);
 			}
 		      else
-#endif			  
 			partitionLikelihood = evaluateGTRCATPROT(ex1, ex2, tr->partitionData[model].rateCategory, tr->partitionData[model].wgt,
 								 x1_start, x2_start, tr->partitionData[model].tipVector,
 								 tip, width, diagptable, tr->useFastScaling);		  
@@ -3327,14 +3152,12 @@ double evaluateIterative(tree *tr,  boolean writeVector)
 		      else
 			{
 			  calcDiagptable(z, AA_DATA, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN, diagptable);
-#ifdef __SIM_SSE3
 			  if(tr->saveMemory)
 			    partitionLikelihood = evaluateGTRGAMMAPROT_GAPPED_SAVE(ex1, ex2, tr->partitionData[model].wgt,
 										   x1_start, x2_start, tr->partitionData[model].tipVector,
 										   tip, width, diagptable, tr->useFastScaling,
 										   x1_gapColumn, x2_gapColumn, x1_gap, x2_gap);
 			  else
-#endif		
 			    partitionLikelihood = evaluateGTRGAMMAPROT(ex1, ex2, tr->partitionData[model].wgt,
 								       x1_start, x2_start, tr->partitionData[model].tipVector,
 								       tip, width, diagptable, tr->useFastScaling);			

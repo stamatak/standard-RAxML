@@ -2,9 +2,9 @@
 
 CC = mpicc 
 
-CFLAGS = -D_WAYNE_MPI -D_USE_PTHREADS -D__SIM_SSE3 -O2 -D_GNU_SOURCE -msse3 -fomit-frame-pointer -funroll-loops -D__AVX
+CFLAGS = -I. -D_WAYNE_MPI -D_USE_PTHREADS -O2 -D_GNU_SOURCE -msse3 -fomit-frame-pointer -funroll-loops
 
-LIBRARIES = -lm -pthread 
+LIBRARIES = -lm -pthread
 
 RM = rm -f
 
@@ -12,10 +12,10 @@ objs    = axml.o  optimizeModel.o multiple.o searchAlgo.o topologies.o parsePart
 
 all : clean raxmlHPC-HYBRID-AVX
 
-GLOBAL_DEPS = axml.h globalVariables.h rmq.h rmqs.h  #mem_alloc.h compiler.h  gcc.h  ll_asm.h  ll_list.h
+GLOBAL_DEPS = axml.h globalVariables.h rmq.h rmqs.h #mem_alloc.h compiler.h  gcc.h  ll_asm.h  ll_list.h
 
 raxmlHPC-HYBRID-AVX : $(objs)
-	$(CC) -o raxmlHPC-HYBRID-AVX $(objs) $(LIBRARIES) $(LDFLAGS) 
+	$(CC) -o $@ $(objs) $(LIBRARIES) $(LDFLAGS) 
 
 avxLikelihood.o : avxLikelihood.c $(GLOBAL_DEPS)
 		$(CC) $(CFLAGS) -mavx -c -o avxLikelihood.o avxLikelihood.c
@@ -40,6 +40,7 @@ evaluatePartialGenericSpecial.o : evaluatePartialGenericSpecial.c $(GLOBAL_DEPS)
 evaluateGenericSpecial.o : evaluateGenericSpecial.c $(GLOBAL_DEPS)
 newviewGenericSpecial.o : newviewGenericSpecial.c $(GLOBAL_DEPS)
 makenewzGenericSpecial.o : makenewzGenericSpecial.c $(GLOBAL_DEPS)
+fastDNAparsimony.o : fastDNAparsimony.c  $(GLOBAL_DEPS)
 fastSearch.o : fastSearch.c $(GLOBAL_DEPS)
 leaveDropping.o : leaveDropping.c $(GLOBAL_DEPS)
 rogueEPA.o : rogueEPA.c $(GLOBAL_DEPS)

@@ -2,22 +2,26 @@
 
 CC = mpicc 
 
-
-CFLAGS = -D_WAYNE_MPI -D_GNU_SOURCE -fomit-frame-pointer -funroll-loops -O2  -D_USE_PTHREADS -msse
-
+CFLAGS = -I. -D_WAYNE_MPI -D_GNU_SOURCE -fomit-frame-pointer -funroll-loops -O2  -D_USE_PTHREADS -msse
 
 LIBRARIES = -lm -pthread
 
 RM = rm -f
 
-objs    = axml.o  optimizeModel.o multiple.o searchAlgo.o topologies.o parsePartitions.o treeIO.o models.o bipartitionList.o rapidBootstrap.o evaluatePartialGenericSpecial.o evaluateGenericSpecial.o newviewGenericSpecial.o makenewzGenericSpecial.o   classify.o fastDNAparsimony.o fastSearch.o leaveDropping.o rmqs.o rogueEPA.o ancestralStates.o  mem_alloc.o eigen.o 
+objs    = axml.o  optimizeModel.o multiple.o searchAlgo.o topologies.o parsePartitions.o treeIO.o models.o bipartitionList.o rapidBootstrap.o evaluatePartialGenericSpecial.o evaluateGenericSpecial.o newviewGenericSpecial.o makenewzGenericSpecial.o   classify.o fastDNAparsimony.o fastSearch.o leaveDropping.o rmqs.o rogueEPA.o ancestralStates.o avxLikelihood.o  mem_alloc.o eigen.o 
 
 all : clean raxmlHPC-HYBRID
 
 GLOBAL_DEPS = axml.h globalVariables.h rmq.h rmqs.h #mem_alloc.h compiler.h  gcc.h  ll_asm.h  ll_list.h
 
 raxmlHPC-HYBRID : $(objs)
-	$(CC) -o raxmlHPC-HYBRID $(objs) $(LIBRARIES) $(LDFLAGS) 
+	$(CC) -o $@ $(objs) $(LIBRARIES) $(LDFLAGS) 
+
+avxLikelihood.o : avxLikelihood.c $(GLOBAL_DEPS)
+		$(CC) $(CFLAGS) -c -o avxLikelihood.o avxLikelihood.c
+
+fastDNAparsimony.o : fastDNAparsimony.c $(GLOBAL_DEPS)
+		   $(CC) $(CFLAGS) -c -o fastDNAparsimony.o fastDNAparsimony.c
 
 rmqs.o : rmqs.c $(GLOBAL_DEPS)
 classify.o : classify.c $(GLOBAL_DEPS)

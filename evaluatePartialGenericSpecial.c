@@ -40,16 +40,12 @@
 #include <string.h>
 #include "axml.h"
 
-#ifdef __SIM_SSE3
-#include <xmmintrin.h>
-#include <pmmintrin.h>
-#endif
-
+#define SIMDE_ENABLE_NATIVE_ALIASES
+#include <simde/x86/sse3.h>
 
 /********************** GTRCAT ***************************************/
 
 
-#ifdef __SIM_SSE3
 
 static inline void computeVectorGTRCATPROT(double *lVector, int *eVector, double ki, int i, double qz, double rz,
 					   traversalInfo *ti, double *EIGN, double *EI, double *EV, double *tipVector, 
@@ -237,139 +233,6 @@ static double evaluatePartialGTRCATPROT(int i, double ki, int counter,  traversa
 }
 
 
-#else
-
-static inline void computeVectorGTRCATPROT(double *lVector, int *eVector, double ki, int i, double qz, double rz,
-					   traversalInfo *ti, double *EIGN, double *EI, double *EV, double *tipVector, 
-					   unsigned  char **yVector, int mxtips)
-{       
-  double   *x1, *x2, *x3;  
-  int
-    pNumber = ti->pNumber,
-    rNumber = ti->rNumber,
-    qNumber = ti->qNumber;
- 
-  x3  = &(lVector[20 * (pNumber  - mxtips)]);     
-
-  switch(ti->tipCase)
-    {
-    case TIP_TIP:    
-      x1 = &(tipVector[20 * yVector[qNumber][i]]);
-      x2 = &(tipVector[20 * yVector[rNumber][i]]);     
-      break;
-    case TIP_INNER:     
-      x1 = &(tipVector[20 * yVector[qNumber][i]]);
-      x2 = &(  lVector[20 * (rNumber - mxtips)]);                    
-      break;
-    case INNER_INNER:            
-      x1 = &(lVector[20 * (qNumber - mxtips)]);
-      x2 = &(lVector[20 * (rNumber - mxtips)]);                 
-      break;    
-    default:
-      assert(0);
-    }
-     
-  {
-    double  d1[20], d2[20], ump_x1, ump_x2, x1px2, lz1, lz2;  
-    int l, k, scale;
-     
-    lz1 = qz * ki;            
-    lz2 = rz * ki;        
-
-    for(l = 1; l < 20; l++)
-      {
-	d1[l] = x1[l] * EXP(EIGN[l - 1] * lz1);
-	d2[l] = x2[l] * EXP(EIGN[l - 1] * lz2);
-      }
-
-    for(l = 0; l < 20; l++)
-      x3[l] = 0.0;
-           
-    for(l = 0; l < 20; l++)
-      {
-	ump_x1 = x1[0];
-	ump_x2 = x2[0];
-
-	for(k = 1; k < 20; k++)
-	  {       
-	    ump_x1 += d1[k] * EI[19 * l + k-1];
-	    ump_x2 += d2[k] * EI[19 * l + k-1];
-	  }
-
-	x1px2 = ump_x1 * ump_x2;
-
-	for(k = 0; k < 20; k++)
-	  x3[k] += x1px2 * EV[l * 20 + k];	
-      }                      
-    
-    scale = 1;
-    for(l = 0; scale && (l < 20); l++)
-      scale = ((x3[l] < minlikelihood) && (x3[l] > minusminlikelihood));	       	      	      	       	       
-    
-    if(scale)
-      {	
-	for(l = 0; l < 20; l++)
-	  x3[l] *= twotothe256;		   
-	*eVector = *eVector + 1;
-      }
-    
-    return;      
-  }
-}
-
-static double evaluatePartialGTRCATPROT(int i, double ki, int counter,  traversalInfo *ti, double qz,
-					int w, double *EIGN, double *EI, double *EV,
-					double *tipVector, unsigned char **yVector, 
-					int branchReference, int mxtips)
-{
-  double lz, term;       
-  double  d[20];
-  double   *x1, *x2; 
-  int scale = 0, k, l;
-  double *lVector = (double *)rax_malloc(sizeof(double) * 20 * mxtips);
-
-  traversalInfo *trav = &ti[0];
-
-  assert(isTip(trav->pNumber, mxtips));
-     
-  x1 = &(tipVector[20 *  yVector[trav->pNumber][i]]);   
-
-  for(k = 1; k < counter; k++)                
-    computeVectorGTRCATPROT(lVector, &scale, ki, i, ti[k].qz[branchReference], ti[k].rz[branchReference], 
-			    &ti[k], EIGN, EI, EV, 
-			    tipVector, yVector, mxtips);       
-   
-  x2 = &lVector[20 * (trav->qNumber - mxtips)];
-
-       
-
-  assert(0 <=  (trav->qNumber - mxtips) && (trav->qNumber - mxtips) < mxtips);  
-  
-  if(qz < zmin) 
-    lz = zmin;
-  lz  = log(qz); 
-  lz *= ki;
-  
-  d[0] = 1.0;
-  for(l = 1; l < 20; l++)
-    d[l] = EXP (EIGN[l-1] * lz);
-
-  term = 0.0;
-  
-  for(l = 0; l < 20; l++)
-    term += x1[l] * x2[l] * d[l];   
-
-  term = LOG(FABS(term)) + (scale * LOG(minlikelihood));   
-
-  term = term * w;
-
-  rax_free(lVector);
-  
-
-  return  term;
-}
-
-#endif
 
 static inline void computeVectorGTRCATSECONDARY(double *lVector, int *eVector, double ki, int i, double qz, double rz,
 						traversalInfo *ti, double *EIGN, double *EI, double *EV, double *tipVector, 

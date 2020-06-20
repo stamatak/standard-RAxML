@@ -36,11 +36,7 @@
 #include <inttypes.h>
 #include <sys/types.h>
 
-#ifdef __AVX
 #define BYTE_ALIGNMENT 32
-#else
-#define BYTE_ALIGNMENT 16
-#endif
 
 
 #ifdef _USE_PTHREADS
@@ -1630,7 +1626,6 @@ boolean noGap(unsigned int *x, int pos);
 
 
 
-#ifdef __AVX
 
 void newviewGTRGAMMAPROT_AVX_LG4(int tipCase,
 				 double *x1, double *x2, double *x3, double *extEV[4], double *tipVector[4],
@@ -1702,8 +1697,4 @@ void newviewGTRCATPROT_AVX(int tipCase, double *extEV,
 			       double *x1, double *x2, double *x3, double *tipVector,
 			       int *ex3, unsigned char *tipX1, unsigned char *tipX2,
 			   int n, double *left, double *right, int *wgt, int *scalerIncrement, const boolean useFastScaling);
-
-#endif
-
-
 

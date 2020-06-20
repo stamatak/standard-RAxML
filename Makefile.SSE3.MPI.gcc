@@ -1,21 +1,27 @@
 # Makefile November 2009 by Alexandros Stamatakis
 
-CC = mpicc 
+CC = mpicc
 
-CFLAGS = -D_WAYNE_MPI -D__SIM_SSE3 -O2 -D_GNU_SOURCE -msse3 -fomit-frame-pointer -funroll-loops  
+CFLAGS = -I. -D_WAYNE_MPI -O2 -D_GNU_SOURCE -msse3 -fomit-frame-pointer -funroll-loops  
 
 LIBRARIES = -lm
 
 RM = rm -f
 
-objs    = axml.o  optimizeModel.o multiple.o searchAlgo.o topologies.o parsePartitions.o treeIO.o models.o bipartitionList.o rapidBootstrap.o evaluatePartialGenericSpecial.o evaluateGenericSpecial.o newviewGenericSpecial.o makenewzGenericSpecial.o   classify.o  fastDNAparsimony.o fastSearch.o leaveDropping.o rmqs.o rogueEPA.o ancestralStates.o  mem_alloc.o eigen.o 
+objs    = axml.o  optimizeModel.o multiple.o searchAlgo.o topologies.o parsePartitions.o treeIO.o models.o bipartitionList.o rapidBootstrap.o evaluatePartialGenericSpecial.o evaluateGenericSpecial.o newviewGenericSpecial.o makenewzGenericSpecial.o   classify.o fastDNAparsimony.o fastSearch.o leaveDropping.o rmqs.o rogueEPA.o ancestralStates.o avxLikelihood.o mem_alloc.o eigen.o
 
 all : clean raxmlHPC-MPI-SSE3
 
 GLOBAL_DEPS = axml.h globalVariables.h rmq.h rmqs.h #mem_alloc.h
 
 raxmlHPC-MPI-SSE3 : $(objs)
-	$(CC) -o raxmlHPC-MPI-SSE3 $(objs) $(LIBRARIES) $(LDFLAGS) 
+	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ $(objs) $(LIBRARIES) $(LDFLAGS)
+
+avxLikelihood.o : avxLikelihood.c $(GLOBAL_DEPS)
+		$(CC) $(CFLAGS) -c -o avxLikelihood.o avxLikelihood.c
+
+fastDNAparsimony.o : fastDNAparsimony.c $(GLOBAL_DEPS)
+		   $(CC) $(CFLAGS) -c -o fastDNAparsimony.o fastDNAparsimony.c
 
 rmqs.o : rmqs.c $(GLOBAL_DEPS)
 classify.o : classify.c $(GLOBAL_DEPS)
@@ -39,10 +45,10 @@ fastSearch.o : fastSearch.c $(GLOBAL_DEPS)
 leaveDropping.o : leaveDropping.c $(GLOBAL_DEPS)
 rogueEPA.o : rogueEPA.c $(GLOBAL_DEPS)
 ancestralStates.o : ancestralStates.c $(GLOBAL_DEPS)
- mem_alloc.o eigen.o  : mem_alloc.c  $(GLOBAL_DEPS)
+mem_alloc.o eigen.o  : mem_alloc.c  $(GLOBAL_DEPS)
 
 eigen.o : eigen.c $(GLOBAL_DEPS)
-	$(CC) -c -o eigen.o eigen.c 
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o eigen.o eigen.c 
 clean : 
 	$(RM) *.o raxmlHPC-MPI-SSE3
 

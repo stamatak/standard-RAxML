@@ -45,12 +45,8 @@
 #include "axml.h"
 #include "rmq.h" //include range minimum queries for fast plausibility checker
 
-#ifdef __SIM_SSE3
-
-#include <xmmintrin.h>
-#include <pmmintrin.h>
-
-#endif
+#define SIMDE_ENABLE_NATIVE_ALIASES
+#include <simde/x86/sse3.h>
 
 #ifdef _USE_PTHREADS
 #include <pthread.h>

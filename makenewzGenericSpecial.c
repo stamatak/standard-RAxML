@@ -33,8 +33,6 @@
 #include <unistd.h>
 #endif
 
-
-
 #include <math.h>
 #include <time.h>
 #include <stdlib.h>
@@ -43,11 +41,8 @@
 #include <string.h>
 #include "axml.h"
 
-#ifdef __SIM_SSE3
-#include <xmmintrin.h>
-#include <pmmintrin.h>
-/*#include <tmmintrin.h>*/
-#endif
+#define SIMDE_ENABLE_NATIVE_ALIASES
+#include <simde/x86/sse3.h>
 
 #ifdef _USE_PTHREADS
 extern volatile double *reductionBuffer;
@@ -65,9 +60,6 @@ static void sumCAT_BINARY(int tipCase, double *sum, double *x1_start, double *x2
 {
   int i;
   
-#ifndef __SIM_SSE3
-  int j;
-#endif
   double *x1, *x2;
 
   switch(tipCase)
@@ -78,12 +70,7 @@ static void sumCAT_BINARY(int tipCase, double *sum, double *x1_start, double *x2
 	  x1 = &(tipVector[2 * tipX1[i]]);
 	  x2 = &(tipVector[2 * tipX2[i]]);
 
-#ifndef __SIM_SSE3
-	  for(j = 0; j < 2; j++)
-	    sum[i * 2 + j]     = x1[j] * x2[j];
-#else
 	  _mm_store_pd(&sum[i * 2], _mm_mul_pd( _mm_load_pd(x1), _mm_load_pd(x2)));
-#endif
 	}
       break;
     case TIP_INNER:
@@ -92,12 +79,7 @@ static void sumCAT_BINARY(int tipCase, double *sum, double *x1_start, double *x2
 	  x1 = &(tipVector[2 * tipX1[i]]);
 	  x2 = &x2_start[2 * i];
 
-#ifndef __SIM_SSE3
-	  for(j = 0; j < 2; j++)
-	    sum[i * 2 + j]     = x1[j] * x2[j];
-#else
 	  _mm_store_pd(&sum[i * 2], _mm_mul_pd( _mm_load_pd(x1), _mm_load_pd(x2)));  
-#endif
 	}
       break;
     case INNER_INNER:
@@ -105,67 +87,13 @@ static void sumCAT_BINARY(int tipCase, double *sum, double *x1_start, double *x2
 	{
 	  x1 = &x1_start[2 * i];
 	  x2 = &x2_start[2 * i];
-#ifndef __SIM_SSE3
-	  for(j = 0; j < 2; j++)
-	    sum[i * 2 + j]     = x1[j] * x2[j];
-#else
 	  _mm_store_pd(&sum[i * 2], _mm_mul_pd( _mm_load_pd(x1), _mm_load_pd(x2)));   
-#endif
 	}
       break;
     default:
       assert(0);
     }
 }
-#ifndef __SIM_SSE3
-static void sumCAT(int tipCase, double *sum, double *x1_start, double *x2_start, double *tipVector,
-		   unsigned char *tipX1, unsigned char *tipX2, int n)
-{
-  int i, j;
-  double *x1, *x2;
-
-  switch(tipCase)
-    {
-    case TIP_TIP:
-      for (i = 0; i < n; i++)
-	{
-	  x1 = &(tipVector[4 * tipX1[i]]);
-	  x2 = &(tipVector[4 * tipX2[i]]);
-
-	  for(j = 0; j < 4; j++)
-	    sum[i * 4 + j]     = x1[j] * x2[j];
-
-	}
-      break;
-    case TIP_INNER:
-      for (i = 0; i < n; i++)
-	{
-	  x1 = &(tipVector[4 * tipX1[i]]);
-	  x2 = &x2_start[4 * i];
-
-	  for(j = 0; j < 4; j++)
-	    sum[i * 4 + j]     = x1[j] * x2[j];
-
-	}
-      break;
-    case INNER_INNER:
-      for (i = 0; i < n; i++)
-	{
-	  x1 = &x1_start[4 * i];
-	  x2 = &x2_start[4 * i];
-
-
-	  for(j = 0; j < 4; j++)
-	    sum[i * 4 + j]     = x1[j] * x2[j];
-
-	}
-      break;
-    default:
-      assert(0);
-    }
-}
-
-#else
 
 static void sumCAT_SAVE(int tipCase, double *sum, double *x1_start, double *x2_start, double *tipVector,
     unsigned char *tipX1, unsigned char *tipX2, int n, double *x1_gapColumn, double *x2_gapColumn, unsigned int *x1_gap, unsigned int *x2_gap)
@@ -281,8 +209,6 @@ static void sumCAT(int tipCase, double *sum, double *x1_start, double *x2_start,
     }
 }
 
-#endif
-
 
 
 
@@ -340,7 +266,6 @@ static void coreGTRCAT_BINARY(int upper, int numberOfCategories, double *sum,
   rax_free(d_start);
 }
 
-#ifdef __SIM_SSE3
 
 static void coreGTRCAT(int upper, int numberOfCategories, double *sum,
 			   volatile double *d1, volatile double *d2,
@@ -432,87 +357,11 @@ static void coreGTRCAT(int upper, int numberOfCategories, double *sum,
 }
 
 
-#else
-
-static void coreGTRCAT(int upper, int numberOfCategories, double *sum,
-			   volatile double *d1, volatile double *d2, 
-		       double *rptr, double *EIGN, int *cptr, double lz, int *wgt)
-{
-  int i;
-  double
-    *d, *d_start,
-    tmp_0, tmp_1, tmp_2, inv_Li, dlnLidlz, d2lnLidlz2,
-    dlnLdlz = 0.0,
-    d2lnLdlz2 = 0.0;
-  double e[6];
-  double dd1, dd2, dd3;
-
-  e[0] = EIGN[0];
-  e[1] = EIGN[0] * EIGN[0];
-  e[2] = EIGN[1];
-  e[3] = EIGN[1] * EIGN[1];
-  e[4] = EIGN[2];
-  e[5] = EIGN[2] * EIGN[2];
-
-  d = d_start = (double *)rax_malloc(numberOfCategories * 4 * sizeof(double));
-
-  dd1 = e[0] * lz;
-  dd2 = e[2] * lz;
-  dd3 = e[4] * lz;
-
-  for(i = 0; i < numberOfCategories; i++)
-    {
-      d[i * 4] = EXP(dd1 * rptr[i]);
-      d[i * 4 + 1] = EXP(dd2 * rptr[i]);
-      d[i * 4 + 2] = EXP(dd3 * rptr[i]);
-    }
-
-  for (i = 0; i < upper; i++)
-    {
-      double
-	r = rptr[cptr[i]],
-	wr1 = r * wgt[i],
-	wr2 = r * r * wgt[i];
-
-      d = &d_start[4 * cptr[i]];
-
-      inv_Li = sum[4 * i];
-      inv_Li += (tmp_0 = d[0] * sum[4 * i + 1]);
-      inv_Li += (tmp_1 = d[1] * sum[4 * i + 2]);
-      inv_Li += (tmp_2 = d[2] * sum[4 * i + 3]);
-
-      inv_Li = 1.0/FABS(inv_Li);
-
-      dlnLidlz   = tmp_0 * e[0];
-      d2lnLidlz2 = tmp_0 * e[1];
-
-      dlnLidlz   += tmp_1 * e[2];
-      d2lnLidlz2 += tmp_1 * e[3];
-
-      dlnLidlz   += tmp_2 * e[4];
-      d2lnLidlz2 += tmp_2 * e[5];
-
-      dlnLidlz   *= inv_Li;
-      d2lnLidlz2 *= inv_Li;
-
-
-      dlnLdlz   += wr1 * dlnLidlz;
-      d2lnLdlz2 += wr2 * (d2lnLidlz2 - dlnLidlz * dlnLidlz);
-    }
-
-  *d1 = dlnLdlz;
-  *d2 = d2lnLdlz2;
-
-  rax_free(d_start);
-}
-
-#endif
 
 
 
 
 
-#ifdef __SIM_SSE3
 static void sumGTRCATPROT_SAVE(int tipCase, double *sumtable, double *x1, double *x2, double *tipVector,
     unsigned char *tipX1, unsigned char *tipX2, int n, 
     double *x1_gapColumn, double *x2_gapColumn, unsigned int *x1_gap, unsigned int *x2_gap)
@@ -605,7 +454,6 @@ static void sumGTRCATPROT_SAVE(int tipCase, double *sumtable, double *x1, double
 }
 
 
-#endif
 
 
 static void sumGTRCATPROT(int tipCase, double *sumtable, double *x1, double *x2, double *tipVector,
@@ -622,17 +470,12 @@ static void sumGTRCATPROT(int tipCase, double *sumtable, double *x1, double *x2,
 	  left  = &(tipVector[20 * tipX1[i]]);
 	  right = &(tipVector[20 * tipX2[i]]);
 	  sum = &sumtable[20 * i];
-#ifdef __SIM_SSE3
 	  for(l = 0; l < 20; l+=2)
 	    {
 	      __m128d sumv = _mm_mul_pd(_mm_load_pd(&left[l]), _mm_load_pd(&right[l]));
 	      
 	      _mm_store_pd(&sum[l], sumv);		 
 	    }
-#else
-	  for(l = 0; l < 20; l++)
-	    sum[l] = left[l] * right[l];
-#endif
 	}
       break;
     case TIP_INNER:
@@ -641,17 +484,12 @@ static void sumGTRCATPROT(int tipCase, double *sumtable, double *x1, double *x2,
 	  left = &(tipVector[20 * tipX1[i]]);
 	  right = &x2[20 * i];
 	  sum = &sumtable[20 * i];
-#ifdef __SIM_SSE3
 	  for(l = 0; l < 20; l+=2)
 	    {
 	      __m128d sumv = _mm_mul_pd(_mm_load_pd(&left[l]), _mm_load_pd(&right[l]));
 	      
 	      _mm_store_pd(&sum[l], sumv);		 
 	    }
-#else
-	  for(l = 0; l < 20; l++)
-	    sum[l] = left[l] * right[l];
-#endif
 	}
       break;
     case INNER_INNER:
@@ -660,17 +498,12 @@ static void sumGTRCATPROT(int tipCase, double *sumtable, double *x1, double *x2,
 	  left  = &x1[20 * i];
 	  right = &x2[20 * i];
 	  sum = &sumtable[20 * i];
-#ifdef __SIM_SSE3
 	  for(l = 0; l < 20; l+=2)
 	    {
 	      __m128d sumv = _mm_mul_pd(_mm_load_pd(&left[l]), _mm_load_pd(&right[l]));
 	      
 	      _mm_store_pd(&sum[l], sumv);		 
 	    }
-#else
-	  for(l = 0; l < 20; l++)
-	    sum[l] = left[l] * right[l];
-#endif
 	}
       break;
     default:
@@ -867,7 +700,6 @@ static void sumGTRCATSECONDARY_7(int tipCase, double *sumtable, double *x1, doub
 }
 
 
-#ifdef __SIM_SSE3
 
 static void coreGTRCATPROT(double *EIGN, double lz, int numberOfCategories, double *rptr, int *cptr, int upper,
 			   volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double *sumtable, int *wgt)
@@ -951,71 +783,6 @@ static void coreGTRCATPROT(double *EIGN, double lz, int numberOfCategories, doub
   rax_free(d_start);
 }
 
-#else
-
-static void coreGTRCATPROT(double *EIGN, double lz, int numberOfCategories, double *rptr, int *cptr, int upper,
-			   volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double *sumtable, int *wgt)
-{
-  int i, l;
-  double *d1, *d_start, *sum;
-  double e[20], s[20], dd[20];
-  double tmp;
-  double inv_Li, dlnLidlz, d2lnLidlz2;
-  double  dlnLdlz = 0.0;
-  double  d2lnLdlz2 = 0.0;
-
-  d1 = d_start = (double *)rax_malloc(numberOfCategories * 20 * sizeof(double));
-
-  for(l = 1; l < 20; l++)
-    {
-      e[l]  = EIGN[l-1] * EIGN[l-1];
-      s[l]  = EIGN[l-1];
-      dd[l] = s[l] * lz;
-    }
-
-  for(i = 0; i < numberOfCategories; i++)
-    {
-      for(l = 1; l < 20; l++)
-	d1[20 * i + l] = EXP(dd[l] * rptr[i]);
-    }
-
-  for (i = 0; i < upper; i++)
-    {
-      double
-	r = rptr[cptr[i]],
-	wr1 = r * wgt[i],
-	wr2 = r * r * wgt[i];
-      
-      d1 = &d_start[20 * cptr[i]];
-      sum = &sumtable[20 * i];
-
-      inv_Li     = sum[0];
-      dlnLidlz   = 0.0;
-      d2lnLidlz2 = 0.0;
-
-      for(l = 1; l < 20; l++)
-	{
-	  inv_Li     += (tmp = d1[l] * sum[l]);
-	  dlnLidlz   += tmp *  s[l];
-	  d2lnLidlz2 += tmp *  e[l];
-	}
-
-      inv_Li = 1.0/FABS(inv_Li);
-
-      dlnLidlz   *= inv_Li;
-      d2lnLidlz2 *= inv_Li;
-
-      dlnLdlz  += wr1 * dlnLidlz;
-      d2lnLdlz2 += wr2 * (d2lnLidlz2 - dlnLidlz * dlnLidlz);
-    }
-
-  *ext_dlnLdlz   = dlnLdlz;
-  *ext_d2lnLdlz2 = d2lnLdlz2;
-
-  rax_free(d_start);
-}
-
-#endif
 
 
 
@@ -1916,9 +1683,6 @@ static void sumGAMMA_BINARY(int tipCase, double *sumtable, double *x1_start, dou
 {
   double *x1, *x2, *sum;
   int i, j;
-#ifndef __SIM_SSE3
-  int k;
-#endif
 
   /* C-OPT once again switch over possible configurations at inner node */
 
@@ -1931,14 +1695,8 @@ static void sumGAMMA_BINARY(int tipCase, double *sumtable, double *x1_start, dou
 	  x1 = &(tipVector[2 * tipX1[i]]);
 	  x2 = &(tipVector[2 * tipX2[i]]);
 	  sum = &sumtable[i * 8];
-#ifndef __SIM_SSE3	  
-	  for(j = 0; j < 4; j++)
-	    for(k = 0; k < 2; k++)
-	      sum[j * 2 + k] = x1[k] * x2[k];
-#else
 	  for(j = 0; j < 4; j++)
 	    _mm_store_pd( &sum[j*2], _mm_mul_pd( _mm_load_pd( &x1[0] ), _mm_load_pd( &x2[0] )));	 
-#endif
 	}
       break;
     case TIP_INNER:
@@ -1948,14 +1706,8 @@ static void sumGAMMA_BINARY(int tipCase, double *sumtable, double *x1_start, dou
 	  x2  = &x2_start[8 * i];
 	  sum = &sumtable[8 * i];
 
-#ifndef __SIM_SSE3
-	  for(j = 0; j < 4; j++)
-	    for(k = 0; k < 2; k++)
-	      sum[j * 2 + k] = x1[k] * x2[j * 2 + k];
-#else
 	  for(j = 0; j < 4; j++)
 	    _mm_store_pd( &sum[j*2], _mm_mul_pd( _mm_load_pd( &x1[0] ), _mm_load_pd( &x2[j * 2] )));
-#endif
 	}
       break;
     case INNER_INNER:
@@ -1964,14 +1716,8 @@ static void sumGAMMA_BINARY(int tipCase, double *sumtable, double *x1_start, dou
 	  x1  = &x1_start[8 * i];
 	  x2  = &x2_start[8 * i];
 	  sum = &sumtable[8 * i];
-#ifndef __SIM_SSE3
-	  for(j = 0; j < 4; j++)
-	    for(k = 0; k < 2; k++)
-	      sum[j * 2 + k] = x1[j * 2 + k] * x2[j * 2 + k];
-#else
 	  for(j = 0; j < 4; j++)
 	    _mm_store_pd( &sum[j*2], _mm_mul_pd( _mm_load_pd( &x1[j * 2] ), _mm_load_pd( &x2[j * 2] )));
-#endif
 	}
       break;
     default:
@@ -2002,15 +1748,9 @@ static void sumGAMMA_GAPPED_SAVE(int tipCase, double *sumtable, double *x1_start
 	  x1 = &(tipVector[4 * tipX1[i]]);
 	  x2 = &(tipVector[4 * tipX2[i]]);
 	  sum = &sumtable[i * 16];
-#ifndef __SIM_SSE3
-	  for(j = 0; j < 4; j++)	    
-	    for(k = 0; k < 4; k++)
-	      sum[j * 4 + k] = x1[k] * x2[k];
-#else
 	  for(j = 0; j < 4; j++)	    
 	    for(k = 0; k < 4; k+=2)
 	      _mm_store_pd( &sum[j*4 + k], _mm_mul_pd( _mm_load_pd( &x1[k] ), _mm_load_pd( &x2[k] )));
-#endif
 	}
       break;
     case TIP_INNER:
@@ -2027,15 +1767,9 @@ static void sumGAMMA_GAPPED_SAVE(int tipCase, double *sumtable, double *x1_start
 	    }
 	  
 	  sum = &sumtable[16 * i];
-#ifndef __SIM_SSE3
-	  for(j = 0; j < 4; j++)
-	    for(k = 0; k < 4; k++)
-	      sum[j * 4 + k] = x1[k] * x2[j * 4 + k];
-#else
 	  for(j = 0; j < 4; j++)	    
 	    for(k = 0; k < 4; k+=2)
 	      _mm_store_pd( &sum[j*4 + k], _mm_mul_pd( _mm_load_pd( &x1[k] ), _mm_load_pd( &x2[j * 4 + k] )));
-#endif
 	}
       break;
     case INNER_INNER:
@@ -2059,15 +1793,9 @@ static void sumGAMMA_GAPPED_SAVE(int tipCase, double *sumtable, double *x1_start
 
 	  sum = &sumtable[16 * i];
 	  
-#ifndef __SIM_SSE3
-	  for(j = 0; j < 4; j++)
-	    for(k = 0; k < 4; k++)
-	      sum[j * 4 + k] = x1[j * 4 + k] * x2[j * 4 + k];
-#else
 	   for(j = 0; j < 4; j++)	    
 	    for(k = 0; k < 4; k+=2)
 	      _mm_store_pd( &sum[j*4 + k], _mm_mul_pd( _mm_load_pd( &x1[j * 4 + k] ), _mm_load_pd( &x2[j * 4 + k] )));
-#endif
 	}
       break;
     default:
@@ -2096,15 +1824,9 @@ static void sumGAMMA(int tipCase, double *sumtable, double *x1_start, double *x2
 	  x1 = &(tipVector[4 * tipX1[i]]);
 	  x2 = &(tipVector[4 * tipX2[i]]);
 	  sum = &sumtable[i * 16];
-#ifndef __SIM_SSE3
-	  for(j = 0; j < 4; j++)	    
-	    for(k = 0; k < 4; k++)
-	      sum[j * 4 + k] = x1[k] * x2[k];
-#else
 	  for(j = 0; j < 4; j++)	    
 	    for(k = 0; k < 4; k+=2)
 	      _mm_store_pd( &sum[j*4 + k], _mm_mul_pd( _mm_load_pd( &x1[k] ), _mm_load_pd( &x2[k] )));
-#endif
 	}
       break;
     case TIP_INNER:
@@ -2113,15 +1835,9 @@ static void sumGAMMA(int tipCase, double *sumtable, double *x1_start, double *x2
 	  x1  = &(tipVector[4 * tipX1[i]]);
 	  x2  = &x2_start[16 * i];
 	  sum = &sumtable[16 * i];
-#ifndef __SIM_SSE3
-	  for(j = 0; j < 4; j++)
-	    for(k = 0; k < 4; k++)
-	      sum[j * 4 + k] = x1[k] * x2[j * 4 + k];
-#else
 	  for(j = 0; j < 4; j++)	    
 	    for(k = 0; k < 4; k+=2)
 	      _mm_store_pd( &sum[j*4 + k], _mm_mul_pd( _mm_load_pd( &x1[k] ), _mm_load_pd( &x2[j * 4 + k] )));
-#endif
 	}
       break;
     case INNER_INNER:
@@ -2130,15 +1846,9 @@ static void sumGAMMA(int tipCase, double *sumtable, double *x1_start, double *x2
 	  x1  = &x1_start[16 * i];
 	  x2  = &x2_start[16 * i];
 	  sum = &sumtable[16 * i];
-#ifndef __SIM_SSE3
-	  for(j = 0; j < 4; j++)
-	    for(k = 0; k < 4; k++)
-	      sum[j * 4 + k] = x1[j * 4 + k] * x2[j * 4 + k];
-#else
 	   for(j = 0; j < 4; j++)	    
 	    for(k = 0; k < 4; k+=2)
 	      _mm_store_pd( &sum[j*4 + k], _mm_mul_pd( _mm_load_pd( &x1[j * 4 + k] ), _mm_load_pd( &x2[j * 4 + k] )));
-#endif
 	}
       break;
     default:
@@ -2149,64 +1859,6 @@ static void sumGAMMA(int tipCase, double *sumtable, double *x1_start, double *x2
 
 
 
-#ifndef __SIM_SSE3
-static void coreGTRGAMMA_BINARY(const int upper, double *sumtable,
-				volatile double *d1,   volatile double *d2, double *EIGN, double *gammaRates, double lz, int *wrptr)
-{
-  int i, j;
-  double
-    *diagptable, *diagptable_start, *sum,
-    tmp_1, inv_Li, dlnLidlz, d2lnLidlz2, ki, kisqr,
-    dlnLdlz = 0.0,
-    d2lnLdlz2 = 0.0;
-
-  diagptable = diagptable_start = (double *)rax_malloc(sizeof(double) * 12);
-
-  for(i = 0; i < 4; i++)
-    {
-      ki = gammaRates[i];
-      kisqr = ki * ki;
-
-      diagptable[i * 3]     = EXP (EIGN[0] * ki * lz);
-      diagptable[i * 3 + 1] = EIGN[0] * ki;
-      diagptable[i * 3 + 2] = EIGN[0] * EIGN[0] * kisqr;
-    }
-
-  for (i = 0; i < upper; i++)
-    {
-      diagptable = diagptable_start;
-      sum = &(sumtable[i * 8]);
-
-      inv_Li      = 0.0;
-      dlnLidlz    = 0.0;
-      d2lnLidlz2  = 0.0;
-
-      for(j = 0; j < 4; j++)
-	{
-	  inv_Li += sum[2 * j];
-
-	  tmp_1      =  diagptable[3 * j] * sum[2 * j + 1];
-	  inv_Li     += tmp_1;
-	  dlnLidlz   += tmp_1 * diagptable[3 * j + 1];
-	  d2lnLidlz2 += tmp_1 * diagptable[3 * j + 2];
-	}
-
-      inv_Li = 1.0 / FABS(inv_Li);
-
-      dlnLidlz   *= inv_Li;
-      d2lnLidlz2 *= inv_Li;
-
-
-      dlnLdlz  += wrptr[i] * dlnLidlz;
-      d2lnLdlz2 += wrptr[i] * (d2lnLidlz2 - dlnLidlz * dlnLidlz);
-    }
-
-  *d1 = dlnLdlz;
-  *d2 = d2lnLdlz2;
-
-  rax_free(diagptable_start);
-}
-#else
 static void coreGTRGAMMA_BINARY(const int upper, double *sumtable,
 				volatile double *d1,   volatile double *d2, double *EIGN, double *gammaRates, double lz, int *wrptr)
 {
@@ -2286,80 +1938,7 @@ static void coreGTRGAMMA_BINARY(const int upper, double *sumtable,
 }
 
 
-#endif
 
-#ifndef __SIM_SSE3
-static void coreGTRGAMMA(const int upper, double *sumtable,
-			 volatile double *d1,   volatile double *d2, double *EIGN, double *gammaRates, double lz, int *wrptr)
-{
-  int i, j, k;
-  double
-    *diagptable, *diagptable_start, *sum,
-    tmp_1, inv_Li, dlnLidlz, d2lnLidlz2, ki, kisqr,
-    dlnLdlz = 0.0,
-    d2lnLdlz2 = 0.0;
-
-  diagptable = diagptable_start = (double *)rax_malloc(sizeof(double) * 64);
-
-
-
-  for(i = 0; i < 4; i++)
-    {
-      ki = gammaRates[i];
-      kisqr = ki * ki;
-
-      diagptable[i * 16]     = EXP (EIGN[0] * ki * lz);
-      diagptable[i * 16 + 1] = EXP (EIGN[1] * ki * lz);
-      diagptable[i * 16 + 2] = EXP (EIGN[2] * ki * lz);
-
-      diagptable[i * 16 + 3] = EIGN[0] * ki;
-      diagptable[i * 16 + 4] = EIGN[0] * EIGN[0] * kisqr;
-
-      diagptable[i * 16 + 5] = EIGN[1] * ki;
-      diagptable[i * 16 + 6] = EIGN[1] * EIGN[1] * kisqr;
-
-      diagptable[i * 16 + 7] = EIGN[2] * ki;
-      diagptable[i * 16 + 8] = EIGN[2] * EIGN[2] * kisqr;
-    }
-
-  for (i = 0; i < upper; i++)
-    {
-      sum = &(sumtable[i * 16]);
-
-      inv_Li      = 0.0;
-      dlnLidlz    = 0.0;
-      d2lnLidlz2  = 0.0;
-
-      for(j = 0; j < 4; j++)
-	{
-	  inv_Li += sum[4 * j];
-
-	  for(k = 0; k < 3; k++)
-	    {
-	      tmp_1      =  diagptable[16 * j + k] * sum[4 * j + k + 1];
-	      inv_Li     += tmp_1;
-	      dlnLidlz   += tmp_1 * diagptable[16 * j + k * 2 + 3];
-	      d2lnLidlz2 += tmp_1 * diagptable[16 * j + k * 2 + 4];
-	    }
-	}
-
-      inv_Li = 1.0 / FABS(inv_Li);
-
-      dlnLidlz   *= inv_Li;
-      d2lnLidlz2 *= inv_Li;
-
-
-
-      dlnLdlz  += wrptr[i] * dlnLidlz;
-      d2lnLdlz2 += wrptr[i] * (d2lnLidlz2 - dlnLidlz * dlnLidlz);
-    }
-
-  *d1 = dlnLdlz;
-  *d2 = d2lnLdlz2;
-
-  rax_free(diagptable_start);
-}
-#else
 
 static void coreGTRGAMMA(const int upper, double *sumtable,
 			 volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double *EIGN, double *gammaRates, double lz, int *wrptr)
@@ -2445,7 +2024,6 @@ static void coreGTRGAMMA(const int upper, double *sumtable,
 }
 
 
-#endif
 
 
 
@@ -2472,17 +2050,12 @@ static void sumGAMMAPROT(int tipCase, double *sumtable, double *x1, double *x2, 
 	  for(l = 0; l < 4; l++)
 	    {
 	      sum = &sumtable[i * 80 + l * 20];
-#ifdef __SIM_SSE3
 	      for(k = 0; k < 20; k+=2)
 		{
 		  __m128d sumv = _mm_mul_pd(_mm_load_pd(&left[k]), _mm_load_pd(&right[k]));
 		  
 		  _mm_store_pd(&sum[k], sumv);		 
 		}
-#else
-	      for(k = 0; k < 20; k++)
-		sum[k] = left[k] * right[k];
-#endif
 	    }
 	}
       break;
@@ -2495,17 +2068,12 @@ static void sumGAMMAPROT(int tipCase, double *sumtable, double *x1, double *x2, 
 	    {
 	      right = &(x2[80 * i + l * 20]);
 	      sum = &sumtable[i * 80 + l * 20];
-#ifdef __SIM_SSE3
 	      for(k = 0; k < 20; k+=2)
 		{
 		  __m128d sumv = _mm_mul_pd(_mm_load_pd(&left[k]), _mm_load_pd(&right[k]));
 		  
 		  _mm_store_pd(&sum[k], sumv);		 
 		}
-#else
-	      for(k = 0; k < 20; k++)
-		sum[k] = left[k] * right[k];
-#endif
 	    }
 	}
       break;
@@ -2518,17 +2086,12 @@ static void sumGAMMAPROT(int tipCase, double *sumtable, double *x1, double *x2, 
 	      right = &(x2[80 * i + l * 20]);
 	      sum   = &(sumtable[i * 80 + l * 20]);
 
-#ifdef __SIM_SSE3
 	      for(k = 0; k < 20; k+=2)
 		{
 		  __m128d sumv = _mm_mul_pd(_mm_load_pd(&left[k]), _mm_load_pd(&right[k]));
 		  
 		  _mm_store_pd(&sum[k], sumv);		 
 		}
-#else
-	      for(k = 0; k < 20; k++)
-		sum[k] = left[k] * right[k];
-#endif
 	    }
 	}
       break;
@@ -2554,17 +2117,12 @@ static void sumGAMMAPROT_LG4(int tipCase, double *sumtable, double *x1, double *
 	      right = &(tipVector[l][20 * tipX2[i]]);
 
 	      sum = &sumtable[i * 80 + l * 20];
-#ifdef __SIM_SSE3
 	      for(k = 0; k < 20; k+=2)
 		{
 		  __m128d sumv = _mm_mul_pd(_mm_load_pd(&left[k]), _mm_load_pd(&right[k]));
 		  
 		  _mm_store_pd(&sum[k], sumv);		 
 		}
-#else
-	      for(k = 0; k < 20; k++)
-		sum[k] = left[k] * right[k];
-#endif
 	    }
 	}
       break;
@@ -2578,17 +2136,12 @@ static void sumGAMMAPROT_LG4(int tipCase, double *sumtable, double *x1, double *
 	      left = &(tipVector[l][20 * tipX1[i]]);
 	      right = &(x2[80 * i + l * 20]);
 	      sum = &sumtable[i * 80 + l * 20];
-#ifdef __SIM_SSE3
 	      for(k = 0; k < 20; k+=2)
 		{
 		  __m128d sumv = _mm_mul_pd(_mm_load_pd(&left[k]), _mm_load_pd(&right[k]));
 		  
 		  _mm_store_pd(&sum[k], sumv);		 
 		}
-#else
-	      for(k = 0; k < 20; k++)
-		sum[k] = left[k] * right[k];
-#endif
 	    }
 	}
       break;
@@ -2601,17 +2154,12 @@ static void sumGAMMAPROT_LG4(int tipCase, double *sumtable, double *x1, double *
 	      right = &(x2[80 * i + l * 20]);
 	      sum   = &(sumtable[i * 80 + l * 20]);
 
-#ifdef __SIM_SSE3
 	      for(k = 0; k < 20; k+=2)
 		{
 		  __m128d sumv = _mm_mul_pd(_mm_load_pd(&left[k]), _mm_load_pd(&right[k]));
 		  
 		  _mm_store_pd(&sum[k], sumv);		 
 		}
-#else
-	      for(k = 0; k < 20; k++)
-		sum[k] = left[k] * right[k];
-#endif
 	    }
 	}
       break;
@@ -2621,7 +2169,6 @@ static void sumGAMMAPROT_LG4(int tipCase, double *sumtable, double *x1, double *
 }
 
 
-#ifdef __SIM_SSE3
 static void sumGAMMAPROT_GAPPED_SAVE(int tipCase, double *sumtable, double *x1, double *x2, double *tipVector,
     unsigned char *tipX1, unsigned char *tipX2, int n, 
     double *x1_gapColumn, double *x2_gapColumn, unsigned int *x1_gap, unsigned int *x2_gap)
@@ -2724,7 +2271,6 @@ static void sumGAMMAPROT_GAPPED_SAVE(int tipCase, double *sumtable, double *x1, 
   }
 }
 
-#endif
 
 static void sumCatAsc(int tipCase, double *sumtable, double *x1, double *x2, double *tipVector,
 		      int n, const int numStates, int dataType, int qNumber, int rNumber, int maxtips)
@@ -3099,7 +2645,6 @@ static void sumGAMMASECONDARY_7(int tipCase, double *sumtable, double *x1, doubl
     }
 }
 
-#ifdef __SIM_SSE3
 
 static void coreGTRGAMMAPROT(double *gammaRates, double *EIGN, double *sumtable, int upper, int *wrptr,
 			      volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double lz)
@@ -3266,131 +2811,6 @@ static void coreGTRGAMMAPROT_LG4(double *gammaRates, double *EIGN[4], double *su
 }
 
 
-#else
-
-static void coreGTRGAMMAPROT(double *gammaRates, double *EIGN, double *sumtable, int upper, int *wrptr,
-			      volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double lz)
-{
-  double  *sum, diagptable[512];
-  int     i, j, l;
-  double  dlnLdlz = 0;
-  double d2lnLdlz2 = 0;
-  double ki, kisqr;
-  double tmp;
-  double inv_Li, dlnLidlz, d2lnLidlz2;
-
-  for(i = 0; i < 4; i++)
-    {
-      ki = gammaRates[i];
-      kisqr = ki * ki;
-
-      for(l = 1; l < 20; l++)
-	{
-	  diagptable[i * 128 + l * 4]     = EXP(EIGN[l-1] * ki * lz);
-	  diagptable[i * 128 + l * 4 + 1] = EIGN[l-1] * ki;
-	  diagptable[i * 128 + l * 4 + 2] = EIGN[l-1] * EIGN[l-1] * kisqr;
-	}
-    }
-
-  for (i = 0; i < upper; i++)
-    {
-      sum = &sumtable[i * 80];
-      inv_Li   = 0.0;
-      dlnLidlz = 0.0;
-      d2lnLidlz2 = 0.0;
-
-      for(j = 0; j < 4; j++)
-	{
-	  inv_Li += sum[j * 20];
-
-	  for(l = 1; l < 20; l++)
-	    {
-	      inv_Li     += (tmp = diagptable[j * 128 + l * 4] * sum[j * 20 + l]);
-	      dlnLidlz   +=  tmp * diagptable[j * 128 + l * 4 + 1];
-	      d2lnLidlz2 +=  tmp * diagptable[j * 128 + l * 4 + 2];
-	    }
-	}
-
-      inv_Li = 1.0 / FABS(inv_Li);
-
-      dlnLidlz   *= inv_Li;
-      d2lnLidlz2 *= inv_Li;
-
-      dlnLdlz   += wrptr[i] * dlnLidlz;
-      d2lnLdlz2 += wrptr[i] * (d2lnLidlz2 - dlnLidlz * dlnLidlz);
-    }
-
-  *ext_dlnLdlz   = dlnLdlz;
-  *ext_d2lnLdlz2 = d2lnLdlz2;
-}
-
-static void coreGTRGAMMAPROT_LG4(double *gammaRates, double *EIGN[4], double *sumtable, int upper, int *wrptr,
-				 volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double lz, double *weights)
-{
-  double  *sum, diagptable[512];
-  int     i, j, l;
-  double  dlnLdlz = 0;
-  double d2lnLdlz2 = 0;
-  double ki, kisqr;
-  double tmp;
-  double inv_Li, dlnLidlz, d2lnLidlz2;
-
-  for(i = 0; i < 4; i++)
-    {
-      ki = gammaRates[i];
-      kisqr = ki * ki;
-
-      for(l = 1; l < 20; l++)
-	{
-	  diagptable[i * 128 + l * 4]     = EXP(EIGN[i][l-1] * ki * lz);
-	  diagptable[i * 128 + l * 4 + 1] = EIGN[i][l-1] * ki;
-	  diagptable[i * 128 + l * 4 + 2] = EIGN[i][l-1] * EIGN[i][l-1] * kisqr;
-	}
-    }
-
-  for (i = 0; i < upper; i++)
-    {
-      sum = &sumtable[i * 80];
-      inv_Li   = 0.0;
-      dlnLidlz = 0.0;
-      d2lnLidlz2 = 0.0;
-
-      for(j = 0; j < 4; j++)
-	{
-	  double 
-	    a1 = 0.0,
-	    a2 = 0.0,
-	    a3 = 0.0;
-
-	  a1 += sum[j * 20];
-
-	  for(l = 1; l < 20; l++)
-	    {
-	      a1 += (tmp = diagptable[j * 128 + l * 4] * sum[j * 20 + l]);
-	      a2 +=  tmp * diagptable[j * 128 + l * 4 + 1];
-	      a3 +=  tmp * diagptable[j * 128 + l * 4 + 2];
-	    }
-
-	  inv_Li     += weights[j] * a1;
-	  dlnLidlz   += weights[j] * a2;
-	  d2lnLidlz2 += weights[j] * a3;
-	}
-
-      inv_Li = 1.0 / FABS(inv_Li);
-
-      dlnLidlz   *= inv_Li;
-      d2lnLidlz2 *= inv_Li;
-
-      dlnLdlz   += wrptr[i] * dlnLidlz;
-      d2lnLdlz2 += wrptr[i] * (d2lnLidlz2 - dlnLidlz * dlnLidlz);
-    }
-
-  *ext_dlnLdlz   = dlnLdlz;
-  *ext_d2lnLdlz2 = d2lnLdlz2;
-}
-
-
-#endif
 
 
 
@@ -4020,7 +3440,6 @@ void makenewzIterative(tree *tr)
 	      switch(tr->rateHetModel)
 		{
 		case CAT:		 
-#ifdef __SIM_SSE3
 		  if(tr->saveMemory)
 		    {
 		      
@@ -4028,7 +3447,6 @@ void makenewzIterative(tree *tr)
 				  width, x1_gapColumn, x2_gapColumn, x1_gap, x2_gap);
 		    }
 		  else
-#endif
 		    sumCAT(tipCase, tr->partitionData[model].sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector, tipX1, tipX2,
 			   width);
 		  break;
@@ -4055,23 +3473,19 @@ void makenewzIterative(tree *tr)
 	      switch(tr->rateHetModel)
 		{
 		case CAT:	
-#ifdef __SIM_SSE3
 		  if(tr->saveMemory)	  
 		    sumGTRCATPROT_SAVE(tipCase, tr->partitionData[model].sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector,
 				       tipX1, tipX2, width, x1_gapColumn, x2_gapColumn, x1_gap, x2_gap);
 		  else
-#endif
 		    sumGTRCATPROT(tipCase, tr->partitionData[model].sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector,
 				  tipX1, tipX2, width);
 		  break;
 		case GAMMA:
 		case GAMMA_I:		  
-#ifdef __SIM_SSE3
 		  if(tr->saveMemory)
 		    sumGAMMAPROT_GAPPED_SAVE(tipCase, tr->partitionData[model].sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector, tipX1, tipX2,
 					     width, x1_gapColumn, x2_gapColumn, x1_gap, x2_gap);
 		  else
-#endif		  
 		    if(tr->partitionData[model].protModels == LG4 || tr->partitionData[model].protModels == LG4X)		      
 		      {			
 			sumGAMMAPROT_LG4(tipCase,  tr->partitionData[model].sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector_LG4,
