@@ -1437,7 +1437,7 @@ int treeReadLen (FILE *fp, tree *tr, boolean readBranches, boolean readNodeLabel
   if(!tr->rooted && adef->mode == ANCESTRAL_STATES)
     {
       printf("Error: The ancestral state computation mode requires a rooted tree as input, exiting ....\n");
-      exit(0);
+      exit(-1);
     }
 
   if (! treeNeedCh(fp, ')', "in"))                
