@@ -22,37 +22,61 @@ Compiling should work out of the box with all reasonably recent vesrion of the G
 #### Sequential version:
 
 type:
+
 `make -f Makefile.gcc`
+
 `rm *.o`
+
 or
+
 `make -f Makefile.SSE3.gcc`
+
 `rm *.o`
+
 or
+
 `make -f Makefile.AVX.gcc`
+
 `rm *.o`
 
 #### Pthreads version:
 
 type: 
+
 `make -f Makefile.PTHREADS.gcc`
+
 `rm *.o`
+
 or
+
 `make -f Makefile.SSE3.PTHREADS.gcc`
+
 `rm *.o`
+
 or
+
 `make -f Makefile.AVX.PTHREADS.gcc`
+
 `rm *.o`
 
 Coarse-grain MPI version:
 
 type:
+
 `make -f Makefile.MPI.gcc`
+
 `rm *.o`
+
 or
+
 `make -f Makefile.SSE3.MPI.gcc`
+
 `rm *.o`
+
 or
+
 `make -f Makefile.AVX.MPI.gcc`
+
 `rm *.o`
 
 #### Hybrid MPI/Pthreads version:
@@ -66,11 +90,19 @@ and look at these slides:
 http://sco.h-its.org/exelixis/resource/doc/Phylo100225.pdf
 
 type:
+
 `make -f Makefile.HYBRID.gcc"`
+
 `rm *.o`
+
 or  
+
 `make -f Makefile.SSE3.HYBRID.gcc`
+
 `rm *.o`
+
 or
+
 `make -f Makefile.AVX.HYBRID.gcc`
+
 `rm *.o`
