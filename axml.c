@@ -5551,7 +5551,9 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
   double 
     likelihoodEpsilon,    
     wcThreshold,
-    fastEPAthreshold;
+    fastEPAthreshold,
+    ac,ag,at,cg,ct,gt;
+
   
   int
     fOptionCount = 0,
@@ -5645,7 +5647,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
   while(1)
     {      
       static struct 
-	option long_options[18] =
+	option long_options[23] =
 	{	 
 	  {"mesquite",                  no_argument,       &flag, 1},
 	  {"silent",                    no_argument,       &flag, 1},
@@ -5663,16 +5665,24 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	  {"set-thread-affinity",       no_argument,       &flag, 1},
 	  {"bootstop-perms",            required_argument, &flag, 1},
 	  {"quartets-without-replacement", no_argument,    &flag, 1},
-	  {"print-identical-sequences", no_argument,       &flag, 1},
-	  {0, 0, 0, 0}
-	};
-      
-      int 
+	  {"print-identical-sequences", required_argument,       &flag, 1},
+      {"ac",                        required_argument,       &flag, 1},
+      {"ag",                        required_argument,       &flag, 1},	  
+      {"at",                        required_argument,       &flag, 1},
+      {"cg",                        required_argument,       &flag, 1},      
+      {"ct",                        required_argument,       &flag, 1},      
+      {0, 0, 0, 0}
+    };
+ 
+  int 
 	option_index;
       
       flag = 0;
       
-      c = getopt_long(argc,argv, "R:T:E:N:B:L:P:S:Y:A:G:I:J:K:W:l:x:z:g:r:e:a:b:c:f:i:m:t:w:s:n:o:q:#:p:vudyjhHkMDFQUOVCX", long_options, &option_index/*&optind, &optarg*/);
+      c = getopt_long(argc,
+                      argv, 
+                      "R:T:E:N:B:L:P:S:Y:A:G:I:J:K:W:l:x:z:g:r:e:a:b:c:f:i:m:t:w:s:n:o:q:#:p:vudyjhHkMDFQUOVCX", 
+                      long_options, &option_index/*&optind, &optarg*/);
          
       if(c == -1)
 	break;          

@@ -4179,7 +4179,7 @@ static void genericInvariant(tree *tr, int lower, int upper, const unsigned int 
   *weightOfInvariableColumns += sum;
 }
 
-static void setRates(double *r, int rates, boolean JC69)
+static void setRates(double *r, int rates, boolean JC69, int to_set[])
 {
   int 
     i;
@@ -4190,7 +4190,7 @@ static void setRates(double *r, int rates, boolean JC69)
       r[i] = 1.0;
   else
     for(i = 0; i < rates - 1; i++)    
-      r[i] = 0.5;
+      r[i] = to_set[i];
 
   r[rates - 1] = 1.0;
 }
@@ -4208,7 +4208,9 @@ void initRateMatrix(tree *tr)
 	i,
 	states = tr->partitionData[model].states,
 	rates  = (states * states - states) / 2;
-      
+     
+     double to_set[] = tr->to_set;
+
       if(tr->partitionData[model].dataType == DNA_DATA && (tr->useJC69 || tr->useK80 || tr->useHKY85))
 	JC69 = TRUE;
       
@@ -4219,7 +4221,7 @@ void initRateMatrix(tree *tr)
 	case SECONDARY_DATA:
 	case SECONDARY_DATA_6:
 	case SECONDARY_DATA_7:
-	  setRates(tr->partitionData[model].substRates, rates, JC69);
+	  setRates(tr->partitionData[model].substRates, rates, JC69, rates_to_set);
 #ifdef _HET
 	  assert(tr->partitionData[model].dataType = DNA_DATA);
 	  setRates(tr->partitionData[model].substRates_TIP, rates, JC69);
@@ -4279,7 +4281,7 @@ void initRateMatrix(tree *tr)
 		}
 	    }
 	}
-    }  
+
 }
 
 static void setSymmetry(int *s, int *sDest, const int sCount, int *f, int *fDest, const int fCount)

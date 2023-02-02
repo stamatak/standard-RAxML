@@ -598,7 +598,14 @@ typedef struct {
   size_t             *expSpaceVector;
  
   unsigned char            **yVector;
- 
+
+  // hacky storing of gtr rate param arguments. 
+  double ac;
+  double ag;
+  double at;
+  double cg;
+  double ct;
+  double to_set[5];
 
   //asc bias
   boolean ascBias;  
