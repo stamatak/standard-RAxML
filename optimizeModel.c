@@ -3464,11 +3464,11 @@ void modOpt(tree *tr, analdef *adef, boolean resetModel, double likelihoodEpsilo
 	  if(optimizeRatesBFGS(tr) == FALSE)
 	    {
 	      adef->useBFGS = FALSE;
-	      optRatesGeneric(tr, modelEpsilon, rateList);
+	      //optRatesGeneric(tr, modelEpsilon, rateList);
 	    }
 	}
       else
-	optRatesGeneric(tr, modelEpsilon, rateList);         
+	//optRatesGeneric(tr, modelEpsilon, rateList);         
 
       evaluateGenericInitrav(tr, tr->start); 
       
