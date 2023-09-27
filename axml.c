@@ -66,7 +66,7 @@
 
 #endif
 
-#if ! (defined(__ppc) || defined(__powerpc__) || defined(PPC))
+#if ! (defined(__ppc) || defined(__powerpc__) || defined(PPC) || defined(__aarch64__))
 #include <xmmintrin.h>
 /*
   special bug fix, enforces denormalized numbers to be flushed to zero,
@@ -76,6 +76,8 @@
   #define MM_DAZ_ON    0x0040
   #define MM_DAZ_OFF    0x0000
 */
+#elif __aarch64__
+#include "sse2neon.h"
 #endif
 
 #include "axml.h"
