@@ -39,11 +39,14 @@
 #include <string.h>
 #include "axml.h"
 
-
 #ifdef __SIM_SSE3
+#ifdef __x86_64__
 #include <xmmintrin.h>
 #include <pmmintrin.h>
 /*#include <tmmintrin.h>*/
+#elif __aarch64__
+#include "sse2neon.h"
+#endif
 #endif
 
 #ifdef _USE_PTHREADS

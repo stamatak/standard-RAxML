@@ -2,7 +2,14 @@
 
 CC = mpicc 
 
-CFLAGS = -D_WAYNE_MPI -D_USE_PTHREADS -D__SIM_SSE3 -O2 -D_GNU_SOURCE -msse3 -fomit-frame-pointer -funroll-loops  
+ARCH := $(shell uname -m)
+ifeq ($(ARCH), x86_64)
+ARCH_CFLAGS=-msse3
+else ifeq ($(ARCH), aarch64)
+ARCH_CFLAGS=
+endif
+
+CFLAGS = -D_WAYNE_MPI -D_USE_PTHREADS -D__SIM_SSE3 -O2 -D_GNU_SOURCE $(ARCH_CFLAGS) -fomit-frame-pointer -funroll-loops  
 
 LIBRARIES = -lm -pthread 
 
