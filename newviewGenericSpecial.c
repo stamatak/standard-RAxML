@@ -44,8 +44,13 @@
 #ifdef __SIM_SSE3
 
 #include <stdint.h>
+
+#ifdef __x86_64__
 #include <xmmintrin.h>
 #include <pmmintrin.h>
+#elif __aarch64__
+#include "sse2neon.h"
+#endif
 
 const union __attribute__ ((aligned (BYTE_ALIGNMENT)))
 {

@@ -41,10 +41,13 @@
 #include "axml.h"
 
 #ifdef __SIM_SSE3
+#ifdef __x86_64__
 #include <xmmintrin.h>
 #include <pmmintrin.h>
+#elif __aarch64__
+#include "sse2neon.h"
 #endif
-
+#endif
 
 /********************** GTRCAT ***************************************/
 
