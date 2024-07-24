@@ -66,7 +66,7 @@
 
 #endif
 
-#if ! (defined(__ppc) || defined(__powerpc__) || defined(PPC) || defined(__aarch64__))
+#if ! (defined(__ppc) || defined(__powerpc__) || defined(__POWERPC__) || defined(PPC) || defined(__aarch64__))
 #include <xmmintrin.h>
 /*
   special bug fix, enforces denormalized numbers to be flushed to zero,
@@ -13709,7 +13709,7 @@ int main (int argc, char *argv[])
     
     
     
-#if ! (defined(__ppc) || defined(__powerpc__) || defined(PPC))
+#if ! (defined(__ppc) || defined(__powerpc__) || defined(__POWERPC__) || defined(PPC))
     
     /* 
        David Defour's command  
