@@ -4909,7 +4909,7 @@ static void printMinusFUsage(void)
   printf("                      A branch with an optimal balance does not always exist!\n");
   printf("                      You need to specify the tree you want to root via \"-t\".\n"); 
 
-  printf("              \"-f j\": generate a bunch of bootstrapped alignment files from an original alignemnt file.\n");
+  printf("              \"-f j\": generate a bunch of bootstrapped alignment files from an original alignment file.\n");
   printf("                      You need to specify a seed with \"-b\" and the number of replicates with \"-#\" \n");   
 
   printf("              \"-f J\": Compute SH-like support values on a given tree passed via \"-t\".\n"); 
@@ -5128,7 +5128,7 @@ static void printREADME(void)
   printf("             \"-I autoMRE\" for the extended majority-rule consensus tree criterion\n");
   printf("             \"-I autoMRE_IGN\" for metrics similar to MRE, but include bipartitions under the threshold whether they are compatible\n");
   printf("                              or not. This emulates MRE but is faster to compute.\n");
-  printf("              You also need to pass a tree file containg several bootstrap replicates via \"-z\" \n"); 
+  printf("              You also need to pass a tree file containing several bootstrap replicates via \"-z\" \n");
   printf("\n");
   printf("      -j      Specifies that intermediate tree files shall be written to file during the standard ML and BS tree searches.\n");
   printf("\n");
@@ -5174,11 +5174,11 @@ static void printREADME(void)
   printf("                                       rate categories for greater computational efficiency. Final tree might be evaluated\n");
   printf("                                       automatically under BINGAMMA, depending on the tree search option.\n");
   printf("                                       With the optional \"X\" appendix you can specify a ML estimate of base frequencies.\n");  
-  printf("                                       The ASC prefix willl correct the likelihood for ascertainment bias.\n");  
+  printf("                                       The ASC prefix will correct the likelihood for ascertainment bias.\n");
   printf("                \"-m BINGAMMA[X]\"     : GAMMA model of rate heterogeneity (alpha parameter will be estimated).\n");
   printf("                                       With the optional \"X\" appendix you can specify a ML estimate of base frequencies.\n");  
   printf("                \"-m ASC_BINGAMMA[X]\" : GAMMA model of rate heterogeneity (alpha parameter will be estimated).\n");
-  printf("                                       The ASC prefix willl correct the likelihood for ascertainment bias.\n");
+  printf("                                       The ASC prefix will correct the likelihood for ascertainment bias.\n");
   printf("                                       With the optional \"X\" appendix you can specify a ML estimate of base frequencies.\n");  
   printf("                \"-m BINGAMMAI[X]\"    : Same as BINGAMMA, but with estimate of proportion of invariable sites.\n");
   printf("                                       With the optional \"X\" appendix you can specify a ML estimate of base frequencies.\n");  
@@ -5199,13 +5199,13 @@ static void printREADME(void)
   printf("                                       rate categories for greater computational efficiency.  Final tree might be evaluated\n");
   printf("                                       under GTRGAMMA, depending on the tree search option.\n"); 
   printf("                                       With the optional \"X\" appendix you can specify a ML estimate of base frequencies.\n");  
-  printf("                                       The ASC prefix willl correct the likelihood for ascertainment bias.\n");  
+  printf("                                       The ASC prefix will correct the likelihood for ascertainment bias.\n");
   printf("                \"-m GTRGAMMA[X]\"     : GTR + Optimization of substitution rates + GAMMA model of rate \n");
   printf("                                       heterogeneity (alpha parameter will be estimated).\n");  
   printf("                                       With the optional \"X\" appendix you can specify a ML estimate of base frequencies.\n");  
   printf("                \"-m ASC_GTRGAMMA[X]\" : GTR + Optimization of substitution rates + GAMMA model of rate \n");
   printf("                                       heterogeneity (alpha parameter will be estimated).\n");  
-  printf("                                       The ASC prefix willl correct the likelihood for ascertainment bias.\n");
+  printf("                                       The ASC prefix will correct the likelihood for ascertainment bias.\n");
   printf("                                       With the optional \"X\" appendix you can specify a ML estimate of base frequencies.\n");  
   printf("                \"-m GTRGAMMAI[X]\"    : Same as GTRGAMMA, but with estimate of proportion of invariable sites.\n");
   printf("                                       With the optional \"X\" appendix you can specify a ML estimate of base frequencies.\n");  
@@ -5226,11 +5226,11 @@ static void printREADME(void)
   printf("                                         rate categories for greater computational efficiency. Final tree might be evaluated\n");
   printf("                                         automatically under MULTIGAMMA, depending on the tree search option.\n"); 
   printf("                                         With the optional \"X\" appendix you can specify a ML estimate of base frequencies.\n");  
-  printf("                                         The ASC prefix willl correct the likelihood for ascertainment bias.\n");  
+  printf("                                         The ASC prefix will correct the likelihood for ascertainment bias.\n");
   printf("                \"-m MULTIGAMMA[X]\"     : GAMMA model of rate heterogeneity (alpha parameter will be estimated).\n");
   printf("                                         With the optional \"X\" appendix you can specify a ML estimate of base frequencies.\n"); 
   printf("                \"-m ASC_MULTIGAMMA[X]\" : GAMMA model of rate heterogeneity (alpha parameter will be estimated).\n");
-  printf("                                         The ASC prefix willl correct the likelihood for ascertainment bias.\n");
+  printf("                                         The ASC prefix will correct the likelihood for ascertainment bias.\n");
   printf("                                         With the optional \"X\" appendix you can specify a ML estimate of base frequencies.\n"); 
   printf("                \"-m MULTIGAMMAI[X]\"    : Same as MULTIGAMMA, but with estimate of proportion of invariable sites.\n");
   printf("                                         With the optional \"X\" appendix you can specify a ML estimate of base frequencies.\n");  
@@ -5256,13 +5256,13 @@ static void printREADME(void)
   printf("                                                    rate categories for greater computational efficiency.   Final tree might be evaluated\n");
   printf("                                                    automatically under PROTGAMMAmatrixName[F|X], depending on the tree search option.\n");  
   printf("                                                    With the optional \"X\" appendix you can specify a ML estimate of base frequencies.\n"); 
-  printf("                                                    The ASC prefix willl correct the likelihood for ascertainment bias.\n");
+  printf("                                                    The ASC prefix will correct the likelihood for ascertainment bias.\n");
   printf("                \"-m PROTGAMMAmatrixName[F|X]\"     : specified AA matrix + Optimization of substitution rates + GAMMA model of rate \n");
   printf("                                                    heterogeneity (alpha parameter will be estimated).\n"); 
   printf("                                                    With the optional \"X\" appendix you can specify a ML estimate of base frequencies.\n");  
   printf("                \"-m ASC_PROTGAMMAmatrixName[F|X]\" : specified AA matrix + Optimization of substitution rates + GAMMA model of rate \n");
   printf("                                                    heterogeneity (alpha parameter will be estimated).\n"); 
-  printf("                                                    The ASC prefix willl correct the likelihood for ascertainment bias.\n");
+  printf("                                                    The ASC prefix will correct the likelihood for ascertainment bias.\n");
   printf("                                                    With the optional \"X\" appendix you can specify a ML estimate of base frequencies.\n"); 
   printf("                \"-m PROTGAMMAImatrixName[F|X]\"    : Same as PROTGAMMAmatrixName[F|X], but with estimate of proportion of invariable sites.\n");
   printf("                                                    With the optional \"X\" appendix you can specify a ML estimate of base frequencies.\n");  
@@ -5423,15 +5423,15 @@ static void printREADME(void)
   printf("              DEFAULT: BFGS on\n");
   printf("\n");
 #ifdef _NICK
-  printf("      --asc-corr Allows to specify the type of ascertainment bias correction you wish to use. There are %d\n", NUM_ASC_CORRECTIONS);
+  printf("      --asc-corr Specify the type of ascertainment bias correction you wish to use. There are %d\n", NUM_ASC_CORRECTIONS);
 #else
-  printf("      --asc-corr Allows to specify the type of ascertainment bias correction you wish to use. There are %d\n", 3);
+  printf("      --asc-corr Specify the type of ascertainment bias correction you wish to use. There are %d\n", 3);
 #endif
   printf("                 types available:\n");
   printf("                 --asc-corr=lewis: the standard correction by Paul Lewis\n");
-  printf("                 --asc-corr=felsenstein: a correction introduced by Joe Felsenstein that allows to explicitely specify\n");
+  printf("                 --asc-corr=felsenstein: a correction introduced by Joe Felsenstein that allows one to explicitly specify\n");
   printf("                                         the number of invariable sites (if known) one wants to correct for.\n");
-  printf("                 --asc-corr=stamatakis: a correction introduced by myself that allows to explicitely specify\n");
+  printf("                 --asc-corr=stamatakis: a correction introduced by myself that allows one to explicitly specify\n");
   printf("                                        the number of invariable sites for each character (if known) one wants to correct for.\n");
 #ifdef _NICK
   printf("                 --asc-corr=goldman1: 1st correction proposed by Nick Goldman\n");
@@ -5440,7 +5440,7 @@ static void printREADME(void)
   printf("                 For further details about the Goldman corrections please refer to the manual!\n");
 #endif
   printf("\n");
-  printf("      --flag-check When using this option, RAxML will only check if all command line flags specifed are available and then exit\n");
+  printf("      --flag-check When using this option, RAxML will only check if all command line flags specified are available and then exit\n");
   printf("                   with a message listing all invalid command line flags or with a message stating that all flags are valid.\n");
   printf("\n");
   printf("      --auto-prot=ml|bic|aic|aicc When using automatic protein model selection you can chose the criterion for selecting these models.\n");
@@ -13938,7 +13938,7 @@ int main (int argc, char *argv[])
 	    FILE *info = myfopen(infoFileName, "ab");
 	    
 	    printBoth(info, "You are using the GTR model of AA substitution!\n");
-	    printBoth(info, "GTR parameters for AA substiution will automatically be estimated\n");
+	    printBoth(info, "GTR parameters for AA substitution will automatically be estimated\n");
 	    printBoth(info, "either jointly (GTR params will be linked) or independently (when using GTR_UNLINKED) across all partitions.\n");
 	    printBoth(info, "WARNING: you may be over-parametrizing the model!\n\n\n");
 	    

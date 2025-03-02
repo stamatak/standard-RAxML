@@ -1252,7 +1252,7 @@ void fastSearch(tree *tr, analdef *adef, rawdata *rdta, cruncheddata *cdta)
      use less then the default, e.g., -c 16 works quite well */
 
   for(model = 0; model < tr->NumberOfModels; model++)
-    printBothOpen("Partion %d number of Cats: %d\n", model, tr->partitionData[model].numberOfCategories);
+    printBothOpen("Partition %d number of Cats: %d\n", model, tr->partitionData[model].numberOfCategories);
 
   /* 
      means that we are going to do thorough insertions 
