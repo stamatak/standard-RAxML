@@ -10,7 +10,9 @@ typedef int DT;                 // use long for 64bit-version (but take care of 
 typedef unsigned int DTidx;     // for indexing in arrays
 typedef unsigned char DTsucc;
 typedef unsigned short DTsucc2;
+#if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 202311L
 typedef int bool;
+#endif
 DTidx query(DTidx, DTidx);
 void RMQ_succinct(DT* a, DTidx n);
 void RMQ_succinct_destroy(void);
